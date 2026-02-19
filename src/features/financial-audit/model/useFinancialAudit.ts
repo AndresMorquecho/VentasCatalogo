@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useFinancialMovements } from '@/features/financial-movement/api/hooks';
 import { getBalanceByBankAccount } from '@/entities/financial-movement/model';
-import { useBankAccountList } from '@/features/bank-account/api/hooks';
+import { useBankAccountList } from '@/features/bank-accounts/api/hooks';
 
 export interface BankAccountAudit {
     accountId: string;

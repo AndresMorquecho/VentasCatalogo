@@ -12,7 +12,7 @@ import { Button } from "@/shared/ui/button"
 import { Pencil, Trash2 } from "lucide-react"
 import { Switch } from "@/shared/ui/switch"
 import type { Brand } from "@/entities/brand/model/types"
-import { useToggleBrandStatus } from "@/features/brand/api/hooks"
+import { useToggleBrandStatus } from "@/features/brands/api/hooks"
 
 interface BrandTableProps {
     brands: Brand[]

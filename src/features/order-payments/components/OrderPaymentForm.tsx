@@ -1,6 +1,6 @@
 import { useFormik } from "formik"
 import * as Yup from "yup"
-import { useBankAccountList } from "@/features/bank-account/api/hooks"
+import { useBankAccountList } from "@/features/bank-accounts/api/hooks"
 import { getPendingAmount } from "@/entities/order/model/model"
 import { useAddOrderPayment, useEditOrderPayment } from "../model.ts"
 import { Button } from "@/shared/ui/button"

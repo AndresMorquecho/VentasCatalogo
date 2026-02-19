@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react"
-import { useBrandList, useDeleteBrand } from "@/features/brand/api/hooks"
+import { useBrandList, useDeleteBrand } from "@/features/brands/api/hooks"
 import { searchBrands } from "@/entities/brand/model/queries"
 import type { Brand } from "@/entities/brand/model/types"
 import { BrandTable } from "./BrandTable"

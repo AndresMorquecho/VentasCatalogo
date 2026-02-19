@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useFinancialMovements } from '@/features/financial-movement/api/hooks';
-import { useBankAccountList } from '@/features/bank-account/api/hooks';
+import { useBankAccountList } from '@/features/bank-accounts/api/hooks';
 import { createCashClosureSnapshot } from '@/entities/cash-closure/model/model';
 import { useCreateCashClosure, useCashClosures } from '@/features/cash-closure/api/hooks';
 import { CashClosureSummary } from './CashClosureSummary';

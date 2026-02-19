@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useBankAccountList } from "@/features/bank-account/api/hooks"
+import { useBankAccountList } from "@/features/bank-accounts/api/hooks"
 import { useRemoveOrderPayment } from "../model"
 import { getPaidAmount, getPendingAmount } from "@/entities/order/model/model"
 import { Button } from "@/shared/ui/button"
