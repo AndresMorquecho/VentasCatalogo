@@ -1,3 +1,4 @@
+// Imports
 import { useState, useRef, useEffect } from "react"
 import { useFormik } from "formik"
 import * as Yup from "yup"
@@ -13,12 +14,22 @@ import { Button } from "@/shared/ui/button"
 import { Label } from "@/shared/ui/label"
 import { Separator } from "@/shared/ui/separator"
 
-import { useBankAccountList } from "@/entities/bank-account/model/hooks"
+import { useBankAccountList } from "@/features/bank-account/api/hooks"
 import { useCreateOrder, useUpdateOrder } from "@/entities/order/model/hooks"
 import type { Order, SalesChannel, OrderType, PaymentMethod, OrderStatus } from "@/entities/order/model/types"
-import { useClientList } from "@/entities/client/model/hooks"
-import { useBrandList } from "@/entities/brand/model/hooks"
+import { useClientList } from "@/features/clients/api/hooks"
+import { useBrandList } from "@/features/brand/api/hooks"
 import { getActiveBrands } from "@/entities/brand/model/model"
+import { useToast } from "@/shared/ui/use-toast"
+import { pdf } from "@react-pdf/renderer"
+import { OrderReceiptDocument } from "@/features/order-receipt/ui/OrderReceiptDocument"
+import { useAddOrderPayment } from "@/features/order-payments/model"
+
+// Transaction Imports
+import { processPaymentRegistration } from "@/features/transactions/lib/processPayment"
+import { validateTransaction } from "@/features/transactions/lib/validateTransaction"
+import type { FinancialTransactionType } from "@/entities/financial-transaction/model/types"
+import { useClientCredits } from "@/features/transactions/model/hooks"
 
 interface OrderFormModalProps {
     order?: Order | null
@@ -39,13 +50,18 @@ const validationSchema = Yup.object({
     deposit: Yup.number().min(0, "No negativo").required("Requerido"),
     paymentMethod: Yup.string().required("La forma de pago es requerida"),
     bankAccountId: Yup.string().when("paymentMethod", {
-        is: (val: string) => val === 'TRANSFERENCIA',
+        is: (val: string) => ['TRANSFERENCIA', 'DEPOSITO', 'CHEQUE'].includes(val),
         then: (schema) => schema.required("Cuenta bancaria requerida"),
         otherwise: (schema) => schema.notRequired()
     }),
     transactionDate: Yup.string().when("paymentMethod", {
-        is: (val: string) => val === 'TRANSFERENCIA',
+        is: (val: string) => ['TRANSFERENCIA', 'DEPOSITO', 'CHEQUE'].includes(val),
         then: (schema) => schema.required("Fecha requerida"),
+        otherwise: (schema) => schema.notRequired()
+    }),
+    transactionReference: Yup.string().when("paymentMethod", {
+        is: (val: string) => ['TRANSFERENCIA', 'DEPOSITO', 'CHEQUE'].includes(val),
+        then: (schema) => schema.required("Referencia / N° cheque requerido"),
         otherwise: (schema) => schema.notRequired()
     }),
     possibleDeliveryDate: Yup.string().required("Fecha de entrega requerida"),
@@ -143,12 +159,15 @@ function SearchableSelect({
     )
 }
 
+
 export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProps) {
     const { data: clients = [] } = useClientList()
     const { data: bankAccounts = [] } = useBankAccountList()
     const { data: brands = [] } = useBrandList()
     const createOrder = useCreateOrder()
     const updateOrder = useUpdateOrder()
+    const addOrderPayment = useAddOrderPayment()
+    const { showToast } = useToast()
 
     const isEditing = !!order
 
@@ -161,33 +180,50 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
             brandId: order?.brandId || (order?.brandName ? brands.find(b => b.name === order.brandName)?.id : "") || "",
             brandName: order?.brandName || "",
             quantity: order?.items?.[0]?.quantity || 1,
-            total: order?.total || 0, // Using total directly as requested
+            total: order?.total || 0,
             deposit: order?.deposit || 0,
             paymentMethod: order?.paymentMethod || "EFECTIVO" as PaymentMethod,
             bankAccountId: order?.bankAccountId || "",
             transactionDate: order?.transactionDate || new Date().toISOString().split('T')[0],
+            transactionReference: "", // New field
             possibleDeliveryDate: order?.possibleDeliveryDate ? new Date(order.possibleDeliveryDate).toISOString().split('T')[0] : "",
             status: order?.status || "POR_RECIBIR" as OrderStatus,
         },
         validationSchema,
         enableReinitialize: true,
         onSubmit: async (values) => {
-            // const balance = Math.max(0, values.total - values.deposit)
-
             const client = clients.find(c => c.id === values.clientId)
-            const clientName = client ? client.name : "Desconocido"
-
-            // Infer unit price from total / quantity
+            const clientName = client ? client.firstName : "Desconocido"
             const unitPrice = values.quantity > 0 ? values.total / values.quantity : 0
+            const depositAmount = Number(values.deposit) || 0
+            const isFinancial = ['TRANSFERENCIA', 'DEPOSITO', 'CHEQUE'].includes(values.paymentMethod);
+
+            // Pre-validation for financial transactions
+            if (!isEditing && isFinancial && depositAmount > 0) {
+                try {
+                    await validateTransaction({
+                        type: values.paymentMethod as FinancialTransactionType,
+                        referenceNumber: values.transactionReference,
+                        amount: depositAmount,
+                        date: values.transactionDate,
+                        clientId: values.clientId,
+                        createdBy: 'Vendedor' // Mock
+                    });
+                } catch (e: any) {
+                    showToast(e.message, "error");
+                    return; // Stop submission
+                }
+            }
 
             const payload = {
                 ...values,
                 clientName,
-                // balance removed from payload as per FSD financial refactor
-                unitPrice: unitPrice, // Not used in top level order but maybe useful
+                unitPrice,
+                // The order is created with 0 paidAmount initially. 
+                // The deposit is processed as a separate transaction immediately after.
                 items: [{
                     id: order?.items?.[0]?.id || String(Date.now()),
-                    productName: values.brandName, // Using brand as product name since product desc is removed
+                    productName: values.brandName,
                     quantity: values.quantity,
                     unitPrice: unitPrice,
                     brandName: values.brandName
@@ -197,22 +233,96 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
             try {
                 if (isEditing && order) {
                     await updateOrder.mutateAsync({ id: order.id, data: payload })
+                    showToast(`Pedido de ${clientName} actualizado correctamente.`, "success")
                 } else {
-                    await createOrder.mutateAsync(payload)
+                    // 1. Create the base order
+                    let newOrder = await createOrder.mutateAsync(payload)
+
+                    // 2. Process Initial Deposit (if any)
+                    if (depositAmount > 0) {
+                        try {
+                            // Register Transaction first (Transaction Master)
+                            // If EFECTIVO, processPaymentRegistration handles it gracefully (returns null tx)
+                            const txResult = await processPaymentRegistration({
+                                amount: depositAmount,
+                                method: values.paymentMethod,
+                                reference: values.transactionReference,
+                                clientId: values.clientId,
+                                currentPendingBalance: values.total,
+                                date: values.transactionDate,
+                                user: 'Vendedor'
+                            });
+
+                            if (txResult.creditGenerated > 0) {
+                                showToast(`Se generó un saldo a favor de $${txResult.creditGenerated.toFixed(2)}`, "info");
+                            }
+
+                            // Find target bank account
+                            let targetAccount = bankAccounts.find(b => b.id === values.bankAccountId)
+                            if (!targetAccount && values.paymentMethod === 'EFECTIVO') {
+                                targetAccount = bankAccounts.find(b => b.type === 'CASH')
+                            }
+
+                            if (targetAccount) {
+                                // Add payment and get the UPDATED order back
+                                newOrder = await addOrderPayment.mutateAsync({
+                                    order: newOrder,
+                                    amount: depositAmount,
+                                    bankAccount: targetAccount
+                                })
+                            } else {
+                                console.warn("No bank account found for deposit.")
+                                showToast("Abono registrado financieramente, pero no vinculado a caja (Falta configuración).", "warning")
+                            }
+
+                        } catch (paymentError: any) {
+                            console.error("Error processing deposit", paymentError)
+                            showToast(`Error registro pago: ${paymentError.message}`, "error")
+                            // Note: Order was created. 
+                        }
+                    }
+
+                    showToast(`Pedido de ${clientName} creado correctamente.`, "success")
+
+                    // 3. Generate PDF with the FINAL order state (including payments)
+                    try {
+                        const blob = await pdf(
+                            <OrderReceiptDocument
+                                order={newOrder}
+                                client={client}
+                                user={{ id: '1', name: 'Vendedor', role: 'OPERATOR', email: 'vendedor@temu.com', status: 'ACTIVE', createdAt: new Date().toISOString() }}
+                            />
+                        ).toBlob()
+
+                        const url = URL.createObjectURL(blob)
+                        const link = document.createElement('a')
+                        link.href = url
+                        link.download = `Recibo_${newOrder.receiptNumber}.pdf`
+                        document.body.appendChild(link)
+                        link.click()
+                        document.body.removeChild(link)
+                        URL.revokeObjectURL(url)
+                    } catch (pdfError) {
+                        console.error("Error generating PDF", pdfError)
+                        showToast(`Error al generar PDF.`, "error")
+                    }
                 }
                 onOpenChange(false)
                 formik.resetForm()
             } catch (error) {
                 console.error("Error saving order", error)
+                showToast("Error al guardar el pedido.", "error")
             }
         }
     })
 
+    const { data: credits = [] } = useClientCredits(formik.values.clientId)
+    const totalCredit = credits.reduce((sum, c) => sum + c.amount, 0)
+
     const balance = Math.max(0, formik.values.total - formik.values.deposit)
     const inputClass = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
 
-    // Prepared options for selectors
-    const clientOptions = clients.map(c => ({ id: c.id, label: c.name, subLabel: c.idCard }))
+    const clientOptions = clients.map(c => ({ id: c.id, label: c.firstName, subLabel: c.identificationNumber }))
     const bankOptions = bankAccounts.map(b => ({ id: b.id, label: b.holderName || b.name, subLabel: `${b.bankName || ""} - ${b.accountNumber || ""}` }))
     const brandOptions = getActiveBrands(brands).map(b => ({ id: b.id, label: b.name, subLabel: "" }))
 
@@ -234,6 +344,12 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                                 onChange={(val) => formik.setFieldValue('clientId', val)}
                                 placeholder="Buscar cliente..."
                             />
+                            {totalCredit > 0 && (
+                                <div className="text-xs font-semibold text-green-600 mt-1 flex items-center gap-1">
+                                    <span>💰 Saldo a favor disponible:</span>
+                                    <span className="text-sm">${totalCredit.toFixed(2)}</span>
+                                </div>
+                            )}
                             {formik.touched.clientId && formik.errors.clientId && (
                                 <p className="text-red-500 text-xs">{formik.errors.clientId}</p>
                             )}
@@ -342,18 +458,20 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                                 <select id="paymentMethod" {...formik.getFieldProps('paymentMethod')} className={inputClass}>
                                     <option value="EFECTIVO">Efectivo</option>
                                     <option value="TRANSFERENCIA">Transferencia</option>
+                                    <option value="DEPOSITO">Depósito</option>
+                                    <option value="CHEQUE">Cheque</option>
                                 </select>
                             </div>
 
-                            {formik.values.paymentMethod === 'TRANSFERENCIA' && (
+                            {formik.values.paymentMethod !== 'EFECTIVO' && (
                                 <>
                                     <div className="space-y-2">
-                                        <Label htmlFor="bankAccountId">Cuenta (Titular)</Label>
+                                        <Label htmlFor="bankAccountId">Cuenta de Destino</Label>
                                         <SearchableSelect
                                             options={bankOptions}
                                             value={formik.values.bankAccountId || ""}
                                             onChange={(val) => formik.setFieldValue('bankAccountId', val)}
-                                            placeholder="Buscar cuenta..."
+                                            placeholder="Cuenta..."
                                         />
                                         {formik.touched.bankAccountId && formik.errors.bankAccountId && (
                                             <p className="text-red-500 text-xs">{formik.errors.bankAccountId}</p>
@@ -362,6 +480,22 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                                     <div className="space-y-2">
                                         <Label htmlFor="transactionDate">Fecha Transacción</Label>
                                         <Input type="date" id="transactionDate" {...formik.getFieldProps('transactionDate')} />
+                                        {formik.touched.transactionDate && formik.errors.transactionDate && (
+                                            <p className="text-red-500 text-xs">{formik.errors.transactionDate}</p>
+                                        )}
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="transactionReference">
+                                            {formik.values.paymentMethod === 'CHEQUE' ? 'N° Cheque' : 'Referencia / Comprobante'}
+                                        </Label>
+                                        <Input
+                                            id="transactionReference"
+                                            {...formik.getFieldProps('transactionReference')}
+                                            placeholder="Ingresa los dígitos de referencia..."
+                                        />
+                                        {formik.touched.transactionReference && formik.errors.transactionReference && (
+                                            <p className="text-red-500 text-xs">{formik.errors.transactionReference}</p>
+                                        )}
                                     </div>
                                 </>
                             )}

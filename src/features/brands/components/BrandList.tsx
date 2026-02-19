@@ -1,16 +1,25 @@
-import { useState } from "react"
-import { useBrandList } from "@/entities/brand/model/hooks"
+import { useState, useMemo } from "react"
+import { useBrandList, useDeleteBrand } from "@/features/brand/api/hooks"
+import { searchBrands } from "@/entities/brand/model/queries"
 import type { Brand } from "@/entities/brand/model/types"
 import { BrandTable } from "./BrandTable"
 import { BrandForm } from "./BrandForm"
 import { Button } from "@/shared/ui/button"
-import { AlertCircle, Plus, RotateCw } from "lucide-react"
+import { Input } from "@/shared/ui/input"
+import { AlertCircle, Plus, RotateCw, Search } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert"
 
 export function BrandList() {
     const { data: brands = [], isLoading, isError, refetch } = useBrandList()
+    const deleteBrand = useDeleteBrand()
     const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null)
     const [isFormOpen, setIsFormOpen] = useState(false)
+    const [searchTerm, setSearchTerm] = useState("")
+
+    const filteredBrands = useMemo(
+        () => searchBrands(brands, searchTerm),
+        [brands, searchTerm]
+    )
 
     const handleCreate = () => {
         setSelectedBrand(null)
@@ -20,6 +29,15 @@ export function BrandList() {
     const handleEdit = (brand: Brand) => {
         setSelectedBrand(brand)
         setIsFormOpen(true)
+    }
+
+    const handleDelete = async (brand: Brand) => {
+        if (!confirm(`¿Está seguro de eliminar la marca "${brand.name}"? Esta acción no se puede deshacer.`)) return
+        try {
+            await deleteBrand.mutateAsync(brand.id)
+        } catch (error) {
+            console.error("Error deleting brand", error)
+        }
     }
 
     if (isError) {
@@ -57,10 +75,21 @@ export function BrandList() {
                 </Button>
             </div>
 
+            <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                    placeholder="Buscar por nombre o descripción..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9"
+                />
+            </div>
+
             <BrandTable
-                brands={brands}
+                brands={filteredBrands}
                 isLoading={isLoading}
                 onEdit={handleEdit}
+                onDelete={handleDelete}
             />
 
             <BrandForm

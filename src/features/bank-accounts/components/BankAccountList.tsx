@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useBankAccountList } from "@/entities/bank-account/model/hooks"
+import { useBankAccountList } from "@/features/bank-account/api/hooks"
 import type { BankAccount } from "@/entities/bank-account/model/types"
 import { BankAccountTable } from "./BankAccountTable"
 import { BankAccountForm } from "./BankAccountForm"

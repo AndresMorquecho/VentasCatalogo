@@ -51,14 +51,19 @@ export function OrderDeliveryTable({ orders, onDeliver }: OrderDeliveryTableProp
                     ) : (
                         orders.map((order) => {
                             const pending = (order.realInvoiceTotal || order.total) - order.paidAmount
-                            const days = order.receptionDate ? Math.floor((Date.now() - new Date(order.receptionDate).getTime()) / (1000 * 60 * 60 * 24)) : 0
 
-                            let daysClass = ""
-                            if (days >= 15) daysClass = "bg-red-50 hover:bg-red-100"
-                            else if (days >= 5) daysClass = "bg-amber-50 hover:bg-amber-100"
+                            // Calculate days in warehouse
+                            const now = new Date();
+                            const reception = order.receptionDate ? new Date(order.receptionDate) : new Date(order.createdAt);
+                            const diffTime = now.getTime() - reception.getTime();
+                            const days = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+                            let rowClass = "transition-colors border-l-4 border-l-transparent hover:bg-slate-50"
+                            if (days > 15) rowClass = "bg-red-50 hover:bg-red-100/80 border-l-red-500"
+                            else if (days > 5) rowClass = "bg-amber-50 hover:bg-amber-100/80 border-l-amber-500"
 
                             return (
-                                <TableRow key={order.id} className={daysClass}>
+                                <TableRow key={order.id} className={rowClass}>
                                     <TableCell>
                                         {formatDate(order.receptionDate!)}
                                         {days > 0 && <span className="text-xs text-muted-foreground block">{days} días en bodega</span>}

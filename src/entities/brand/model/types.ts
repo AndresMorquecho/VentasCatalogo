@@ -4,10 +4,20 @@ export interface Brand {
     description?: string;
     isActive: boolean;
     createdAt: string;
+    updatedAt?: string;
 }
 
-export interface BrandPayload {
+export interface CreateBrandPayload {
     name: string;
     description?: string;
     isActive: boolean;
 }
+
+export interface UpdateBrandPayload {
+    name?: string;
+    description?: string;
+    isActive?: boolean;
+}
+
+/** @deprecated Use CreateBrandPayload instead */
+export type BrandPayload = CreateBrandPayload;

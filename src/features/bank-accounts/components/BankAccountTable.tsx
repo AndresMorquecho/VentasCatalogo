@@ -12,7 +12,7 @@ import { Button } from "@/shared/ui/button"
 import { Pencil } from "lucide-react"
 import { Switch } from "@/shared/ui/switch"
 import type { BankAccount } from "@/entities/bank-account/model/types"
-import { useToggleBankAccountStatus } from "@/entities/bank-account/model/hooks"
+import { useToggleBankAccountStatus } from "@/features/bank-account/api/hooks"
 
 interface BankAccountTableProps {
     accounts: BankAccount[]

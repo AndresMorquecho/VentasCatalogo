@@ -1,5 +1,5 @@
 import { useFinancialDashboard } from '../model/useFinancialDashboard';
-import { useBankAccountList } from '@/entities/bank-account/model/hooks';
+import { useBankAccountList } from '@/features/bank-account/api/hooks';
 import { TrendingUp, TrendingDown, DollarSign, Building2, Wallet } from 'lucide-react';
 
 function formatCurrency(amount: number): string {

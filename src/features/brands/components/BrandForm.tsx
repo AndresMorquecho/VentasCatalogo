@@ -12,7 +12,7 @@ import { Button } from "@/shared/ui/button"
 import { Label } from "@/shared/ui/label"
 import { Switch } from "@/shared/ui/switch"
 import type { Brand } from "@/entities/brand/model/types"
-import { useCreateBrand, useUpdateBrand } from "@/entities/brand/model/hooks"
+import { useCreateBrand, useUpdateBrand } from "@/features/brand/api/hooks"
 
 interface BrandFormProps {
     brand?: Brand | null

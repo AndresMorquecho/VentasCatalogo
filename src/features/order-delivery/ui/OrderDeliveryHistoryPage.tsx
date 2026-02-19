@@ -4,8 +4,8 @@ import { useOrderDeliveryHistory } from "../model/useOrderDelivery"
 import type { DeliveryFilters } from "../model/useOrderDelivery"
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
-import { ArrowLeft, Search } from "lucide-react"
-import type { Order } from "@/entities/order/model/types"
+import { ArrowLeft, Search, Printer } from "lucide-react"
+import { generateDeliveryReceipt } from "../lib/generateDeliveryReceipt"
 import {
     Table,
     TableBody,
@@ -31,7 +31,7 @@ export function OrderDeliveryHistoryPage() {
         return `$${amount.toFixed(2)}`
     }
 
-    function calculateDaysInWarehouse(order: Order) {
+    function calculateDaysInWarehouse(order: any) {
         if (!order.receptionDate || !order.deliveryDate) return '-'
         const start = new Date(order.receptionDate).getTime()
         const end = new Date(order.deliveryDate).getTime()
@@ -83,16 +83,17 @@ export function OrderDeliveryHistoryPage() {
                             <TableHead className="text-right">Total Real</TableHead>
                             <TableHead className="text-center">Tiempo en Bodega</TableHead>
                             <TableHead className="text-center">Estado</TableHead>
+                            <TableHead className="text-right">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {isLoading ? (
                             <TableRow>
-                                <TableCell colSpan={6} className="text-center py-8">Cargando...</TableCell>
+                                <TableCell colSpan={7} className="text-center py-8">Cargando...</TableCell>
                             </TableRow>
                         ) : orders.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                                     No se encontraron registros.
                                 </TableCell>
                             </TableRow>
@@ -114,6 +115,20 @@ export function OrderDeliveryHistoryPage() {
                                         <span className="inline-flex px-2 py-1 rounded text-xs font-medium bg-slate-100 text-slate-800">
                                             Entregado
                                         </span>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            title="Imprimir Comprobante"
+                                            onClick={() => generateDeliveryReceipt(order, {
+                                                amountPaidNow: 0,
+                                                method: order.paymentMethod || 'N/A',
+                                                user: 'Sistema'
+                                            })}
+                                        >
+                                            <Printer className="h-4 w-4 text-slate-500 hover:text-green-600" />
+                                        </Button>
                                     </TableCell>
                                 </TableRow>
                             ))

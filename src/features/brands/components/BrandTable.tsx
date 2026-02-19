@@ -9,18 +9,19 @@ import {
 } from "@/shared/ui/table"
 import { Badge } from "@/shared/ui/badge"
 import { Button } from "@/shared/ui/button"
-import { Pencil } from "lucide-react"
+import { Pencil, Trash2 } from "lucide-react"
 import { Switch } from "@/shared/ui/switch"
 import type { Brand } from "@/entities/brand/model/types"
-import { useToggleBrandStatus } from "@/entities/brand/model/hooks"
+import { useToggleBrandStatus } from "@/features/brand/api/hooks"
 
 interface BrandTableProps {
     brands: Brand[]
     isLoading: boolean
     onEdit: (brand: Brand) => void
+    onDelete: (brand: Brand) => void
 }
 
-export function BrandTable({ brands, isLoading, onEdit }: BrandTableProps) {
+export function BrandTable({ brands, isLoading, onEdit, onDelete }: BrandTableProps) {
     const toggleStatus = useToggleBrandStatus()
 
     if (isLoading) {
@@ -72,13 +73,23 @@ export function BrandTable({ brands, isLoading, onEdit }: BrandTableProps) {
                                 {new Date(brand.createdAt).toLocaleDateString()}
                             </TableCell>
                             <TableCell className="text-right">
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => onEdit(brand)}
-                                >
-                                    <Pencil className="h-4 w-4" />
-                                </Button>
+                                <div className="flex justify-end gap-1">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => onEdit(brand)}
+                                    >
+                                        <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                        onClick={() => onDelete(brand)}
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </div>
                             </TableCell>
                         </TableRow>
                     ))}

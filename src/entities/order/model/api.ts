@@ -1,4 +1,5 @@
 import type { Order, OrderPayload } from './types'
+import { validateOrderPayload } from './model'
 
 const MOCK_ORDERS: Order[] = [
     {
@@ -9,14 +10,16 @@ const MOCK_ORDERS: Order[] = [
         clientId: '1',
         clientName: 'Maria Fernanda Gonzalez',
         brandName: 'SHEIN',
+        brandId: '1',
         createdAt: '2025-01-20T10:00:00Z',
         possibleDeliveryDate: '2025-02-05T00:00:00Z',
         status: 'POR_RECIBIR',
         total: 150.00,
-        deposit: 50.00,
-        // Eliminado balance
+        deposit: 0,
         paidAmount: 50.00,
-        payments: [],
+        payments: [
+            { id: 'pay-101-init', amount: 50.00, bankAccountId: '2', createdAt: '2025-01-20T10:00:00Z' }
+        ],
         paymentMethod: 'EFECTIVO',
         items: [
             { id: 'item1', productName: 'Red Dress', quantity: 2, unitPrice: 50.00 },
@@ -31,15 +34,18 @@ const MOCK_ORDERS: Order[] = [
         clientId: '2',
         clientName: 'Ana Lucia Perez',
         brandName: 'Nike',
+        brandId: '2',
         createdAt: '2025-01-21T14:30:00Z',
         possibleDeliveryDate: '2025-02-10T00:00:00Z',
         status: 'POR_RECIBIR',
         total: 75.50,
-        deposit: 75.50,
+        deposit: 0,
         paidAmount: 75.50,
-        payments: [],
+        payments: [
+            { id: 'pay-102-init', amount: 75.50, bankAccountId: '1', createdAt: '2025-01-21T14:30:00Z' }
+        ],
         paymentMethod: 'TRANSFERENCIA',
-        bankAccountId: 'bank1',
+        bankAccountId: '1',
         transactionDate: '2025-01-21',
         items: [
             { id: 'item3', productName: 'Bag', quantity: 1, unitPrice: 75.50 }
@@ -53,11 +59,12 @@ const MOCK_ORDERS: Order[] = [
         clientId: '1',
         clientName: 'Maria Fernanda Gonzalez',
         brandName: 'Adidas',
+        brandId: '3',
         createdAt: '2025-01-15T09:00:00Z',
         possibleDeliveryDate: '2025-01-30T00:00:00Z',
         status: 'ATRASADO',
         total: 203.00,
-        deposit: 0.00,
+        deposit: 0,
         paidAmount: 0.00,
         payments: [],
         paymentMethod: 'EFECTIVO',
@@ -74,15 +81,18 @@ const MOCK_ORDERS: Order[] = [
         clientId: '2',
         clientName: 'Ana Lucia Perez',
         brandName: 'SHEIN',
+        brandId: '1',
         createdAt: '2025-01-22T16:00:00Z',
         possibleDeliveryDate: '2025-01-25T00:00:00Z',
         status: 'RECIBIDO',
         total: 320.00,
-        deposit: 320.00,
+        deposit: 0,
         paidAmount: 320.00,
-        payments: [],
+        payments: [
+            { id: 'pay-104-init', amount: 320.00, bankAccountId: '1', createdAt: '2025-01-22T16:00:00Z' }
+        ],
         paymentMethod: 'TRANSFERENCIA',
-        bankAccountId: 'bank2',
+        bankAccountId: '1',
         transactionDate: '2025-01-22',
         items: [
             { id: 'item6', productName: 'Evening Dress', quantity: 1, unitPrice: 180.00 },
@@ -97,13 +107,16 @@ const MOCK_ORDERS: Order[] = [
         clientId: '1',
         clientName: 'Maria Fernanda Gonzalez',
         brandName: 'Nike',
+        brandId: '2',
         createdAt: '2025-01-25T11:00:00Z',
         possibleDeliveryDate: '2025-02-15T00:00:00Z',
         status: 'POR_RECIBIR',
         total: 95.00,
-        deposit: 30.00,
+        deposit: 0,
         paidAmount: 30.00,
-        payments: [],
+        payments: [
+            { id: 'pay-105-init', amount: 30.00, bankAccountId: '2', createdAt: '2025-01-25T11:00:00Z' }
+        ],
         paymentMethod: 'EFECTIVO',
         items: [
             { id: 'item8', productName: 'T-Shirt', quantity: 3, unitPrice: 25.00 },
@@ -118,13 +131,16 @@ const MOCK_ORDERS: Order[] = [
         clientId: '2',
         clientName: 'Ana Lucia Perez',
         brandName: 'Adidas',
+        brandId: '3',
         createdAt: '2025-01-10T08:30:00Z',
         possibleDeliveryDate: '2025-01-20T00:00:00Z',
         status: 'ATRASADO',
         total: 180.00,
-        deposit: 50.00,
+        deposit: 0,
         paidAmount: 50.00,
-        payments: [],
+        payments: [
+            { id: 'pay-106-init', amount: 50.00, bankAccountId: '2', createdAt: '2025-01-10T08:30:00Z' }
+        ],
         paymentMethod: 'EFECTIVO',
         items: [
             { id: 'item10', productName: 'Jacket', quantity: 1, unitPrice: 180.00 }
@@ -138,13 +154,16 @@ const MOCK_ORDERS: Order[] = [
         clientId: '1',
         clientName: 'Maria Fernanda Gonzalez',
         brandName: 'SHEIN',
+        brandId: '1',
         createdAt: '2025-02-01T13:00:00Z',
         possibleDeliveryDate: '2025-02-05T00:00:00Z',
         status: 'RECIBIDO',
         total: 45.00,
-        deposit: 45.00,
+        deposit: 0,
         paidAmount: 45.00,
-        payments: [],
+        payments: [
+            { id: 'pay-107-init', amount: 45.00, bankAccountId: '2', createdAt: '2025-02-01T13:00:00Z' }
+        ],
         paymentMethod: 'EFECTIVO',
         items: [
             { id: 'item11', productName: 'Accessories Set', quantity: 1, unitPrice: 45.00 }
@@ -158,15 +177,16 @@ const MOCK_ORDERS: Order[] = [
         clientId: '2',
         clientName: 'Ana Lucia Perez',
         brandName: 'Nike',
+        brandId: '2',
         createdAt: '2025-02-05T10:00:00Z',
         possibleDeliveryDate: '2025-02-05T00:00:00Z',
         status: 'CANCELADO',
         total: 260.00,
-        deposit: 0.00,
+        deposit: 0,
         paidAmount: 0.00,
         payments: [],
         paymentMethod: 'TRANSFERENCIA',
-        bankAccountId: 'bank1',
+        bankAccountId: '1',
         items: [
             { id: 'item12', productName: 'Air Max', quantity: 1, unitPrice: 260.00 }
         ]
@@ -189,13 +209,15 @@ export const orderApi = {
         return MOCK_ORDERS.filter(p => p.clientId === clientId)
     },
     create: async (payload: OrderPayload): Promise<Order> => {
+        validateOrderPayload(payload);
         await delay(500)
         const newOrder: Order = {
             id: String(Date.now()),
             ...payload,
+            deposit: 0, // Always 0 — initial payment goes through payments[]
             createdAt: new Date().toISOString(),
-            payments: [],
-            paidAmount: payload.deposit
+            payments: payload.payments || [],
+            paidAmount: (payload.payments || []).reduce((acc, p) => acc + p.amount, 0),
         }
         MOCK_ORDERS.push(newOrder)
         return newOrder
@@ -206,5 +228,17 @@ export const orderApi = {
         if (idx === -1) throw new Error('Order not found')
         MOCK_ORDERS[idx] = { ...MOCK_ORDERS[idx], ...payload }
         return MOCK_ORDERS[idx]
-    }
+    },
+
+    /**
+     * Syncs the denormalized clientName across all orders for a given clientId.
+     * Only touches clientName — never modifies financials, status, or other fields.
+     */
+    syncClientName: async (clientId: string, newName: string): Promise<void> => {
+        MOCK_ORDERS.forEach((order, idx) => {
+            if (order.clientId === clientId) {
+                MOCK_ORDERS[idx] = { ...order, clientName: newName }
+            }
+        })
+    },
 }

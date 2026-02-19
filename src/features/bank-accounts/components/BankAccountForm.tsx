@@ -12,7 +12,7 @@ import { Button } from "@/shared/ui/button"
 import { Label } from "@/shared/ui/label"
 import { Switch } from "@/shared/ui/switch"
 import type { BankAccount, BankAccountType } from "@/entities/bank-account/model/types"
-import { useCreateBankAccount, useUpdateBankAccount } from "@/entities/bank-account/model/hooks"
+import { useCreateBankAccount, useUpdateBankAccount } from "@/features/bank-account/api/hooks"
 
 interface BankAccountFormProps {
     account?: BankAccount | null

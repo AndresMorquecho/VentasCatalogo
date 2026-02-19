@@ -1,7 +1,7 @@
 export type OrderStatus = 'RECIBIDO' | 'POR_RECIBIR' | 'ATRASADO' | 'CANCELADO' | 'RECIBIDO_EN_BODEGA' | 'ENTREGADO';
 export type SalesChannel = 'OFICINA' | 'WHATSAPP' | 'DOMICILIO';
 export type OrderType = 'NORMAL' | 'PREVENTA' | 'REPROGRAMACION';
-export type PaymentMethod = 'EFECTIVO' | 'TRANSFERENCIA';
+export type PaymentMethod = 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE';
 
 export interface OrderItem {
     id: string;
@@ -16,8 +16,11 @@ export interface OrderItem {
 export type OrderPayment = {
     id: string;
     amount: number;
-    bankAccountId: string;
+    bankAccountId?: string; // Optional now as cash doesn't strictly need it per transaction item
+    method?: string; // EFECTIVO, TRANSFERENCIA, etc.
+    reference?: string;
     createdAt: string;
+    description?: string;
 }
 
 export interface Order {
@@ -25,13 +28,13 @@ export interface Order {
     receiptNumber: string; 
     salesChannel: SalesChannel;
     type: OrderType;
-    brandId?: string; 
-    brandName: string; 
+    brandId: string; // Mandatory linkage to Brand entity
+    brandName: string; // Denormalized name for display 
     
     // Financials
     total: number; // Initial / Estimated Total
     realInvoiceTotal?: number; // Actual Invoice Total upon reception
-    deposit: number; // Abono inicial
+    deposit: number; // DEPRECATED: always 0. Initial payment now goes through payments[]
     // balance removed - use getPendingAmount(order)
     paymentMethod: PaymentMethod;
     bankAccountId?: string; 
@@ -39,7 +42,7 @@ export interface Order {
 
     // Payment History
     payments: OrderPayment[];
-    paidAmount: number; // Total pagado (deposit + payments)
+    paidAmount: number; // Total pagado (sum of payments[] only)
 
     // Dates
     createdAt: string;
@@ -61,9 +64,9 @@ export interface OrderPayload {
     salesChannel: SalesChannel;
     type: OrderType;
     brandName: string;
-    brandId?: string; 
+    brandId: string; 
     total: number;
-    deposit: number;
+    deposit: number; // DEPRECATED: always 0
     // balance removed
     paymentMethod: PaymentMethod;
     bankAccountId?: string;

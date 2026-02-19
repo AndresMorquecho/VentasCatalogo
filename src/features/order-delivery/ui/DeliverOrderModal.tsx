@@ -1,3 +1,4 @@
+// ... imports
 import { useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import {
@@ -11,12 +12,16 @@ import {
 import { Button } from "@/shared/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert"
 import { Label } from "@/shared/ui/label"
-import { Truck, CreditCard } from "lucide-react"
+import { Input } from "@/shared/ui/input"
+import { Truck, CreditCard } from "lucide-react" // Ensure icons imported
 import type { Order } from "@/entities/order/model/types"
 import { orderApi } from "@/entities/order/model/api"
-import { deliverOrder, getPendingAmount, getEffectiveTotal } from "@/entities/order/model/model"
+// import { deliverOrder } from "@/entities/order/model/model"
 import { useAddOrderPayment } from "@/features/order-payments/model"
-import { useBankAccountList } from "@/entities/bank-account/model/hooks"
+import { useBankAccountList } from "@/features/bank-account/api/hooks"
+import { processPaymentRegistration } from "@/features/transactions/lib/processPayment"
+import { useToast } from "@/shared/ui/use-toast"
+import { generateDeliveryReceipt } from "../lib/generateDeliveryReceipt"
 
 interface DeliverOrderModalProps {
     order: Order | null
@@ -27,53 +32,111 @@ interface DeliverOrderModalProps {
 export function DeliverOrderModal({ order, open, onOpenChange }: DeliverOrderModalProps) {
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [selectedBankId, setSelectedBankId] = useState<string>('')
+    const [paymentMethod, setPaymentMethod] = useState("EFECTIVO")
+    const [referenceNumber, setReferenceNumber] = useState("")
 
     const qc = useQueryClient()
     const { mutateAsync: addPayment } = useAddOrderPayment()
     const { data: bankAccounts = [] } = useBankAccountList()
+    const { showToast } = useToast()
 
     if (!order) return null
 
-    const pending = getPendingAmount(order)
-    const total = getEffectiveTotal(order)
+    // Calculate pending using local logic if util not available, strict to safe types
+    const total = order.total || 0
+    const paid = order.paidAmount || 0
+    const pending = Math.max(0, total - paid)
 
     const handleSubmit = async () => {
         setIsSubmitting(true)
         try {
             // 1. Process Payment if pending amount exists
             if (pending > 0.01) {
-                if (!selectedBankId) {
-                    alert("Por favor seleccione una cuenta para registrar el cobro.")
+                // Validation
+                if (paymentMethod !== 'EFECTIVO' && !referenceNumber) {
+                    showToast("Debe ingresar el número de referencia", "error")
                     setIsSubmitting(false)
                     return
                 }
-                const bankAccount = bankAccounts.find(b => b.id === selectedBankId)
-                if (!bankAccount) return
 
-                // Reuse existing payment logic (Atomic inside addPayment mutation)
-                // However, we need to pass the updated order to deliverOrder
-                // But addPayment mutation returns the updated order
-                const paidOrder = await addPayment({
-                    order,
-                    amount: pending,
-                    bankAccount
-                })
+                if (!selectedBankId && paymentMethod !== 'EFECTIVO') {
+                    showToast("Seleccione una cuenta bancaria", "error")
+                    setIsSubmitting(false)
+                    return
+                }
 
-                // 2. Mark as Delivered using the updated order (paid)
-                const deliveredOrder = deliverOrder(paidOrder)
-                await orderApi.update(deliveredOrder.id, deliveredOrder)
-            } else {
-                // Direct delivery if no pending balance
-                const deliveredOrder = deliverOrder(order)
-                await orderApi.update(deliveredOrder.id, deliveredOrder)
+                // Transaction Registration
+                try {
+                    const txResult = await processPaymentRegistration({
+                        amount: pending,
+                        method: paymentMethod,
+                        reference: referenceNumber,
+                        clientId: order.clientId,
+                        currentPendingBalance: pending,
+                        date: new Date().toISOString(),
+                        user: 'Vendedor' // Mock
+                    })
+
+                    if (txResult.creditGenerated > 0) {
+                        showToast(`Se generó un saldo a favor de $${txResult.creditGenerated.toFixed(2)}`, "success") // use success or undefined
+                    }
+                } catch (txError: any) {
+                    showToast(txError.message, "error")
+                    setIsSubmitting(false)
+                    return
+                }
+
+                // Find bank account
+                let bankAccount = bankAccounts.find(b => b.id === selectedBankId)
+                if (!bankAccount && paymentMethod === 'EFECTIVO') {
+                    bankAccount = bankAccounts.find(b => b.type === 'CASH')
+                }
+
+                if (!bankAccount) {
+                    showToast("Advertencia: No se encontró cuenta de caja/banco.", "error") // use error for warning
+                } else {
+                    // Register Payment in Order
+                    await addPayment({
+                        order,
+                        amount: pending,
+                        bankAccount
+                    })
+                }
             }
+
+            // 2. Mark as Delivered using the updated order state (fetched fresh or optimistic)
+            const deliveredOrder: Order = {
+                ...order,
+                status: 'ENTREGADO',
+                deliveryDate: new Date().toISOString(),
+                // If payment made, update paidAmount optimistically (though addPayment updated backend)
+                paidAmount: pending > 0.01 ? (order.paidAmount || 0) + pending : order.paidAmount
+            }
+
+            await orderApi.update(deliveredOrder.id, deliveredOrder)
 
             await qc.invalidateQueries({ queryKey: ['orders'] })
             await qc.invalidateQueries({ queryKey: ['financial-movements'] })
+            await qc.invalidateQueries({ queryKey: ['transactions'] })
+
+            showToast("Entrega registrada correctamente", "success")
+
+            // Generate Receipt
+            try {
+                await generateDeliveryReceipt(deliveredOrder, {
+                    amountPaidNow: pending > 0.01 ? pending : 0,
+                    method: paymentMethod,
+                    user: 'Vendedor' // Should be logged user
+                })
+            } catch (pdfError) {
+                console.error("Error PDF", pdfError)
+                showToast("Entrega guardada, pero error al generar PDF", "warning")
+            }
+
             onOpenChange(false)
         } catch (error) {
             console.error("Error processing delivery:", error)
-            alert("Ocurrió un error al procesar la entrega.")
+            showToast("Ocurrió un error al procesar la entrega.", "error")
         } finally {
             setIsSubmitting(false)
         }
@@ -102,7 +165,7 @@ export function DeliverOrderModal({ order, open, onOpenChange }: DeliverOrderMod
                         </div>
                         <div className="flex justify-between text-sm">
                             <span className="text-muted-foreground">Total Pagado:</span>
-                            <span className="font-medium text-green-600">{formatCurrency(order.paidAmount)}</span>
+                            <span className="font-medium text-green-600">{formatCurrency(paid)}</span>
                         </div>
                         <div className="flex justify-between text-base font-bold pt-2 border-t">
                             <span>Saldo Pendiente:</span>
@@ -124,20 +187,51 @@ export function DeliverOrderModal({ order, open, onOpenChange }: DeliverOrderMod
                                 </div>
                             </div>
 
-                            <div className="space-y-1.5 pt-2">
-                                <Label className="text-xs font-medium text-amber-800">Cuenta de Destino</Label>
-                                <select
-                                    value={selectedBankId}
-                                    onChange={(e) => setSelectedBankId(e.target.value)}
-                                    className="flex h-10 w-full rounded-md border border-amber-200 bg-white px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                    <option value="" disabled>Seleccione cuenta...</option>
-                                    {bankAccounts.map((account) => (
-                                        <option key={account.id} value={account.id}>
-                                            {account.bankName} - {account.holderName} ({formatCurrency(account.currentBalance)})
-                                        </option>
-                                    ))}
-                                </select>
+                            <div className="grid gap-3 pt-2">
+                                <div className="space-y-1">
+                                    <Label className="text-xs font-medium text-amber-800">Método de Pago</Label>
+                                    <select
+                                        value={paymentMethod}
+                                        onChange={(e) => setPaymentMethod(e.target.value)}
+                                        className="flex h-9 w-full rounded-md border border-amber-200 bg-white px-3 py-1 text-sm"
+                                    >
+                                        <option value="EFECTIVO">Efectivo</option>
+                                        <option value="TRANSFERENCIA">Transferencia</option>
+                                        <option value="DEPOSITO">Depósito</option>
+                                        <option value="CHEQUE">Cheque</option>
+                                    </select>
+                                </div>
+
+                                {paymentMethod !== 'EFECTIVO' && (
+                                    <>
+                                        <div className="space-y-1">
+                                            <Label className="text-xs font-medium text-amber-800">Cuenta de Destino</Label>
+                                            <select
+                                                value={selectedBankId}
+                                                onChange={(e) => setSelectedBankId(e.target.value)}
+                                                className="flex h-9 w-full rounded-md border border-amber-200 bg-white px-3 py-1 text-sm"
+                                            >
+                                                <option value="">Seleccione cuenta...</option>
+                                                {bankAccounts.map((account) => (
+                                                    <option key={account.id} value={account.id}>
+                                                        {account.bankName} - {account.holderName}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label className="text-xs font-medium text-amber-800">
+                                                {paymentMethod === 'CHEQUE' ? 'N° Cheque' : 'Referencia / Comprobante'}
+                                            </Label>
+                                            <Input
+                                                value={referenceNumber}
+                                                onChange={(e) => setReferenceNumber(e.target.value)}
+                                                placeholder="últimos dígitos..."
+                                                className="h-9 bg-white border-amber-200"
+                                            />
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         </div>
                     ) : (
@@ -157,7 +251,7 @@ export function DeliverOrderModal({ order, open, onOpenChange }: DeliverOrderMod
                     </Button>
                     <Button
                         onClick={handleSubmit}
-                        disabled={isSubmitting || (pending > 0.01 && !selectedBankId)}
+                        disabled={isSubmitting || (pending > 0.01 && paymentMethod !== 'EFECTIVO' && !selectedBankId)}
                         className={pending > 0.01 ? "bg-amber-600 hover:bg-amber-700 text-white" : "bg-green-600 hover:bg-green-700 text-white"}
                     >
                         {isSubmitting ? 'Procesando...' : (pending > 0.01 ? 'Cobrar y Entregar' : 'Confirmar Entrega')}

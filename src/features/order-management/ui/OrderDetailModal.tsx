@@ -13,9 +13,11 @@ import { PackageCheck, Truck } from "lucide-react"
 import { OrderStatusBadge } from "./OrderStatusBadge"
 import type { Order } from "@/entities/order/model/types"
 import { orderApi } from "@/entities/order/model/api"
-import { useBankAccountList } from "@/entities/bank-account/model/hooks"
+import { useBankAccountList } from "@/features/bank-account/api/hooks"
 import { getPaidAmount, getPendingAmount, getEffectiveTotal, receiveOrder, deliverOrder } from "@/entities/order/model/model"
 import { OrderPaymentList } from "@/features/order-payments"
+import { Printer } from "lucide-react"
+import { generateOrderReceipt } from "@/features/order-receipt"
 
 interface OrderDetailModalProps {
     order: Order | null
@@ -300,6 +302,13 @@ export function OrderDetailModal({ order, open, onOpenChange }: OrderDetailModal
 
                 <div className="mt-8 border-t pt-6">
                     <OrderPaymentList order={order} />
+                </div>
+
+                <div className="border-t pt-4 mt-6 flex justify-end">
+                    <Button variant="outline" onClick={() => generateOrderReceipt(order, { id: '0', name: 'Vendedor', email: '', role: 'OPERATOR', status: 'ACTIVE', createdAt: '' } as any)}>
+                        <Printer className="mr-2 h-4 w-4" />
+                        Imprimir Recibo
+                    </Button>
                 </div>
             </DialogContent>
         </Dialog>

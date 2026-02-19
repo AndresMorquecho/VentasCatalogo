@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useBankAccountList } from "@/entities/bank-account/model/hooks"
+import { useBankAccountList } from "@/features/bank-account/api/hooks"
 import { useRemoveOrderPayment } from "../model"
 import { getPaidAmount, getPendingAmount } from "@/entities/order/model/model"
 import { Button } from "@/shared/ui/button"
@@ -104,21 +104,10 @@ export function OrderPaymentList({ order }: OrderPaymentListProps) {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {order.deposit > 0 && (
-                            <TableRow className="bg-muted/10">
-                                <TableCell className="text-muted-foreground">Inicio</TableCell>
-                                <TableCell>Abono Inicial</TableCell>
-                                <TableCell className="text-right font-medium">{format(order.deposit)}</TableCell>
-                                <TableCell className="text-right">
-                                    <span className="text-xs text-muted-foreground italic">--</span>
-                                </TableCell>
-                            </TableRow>
-                        )}
-
                         {payments.length === 0 ? (
                             <TableRow>
                                 <TableCell colSpan={4} className="text-center text-muted-foreground py-4">
-                                    No hay abonos adicionales.
+                                    No hay abonos registrados.
                                 </TableCell>
                             </TableRow>
                         ) : (

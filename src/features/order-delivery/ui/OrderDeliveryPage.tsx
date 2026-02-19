@@ -68,7 +68,23 @@ export function OrderDeliveryPage() {
                 </div>
             </div>
 
-            <div className="bg-green-50/50 rounded-lg p-1 border border-green-100">
+            {/* Legend */}
+            <div className="flex flex-wrap gap-4 text-xs mb-3 px-1">
+                <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-white border border-slate-200 shadow-sm rounded-sm"></div>
+                    <span className="text-slate-600">Reciente (&lt; 5 días)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-amber-50 border border-amber-200 rounded-sm"></div>
+                    <span className="text-amber-700">En bodega &gt; 5 días</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-red-50 border border-red-200 rounded-sm"></div>
+                    <span className="text-red-700 font-medium">Crítico &gt; 15 días</span>
+                </div>
+            </div>
+
+            <div className="bg-white rounded-lg p-1 border border-slate-200 shadow-sm">
                 <OrderDeliveryTable orders={orders} onDeliver={handleDeliver} />
             </div>
 

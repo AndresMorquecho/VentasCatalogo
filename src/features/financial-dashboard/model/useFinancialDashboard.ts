@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { useFinancialMovements, getCashFlowSummary } from '@/entities/financial-movement/model';
+import { useFinancialMovements } from '@/features/financial-movement/api/hooks';
+import { getCashFlowSummary } from '@/entities/financial-movement/model';
 import type { CashFlowSummary } from '@/entities/financial-movement/model';
 
 export interface FinancialDashboardData {
