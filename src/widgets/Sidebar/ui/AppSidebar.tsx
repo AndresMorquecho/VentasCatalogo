@@ -19,6 +19,7 @@ import {
     Heart,
     Store,
     Settings2,
+    Gift,
 } from "lucide-react"
 import { Link } from "react-router-dom"
 import { useAuth } from "@/shared/auth"
@@ -120,8 +121,9 @@ const groupedItems = [
         title: "Finanzas",
         icon: Banknote, // Represents money/finance
         items: [
-            { title: "Transacciones", url: "/transactions", icon: DollarSign }, // Or Banknote again? DollarSign is generic
+            { title: "Transacciones", url: "/transactions", icon: DollarSign },
             { title: "Abonos", url: "/payments", icon: DollarSign },
+            { title: "Saldos a Favor", url: "/client-credits", icon: Gift },
             { title: "Cuentas", url: "/bank-accounts", icon: Wallet },
             { title: "Cierre de Caja", url: "/cash-closure", icon: Calculator },
         ]

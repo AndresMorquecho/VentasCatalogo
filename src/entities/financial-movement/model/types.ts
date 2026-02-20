@@ -12,6 +12,17 @@ export interface FinancialMovement {
     bankAccountId: string;
     referenceId?: string; // e.g. Order ID or OrderPayment ID
     
+    // Client Information (denormalized for reporting)
+    clientId?: string;
+    clientName?: string;
+    
+    // Payment Information
+    paymentMethod?: 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE';
+    
+    // User Information (denormalized for auditing)
+    createdBy: string;
+    createdByName?: string;
+    
     // Metadata
     createdAt: string;
     updatedAt?: string;

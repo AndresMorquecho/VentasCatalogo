@@ -1,6 +1,20 @@
 import type { Order, OrderPayload } from './types'
 import { validateOrderPayload } from './model'
 
+// Helper to generate dates relative to today
+const getRelativeDate = (daysOffset: number = 0, hoursOffset: number = 0): string => {
+    const date = new Date();
+    date.setDate(date.getDate() + daysOffset);
+    date.setHours(date.getHours() + hoursOffset);
+    return date.toISOString();
+};
+
+const getRelativeDateOnly = (daysOffset: number = 0): string => {
+    const date = new Date();
+    date.setDate(date.getDate() + daysOffset);
+    return date.toISOString().split('T')[0];
+};
+
 const MOCK_ORDERS: Order[] = [
     {
         id: '101',
@@ -11,19 +25,50 @@ const MOCK_ORDERS: Order[] = [
         clientName: 'Maria Fernanda Gonzalez',
         brandName: 'SHEIN',
         brandId: '1',
-        createdAt: '2025-01-20T10:00:00Z',
-        possibleDeliveryDate: '2025-02-05T00:00:00Z',
-        status: 'POR_RECIBIR',
+        createdAt: getRelativeDate(0, -2), // Today, 2 hours ago
+        possibleDeliveryDate: getRelativeDate(5), // 5 days from now
+        status: 'RECIBIDO_EN_BODEGA',
         total: 150.00,
+        realInvoiceTotal: 150.00,
+        receptionDate: getRelativeDate(0, -2), // Today, 2 hours ago
+        invoiceNumber: `BATCH-${getRelativeDateOnly(0)}-001`,
         deposit: 0,
-        paidAmount: 50.00,
+        // REMOVED: paidAmount - Use getPaidAmount() instead
         payments: [
-            { id: 'pay-101-init', amount: 50.00, bankAccountId: '2', createdAt: '2025-01-20T10:00:00Z' }
+            { id: 'pay-101-init', amount: 100.00, method: 'EFECTIVO', bankAccountId: '2', createdAt: getRelativeDate(0, -2), description: 'Abono inicial' }
         ],
         paymentMethod: 'EFECTIVO',
         items: [
             { id: 'item1', productName: 'Red Dress', quantity: 2, unitPrice: 50.00 },
             { id: 'item2', productName: 'Shoes', quantity: 1, unitPrice: 50.00 }
+        ]
+    },
+    {
+        id: '105',
+        receiptNumber: 'REC-005',
+        salesChannel: 'OFICINA',
+        type: 'PREVENTA',
+        clientId: '1',
+        clientName: 'Maria Fernanda Gonzalez',
+        brandName: 'Nike',
+        brandId: '2',
+        createdAt: getRelativeDate(0, -1), // Today, 1 hour ago
+        possibleDeliveryDate: getRelativeDate(8), // 8 days from now
+        status: 'RECIBIDO_EN_BODEGA',
+        total: 95.00,
+        realInvoiceTotal: 95.00,
+        receptionDate: getRelativeDate(0, -1), // Today, 1 hour ago
+        invoiceNumber: `BATCH-${getRelativeDateOnly(0)}-510`,
+        deposit: 0,
+        // REMOVED: paidAmount - Use getPaidAmount() instead
+        payments: [
+            { id: 'pay-105-init', amount: 30.00, method: 'EFECTIVO', bankAccountId: '2', createdAt: getRelativeDate(0, -1), description: 'Abono inicial' },
+            { id: 'pay-105-add', amount: 65.00, method: 'TRANSFERENCIA', bankAccountId: '1', reference: '123', createdAt: getRelativeDate(0, 0), description: 'Abono posterior' }
+        ],
+        paymentMethod: 'EFECTIVO',
+        items: [
+            { id: 'item8', productName: 'T-Shirt', quantity: 3, unitPrice: 25.00 },
+            { id: 'item9', productName: 'Socks Pack', quantity: 1, unitPrice: 20.00 }
         ]
     },
     {
@@ -35,18 +80,18 @@ const MOCK_ORDERS: Order[] = [
         clientName: 'Ana Lucia Perez',
         brandName: 'Nike',
         brandId: '2',
-        createdAt: '2025-01-21T14:30:00Z',
-        possibleDeliveryDate: '2025-02-10T00:00:00Z',
+        createdAt: getRelativeDate(-1, 0), // Yesterday
+        possibleDeliveryDate: getRelativeDate(5), // 5 days from now
         status: 'POR_RECIBIR',
         total: 75.50,
         deposit: 0,
-        paidAmount: 75.50,
+        // REMOVED: paidAmount - Use getPaidAmount() instead
         payments: [
-            { id: 'pay-102-init', amount: 75.50, bankAccountId: '1', createdAt: '2025-01-21T14:30:00Z' }
+            { id: 'pay-102-init', amount: 75.50, method: 'TRANSFERENCIA', bankAccountId: '1', createdAt: getRelativeDate(-1, 0), description: 'Abono inicial' }
         ],
         paymentMethod: 'TRANSFERENCIA',
         bankAccountId: '1',
-        transactionDate: '2025-01-21',
+        transactionDate: getRelativeDateOnly(-1), // Yesterday
         items: [
             { id: 'item3', productName: 'Bag', quantity: 1, unitPrice: 75.50 }
         ]
@@ -60,12 +105,12 @@ const MOCK_ORDERS: Order[] = [
         clientName: 'Maria Fernanda Gonzalez',
         brandName: 'Adidas',
         brandId: '3',
-        createdAt: '2025-01-15T09:00:00Z',
-        possibleDeliveryDate: '2025-01-30T00:00:00Z',
-        status: 'ATRASADO',
+        createdAt: getRelativeDate(-2, 0), // 2 days ago
+        possibleDeliveryDate: getRelativeDate(2), // 2 days from now
+        status: 'POR_RECIBIR',
         total: 203.00,
         deposit: 0,
-        paidAmount: 0.00,
+        // REMOVED: paidAmount - Use getPaidAmount() instead
         payments: [],
         paymentMethod: 'EFECTIVO',
         items: [
@@ -74,121 +119,26 @@ const MOCK_ORDERS: Order[] = [
         ]
     },
     {
-        id: '104',
-        receiptNumber: 'REC-004',
-        salesChannel: 'WHATSAPP',
-        type: 'NORMAL',
-        clientId: '2',
-        clientName: 'Ana Lucia Perez',
-        brandName: 'SHEIN',
-        brandId: '1',
-        createdAt: '2025-01-22T16:00:00Z',
-        possibleDeliveryDate: '2025-01-25T00:00:00Z',
-        status: 'RECIBIDO',
-        total: 320.00,
-        deposit: 0,
-        paidAmount: 320.00,
-        payments: [
-            { id: 'pay-104-init', amount: 320.00, bankAccountId: '1', createdAt: '2025-01-22T16:00:00Z' }
-        ],
-        paymentMethod: 'TRANSFERENCIA',
-        bankAccountId: '1',
-        transactionDate: '2025-01-22',
-        items: [
-            { id: 'item6', productName: 'Evening Dress', quantity: 1, unitPrice: 180.00 },
-            { id: 'item7', productName: 'Heels', quantity: 1, unitPrice: 140.00 }
-        ]
-    },
-    {
-        id: '105',
-        receiptNumber: 'REC-005',
-        salesChannel: 'OFICINA',
-        type: 'PREVENTA',
-        clientId: '1',
-        clientName: 'Maria Fernanda Gonzalez',
-        brandName: 'Nike',
-        brandId: '2',
-        createdAt: '2025-01-25T11:00:00Z',
-        possibleDeliveryDate: '2025-02-15T00:00:00Z',
-        status: 'POR_RECIBIR',
-        total: 95.00,
-        deposit: 0,
-        paidAmount: 30.00,
-        payments: [
-            { id: 'pay-105-init', amount: 30.00, bankAccountId: '2', createdAt: '2025-01-25T11:00:00Z' }
-        ],
-        paymentMethod: 'EFECTIVO',
-        items: [
-            { id: 'item8', productName: 'T-Shirt', quantity: 3, unitPrice: 25.00 },
-            { id: 'item9', productName: 'Socks Pack', quantity: 1, unitPrice: 20.00 }
-        ]
-    },
-    {
-        id: '106',
-        receiptNumber: 'REC-006',
-        salesChannel: 'WHATSAPP',
-        type: 'NORMAL',
-        clientId: '2',
-        clientName: 'Ana Lucia Perez',
-        brandName: 'Adidas',
-        brandId: '3',
-        createdAt: '2025-01-10T08:30:00Z',
-        possibleDeliveryDate: '2025-01-20T00:00:00Z',
-        status: 'ATRASADO',
-        total: 180.00,
-        deposit: 0,
-        paidAmount: 50.00,
-        payments: [
-            { id: 'pay-106-init', amount: 50.00, bankAccountId: '2', createdAt: '2025-01-10T08:30:00Z' }
-        ],
-        paymentMethod: 'EFECTIVO',
-        items: [
-            { id: 'item10', productName: 'Jacket', quantity: 1, unitPrice: 180.00 }
-        ]
-    },
-    {
         id: '107',
         receiptNumber: 'REC-007',
         salesChannel: 'DOMICILIO',
         type: 'NORMAL',
-        clientId: '1',
-        clientName: 'Maria Fernanda Gonzalez',
+        clientId: '2',
+        clientName: 'Ana Lucia Perez',
         brandName: 'SHEIN',
         brandId: '1',
-        createdAt: '2025-02-01T13:00:00Z',
-        possibleDeliveryDate: '2025-02-05T00:00:00Z',
-        status: 'RECIBIDO',
+        createdAt: getRelativeDate(-1, 0), // Yesterday
+        possibleDeliveryDate: getRelativeDate(3), // 3 days from now
+        status: 'POR_RECIBIR',
         total: 45.00,
         deposit: 0,
-        paidAmount: 45.00,
+        // REMOVED: paidAmount - Use getPaidAmount() instead
         payments: [
-            { id: 'pay-107-init', amount: 45.00, bankAccountId: '2', createdAt: '2025-02-01T13:00:00Z' }
+            { id: 'pay-107-init', amount: 45.00, method: 'EFECTIVO', bankAccountId: '2', createdAt: getRelativeDate(-1, 0), description: 'Abono inicial' }
         ],
         paymentMethod: 'EFECTIVO',
         items: [
             { id: 'item11', productName: 'Accessories Set', quantity: 1, unitPrice: 45.00 }
-        ]
-    },
-    {
-        id: '108',
-        receiptNumber: 'REC-008',
-        salesChannel: 'WHATSAPP',
-        type: 'NORMAL',
-        clientId: '2',
-        clientName: 'Ana Lucia Perez',
-        brandName: 'Nike',
-        brandId: '2',
-        createdAt: '2025-02-05T10:00:00Z',
-        possibleDeliveryDate: '2025-02-05T00:00:00Z',
-        status: 'CANCELADO',
-        total: 260.00,
-        deposit: 0,
-        paidAmount: 0.00,
-        payments: [],
-        paymentMethod: 'TRANSFERENCIA',
-        bankAccountId: '1',
-        items: [
-            { id: 'item12', productName: 'Air Max', quantity: 1, unitPrice: 260.00 }
         ]
     }
 ]
@@ -217,7 +167,7 @@ export const orderApi = {
             deposit: 0, // Always 0 — initial payment goes through payments[]
             createdAt: new Date().toISOString(),
             payments: payload.payments || [],
-            paidAmount: (payload.payments || []).reduce((acc, p) => acc + p.amount, 0),
+            // REMOVED: paidAmount - Calculated dynamically with getPaidAmount()
         }
         MOCK_ORDERS.push(newOrder)
         return newOrder

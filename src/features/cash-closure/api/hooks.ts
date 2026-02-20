@@ -32,3 +32,13 @@ export function useCreateCashClosure() {
         },
     });
 }
+
+export function useDeleteCashClosure() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (id: string) => cashClosureApi.delete(id),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: CASH_CLOSURE_QUERY_KEYS.list() });
+        },
+    });
+}

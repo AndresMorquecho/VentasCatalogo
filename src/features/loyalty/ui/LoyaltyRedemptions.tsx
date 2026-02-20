@@ -1,6 +1,7 @@
 
 import { useLoyaltyRedemptions } from '../model/hooks';
 import type { RedemptionStatus } from '../model/types';
+import { useClients } from '@/entities/client/model/hooks';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
 import { Badge } from '@/shared/ui/badge';
 import { Skeleton } from '@/shared/ui/skeleton';
@@ -13,6 +14,13 @@ const STATUS_STYLES: Record<RedemptionStatus, string> = {
 
 export function LoyaltyRedemptions() {
     const { redemptions, isLoading } = useLoyaltyRedemptions();
+    const { data: clients = [] } = useClients();
+
+    // Helper to get client identification
+    const getClientIdentification = (clientId: string) => {
+        const client = clients.find(c => c.id === clientId);
+        return client?.identificationNumber || clientId;
+    };
 
     if (isLoading) {
         return <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div>;
@@ -45,7 +53,7 @@ export function LoyaltyRedemptions() {
                                 <TableRow key={r.id} className="hover:bg-slate-50 transition-colors">
                                     <TableCell>
                                         <p className="font-medium text-slate-800">{r.clientName}</p>
-                                        <p className="text-xs text-slate-400">{r.clientId}</p>
+                                        <p className="text-xs text-slate-400">{getClientIdentification(r.clientId)}</p>
                                     </TableCell>
                                     <TableCell className="text-slate-700">{r.prizeName}</TableCell>
                                     <TableCell className="text-center font-bold text-amber-600">{r.pointsUsed} pts</TableCell>

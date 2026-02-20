@@ -9,6 +9,7 @@ import {
 import { Button } from "@/shared/ui/button"
 import { Truck, AlertTriangle } from "lucide-react"
 import type { Order } from "@/entities/order/model/types"
+import { getPaidAmount } from "@/entities/order/model/model"
 
 interface OrderDeliveryTableProps {
     orders: Order[]
@@ -50,7 +51,9 @@ export function OrderDeliveryTable({ orders, onDeliver }: OrderDeliveryTableProp
                         </TableRow>
                     ) : (
                         orders.map((order) => {
-                            const pending = (order.realInvoiceTotal || order.total) - order.paidAmount
+                            // Use centralized calculator to get actual paid amount
+                            const paidAmount = getPaidAmount(order);
+                            const pending = (order.realInvoiceTotal || order.total) - paidAmount;
 
                             // Calculate days in warehouse
                             const now = new Date();
@@ -74,7 +77,7 @@ export function OrderDeliveryTable({ orders, onDeliver }: OrderDeliveryTableProp
                                         {formatCurrency(order.realInvoiceTotal || order.total)}
                                     </TableCell>
                                     <TableCell className="text-right text-green-600">
-                                        {formatCurrency(order.paidAmount)}
+                                        {formatCurrency(paidAmount)}
                                     </TableCell>
                                     <TableCell className={`text-right font-bold ${pending > 0.01 ? 'text-red-600' : 'text-slate-400'}`}>
                                         {formatCurrency(pending)}

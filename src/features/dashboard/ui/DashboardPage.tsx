@@ -158,8 +158,8 @@ export function DashboardPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     <SmallCard label="Pendientes" value={data?.operational.ordersPending ?? 0} icon={Clock} color="bg-amber-500" />
                     <SmallCard label="En Bodega" value={data?.operational.ordersInWarehouse ?? 0} icon={Package} color="bg-blue-500" />
-                    <SmallCard label="N° Clientes" value={142} icon={Users} color="bg-rose-500" />
-                    <SmallCard label="Entregados" value={45} icon={CheckCircle2} color="bg-emerald-500" />
+                    <SmallCard label="N° Clientes" value={data?.operational.totalActiveClients ?? 0} icon={Users} color="bg-rose-500" />
+                    <SmallCard label="Entregados" value={data?.operational.totalOrdersDelivered ?? 0} icon={CheckCircle2} color="bg-emerald-500" />
                 </div>
 
                 {/* ── SECCIÓN INFERIOR ── */}
@@ -223,10 +223,10 @@ export function DashboardPage() {
                         <div className="space-y-6">
                             <div className="py-2 flex flex-col items-center">
                                 <SegmentedDonut data={[
-                                    { label: 'Entregados', value: 45, color: '#004d40' },
-                                    { label: 'Pendientes', value: data?.operational.ordersPending ?? 12, color: '#f59e0b' },
-                                    { label: 'Por Recibir', value: 12, color: '#3b82f6' },
-                                    { label: 'Cancelados', value: 2, color: '#ef4444' }
+                                    { label: 'Entregados', value: data?.operational.ordersByStatus.entregado ?? 0, color: '#004d40' },
+                                    { label: 'Pendientes', value: data?.operational.ordersByStatus.recepcionado ?? 0, color: '#f59e0b' },
+                                    { label: 'Por Recibir', value: data?.operational.ordersByStatus.porRecibir ?? 0, color: '#3b82f6' },
+                                    { label: 'Cancelados', value: data?.operational.ordersByStatus.cancelado ?? 0, color: '#ef4444' }
                                 ]} />
 
                                 <div className="w-full mt-10 space-y-4">
@@ -235,21 +235,21 @@ export function DashboardPage() {
                                             <div className="w-2 h-2 rounded-full bg-[#004d40]" />
                                             <span className="text-xs font-bold text-slate-600">Entregados</span>
                                         </div>
-                                        <span className="text-xs font-black text-[#1a1c1e] tracking-tight">45</span>
+                                        <span className="text-xs font-black text-[#1a1c1e] tracking-tight">{data?.operational.ordersByStatus.entregado ?? 0}</span>
                                     </div>
                                     <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50/50">
                                         <div className="flex items-center gap-3">
                                             <div className="w-2 h-2 rounded-full bg-amber-500" />
                                             <span className="text-xs font-bold text-slate-600">Pendientes</span>
                                         </div>
-                                        <span className="text-xs font-black text-[#1a1c1e] tracking-tight">{data?.operational.ordersPending ?? 12}</span>
+                                        <span className="text-xs font-black text-[#1a1c1e] tracking-tight">{data?.operational.ordersByStatus.recepcionado ?? 0}</span>
                                     </div>
                                     <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50/50">
                                         <div className="flex items-center gap-3">
                                             <div className="w-2 h-2 rounded-full bg-blue-500" />
                                             <span className="text-xs font-bold text-slate-600">Pendientes de Recibir</span>
                                         </div>
-                                        <span className="text-xs font-black text-[#1a1c1e] tracking-tight">12</span>
+                                        <span className="text-xs font-black text-[#1a1c1e] tracking-tight">{data?.operational.ordersByStatus.porRecibir ?? 0}</span>
                                     </div>
                                 </div>
                             </div>

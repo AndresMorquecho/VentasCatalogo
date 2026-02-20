@@ -15,6 +15,14 @@ export type OperationalMetrics = {
     ordersPending: number;
     ordersInWarehouse: number;
     ordersDeliveredToday: number;
+    totalOrdersDelivered: number;
+    totalActiveClients: number;
+    ordersByStatus: {
+        porRecibir: number;
+        recepcionado: number;
+        entregado: number;
+        cancelado: number;
+    };
     averageWarehouseTimeDays: number;
 };
 

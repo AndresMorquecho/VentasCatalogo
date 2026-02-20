@@ -5,14 +5,15 @@ import { bankAccountApi } from '@/shared/api/bankAccountApi';
 import { orderApi } from '@/entities/order/model/api';
 import { receiveOrder, addPayment } from '@/entities/order/model/model';
 import type { Order } from '@/entities/order/model/types';
-import { transactionApi, clientCreditApi } from '@/shared/api/transactionApi';
+import { clientCreditApi } from '@/shared/api/transactionApi';
 import { inventoryApi } from '@/shared/api/inventoryApi';
+import { financialRecordService } from '@/application/financial/financialRecord.service';
 
 /**
  * Order Reception Service
  * 
  * Handles transactional operations for order reception.
- * Coordinates multiple entities: Order, Transaction, ClientCredit, BankAccount, Inventory
+ * Coordinates multiple entities: Order, FinancialRecord, ClientCredit, BankAccount, Inventory
  * 
  * TODO: When backend is ready, replace with single API calls:
  * - POST /api/orders/batch-reception
@@ -60,22 +61,24 @@ export const receptionService = {
                     const creditAmount = Math.abs(pending);
                     console.log(`[MockAPI] Generating credit of ${creditAmount} for client due to invoice adjustment.`);
                     
-                    // Create Transaction Record for Audit
-                    const tx = await transactionApi.createTransaction({
-                        amount: creditAmount,
-                        type: 'AJUSTE',
-                        referenceNumber: `AJUSTE-${updatedOrder.receiptNumber}-${Date.now()}`,
-                        date: new Date().toISOString(),
-                        clientId: updatedOrder.clientId,
-                        createdBy: 'Sistema',
-                        notes: `Saldo a favor generado recibo #${updatedOrder.receiptNumber}. Fac. Real: ${finalTotal} vs Pagado: ${paid}`
-                    });
+                    // Create Financial Record (Transaction + Movement)
+                    const record = await financialRecordService.createAdjustmentRecord(
+                        updatedOrder.id,
+                        updatedOrder.receiptNumber,
+                        creditAmount,
+                        updatedOrder.clientId,
+                        updatedOrder.clientName,
+                        cashAccount.id,
+                        `Saldo a favor generado. Fac. Real: ${finalTotal} vs Pagado: ${paid}`,
+                        'Sistema',
+                        'Sistema'
+                    );
 
                     // Create Credit
                     await clientCreditApi.createCredit({
                         clientId: updatedOrder.clientId,
                         amount: creditAmount,
-                        originTransactionId: tx.id
+                        originTransactionId: record.transactionId
                     });
 
                     // Abono irrelevant here as they are already overpaid
@@ -94,16 +97,20 @@ export const receptionService = {
                         const paymentResult = addPayment(updatedOrder, { amount: paymentAmount }, cashAccount);
                         updatedOrder = paymentResult.updatedOrder;
                         
-                        // Register Financial Transaction for the INCOMING money
-                        await transactionApi.createTransaction({
-                            amount: paymentAmount,
-                            type: 'EFECTIVO', // Assumed Cash for batch
-                            referenceNumber: `PAGO-ABONO-${updatedOrder.receiptNumber}-${Date.now()}`,
-                            date: new Date().toISOString(),
-                            clientId: updatedOrder.clientId,
-                            createdBy: 'Operador',
-                            notes: `Abono en recepción pedido #${updatedOrder.receiptNumber}`
-                        });
+                        // Create Financial Record (Transaction + Movement)
+                        await financialRecordService.createOrderPaymentRecord(
+                            updatedOrder.id,
+                            updatedOrder.receiptNumber,
+                            paymentAmount,
+                            updatedOrder.clientId,
+                            updatedOrder.clientName,
+                            'EFECTIVO',
+                            cashAccount.id,
+                            `PAGO-RECEP-${updatedOrder.receiptNumber}-${Date.now()}`,
+                            'Operador',
+                            'Operador',
+                            false
+                        );
                         
                         // Update Bank Account Mock ref
                         await bankAccountApi.update(cashAccount.id, { currentBalance: paymentResult.updatedBankAccount.currentBalance });
@@ -111,20 +118,22 @@ export const receptionService = {
 
                     if (excess > 0) {
                          // Excess became Credit
-                         const tx = await transactionApi.createTransaction({
-                            amount: excess,
-                            type: 'AJUSTE',
-                            referenceNumber: `EXCEDENTE-${updatedOrder.receiptNumber}-${Date.now()}`,
-                            date: new Date().toISOString(),
-                            clientId: updatedOrder.clientId,
-                            createdBy: 'Operador',
-                            notes: `Excedente abono recepción #${updatedOrder.receiptNumber}`
-                        });
+                         const record = await financialRecordService.createAdjustmentRecord(
+                            updatedOrder.id,
+                            updatedOrder.receiptNumber,
+                            excess,
+                            updatedOrder.clientId,
+                            updatedOrder.clientName,
+                            cashAccount.id,
+                            `Excedente abono recepción`,
+                            'Operador',
+                            'Operador'
+                        );
 
                         await clientCreditApi.createCredit({
                             clientId: updatedOrder.clientId,
                             amount: excess,
-                            originTransactionId: tx.id
+                            originTransactionId: record.transactionId
                         });
                     }
                 }
@@ -134,15 +143,26 @@ export const receptionService = {
                 results.push(updatedOrder);
 
                 // 5. Inventory Traceability Integration
-                // Automatically create physical entry movement
-                await inventoryApi.create({
-                    orderId: updatedOrder.id,
-                    clientId: updatedOrder.clientId,
-                    brandId: updatedOrder.brandId,
-                    type: 'ENTRY',
-                    createdBy: 'Operador', // Should be dynamic user
-                    notes: `Ingreso automático por recepción batch. Factura: ${updatedOrder.invoiceNumber}`
-                });
+                // TODO BACKEND: Validate no duplicate ENTRY exists for this order
+                // Check if inventory entry already exists to prevent duplicates
+                const existingInventory = await inventoryApi.getAll();
+                const hasEntry = existingInventory.some(
+                    inv => inv.orderId === updatedOrder.id && inv.type === 'ENTRY'
+                );
+                
+                if (!hasEntry) {
+                    // Automatically create physical entry movement
+                    await inventoryApi.create({
+                        orderId: updatedOrder.id,
+                        clientId: updatedOrder.clientId,
+                        brandId: updatedOrder.brandId,
+                        type: 'ENTRY',
+                        createdBy: 'Operador', // Should be dynamic user
+                        notes: `Ingreso automático por recepción batch. Factura: ${updatedOrder.invoiceNumber}`
+                    });
+                } else {
+                    console.warn(`[MockAPI] Inventory ENTRY already exists for order ${updatedOrder.id}, skipping creation`);
+                }
 
             } catch (error) {
                 console.error(`[MockAPI] Failed to receive order ${item.order.id}:`, error);

@@ -1,7 +1,13 @@
-
 import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
 import type { Order } from '@/entities/order/model/types';
 import type { Client } from '@/entities/client/model/types';
+import { 
+    getPendingAmount, 
+    getPaidAmount,
+    getEffectiveTotal,
+    hasClientCredit, 
+    getClientCreditAmount 
+} from '@/entities/order/model/model';
 
 const styles = StyleSheet.create({
     page: {
@@ -43,18 +49,18 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 16,
         fontWeight: 'bold',
-        color: '#064E3B', // Emerald 900
+        color: '#064E3B',
         textTransform: 'uppercase',
     },
     subtitle: {
         fontSize: 10,
-        color: '#059669', // Emerald 600
+        color: '#059669',
         marginTop: 2,
     },
     infoSection: {
         marginBottom: 20,
         padding: 10,
-        backgroundColor: '#F0FDF4', // Emerald 50
+        backgroundColor: '#F0FDF4',
         borderRadius: 4,
         borderWidth: 1,
         borderColor: '#BBF7D0',
@@ -106,17 +112,15 @@ const styles = StyleSheet.create({
         color: '#111827',
         textAlign: 'center',
     },
-    // Column widths
-    c1: { width: '10%' }, // Recibo
-    c2: { width: '10%' }, // Pedido
-    c3: { width: '12%' }, // Tipo Pedido
-    c4: { width: '10%' }, // Doc Tipo
-    c5: { width: '10%' }, // Num Doc
-    c6: { width: '12%', textAlign: 'right' }, // Valor
-    c7: { width: '12%', textAlign: 'right' }, // Abono Inicial
-    c8: { width: '12%', textAlign: 'right' }, // Abono Entrega
-    c9: { width: '12%', textAlign: 'right', borderRightWidth: 0 }, // Saldo
-
+    c1: { width: '10%' },
+    c2: { width: '10%' },
+    c3: { width: '12%' },
+    c4: { width: '10%' },
+    c5: { width: '10%' },
+    c6: { width: '12%', textAlign: 'right' },
+    c7: { width: '12%', textAlign: 'right' },
+    c8: { width: '12%', textAlign: 'right' },
+    c9: { width: '12%', textAlign: 'right', borderRightWidth: 0 },
     summarySection: {
         alignItems: 'flex-end',
         marginTop: 10,
@@ -131,7 +135,20 @@ const styles = StyleSheet.create({
         borderBottomColor: '#E5E7EB',
         paddingBottom: 2,
     },
-
+    creditAlert: {
+        marginTop: 10,
+        padding: 10,
+        backgroundColor: '#D1FAE5',
+        borderRadius: 4,
+        borderWidth: 1,
+        borderColor: '#10B981',
+    },
+    creditText: {
+        fontSize: 10,
+        color: '#065F46',
+        textAlign: 'center',
+        fontWeight: 'bold',
+    },
     footer: {
         position: 'absolute',
         bottom: 40,
@@ -173,26 +190,24 @@ export const DeliveryReceiptDocument = ({ order, client, paymentInfo }: Props) =
     const currentDate = new Date().toLocaleDateString('es-EC');
     const logoUrl = '/images/mochitopng.png';
 
-    // Calculations
-    const total = order.total;
-    // Paid before today (total paid - paid now)
-    // Wait, order.paidAmount usually includes everything. 
-    // If we passed paymentInfo.amountPaidNow separately, we assume order.paidAmount *includes* it if updated, 
-    // or we calculate.
-    // Let's assume order.paidAmount is the TOTAL PAID up to date.
-    const totalPaid = order.paidAmount || 0;
+    const estimatedTotal = order.total;
+    const realTotal = getEffectiveTotal(order);
+    const totalPaid = getPaidAmount(order);
     const paidNow = paymentInfo?.amountPaidNow || 0;
     const initialPaid = Math.max(0, totalPaid - paidNow);
 
-    // Balance
-    const pending = Math.max(0, total - totalPaid);
+    const pendingAmount = getPendingAmount(order);
+    const hasCredit = hasClientCredit(order);
+    const creditAmount = getClientCreditAmount(order);
+    
+    // Display pending as 0 if there's credit
+    const displayPending = hasCredit ? 0 : Math.max(0, pendingAmount);
 
     return (
         <Document>
             <Page size="A4" orientation="landscape" style={styles.page}>
                 <Image src={logoUrl} style={styles.watermark} fixed />
 
-                {/* Header */}
                 <View style={styles.headerRow}>
                     <View style={styles.logoContainer}>
                         <Image src={logoUrl} style={styles.logo} />
@@ -204,7 +219,6 @@ export const DeliveryReceiptDocument = ({ order, client, paymentInfo }: Props) =
                     </View>
                 </View>
 
-                {/* Client Info */}
                 <View style={styles.infoSection}>
                     <View style={styles.infoRow}>
                         <Text style={styles.infoLabel}>Empresaria (Cliente):</Text>
@@ -220,7 +234,6 @@ export const DeliveryReceiptDocument = ({ order, client, paymentInfo }: Props) =
                     </View>
                 </View>
 
-                {/* Table */}
                 <View style={styles.table}>
                     <View style={[styles.tableRow, styles.tableHeader]}>
                         <View style={[styles.col, styles.c1]}><Text style={styles.headerText}>N° Recibo</Text></View>
@@ -228,9 +241,9 @@ export const DeliveryReceiptDocument = ({ order, client, paymentInfo }: Props) =
                         <View style={[styles.col, styles.c3]}><Text style={styles.headerText}>Tipo Pedido</Text></View>
                         <View style={[styles.col, styles.c4]}><Text style={styles.headerText}>Documento</Text></View>
                         <View style={[styles.col, styles.c5]}><Text style={styles.headerText}>N° Doc</Text></View>
-                        <View style={[styles.col, styles.c6]}><Text style={styles.headerText}>Valor</Text></View>
-                        <View style={[styles.col, styles.c7]}><Text style={styles.headerText}>Abono Inicial</Text></View>
-                        <View style={[styles.col, styles.c8]}><Text style={styles.headerText}>Abono Entrega</Text></View>
+                        <View style={[styles.col, styles.c6]}><Text style={styles.headerText}>Valor Pedido</Text></View>
+                        <View style={[styles.col, styles.c7]}><Text style={styles.headerText}>Valor Factura</Text></View>
+                        <View style={[styles.col, styles.c8]}><Text style={styles.headerText}>Abonado</Text></View>
                         <View style={[styles.col, styles.c9]}><Text style={styles.headerText}>Saldo</Text></View>
                     </View>
                     <View style={styles.tableRow}>
@@ -239,14 +252,13 @@ export const DeliveryReceiptDocument = ({ order, client, paymentInfo }: Props) =
                         <View style={[styles.col, styles.c3]}><Text style={styles.cellText}>{order.type}</Text></View>
                         <View style={[styles.col, styles.c4]}><Text style={styles.cellText}>Factura</Text></View>
                         <View style={[styles.col, styles.c5]}><Text style={styles.cellText}>{order.invoiceNumber || 'S/N'}</Text></View>
-                        <View style={[styles.col, styles.c6]}><Text style={[styles.cellText, { textAlign: 'right' }]}>${total.toFixed(2)}</Text></View>
-                        <View style={[styles.col, styles.c7]}><Text style={[styles.cellText, { textAlign: 'right' }]}>${initialPaid.toFixed(2)}</Text></View>
-                        <View style={[styles.col, styles.c8]}><Text style={[styles.cellText, { textAlign: 'right' }]}>${paidNow.toFixed(2)}</Text></View>
-                        <View style={[styles.col, styles.c9]}><Text style={[styles.cellText, { textAlign: 'right', fontWeight: 'bold' }]}>${pending.toFixed(2)}</Text></View>
+                        <View style={[styles.col, styles.c6]}><Text style={[styles.cellText, { textAlign: 'right' }]}>${estimatedTotal.toFixed(2)}</Text></View>
+                        <View style={[styles.col, styles.c7]}><Text style={[styles.cellText, { textAlign: 'right' }]}>${realTotal.toFixed(2)}</Text></View>
+                        <View style={[styles.col, styles.c8]}><Text style={[styles.cellText, { textAlign: 'right' }]}>${totalPaid.toFixed(2)}</Text></View>
+                        <View style={[styles.col, styles.c9]}><Text style={[styles.cellText, { textAlign: 'right', fontWeight: 'bold' }]}>${displayPending.toFixed(2)}</Text></View>
                     </View>
                 </View>
 
-                {/* Payment Summary */}
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                     <View style={{ width: '45%' }}>
                         <Text style={{ fontSize: 10, fontWeight: 'bold', marginBottom: 5 }}>Detalle de Pago Entrega:</Text>
@@ -266,21 +278,35 @@ export const DeliveryReceiptDocument = ({ order, client, paymentInfo }: Props) =
 
                     <View style={styles.summarySection}>
                         <View style={styles.summaryRow}>
-                            <Text style={{ fontSize: 10 }}>Total Pedido:</Text>
-                            <Text style={{ fontSize: 10, fontWeight: 'bold' }}>${total.toFixed(2)}</Text>
+                            <Text style={{ fontSize: 10 }}>Valor Pedido:</Text>
+                            <Text style={{ fontSize: 10, fontWeight: 'bold' }}>${estimatedTotal.toFixed(2)}</Text>
+                        </View>
+                        <View style={styles.summaryRow}>
+                            <Text style={{ fontSize: 10 }}>Valor Factura:</Text>
+                            <Text style={{ fontSize: 10, fontWeight: 'bold' }}>${realTotal.toFixed(2)}</Text>
                         </View>
                         <View style={styles.summaryRow}>
                             <Text style={{ fontSize: 10 }}>Total Pagado:</Text>
                             <Text style={{ fontSize: 10, fontWeight: 'bold' }}>${totalPaid.toFixed(2)}</Text>
                         </View>
                         <View style={styles.summaryRow}>
-                            <Text style={{ fontSize: 12, fontWeight: 'bold', color: pending > 0.01 ? '#DC2626' : '#059669' }}>Saldo Final:</Text>
-                            <Text style={{ fontSize: 12, fontWeight: 'bold', color: pending > 0.01 ? '#DC2626' : '#059669' }}>${pending.toFixed(2)}</Text>
+                            <Text style={{ fontSize: 12, fontWeight: 'bold', color: displayPending > 0.01 ? '#DC2626' : '#059669' }}>Saldo Final:</Text>
+                            <Text style={{ fontSize: 12, fontWeight: 'bold', color: displayPending > 0.01 ? '#DC2626' : '#059669' }}>${displayPending.toFixed(2)}</Text>
                         </View>
+                        
+                        {hasCredit && (
+                            <View style={styles.creditAlert}>
+                                <Text style={styles.creditText}>
+                                    ✓ Saldo a Favor: +${creditAmount.toFixed(2)}
+                                </Text>
+                                <Text style={{ fontSize: 8, color: '#065F46', textAlign: 'center', marginTop: 2 }}>
+                                    Disponible para futuros pedidos
+                                </Text>
+                            </View>
+                        )}
                     </View>
                 </View>
 
-                {/* Footer Signatures */}
                 <View style={styles.footer}>
                     <Text style={{ fontSize: 8, fontStyle: 'italic', marginBottom: 20, textAlign: 'center', color: '#6B7280' }}>
                         Declaro haber recibido los productos a entera satisfacción y acepto el saldo pendiente si lo hubiere.

@@ -28,5 +28,12 @@ export const cashClosureApi = {
         };
         MOCK_CLOSURES.unshift(newClosure);
         return newClosure;
+    },
+
+    delete: async (id: string): Promise<void> => {
+        await delay();
+        const index = MOCK_CLOSURES.findIndex(c => c.id === id);
+        if (index === -1) throw new Error('Cierre de caja no encontrado');
+        MOCK_CLOSURES.splice(index, 1);
     }
 };

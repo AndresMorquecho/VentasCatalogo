@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/shared/ui/dialog';
-import { Button } from '@/shared/ui/button';
+import { AsyncButton } from '@/shared/ui/async-button';
 import { Label } from '@/shared/ui/label';
 import { Input } from '@/shared/ui/input';
 
@@ -20,7 +20,7 @@ interface CallFormModalProps {
 export function CallFormModal({ open, onOpenChange, onSuccess }: CallFormModalProps) {
     const { addCall } = useCalls();
     const { data: clients } = useClients();
-
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const [clientId, setClientId] = useState('');
     const [reason, setReason] = useState<CallReason>('SEGUIMIENTO_PEDIDO');
@@ -44,19 +44,26 @@ export function CallFormModal({ open, onOpenChange, onSuccess }: CallFormModalPr
         e.preventDefault();
         if (!clientId) return;
 
-        await addCall({
-            clientId,
-            reason,
-            result,
-            observations
-        });
+        setIsSubmitting(true);
+        try {
+            await addCall({
+                clientId,
+                reason,
+                result,
+                observations
+            });
 
-        onOpenChange(false);
-        onSuccess?.();
-        // Reset
-        setClientId('');
-        setSearchTerm('');
-        setObservations('');
+            onOpenChange(false);
+            onSuccess?.();
+            // Reset
+            setClientId('');
+            setSearchTerm('');
+            setObservations('');
+        } catch (error) {
+            console.error("Error saving call", error);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -141,7 +148,9 @@ export function CallFormModal({ open, onOpenChange, onSuccess }: CallFormModalPr
                     </div>
 
                     <DialogFooter>
-                        <Button type="submit">Guardar Llamada</Button>
+                        <AsyncButton type="submit" isLoading={isSubmitting} loadingText="Guardando...">
+                            Guardar Llamada
+                        </AsyncButton>
                     </DialogFooter>
                 </form>
             </DialogContent>

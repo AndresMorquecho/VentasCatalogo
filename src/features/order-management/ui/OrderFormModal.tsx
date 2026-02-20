@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect } from "react"
 import { useFormik } from "formik"
 import * as Yup from "yup"
+import { Gift } from "lucide-react"
 import {
     Dialog,
     DialogContent,
@@ -10,7 +11,7 @@ import {
     DialogFooter
 } from "@/shared/ui/dialog"
 import { Input } from "@/shared/ui/input"
-import { Button } from "@/shared/ui/button"
+import { AsyncButton } from "@/shared/ui/async-button"
 import { Label } from "@/shared/ui/label"
 import { Separator } from "@/shared/ui/separator"
 
@@ -168,6 +169,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
     const updateOrder = useUpdateOrder()
     const addOrderPayment = useAddOrderPayment()
     const { showToast } = useToast()
+    const [isSubmitting, setIsSubmitting] = useState(false)
 
     const isEditing = !!order
 
@@ -192,45 +194,47 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
         validationSchema,
         enableReinitialize: true,
         onSubmit: async (values) => {
-            const client = clients.find(c => c.id === values.clientId)
-            const clientName = client ? client.firstName : "Desconocido"
-            const unitPrice = values.quantity > 0 ? values.total / values.quantity : 0
-            const depositAmount = Number(values.deposit) || 0
-            const isFinancial = ['TRANSFERENCIA', 'DEPOSITO', 'CHEQUE'].includes(values.paymentMethod);
-
-            // Pre-validation for financial transactions
-            if (!isEditing && isFinancial && depositAmount > 0) {
-                try {
-                    await validateTransaction({
-                        type: values.paymentMethod as FinancialTransactionType,
-                        referenceNumber: values.transactionReference,
-                        amount: depositAmount,
-                        date: values.transactionDate,
-                        clientId: values.clientId,
-                        createdBy: 'Vendedor' // Mock
-                    });
-                } catch (e: any) {
-                    showToast(e.message, "error");
-                    return; // Stop submission
-                }
-            }
-
-            const payload = {
-                ...values,
-                clientName,
-                unitPrice,
-                // The order is created with 0 paidAmount initially. 
-                // The deposit is processed as a separate transaction immediately after.
-                items: [{
-                    id: order?.items?.[0]?.id || String(Date.now()),
-                    productName: values.brandName,
-                    quantity: values.quantity,
-                    unitPrice: unitPrice,
-                    brandName: values.brandName
-                }]
-            }
-
+            setIsSubmitting(true);
             try {
+                const client = clients.find(c => c.id === values.clientId)
+                const clientName = client ? client.firstName : "Desconocido"
+                const unitPrice = values.quantity > 0 ? values.total / values.quantity : 0
+                const depositAmount = Number(values.deposit) || 0
+                const isFinancial = ['TRANSFERENCIA', 'DEPOSITO', 'CHEQUE'].includes(values.paymentMethod);
+
+                // Pre-validation for financial transactions
+                if (!isEditing && isFinancial && depositAmount > 0) {
+                    try {
+                        await validateTransaction({
+                            type: values.paymentMethod as FinancialTransactionType,
+                            referenceNumber: values.transactionReference,
+                            amount: depositAmount,
+                            date: values.transactionDate,
+                            clientId: values.clientId,
+                            createdBy: 'Vendedor' // Mock
+                        });
+                    } catch (e: any) {
+                        showToast(e.message, "error");
+                        setIsSubmitting(false);
+                        return; // Stop submission
+                    }
+                }
+
+                const payload = {
+                    ...values,
+                    clientName,
+                    unitPrice,
+                    // The order is created with 0 paidAmount initially. 
+                    // The deposit is processed as a separate transaction immediately after.
+                    items: [{
+                        id: order?.items?.[0]?.id || String(Date.now()),
+                        productName: values.brandName,
+                        quantity: values.quantity,
+                        unitPrice: unitPrice,
+                        brandName: values.brandName
+                    }]
+                };
+
                 if (isEditing && order) {
                     await updateOrder.mutateAsync({ id: order.id, data: payload })
                     showToast(`Pedido de ${clientName} actualizado correctamente.`, "success")
@@ -312,6 +316,8 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
             } catch (error) {
                 console.error("Error saving order", error)
                 showToast("Error al guardar el pedido.", "error")
+            } finally {
+                setIsSubmitting(false);
             }
         }
     })
@@ -444,6 +450,25 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                                     <span className="absolute left-2 top-2.5 text-muted-foreground">$</span>
                                     <Input type="number" id="deposit" {...formik.getFieldProps('deposit')} className="pl-6" min="0" step="0.01" />
                                 </div>
+                                {totalCredit > 0 && (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="w-full text-emerald-600 border-emerald-300 hover:bg-emerald-50 mt-2"
+                                        onClick={() => {
+                                            const currentDeposit = Number(formik.values.deposit) || 0;
+                                            const maxCredit = Math.min(totalCredit, formik.values.total - currentDeposit);
+                                            if (maxCredit > 0) {
+                                                formik.setFieldValue('deposit', currentDeposit + maxCredit);
+                                                showToast(`Se aplicó $${maxCredit.toFixed(2)} del saldo a favor`, "success");
+                                            }
+                                        }}
+                                    >
+                                        <Gift className="h-4 w-4 mr-2" />
+                                        Usar Saldo a Favor (${totalCredit.toFixed(2)})
+                                    </Button>
+                                )}
                             </div>
 
                             <div className="space-y-2">
@@ -503,12 +528,12 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                     </div>
 
                     <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                        <AsyncButton type="button" variant="outline" onClick={() => onOpenChange(false)}>
                             Cancelar
-                        </Button>
-                        <Button type="submit">
+                        </AsyncButton>
+                        <AsyncButton type="submit" isLoading={isSubmitting} loadingText="Procesando...">
                             {isEditing ? "Guardar Cambios" : "Crear Pedido"}
-                        </Button>
+                        </AsyncButton>
                     </DialogFooter>
                 </form>
             </DialogContent>

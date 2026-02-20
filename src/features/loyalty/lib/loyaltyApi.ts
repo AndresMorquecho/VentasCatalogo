@@ -50,8 +50,8 @@ let PRIZES: LoyaltyPrize[] = [
 const REDEMPTIONS: LoyaltyRedemption[] = [
     {
         id: 'red-1',
-        clientId: 'c1',
-        clientName: 'Ana García',
+        clientId: '1',
+        clientName: 'Maria Fernanda Gonzalez',
         prizeId: 'prize-1',
         prizeName: 'Envío Gratis',
         pointsUsed: 100,
@@ -60,8 +60,8 @@ const REDEMPTIONS: LoyaltyRedemption[] = [
     },
     {
         id: 'red-2',
-        clientId: 'c2',
-        clientName: 'María Pérez',
+        clientId: '2',
+        clientName: 'Ana Lucia Perez',
         prizeId: 'prize-2',
         prizeName: 'Descuento 10%',
         pointsUsed: 200,

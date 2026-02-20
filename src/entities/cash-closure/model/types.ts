@@ -22,6 +22,9 @@ export interface CashClosure {
     // Metadata
     createdAt: string;
     notes?: string;
+    
+    // Detailed Report (for PDF regeneration)
+    detailedReport?: any; // Will store the full CashClosureDetailedReport
 }
 
 export interface CreateCashClosurePayload {
@@ -34,6 +37,7 @@ export interface CreateCashClosurePayload {
     netTotal: number;
     balanceByBank: CashClosureBalanceByBank[];
     movementCount: number;
+    detailedReport?: any; // Optional detailed report for PDF regeneration
 }
 
 // Summary interface for display components (can be same as payload for now)

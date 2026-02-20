@@ -40,7 +40,7 @@ export function TransactionsTable({ transactions, onView }: Props) {
                                     {new Date(t.date).toLocaleDateString('es-EC')}
                                 </TableCell>
                                 <TableCell className="font-medium text-slate-800">
-                                    {t.clientId} {/* In real app, resolved name */}
+                                    {t.clientName || t.clientId}
                                 </TableCell>
                                 <TableCell>
                                     <Badge variant={

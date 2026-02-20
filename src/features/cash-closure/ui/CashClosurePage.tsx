@@ -2,22 +2,28 @@ import { useState } from 'react';
 import { useFinancialMovements } from '@/features/financial-movement/api/hooks';
 import { useBankAccountList } from '@/features/bank-accounts/api/hooks';
 import { createCashClosureSnapshot } from '@/entities/cash-closure/model/model';
+import { createDetailedCashClosureReport } from '@/entities/cash-closure/model/detailed-model';
 import { useCreateCashClosure, useCashClosures } from '@/features/cash-closure/api/hooks';
 import { CashClosureSummary } from './CashClosureSummary';
+import { CashClosureDetailedSummary } from './CashClosureDetailedSummary';
 import { CashClosureHistory } from './CashClosureHistory';
+import { generateCashClosurePDF } from '../lib/generateCashClosurePDF';
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
-import { CalendarIcon, Loader2 } from "lucide-react";
+import { CalendarIcon, Loader2, FileDown } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
-// import { format } from "date-fns"; // Removed unused import
+import { useToast } from "@/shared/ui/use-toast";
 
 import type { CreateCashClosurePayload } from '@/entities/cash-closure/model/types';
+import type { CashClosureDetailedReport } from '@/entities/cash-closure/model/detailed-types';
 
 export function CashClosurePage() {
     // 1. Estados Locales
     const [fromDate, setFromDate] = useState<string>("");
     const [toDate, setToDate] = useState<string>("");
     const [previewPayload, setPreviewPayload] = useState<CreateCashClosurePayload | null>(null);
+    const [detailedReport, setDetailedReport] = useState<CashClosureDetailedReport | null>(null);
+    const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
     // 2. Hooks de Datos UI
     const { data: movements = [], isLoading: isLoadingMovements } = useFinancialMovements();
@@ -26,6 +32,7 @@ export function CashClosurePage() {
 
     // 3. Mutación
     const createClosure = useCreateCashClosure();
+    const { showToast } = useToast();
 
     // 4. Handlers
     const handleCalculate = () => {
@@ -39,19 +46,76 @@ export function CashClosurePage() {
             bankAccounts
         );
 
+        // Generar Reporte Detallado
+        const detailed = createDetailedCashClosureReport(
+            fromDate,
+            toDate,
+            movements,
+            bankAccounts,
+            'Usuario Actual' // TODO: Obtener del contexto de autenticación
+        );
+
         setPreviewPayload(payload);
+        setDetailedReport(detailed);
     };
 
     const handleConfirmClosure = async () => {
-        if (!previewPayload) return;
+        if (!previewPayload || !detailedReport) return;
 
         try {
-            await createClosure.mutateAsync(previewPayload);
+            // Check if closure already exists for this period
+            const existingClosure = closures.find(c => 
+                c.fromDate === fromDate && c.toDate === toDate
+            );
+
+            if (existingClosure) {
+                showToast(
+                    `Ya existe un cierre para el período ${fromDate} - ${toDate}. Elimínalo primero si necesitas crear uno nuevo.`,
+                    "error"
+                );
+                return;
+            }
+
+            // Add detailed report to payload for storage
+            const payloadWithDetails = {
+                ...previewPayload,
+                detailedReport: detailedReport
+            };
+
+            console.log('[DEBUG] Guardando cierre de caja:', {
+                fromDate,
+                toDate,
+                totalIncome: payloadWithDetails.totalIncome,
+                totalExpense: payloadWithDetails.totalExpense,
+                netTotal: payloadWithDetails.netTotal,
+                movementCount: payloadWithDetails.movementCount,
+                hasDetailedReport: !!payloadWithDetails.detailedReport
+            });
+            
+            await createClosure.mutateAsync(payloadWithDetails);
             setPreviewPayload(null); // Reset after success
+            setDetailedReport(null);
             setFromDate("");
             setToDate("");
+            showToast("Cierre de caja confirmado exitosamente", "success");
         } catch (error) {
             console.error("Error creating closure", error);
+            showToast("Error al crear el cierre de caja", "error");
+        }
+    };
+
+    const handleDownloadPDF = async () => {
+        if (!detailedReport) return;
+
+        setIsGeneratingPDF(true);
+        try {
+            await generateCashClosurePDF(detailedReport);
+            showToast("PDF generado exitosamente", "success");
+        } catch (error) {
+            console.error("Error generating PDF", error);
+            showToast("Error al generar el PDF", "error");
+        } finally {
+            setIsGeneratingPDF(false);
         }
     };
 
@@ -97,7 +161,7 @@ export function CashClosurePage() {
 
                 {/* Preview / Resumen */}
                 <div className="col-span-2">
-                    {previewPayload ? (
+                    {previewPayload && detailedReport ? (
                         <div className="space-y-4 animate-in fade-in zoom-in duration-300">
                             <Alert className="bg-blue-50 border-blue-200">
                                 <AlertTitle className="text-blue-800">Vista Previa del Cierre</AlertTitle>
@@ -106,9 +170,23 @@ export function CashClosurePage() {
                                 </AlertDescription>
                             </Alert>
 
-                            <CashClosureSummary data={previewPayload} />
+                            <CashClosureDetailedSummary report={detailedReport} />
 
-                            <div className="flex justify-end pt-4">
+                            <div className="flex justify-end gap-3 pt-4">
+                                <Button
+                                    size="lg"
+                                    onClick={handleDownloadPDF}
+                                    variant="outline"
+                                    disabled={isGeneratingPDF}
+                                    className="border-blue-600 text-blue-600 hover:bg-blue-50"
+                                >
+                                    {isGeneratingPDF ? (
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <FileDown className="mr-2 h-4 w-4" />
+                                    )}
+                                    Descargar PDF Detallado
+                                </Button>
                                 <Button
                                     size="lg"
                                     onClick={handleConfirmClosure}

@@ -4,6 +4,7 @@
 import { orderApi } from '@/entities/order/model/api';
 import { transactionApi, clientCreditApi } from '@/shared/api/transactionApi';
 import { bankAccountApi } from '@/shared/api/bankAccountApi';
+import { financialRecordService } from '@/application/financial/financialRecord.service';
 import type { FinancialTransactionPayload } from '@/shared/api/transactionApi';
 
 export interface PaymentPayload {
@@ -14,6 +15,8 @@ export interface PaymentPayload {
     referenceNumber?: string; // Required for non-cash
     notes?: string;
     createdBy: string;
+    createdByName?: string;
+    bankAccountId?: string; // Bank account for the payment
 }
 
 /**
@@ -32,7 +35,7 @@ export const paymentService = {
      * Centralized logic for financial consistency.
      */
     registerPayment: async (payload: PaymentPayload): Promise<void> => {
-        const { orderId, amount, method, referenceNumber, createdBy, notes, clientId } = payload;
+        const { orderId, amount, method, referenceNumber, createdBy, createdByName, notes, clientId } = payload;
 
         // 1. Validate Core Logic
         if (amount <= 0) throw new Error("El monto del abono debe ser mayor a 0.");
@@ -54,28 +57,45 @@ export const paymentService = {
             creditAmount = amount - pendingBalance; // Excess is credit
         }
 
-        // 4. Register Financial Transaction (Source of Truth)
+        // 4. Register Financial Transaction + Movement (Source of Truth)
         // If effective payment > 0
         if (paymentAmount > 0) {
-            // Create Transaction Record
-            const txPayload: FinancialTransactionPayload = {
-                amount: paymentAmount,
-                type: method === 'EFECTIVO' ? 'EFECTIVO' : 'TRANSFERENCIA', // Simplify for now or expand types
-                referenceNumber: referenceNumber || `ABONO-${order.receiptNumber}-${Date.now()}`,
-                date: new Date().toISOString(),
-                clientId: clientId,
-                createdBy: createdBy,
-                notes: notes || `Abono a pedido #${order.receiptNumber}`,
-                orderId: orderId
-            };
+            const refNumber = referenceNumber || `ABONO-${order.receiptNumber}-${Date.now()}`;
             
-            await transactionApi.createTransaction(txPayload);
+            // Get bank account from payload or determine automatically
+            let finalBankAccountId = payload.bankAccountId;
+            
+            if (!finalBankAccountId) {
+                const accounts = await bankAccountApi.getAll();
+                if (method === 'EFECTIVO') {
+                    const cashAccount = accounts.find(a => a.type === 'CASH');
+                    finalBankAccountId = cashAccount?.id || '2';
+                } else {
+                    const bankAccount = accounts.find(a => a.type === 'BANK');
+                    finalBankAccountId = bankAccount?.id || '1';
+                }
+            }
+
+            // Use centralized financial record service
+            await financialRecordService.createOrderPaymentRecord(
+                orderId,
+                order.receiptNumber,
+                paymentAmount,
+                clientId,
+                order.clientName,
+                method,
+                finalBankAccountId,
+                refNumber,
+                createdBy,
+                createdByName,
+                false // Not initial payment (abono posterior)
+            );
 
             // Update Order Balance (This adds to order.payments array)
             const newPayment = {
                 id: `PAY-${Date.now()}`,
                 amount: paymentAmount,
-                createdAt: new Date().toISOString(), // Use createdAt to match OrderPayment
+                createdAt: new Date().toISOString(),
                 method: method,
                 reference: referenceNumber,
                 description: notes
@@ -86,10 +106,8 @@ export const paymentService = {
 
             // 5. Impact Cash Account (Only if CASH)
             if (method === 'EFECTIVO') {
-                const accounts = await bankAccountApi.getAll();
                 const cashAccount = accounts.find(a => a.type === 'CASH');
                 if (cashAccount) {
-                    // This should ideally use bankAccountApi.addMovement but for now direct update mock
                     const newBalance = cashAccount.currentBalance + paymentAmount;
                     await bankAccountApi.update(cashAccount.id, { currentBalance: newBalance });
                 }
@@ -98,21 +116,29 @@ export const paymentService = {
 
         // 6. Generate Client Credit if Overpayment
         if (creditAmount > 0) {
-             const creditTx = await transactionApi.createTransaction({
-                amount: creditAmount,
-                type: 'AJUSTE', // Credit generation is an adjustment or specific type
-                referenceNumber: `CREDITO-${order.receiptNumber}-${Date.now()}`,
-                date: new Date().toISOString(),
-                clientId: clientId,
-                createdBy: createdBy,
-                notes: `Saldo a favor generado por exceso en abono pedido #${order.receiptNumber}`,
-                orderId: orderId
-            });
+            // Get bank account for credit
+            const accounts = await bankAccountApi.getAll();
+            const cashAccount = accounts.find(a => a.type === 'CASH');
+            const bankAccountId = cashAccount?.id || '2';
 
+            // Use centralized service for adjustment
+            await financialRecordService.createAdjustmentRecord(
+                orderId,
+                order.receiptNumber,
+                creditAmount,
+                clientId,
+                order.clientName,
+                bankAccountId,
+                `Saldo a favor generado por exceso en abono pedido #${order.receiptNumber}`,
+                createdBy,
+                createdByName
+            );
+
+            // Create client credit
             await clientCreditApi.createCredit({
                 clientId: clientId,
                 amount: creditAmount,
-                originTransactionId: creditTx.id
+                originTransactionId: `CREDITO-${order.receiptNumber}-${Date.now()}`
             });
         }
     },

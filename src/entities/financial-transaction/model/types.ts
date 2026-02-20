@@ -7,6 +7,7 @@ export type FinancialTransaction = {
   amount: number;
   date: string;
   clientId: string;
+  clientName?: string; // Denormalized for display
   orderId?: string;
   createdBy: string;
   createdAt: string;

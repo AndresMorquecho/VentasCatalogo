@@ -1,20 +1,24 @@
 
 import type { Order } from '@/entities/order/model/types';
 import type { ClientReward } from '@/entities/client-reward/model/types';
+import { getPaidAmount, getEffectiveTotal } from '@/entities/order/model/model';
 
 export const calculateRewardPoints = (order: Order): number => {
     let points = 0;
 
+    // Use effective total (realInvoiceTotal if available, otherwise total)
+    const effectiveTotal = getEffectiveTotal(order);
+    
     // 1 punto por cada $10
-    points += Math.floor(order.total / 10);
+    points += Math.floor(effectiveTotal / 10);
 
     // +5 puntos extra por pedido
     points += 5;
 
     // Bonus si paga completo
-    // Using paidAmount from Order type
-    if (order.paidAmount >= order.total) { // Check if paid amount covers total
-        points += 10; // Bonus (value not specified, using 10 as example or derive further if clearer)
+    const paidAmount = getPaidAmount(order);
+    if (paidAmount >= effectiveTotal) {
+        points += 10; // Bonus for full payment
     }
 
     return points;
@@ -28,10 +32,20 @@ export const calculateLevel = (points: number): 'BRONCE' | 'PLATA' | 'ORO' | 'PL
 };
 
 export const updateClientRewards = (currentReward: ClientReward, order: Order): ClientReward => {
+    // TODO BACKEND: Validate order hasn't been processed before
+    // Prevent duplicate point application
+    if (currentReward.appliedOrderIds?.includes(order.id)) {
+        console.warn(`Reward points already applied for order ${order.id}, skipping`);
+        return currentReward; // Return unchanged
+    }
+
     const pointsEarned = calculateRewardPoints(order);
     const newTotalPoints = currentReward.totalPoints + pointsEarned;
     const newTotalOrders = currentReward.totalOrders + 1;
-    const newTotalSpent = currentReward.totalSpent + order.total;
+    
+    // Use effective total for spent calculation
+    const effectiveTotal = getEffectiveTotal(order);
+    const newTotalSpent = currentReward.totalSpent + effectiveTotal;
 
     return {
         ...currentReward,
@@ -40,5 +54,6 @@ export const updateClientRewards = (currentReward: ClientReward, order: Order): 
         totalSpent: newTotalSpent,
         level: calculateLevel(newTotalPoints),
         updatedAt: new Date().toISOString(),
+        appliedOrderIds: [...(currentReward.appliedOrderIds || []), order.id]
     };
 };

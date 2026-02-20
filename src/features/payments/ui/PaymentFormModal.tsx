@@ -1,20 +1,15 @@
-import { useState } from "react";
-import { Button } from "@/shared/ui/button";
+import { useState, useMemo } from "react";
+import { AsyncButton } from "@/shared/ui/async-button";
 import { Input } from "@/shared/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/ui/dialog";
-
+import { useBankAccountList } from "@/features/bank-accounts/api/hooks";
 import { usePaymentOperations } from "../model/hooks";
-import { Loader2 } from "lucide-react";
 import type { PaymentPayload } from "@/shared/api/paymentApi";
+import { calculateCreditFromPayment, formatCurrency } from "@/entities/order/model/financialCalculator";
+import type { Order } from "@/entities/order/model/types";
 
 interface Props {
-    order: {
-        id: string;
-        clientId: string;
-        finalTotal: number;
-        receiptNumber: string;
-        totalPaid: number;
-    };
+    order: Order;
     isOpen: boolean;
     onClose: () => void;
     onSuccess: () => void;
@@ -22,13 +17,37 @@ interface Props {
 
 export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
     const { registerPayment } = usePaymentOperations();
+    const { data: bankAccounts = [] } = useBankAccountList();
     const [amount, setAmount] = useState<number>(0);
     const [method, setMethod] = useState<'EFECTIVO' | 'TRANSFERENCIA' | 'CHEQUE' | 'DEPOSITO' | 'CREDITO_CLIENTE'>('EFECTIVO');
+    const [bankAccountId, setBankAccountId] = useState<string>('');
     const [reference, setReference] = useState('');
     const [notes, setNotes] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const pendingBalance = order.finalTotal - order.totalPaid;
+    // Use centralized financial calculator
+    const pendingBalance = useMemo(() => {
+        const effectiveTotal = order.realInvoiceTotal ?? order.total;
+        const paid = order.payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
+        return Math.max(0, effectiveTotal - paid);
+    }, [order]);
+
+    // Calculate credit if payment exceeds pending
+    const creditGenerated = useMemo(() => 
+        calculateCreditFromPayment(order, amount),
+        [order, amount]
+    );
+
+    // Auto-select bank account based on method
+    useMemo(() => {
+        if (method === 'EFECTIVO') {
+            const cashAccount = bankAccounts.find(a => a.type === 'CASH');
+            setBankAccountId(cashAccount?.id || '');
+        } else {
+            const bankAccount = bankAccounts.find(a => a.type === 'BANK');
+            setBankAccountId(bankAccount?.id || '');
+        }
+    }, [method, bankAccounts]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -42,12 +61,15 @@ export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
                 method: method,
                 referenceNumber: reference,
                 notes: notes,
-                createdBy: 'Operador'
+                createdBy: 'Operador',
+                createdByName: 'Operador',
+                bankAccountId: bankAccountId
             };
 
             await registerPayment.mutateAsync(payload);
             setAmount(0);
             setReference('');
+            setNotes('');
             onSuccess();
             onClose();
         } catch (error) {
@@ -64,7 +86,7 @@ export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
                 <DialogHeader>
                     <DialogTitle>Registrar Abono</DialogTitle>
                     <DialogDescription>
-                        Pedido <strong>#{order.receiptNumber}</strong> - Saldo: <span className="text-red-600 font-bold">${pendingBalance.toFixed(2)}</span>
+                        Pedido <strong>#{order.receiptNumber}</strong> - Saldo: <span className="text-red-600 font-bold">{formatCurrency(pendingBalance)}</span>
                     </DialogDescription>
                 </DialogHeader>
 
@@ -102,22 +124,40 @@ export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
                     </div>
 
                     {/* Reference Input (Conditional) */}
-                    {method !== 'EFECTIVO' && (
-                        <div className="space-y-1 animate-in fade-in">
-                            <label className="text-sm font-medium text-blue-600">Referencia / Comprobante</label>
-                            <Input
-                                value={reference}
-                                onChange={(e) => setReference(e.target.value)}
-                                placeholder="Ref. bancaria obligatoria"
-                                required
-                            />
-                        </div>
+                    {method !== 'EFECTIVO' && method !== 'CREDITO_CLIENTE' && (
+                        <>
+                            <div className="space-y-1 animate-in fade-in">
+                                <label className="text-sm font-medium text-blue-600">Cuenta Bancaria</label>
+                                <select
+                                    value={bankAccountId}
+                                    onChange={(e) => setBankAccountId(e.target.value)}
+                                    className="w-full h-10 px-3 rounded-md border border-input bg-background"
+                                    required
+                                >
+                                    <option value="">Seleccionar cuenta...</option>
+                                    {bankAccounts.filter(a => a.type === 'BANK').map(account => (
+                                        <option key={account.id} value={account.id}>
+                                            {account.name} - {account.accountNumber}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="space-y-1 animate-in fade-in">
+                                <label className="text-sm font-medium text-blue-600">Referencia / Comprobante</label>
+                                <Input
+                                    value={reference}
+                                    onChange={(e) => setReference(e.target.value)}
+                                    placeholder="Ref. bancaria obligatoria"
+                                    required
+                                />
+                            </div>
+                        </>
                     )}
 
                     {/* Auto Credit Preview */}
-                    {amount > pendingBalance && (
+                    {creditGenerated > 0 && (
                         <div className="p-3 bg-blue-50 text-blue-700 text-sm rounded-md border border-blue-200">
-                            <strong>Nota:</strong> Se generará un crédito a favor del cliente por <strong>${(amount - pendingBalance).toFixed(2)}</strong> automáticamente.
+                            <strong>Nota:</strong> Se generará un crédito a favor del cliente por <strong>{formatCurrency(creditGenerated)}</strong> automáticamente.
                         </div>
                     )}
 
@@ -132,11 +172,18 @@ export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
                     </div>
 
                     <DialogFooter className="pt-4">
-                        <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>Cancelar</Button>
-                        <Button type="submit" disabled={isSubmitting || amount <= 0} className="bg-emerald-600 hover:bg-emerald-700">
-                            {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                        <AsyncButton type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+                            Cancelar
+                        </AsyncButton>
+                        <AsyncButton 
+                            type="submit" 
+                            disabled={amount <= 0} 
+                            isLoading={isSubmitting}
+                            loadingText="Procesando..."
+                            className="bg-emerald-600 hover:bg-emerald-700"
+                        >
                             Confirmar Abono
-                        </Button>
+                        </AsyncButton>
                     </DialogFooter>
                 </form>
             </DialogContent>

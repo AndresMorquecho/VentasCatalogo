@@ -34,14 +34,38 @@ export function getEffectiveTotal(order: Order): number {
 
 /**
  * Calculates pending amount.
+ * Can be negative if client has credit (saldo a favor).
  */
 export function getPendingAmount(order: Order): number {
     return getEffectiveTotal(order) - getPaidAmount(order);
 }
 
 /**
+ * Check if order has client credit (saldo a favor).
+ * Returns true if pending is negative.
+ */
+export function hasClientCredit(order: Order): boolean {
+    return getPendingAmount(order) < -0.01;
+}
+
+/**
+ * Get client credit amount (absolute value of negative pending).
+ * Returns 0 if no credit.
+ */
+export function getClientCreditAmount(order: Order): number {
+    const pending = getPendingAmount(order);
+    return pending < -0.01 ? Math.abs(pending) : 0;
+}
+
+/**
  * Lifecycle: Receive Order in Warehouse.
- * PROTECTED: realInvoiceTotal cannot be less than what has already been paid.
+ * 
+ * Business Logic:
+ * - If realInvoiceTotal < paidAmount: Client has credit (saldo a favor)
+ * - If realInvoiceTotal > paidAmount: Client still owes money
+ * - If realInvoiceTotal = paidAmount: Exact match
+ * 
+ * The credit generation is handled by reception.service.ts
  */
 export function receiveOrder(order: Order, realInvoiceTotal: number, invoiceNumber?: string): Order {
     if (order.status === 'RECIBIDO_EN_BODEGA' || order.status === 'ENTREGADO') {
@@ -52,12 +76,9 @@ export function receiveOrder(order: Order, realInvoiceTotal: number, invoiceNumb
         throw new Error("El valor real de factura debe ser un número positivo válido");
     }
 
-    const paidAmount = getPaidAmount(order);
-    if (realInvoiceTotal < paidAmount) {
-        throw new Error(
-            `El valor real ($${realInvoiceTotal.toFixed(2)}) no puede ser menor al total ya abonado ($${paidAmount.toFixed(2)}). Esto generaría un saldo negativo.`
-        );
-    }
+    // NO validar que realInvoiceTotal >= paidAmount
+    // Si realInvoiceTotal < paidAmount, se genera crédito a favor del cliente
+    // Esto se maneja en reception.service.ts
 
     return {
         ...order,
@@ -108,12 +129,11 @@ export function addPayment(
     };
 
     const updatedPayments = [...(order.payments || []), newPayment];
-    const newPaidAmount = updatedPayments.reduce((acc, p) => acc + p.amount, 0);
 
     const updatedOrder: Order = {
         ...order,
         payments: updatedPayments,
-        paidAmount: newPaidAmount,
+        // REMOVED: paidAmount calculation - use getPaidAmount() instead
     };
 
     const updatedBankAccount: BankAccount = {
@@ -153,12 +173,10 @@ export function editPayment(
     const updatedPayments = [...(order.payments || [])];
     updatedPayments[paymentIndex] = { ...originalPayment, amount: newAmount };
 
-    const newPaidAmount = updatedPayments.reduce((acc, p) => acc + p.amount, 0);
-
     const updatedOrder: Order = {
         ...order,
         payments: updatedPayments,
-        paidAmount: newPaidAmount,
+        // REMOVED: paidAmount calculation - use getPaidAmount() instead
     };
 
     const updatedBankAccount: BankAccount = {
@@ -187,12 +205,10 @@ export function removePayment(
 
     const updatedPayments = order.payments?.filter(p => p.id !== paymentId) || [];
 
-    const newPaidAmount = updatedPayments.reduce((acc, p) => acc + p.amount, 0);
-
     const updatedOrder: Order = {
         ...order,
         payments: updatedPayments,
-        paidAmount: newPaidAmount,
+        // REMOVED: paidAmount calculation - use getPaidAmount() instead
     };
 
     const updatedBankAccount: BankAccount = {

@@ -34,15 +34,13 @@ export interface Order {
     // Financials
     total: number; // Initial / Estimated Total
     realInvoiceTotal?: number; // Actual Invoice Total upon reception
-    deposit: number; // DEPRECATED: always 0. Initial payment now goes through payments[]
-    // balance removed - use getPendingAmount(order)
     paymentMethod: PaymentMethod;
     bankAccountId?: string; 
     transactionDate?: string; 
 
     // Payment History
     payments: OrderPayment[];
-    paidAmount: number; // Total pagado (sum of payments[] only)
+    // REMOVED: paidAmount - Use getPaidAmount(order) instead to avoid data inconsistency
 
     // Dates
     createdAt: string;
@@ -66,8 +64,6 @@ export interface OrderPayload {
     brandName: string;
     brandId: string; 
     total: number;
-    deposit: number; // DEPRECATED: always 0
-    // balance removed
     paymentMethod: PaymentMethod;
     bankAccountId?: string;
     transactionDate?: string;
@@ -80,5 +76,5 @@ export interface OrderPayload {
     receiptNumber: string;
     // Financials update
     payments?: OrderPayment[];
-    paidAmount?: number;
+    // REMOVED: paidAmount - Calculated from payments[] array
 }

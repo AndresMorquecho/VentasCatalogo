@@ -5,7 +5,7 @@ import { orderApi } from '@/entities/order/model/api';
 import { bankAccountApi } from '@/shared/api/bankAccountApi';
 import { financialMovementApi } from '@/shared/api/financialMovementApi';
 import { addPayment, editPayment, removePayment } from '@/entities/order/model/model';
-import { createFinancialMovement } from '@/entities/financial-movement/model/model';
+import { financialRecordService } from '@/application/financial/financialRecord.service';
 import type { Order } from '@/entities/order/model/types';
 import type { BankAccount } from '@/entities/bank-account/model/types';
 
@@ -13,7 +13,7 @@ import type { BankAccount } from '@/entities/bank-account/model/types';
  * Order Payment Service
  * 
  * Handles transactional operations for order payments.
- * Coordinates multiple entities: Order, BankAccount, FinancialMovement
+ * Coordinates multiple entities: Order, BankAccount, FinancialTransaction, FinancialMovement
  * 
  * TODO: When backend is ready, replace with single API calls:
  * - POST /api/orders/:id/payments
@@ -33,31 +33,32 @@ export const orderPaymentService = {
         // 1. Domain Logic: Prepare objects
         const { updatedOrder, updatedBankAccount, newPayment } = addPayment(order, { amount }, bankAccount);
         
-        const movement = createFinancialMovement({
-            type: 'INCOME',
-            source: 'ORDER_PAYMENT',
-            amount: newPayment.amount,
-            bankAccountId: bankAccount.id,
-            referenceId: newPayment.id,
-            description: `Abono Pedido #${order.receiptNumber}`
-        });
+        // 2. Create Financial Record (both Transaction and Movement)
+        const isInitialPayment = !order.payments || order.payments.length === 0;
+        const referenceNumber = `PAY-${order.receiptNumber}-${newPayment.id}`;
 
-        // 2. Mock Transaction Execution (Simulated)
-        // In real SQL, this is BEGIN TRANSACTION...
         try {
-            await financialMovementApi.create(movement);
+            await financialRecordService.createOrderPaymentRecord(
+                order.id,
+                order.receiptNumber,
+                newPayment.amount,
+                order.clientId,
+                order.clientName,
+                order.paymentMethod,
+                bankAccount.id,
+                referenceNumber,
+                'Vendedor', // TODO: Get from auth context
+                'Vendedor', // TODO: Get from auth context
+                isInitialPayment
+            );
+
+            // 3. Update entities
             await bankAccountApi.update(updatedBankAccount.id, { currentBalance: updatedBankAccount.currentBalance });
             await orderApi.update(updatedOrder.id, updatedOrder);
+            
             return updatedOrder;
         } catch (error) {
-            // Simplified Compensation / Rollback for Mock
             console.error("Transaction failed, rolling back (mock)", error);
-            // In a real backend, DB rollback writes nothing.
-            // Here, we might leave dirty state if we are not careful, 
-            // but for Prototype purposes, orchestrating it here is better than in the View.
-            
-            // Try to cleanup if movement was created
-            await financialMovementApi.delete(movement.id).catch(() => {});
             throw error;
         }
     },

@@ -9,7 +9,7 @@ import {
     DialogFooter,
 } from "@/shared/ui/dialog";
 import { Input } from "@/shared/ui/input";
-import { Button } from "@/shared/ui/button";
+import { AsyncButton } from "@/shared/ui/async-button";
 import { Label } from "@/shared/ui/label";
 import { Separator } from "@/shared/ui/separator";
 import type { Client } from "@/entities/client/model/types";
@@ -53,6 +53,7 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
     const updateClient = useUpdateClient();
     const isEditing = !!client;
     const [submitError, setSubmitError] = useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const inputClass =
         "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
@@ -78,6 +79,7 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
         enableReinitialize: true,
         onSubmit: async (values) => {
             setSubmitError(null);
+            setIsSubmitting(true);
             const payload = {
                 identificationType: "CEDULA" as const,
                 branch: "MATRIZ" as const,
@@ -108,6 +110,8 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
             } catch (error) {
                 console.error("Error saving client", error);
                 setSubmitError("Ocurrió un error al guardar. Intente de nuevo.");
+            } finally {
+                setIsSubmitting(false);
             }
         },
     });
@@ -342,16 +346,16 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
                     )}
 
                     <DialogFooter>
-                        <Button
+                        <AsyncButton
                             type="button"
                             variant="outline"
                             onClick={() => onOpenChange(false)}
                         >
                             Cancelar
-                        </Button>
-                        <Button type="submit">
+                        </AsyncButton>
+                        <AsyncButton type="submit" isLoading={isSubmitting} loadingText="Guardando...">
                             {isEditing ? "Guardar Cambios" : "Crear Empresaria"}
-                        </Button>
+                        </AsyncButton>
                     </DialogFooter>
                 </form>
             </DialogContent>

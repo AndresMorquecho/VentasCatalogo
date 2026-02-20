@@ -1,17 +1,15 @@
 import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
 import type { Order } from '@/entities/order/model/types';
-import { getPaidAmount, getPendingAmount } from '@/entities/order/model/model';
+import { getPaidAmount, getPendingAmount, hasClientCredit, getClientCreditAmount } from '@/entities/order/model/model';
 import type { Client } from '@/entities/client/model/types';
 
 const styles = StyleSheet.create({
     page: {
-        padding: 5, // Minimal padding to maximize space
+        padding: 5,
         backgroundColor: '#FFFFFF',
         flexDirection: 'row',
         flexWrap: 'wrap',
     },
-    // Grid 2 Columns x 5 Rows = 10 labels per page
-    // A4 Portrait height ~840pt. 20% = ~168pt (~6cm)
     labelContainer: {
         width: '50%',
         height: '20%',
@@ -26,16 +24,14 @@ const styles = StyleSheet.create({
         padding: 8,
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center' // Vertically center content if needed
+        alignItems: 'center'
     },
-    // Left: Logo + Client + Brand
     leftSection: {
         width: '55%',
         flexDirection: 'column',
         justifyContent: 'space-between',
         height: '100%'
     },
-    // Right: Financials + Footer
     rightSection: {
         width: '43%',
         flexDirection: 'column',
@@ -91,7 +87,6 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: '#0f172a'
     },
-    // Financials
     finBox: {
         marginTop: 4
     },
@@ -127,6 +122,26 @@ const styles = StyleSheet.create({
         fontWeight: 'extrabold',
         color: '#dc2626'
     },
+    creditBlock: {
+        marginTop: 3,
+        backgroundColor: '#d1fae5',
+        padding: 3,
+        borderRadius: 2,
+        borderWidth: 1,
+        borderColor: '#10b981'
+    },
+    creditLabel: {
+        fontSize: 6,
+        color: '#065f46',
+        textAlign: 'center',
+        marginBottom: 1
+    },
+    creditValue: {
+        fontSize: 8,
+        fontWeight: 'bold',
+        color: '#059669',
+        textAlign: 'center'
+    },
     footer: {
         fontSize: 6,
         color: '#94a3b8',
@@ -142,7 +157,6 @@ interface OrderLabelsProps {
 }
 
 export const OrderLabelsDocument = ({ orders, clientsMap, user }: OrderLabelsProps) => {
-    // 10 labels per page
     const chunkedOrders = [];
     for (let i = 0; i < orders.length; i += 10) {
         chunkedOrders.push(orders.slice(i, i + 10));
@@ -158,13 +172,17 @@ export const OrderLabelsDocument = ({ orders, clientsMap, user }: OrderLabelsPro
                     {pageOrders.map((order) => {
                         const client = clientsMap?.[order.clientId];
                         const paid = getPaidAmount(order);
-                        const pending = getPendingAmount(order);
+                        const pendingAmount = getPendingAmount(order);
+                        const hasCredit = hasClientCredit(order);
+                        const creditAmount = getClientCreditAmount(order);
+                        const effectiveTotal = order.realInvoiceTotal ?? order.total;
+                        
+                        // Display pending as 0 if there's credit
+                        const displayPending = hasCredit ? 0 : pendingAmount;
 
                         return (
                             <View key={order.id} style={styles.labelContainer}>
                                 <View style={styles.labelContent}>
-
-                                    {/* Left Side */}
                                     <View style={styles.leftSection}>
                                         <View>
                                             <Image src={logoUrl} style={styles.logo} />
@@ -189,12 +207,17 @@ export const OrderLabelsDocument = ({ orders, clientsMap, user }: OrderLabelsPro
                                         </View>
                                     </View>
 
-                                    {/* Right Side */}
                                     <View style={styles.rightSection}>
                                         <View style={styles.finBox}>
+                                            {order.realInvoiceTotal && order.realInvoiceTotal !== order.total && (
+                                                <View style={styles.finRow}>
+                                                    <Text style={styles.finLabel}>Valor Pedido:</Text>
+                                                    <Text style={styles.finValue}>${order.total.toFixed(2)}</Text>
+                                                </View>
+                                            )}
                                             <View style={styles.finRow}>
                                                 <Text style={styles.finLabel}>Total Factura:</Text>
-                                                <Text style={styles.finValue}>${(order.realInvoiceTotal || order.total).toFixed(2)}</Text>
+                                                <Text style={styles.finValue}>${effectiveTotal.toFixed(2)}</Text>
                                             </View>
                                             <View style={styles.finRow}>
                                                 <Text style={styles.finLabel}>Abonado:</Text>
@@ -202,15 +225,21 @@ export const OrderLabelsDocument = ({ orders, clientsMap, user }: OrderLabelsPro
                                             </View>
                                             <View style={styles.totalBlock}>
                                                 <Text style={styles.totalLabel}>SALDO:</Text>
-                                                <Text style={styles.totalValue}>${pending.toFixed(2)}</Text>
+                                                <Text style={styles.totalValue}>${displayPending.toFixed(2)}</Text>
                                             </View>
+                                            
+                                            {hasCredit && (
+                                                <View style={styles.creditBlock}>
+                                                    <Text style={styles.creditLabel}>Saldo a Favor</Text>
+                                                    <Text style={styles.creditValue}>+${creditAmount.toFixed(2)}</Text>
+                                                </View>
+                                            )}
                                         </View>
 
                                         <Text style={styles.footer}>
                                             Ref: {order.id.slice(0, 6)} • Rev: {user?.name || 'Sis'}
                                         </Text>
                                     </View>
-
                                 </View>
                             </View>
                         );

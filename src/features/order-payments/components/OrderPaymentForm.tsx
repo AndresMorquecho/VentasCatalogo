@@ -1,20 +1,13 @@
 import { useFormik } from "formik"
 import * as Yup from "yup"
 import { useBankAccountList } from "@/features/bank-accounts/api/hooks"
-import { getPendingAmount } from "@/entities/order/model/model"
+import { calculateMaxEditPaymentAmount, calculatePendingBalance, formatCurrency } from "@/entities/order/model/financialCalculator"
 import { useAddOrderPayment, useEditOrderPayment } from "../model.ts"
 import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
 import { Label } from "@/shared/ui/label"
-// Actually bank-account/model/model.ts doesn't exist? Check later. 
-// I will filter active accounts inline.
 import type { Order, OrderPayment } from "@/entities/order/model/types"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/shared/ui/dialog"
-
-// Helper function to format currency
-function formatCurrency(amount: number): string {
-    return `$${amount.toFixed(2)}`
-}
 
 interface OrderPaymentFormProps {
     order: Order
@@ -32,10 +25,12 @@ export function OrderPaymentForm({ order, payment, open, onOpenChange }: OrderPa
     const activeBankAccounts = bankAccounts.filter(acc => acc.isActive)
 
     const isEditing = !!payment
-    const pendingAmount = getPendingAmount(order)
-
-    // Max amount allowable: if editing, max is pending + old amount. If creating, max is pending.
-    const maxAmount = isEditing ? pendingAmount + (payment?.amount || 0) : pendingAmount
+    
+    // Use centralized financial calculator
+    const pendingAmount = calculatePendingBalance(order)
+    const maxAmount = isEditing 
+        ? calculateMaxEditPaymentAmount(order, payment?.amount || 0)
+        : pendingAmount
 
     const formik = useFormik({
         initialValues: {

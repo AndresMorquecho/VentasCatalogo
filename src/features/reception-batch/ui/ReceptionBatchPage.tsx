@@ -15,7 +15,17 @@ import {
     DialogFooter
 } from "@/shared/ui/dialog"
 import { Button } from "@/shared/ui/button"
+import { Input } from "@/shared/ui/input"
+import { Label } from "@/shared/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs"
+import { useBankAccountList } from "@/features/bank-accounts/api/hooks"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/shared/ui/select"
 
 export function ReceptionBatchPage() {
     const {
@@ -33,15 +43,46 @@ export function ReceptionBatchPage() {
     } = useReceptionBatch()
 
     const { showToast } = useToast()
+    const { data: bankAccounts = [] } = useBankAccountList()
     const [confirmOpen, setConfirmOpen] = useState(false)
+    const [paymentMethod, setPaymentMethod] = useState<'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE'>('EFECTIVO')
+    const [referenceNumber, setReferenceNumber] = useState('')
+    const [selectedBankId, setSelectedBankId] = useState('')
 
     const handleSaveRequest = () => {
         if (selectedOrders.length === 0) return
+        
+        // Auto-select cash account for EFECTIVO
+        if (paymentMethod === 'EFECTIVO' && !selectedBankId) {
+            const cashAccount = bankAccounts.find(b => b.type === 'CASH')
+            if (cashAccount) {
+                setSelectedBankId(cashAccount.id)
+            }
+        }
+        
         setConfirmOpen(true)
     }
 
     const confirmSave = async () => {
+        // Validate if there are payments to register
+        const totalAbono = selectedOrders.reduce((acc, o) => acc + o.abonoRecepcion, 0)
+        
+        if (totalAbono > 0) {
+            // Validate payment method requirements
+            if (paymentMethod !== 'EFECTIVO' && !referenceNumber.trim()) {
+                showToast("Debe ingresar el número de referencia para este método de pago", "error")
+                return
+            }
+            
+            if (!selectedBankId) {
+                showToast("Debe seleccionar una cuenta bancaria", "error")
+                return
+            }
+        }
+
         try {
+            // TODO: Pass payment details to saveBatch
+            // For now, the service uses default EFECTIVO
             const updatedOrders = await saveBatch.mutateAsync(selectedOrders)
 
             await generateOrderLabels({
@@ -52,6 +93,11 @@ export function ReceptionBatchPage() {
 
             showToast(`Recepción de ${updatedOrders.length} pedidos procesada exitosamente. Etiquetas generadas.`, "success")
             setConfirmOpen(false)
+            
+            // Reset payment fields
+            setPaymentMethod('EFECTIVO')
+            setReferenceNumber('')
+            setSelectedBankId('')
 
         } catch (error) {
             console.error("Error en recepción batch:", error)
@@ -163,31 +209,96 @@ export function ReceptionBatchPage() {
 
             {/* Confirmation Dialog */}
             <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-                <DialogContent className="max-w-md">
+                <DialogContent className="max-w-lg">
                     <DialogHeader>
                         <DialogTitle>Confirmar Recepción</DialogTitle>
                         <DialogDescription className="pt-2">
                             Se procesarán <strong>{selectedOrders.length} pedidos</strong>.
-                            <div className="mt-4 p-4 bg-slate-50 rounded-md space-y-2 text-sm border">
-                                <div className="flex justify-between">
-                                    <span>Total Facturas:</span>
-                                    <span className="font-bold">${totalInvoices.toFixed(2)}</span>
-                                </div>
-                                <div className="flex justify-between text-blue-600">
-                                    <span>Total Abonos a Registrar:</span>
-                                    <span className="font-bold">+ ${totalAbono.toFixed(2)}</span>
-                                </div>
-                                <div className="pt-2 border-t flex justify-between font-bold text-slate-800">
-                                    <span>Saldo Restante Global:</span>
-                                    <span>${globalRemaining.toFixed(2)}</span>
-                                </div>
-                            </div>
-                            <p className="mt-4 text-xs text-muted-foreground">
-                                Se generarán etiquetas PDF y se actualizarán los saldos en Caja General.
-                                <br />Si se generan saldos a favor, se crearán los créditos automáticamente.
-                            </p>
                         </DialogDescription>
                     </DialogHeader>
+                    
+                    <div className="space-y-4">
+                        {/* Financial Summary */}
+                        <div className="p-4 bg-slate-50 rounded-md space-y-2 text-sm border">
+                            <div className="flex justify-between">
+                                <span>Total Facturas:</span>
+                                <span className="font-bold">${totalInvoices.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between text-blue-600">
+                                <span>Total Abonos a Registrar:</span>
+                                <span className="font-bold">+ ${totalAbono.toFixed(2)}</span>
+                            </div>
+                            <div className="pt-2 border-t flex justify-between font-bold text-slate-800">
+                                <span>Saldo Restante Global:</span>
+                                <span>${globalRemaining.toFixed(2)}</span>
+                            </div>
+                        </div>
+
+                        {/* Payment Details - Only show if there are payments to register */}
+                        {totalAbono > 0 && (
+                            <div className="space-y-3 p-4 bg-blue-50/50 rounded-md border border-blue-100">
+                                <h4 className="font-semibold text-sm text-blue-900">Detalles del Abono</h4>
+                                
+                                {/* Payment Method */}
+                                <div className="space-y-2">
+                                    <Label htmlFor="paymentMethod" className="text-xs">Método de Pago</Label>
+                                    <Select value={paymentMethod} onValueChange={(v: any) => setPaymentMethod(v)}>
+                                        <SelectTrigger id="paymentMethod" className="bg-white">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="EFECTIVO">Efectivo</SelectItem>
+                                            <SelectItem value="TRANSFERENCIA">Transferencia</SelectItem>
+                                            <SelectItem value="DEPOSITO">Depósito</SelectItem>
+                                            <SelectItem value="CHEQUE">Cheque</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                {/* Bank Account */}
+                                <div className="space-y-2">
+                                    <Label htmlFor="bankAccount" className="text-xs">Cuenta Bancaria</Label>
+                                    <Select value={selectedBankId} onValueChange={setSelectedBankId}>
+                                        <SelectTrigger id="bankAccount" className="bg-white">
+                                            <SelectValue placeholder="Seleccione cuenta..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {bankAccounts
+                                                .filter(b => b.isActive)
+                                                .map(account => (
+                                                    <SelectItem key={account.id} value={account.id}>
+                                                        {account.name} ({account.type === 'CASH' ? 'Efectivo' : 'Banco'})
+                                                    </SelectItem>
+                                                ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                {/* Reference Number - Only for non-cash */}
+                                {paymentMethod !== 'EFECTIVO' && (
+                                    <div className="space-y-2">
+                                        <Label htmlFor="reference" className="text-xs">
+                                            Número de Referencia / Comprobante *
+                                        </Label>
+                                        <Input
+                                            id="reference"
+                                            value={referenceNumber}
+                                            onChange={(e) => setReferenceNumber(e.target.value)}
+                                            placeholder="Ej: 123456789"
+                                            className="bg-white"
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        <p className="text-xs text-muted-foreground">
+                            Se generarán etiquetas PDF y se actualizarán los saldos.
+                            {totalAbono > 0 && ' El abono se registrará en el sistema financiero.'}
+                            <br />Si se generan saldos a favor, se crearán los créditos automáticamente.
+                        </p>
+                    </div>
+
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setConfirmOpen(false)}>Cancelar</Button>
                         <Button

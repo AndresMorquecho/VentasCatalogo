@@ -2,6 +2,7 @@
 import { Users, Star, Award, RefreshCw } from 'lucide-react';
 import { useRewards } from '@/features/rewards/model/hooks';
 import { useLoyaltyRedemptions, useLoyaltyPrizes, useLoyaltyRules } from '../model/hooks';
+import { useClients } from '@/entities/client/model/hooks';
 import { Card, CardContent } from '@/shared/ui/card';
 import { Skeleton } from '@/shared/ui/skeleton';
 
@@ -17,6 +18,7 @@ export function LoyaltySummary() {
     const { redemptions } = useLoyaltyRedemptions();
     const { prizes } = useLoyaltyPrizes();
     const { rules } = useLoyaltyRules();
+    const { data: clients = [] } = useClients();
 
     const totalPoints = rewards.reduce((acc, r) => acc + r.totalPoints, 0);
     const totalRedemptions = redemptions.length;
@@ -27,6 +29,15 @@ export function LoyaltySummary() {
         .slice(0, 5);
 
     const isLoading = false;
+
+    // Helper to get client info
+    const getClientInfo = (clientId: string) => {
+        const client = clients.find(c => c.id === clientId);
+        return {
+            name: client?.firstName || 'Cliente Desconocido',
+            identification: client?.identificationNumber || clientId
+        };
+    };
 
     if (isLoading) {
         return <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">{[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-28" />)}</div>;
@@ -91,24 +102,27 @@ export function LoyaltySummary() {
                     {topClients.length === 0 ? (
                         <p className="text-center py-8 text-slate-400 text-sm">No hay datos de puntos aún.</p>
                     ) : (
-                        topClients.map((reward, idx) => (
-                            <div key={reward.id} className="flex items-center gap-4 px-4 py-3 hover:bg-slate-50 transition-colors">
-                                <span className="text-lg font-bold text-slate-300 w-6 text-center">{idx + 1}</span>
-                                <div className="flex-1">
-                                    <p className="text-sm font-medium text-slate-700">{reward.clientId}</p>
-                                    <p className="text-xs text-slate-400">{reward.totalOrders} pedidos · ${reward.totalSpent.toFixed(0)} gastado</p>
+                        topClients.map((reward, idx) => {
+                            const clientInfo = getClientInfo(reward.clientId);
+                            return (
+                                <div key={reward.id} className="flex items-center gap-4 px-4 py-3 hover:bg-slate-50 transition-colors">
+                                    <span className="text-lg font-bold text-slate-300 w-6 text-center">{idx + 1}</span>
+                                    <div className="flex-1">
+                                        <p className="text-sm font-medium text-slate-700">{clientInfo.name}</p>
+                                        <p className="text-xs text-slate-400">{reward.totalOrders} pedidos · ${reward.totalSpent.toFixed(0)} gastado</p>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${LEVEL_STYLES[reward.level] ?? 'bg-slate-100 text-slate-600'}`}>
+                                            {reward.level}
+                                        </span>
+                                        <span className="flex items-center gap-1 text-sm font-bold text-amber-600">
+                                            <Star className="h-3.5 w-3.5" />
+                                            {reward.totalPoints}
+                                        </span>
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-3">
-                                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${LEVEL_STYLES[reward.level] ?? 'bg-slate-100 text-slate-600'}`}>
-                                        {reward.level}
-                                    </span>
-                                    <span className="flex items-center gap-1 text-sm font-bold text-amber-600">
-                                        <Star className="h-3.5 w-3.5" />
-                                        {reward.totalPoints}
-                                    </span>
-                                </div>
-                            </div>
-                        ))
+                            );
+                        })
                     )}
                 </div>
             </div>

@@ -8,7 +8,7 @@ import {
     DialogDescription,
     DialogFooter
 } from "@/shared/ui/dialog"
-import { Button } from "@/shared/ui/button"
+import { AsyncButton } from "@/shared/ui/async-button"
 import { Input } from "@/shared/ui/input"
 import { Label } from "@/shared/ui/label"
 import { PackageCheck } from "lucide-react"
@@ -105,16 +105,18 @@ export function ReceiveOrderModal({ order, open, onOpenChange }: ReceiveOrderMod
                         Esta acción actualizará el saldo pendiente.
                     </div>
                     <div className="flex gap-2 justify-end w-full sm:w-auto">
-                        <Button variant="outline" onClick={() => onOpenChange(false)}>
+                        <AsyncButton variant="outline" onClick={() => onOpenChange(false)}>
                             Cancelar
-                        </Button>
-                        <Button
+                        </AsyncButton>
+                        <AsyncButton
                             onClick={handleSubmit}
-                            disabled={isSubmitting || !invoiceTotal}
+                            disabled={!invoiceTotal}
+                            isLoading={isSubmitting}
+                            loadingText="Guardando..."
                             className="bg-amber-600 hover:bg-amber-700 text-white"
                         >
-                            {isSubmitting ? 'Guardando...' : 'Confirmar Recepción'}
-                        </Button>
+                            Confirmar Recepción
+                        </AsyncButton>
                     </div>
                 </DialogFooter>
             </DialogContent>

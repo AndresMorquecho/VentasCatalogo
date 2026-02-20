@@ -14,6 +14,7 @@ import { OrderDeliveryPage, OrderDeliveryHistoryPage } from '@/features/order-de
 import { CashClosurePage } from '@/features/cash-closure/ui/CashClosurePage'
 import { TransactionsPage } from '@/features/transactions'
 import { PaymentsPage } from '@/features/payments/ui/PaymentsPage'
+import { ClientCreditsPage } from '@/features/client-credits/ui/ClientCreditsPage'
 import { CallsPage } from '@/features/calls'
 import { LoyaltyPage } from '@/features/loyalty'
 import { AdminUsersPage } from '@/features/users'
@@ -40,6 +41,7 @@ const protectedChildren = [
     { path: 'auditoria/financiera', element: <FinancialAuditPage /> },
     { path: 'cash-closure', element: <CashClosurePage /> },
     { path: 'payments', element: <PaymentsPage /> },
+    { path: 'client-credits', element: <ClientCreditsPage /> },
     { path: 'calls', element: <CallsPage /> },
     { path: 'rewards', element: <LoyaltyPage /> },
     {

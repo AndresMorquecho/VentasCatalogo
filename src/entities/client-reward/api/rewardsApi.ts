@@ -7,7 +7,7 @@ import type { Order } from '@/entities/order/model/types';
 let MOCK_REWARDS: ClientReward[] = [
     {
         id: '1',
-        clientId: 'c1', // Must match an existing client ID from Client mocks if possible
+        clientId: '1', // Maria Fernanda Gonzalez
         totalPoints: 150,
         totalOrders: 5,
         totalSpent: 1200,
@@ -16,7 +16,7 @@ let MOCK_REWARDS: ClientReward[] = [
     },
     {
         id: '2',
-        clientId: 'c2',
+        clientId: '2', // Ana Lucia Perez
         totalPoints: 50,
         totalOrders: 2,
         totalSpent: 400,
