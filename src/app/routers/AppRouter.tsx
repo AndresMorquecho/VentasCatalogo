@@ -18,9 +18,9 @@ import { ClientCreditsPage } from '@/features/client-credits/ui/ClientCreditsPag
 import { CallsPage } from '@/features/calls'
 import { LoyaltyPage } from '@/features/loyalty'
 import { AdminUsersPage } from '@/features/users'
-import { LoginPage } from '@/features/auth'
+import { LoginPage } from '@/features/auth/ui/LoginPage'
 import { DashboardPage } from '@/features/dashboard/ui/DashboardPage'
-import { ProtectedRoute } from '@/shared/auth'
+import { ProtectedRoute } from '@/shared/components/ProtectedRoute'
 import { ToastProvider } from '@/shared/ui/use-toast'
 
 // ─── All app routes wrapped in MainLayout and ProtectedRoute ─────────────────
@@ -46,11 +46,7 @@ const protectedChildren = [
     { path: 'rewards', element: <LoyaltyPage /> },
     {
         path: 'admin/users',
-        element: (
-            <ProtectedRoute adminOnly>
-                <AdminUsersPage />
-            </ProtectedRoute>
-        ),
+        element: <AdminUsersPage />,
     },
 ];
 

@@ -1,4 +1,4 @@
-export type { Client, ClientPayload, IdentificationType, BranchType } from './types';
+export type { Client, ClientPayload, IdentificationType } from './types';
 export {
     createClient,
     updateClient,

@@ -1,5 +1,4 @@
 export type IdentificationType = 'CEDULA';
-export type BranchType = 'MATRIZ';
 
 export interface Client {
     id: string;
@@ -8,7 +7,6 @@ export interface Client {
     firstName: string;
     country: string;
     province: string;
-    branch: BranchType;
     city: string;
     address: string;
     neighborhood?: string;
@@ -28,7 +26,6 @@ export interface ClientPayload {
     firstName: string;
     country: string;
     province: string;
-    branch: BranchType;
     city: string;
     address: string;
     neighborhood?: string;

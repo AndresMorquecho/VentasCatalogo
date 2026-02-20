@@ -1,4 +1,4 @@
-export type { Client, ClientPayload, IdentificationType, BranchType, ClientValidationErrors } from './model';
+export type { Client, ClientPayload, IdentificationType, ClientValidationErrors } from './model';
 export {
     createClient,
     updateClient,

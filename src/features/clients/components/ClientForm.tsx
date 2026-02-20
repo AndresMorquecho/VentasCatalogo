@@ -82,7 +82,6 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
             setIsSubmitting(true);
             const payload = {
                 identificationType: "CEDULA" as const,
-                branch: "MATRIZ" as const,
                 identificationNumber: values.identificationNumber,
                 firstName: values.firstName,
                 country: values.country,
@@ -107,9 +106,22 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
                 }
                 onOpenChange(false);
                 formik.resetForm();
-            } catch (error) {
+            } catch (error: any) {
                 console.error("Error saving client", error);
-                setSubmitError("Ocurrió un error al guardar. Intente de nuevo.");
+                
+                // Handle specific error codes
+                if (error.code === 'UNIQUE_CONSTRAINT') {
+                    const field = error.details?.target?.[0];
+                    if (field === 'identification_number') {
+                        setSubmitError('Ya existe una empresaria con este número de cédula.');
+                    } else if (field === 'email') {
+                        setSubmitError('Ya existe una empresaria con este correo electrónico.');
+                    } else {
+                        setSubmitError('Ya existe un registro con estos datos.');
+                    }
+                } else {
+                    setSubmitError(error.message || 'Ocurrió un error al guardar. Intente de nuevo.');
+                }
             } finally {
                 setIsSubmitting(false);
             }

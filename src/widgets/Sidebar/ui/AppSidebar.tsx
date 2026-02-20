@@ -22,7 +22,9 @@ import {
     Gift,
 } from "lucide-react"
 import { Link } from "react-router-dom"
-import { useAuth } from "@/shared/auth"
+import { authService } from "@/shared/services/authService"
+import { LogoutDialog } from "@/shared/components/LogoutDialog"
+import { useState } from "react"
 
 import {
     Sidebar,
@@ -153,7 +155,14 @@ const groupedItems = [
 ]
 
 export function AppSidebar() {
-    const { user, isAdmin, logout } = useAuth();
+    const user = authService.getUser();
+    const isAdmin = user?.role === 'ADMIN';
+    const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+    
+    const handleLogout = () => {
+        authService.logout();
+    };
+    
     return (
         <Sidebar collapsible="icon">
             <SidebarHeader className="p-0 overflow-hidden">
@@ -193,7 +202,7 @@ export function AppSidebar() {
                 </SidebarGroup>
 
                 {/* 3. Admin-only Config Section */}
-                {isAdmin() && (
+                {isAdmin && (
                     <SidebarGroup>
                         <SidebarGroupLabel>Configuración</SidebarGroupLabel>
                         <SidebarGroupContent>
@@ -219,20 +228,26 @@ export function AppSidebar() {
                         <User className="h-5 w-5" />
                     </div>
                     <div className="flex flex-col overflow-hidden group-data-[collapsible=icon]:hidden">
-                        <span className="text-sm font-medium truncate">{user ? `${user.firstName} ${user.lastName}` : 'Usuario'}</span>
-                        <span className="text-xs text-muted-foreground truncate">{user?.role.name ?? ''}</span>
+                        <span className="text-sm font-medium truncate">{user?.name || 'Usuario'}</span>
+                        <span className="text-xs text-muted-foreground truncate">{user?.role || ''}</span>
                     </div>
                 </div>
                 <Button
                     variant="ghost"
                     className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 gap-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
-                    onClick={logout}
+                    onClick={() => setShowLogoutDialog(true)}
                 >
                     <LogOut className="h-4 w-4" />
                     <span className="group-data-[collapsible=icon]:hidden">Cerrar Sesión</span>
                 </Button>
             </SidebarFooter>
             <SidebarRail />
+            
+            <LogoutDialog 
+                open={showLogoutDialog}
+                onOpenChange={setShowLogoutDialog}
+                onConfirm={handleLogout}
+            />
         </Sidebar>
     )
 }
