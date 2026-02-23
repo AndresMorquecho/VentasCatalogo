@@ -32,7 +32,6 @@ const MOCK_ORDERS: Order[] = [
         realInvoiceTotal: 150.00,
         receptionDate: getRelativeDate(0, -2), // Today, 2 hours ago
         invoiceNumber: `BATCH-${getRelativeDateOnly(0)}-001`,
-        deposit: 0,
         // REMOVED: paidAmount - Use getPaidAmount() instead
         payments: [
             { id: 'pay-101-init', amount: 100.00, method: 'EFECTIVO', bankAccountId: '2', createdAt: getRelativeDate(0, -2), description: 'Abono inicial' }
@@ -59,7 +58,6 @@ const MOCK_ORDERS: Order[] = [
         realInvoiceTotal: 95.00,
         receptionDate: getRelativeDate(0, -1), // Today, 1 hour ago
         invoiceNumber: `BATCH-${getRelativeDateOnly(0)}-510`,
-        deposit: 0,
         // REMOVED: paidAmount - Use getPaidAmount() instead
         payments: [
             { id: 'pay-105-init', amount: 30.00, method: 'EFECTIVO', bankAccountId: '2', createdAt: getRelativeDate(0, -1), description: 'Abono inicial' },
@@ -84,7 +82,6 @@ const MOCK_ORDERS: Order[] = [
         possibleDeliveryDate: getRelativeDate(5), // 5 days from now
         status: 'POR_RECIBIR',
         total: 75.50,
-        deposit: 0,
         // REMOVED: paidAmount - Use getPaidAmount() instead
         payments: [
             { id: 'pay-102-init', amount: 75.50, method: 'TRANSFERENCIA', bankAccountId: '1', createdAt: getRelativeDate(-1, 0), description: 'Abono inicial' }
@@ -109,7 +106,6 @@ const MOCK_ORDERS: Order[] = [
         possibleDeliveryDate: getRelativeDate(2), // 2 days from now
         status: 'POR_RECIBIR',
         total: 203.00,
-        deposit: 0,
         // REMOVED: paidAmount - Use getPaidAmount() instead
         payments: [],
         paymentMethod: 'EFECTIVO',
@@ -131,7 +127,6 @@ const MOCK_ORDERS: Order[] = [
         possibleDeliveryDate: getRelativeDate(3), // 3 days from now
         status: 'POR_RECIBIR',
         total: 45.00,
-        deposit: 0,
         // REMOVED: paidAmount - Use getPaidAmount() instead
         payments: [
             { id: 'pay-107-init', amount: 45.00, method: 'EFECTIVO', bankAccountId: '2', createdAt: getRelativeDate(-1, 0), description: 'Abono inicial' }
@@ -164,7 +159,6 @@ export const orderApi = {
         const newOrder: Order = {
             id: String(Date.now()),
             ...payload,
-            deposit: 0, // Always 0 — initial payment goes through payments[]
             createdAt: new Date().toISOString(),
             payments: payload.payments || [],
             // REMOVED: paidAmount - Calculated dynamically with getPaidAmount()
@@ -178,6 +172,16 @@ export const orderApi = {
         if (idx === -1) throw new Error('Order not found')
         MOCK_ORDERS[idx] = { ...MOCK_ORDERS[idx], ...payload }
         return MOCK_ORDERS[idx]
+    },
+
+    getDeliveryList: async (): Promise<Order[]> => {
+        await delay()
+        return MOCK_ORDERS.filter(o => o.status === 'RECIBIDO_EN_BODEGA')
+    },
+
+    getDeliveryHistory: async (): Promise<Order[]> => {
+        await delay()
+        return MOCK_ORDERS.filter(o => o.status === 'ENTREGADO' && o.deliveryDate)
     },
 
     /**
