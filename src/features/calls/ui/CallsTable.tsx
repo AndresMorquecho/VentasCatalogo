@@ -1,11 +1,10 @@
-
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
-import type { CallRecord } from '@/entities/call-record/model/types';
+import type { Call } from '@/entities/call';
 import { useClients } from '@/entities/client/model/hooks';
 
 
 interface CallsTableProps {
-    calls: CallRecord[];
+    calls: Call[];
 }
 
 export function CallsTable({ calls }: CallsTableProps) {
@@ -44,8 +43,8 @@ export function CallsTable({ calls }: CallsTableProps) {
                                 <TableCell>{call.reason}</TableCell>
                                 <TableCell>{call.result}</TableCell>
                                 <TableCell>{call.createdBy}</TableCell>
-                                <TableCell className="max-w-[200px] truncate" title={call.observations}>
-                                    {call.observations}
+                                <TableCell className="max-w-[200px] truncate" title={call.notes || ''}>
+                                    {call.notes}
                                 </TableCell>
                             </TableRow>
                         ))

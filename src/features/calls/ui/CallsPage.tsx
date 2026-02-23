@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
@@ -8,7 +7,7 @@ import { useCalls } from '../model/hooks';
 import { CallFormModal } from './CallFormModal';
 import { CallsTable } from './CallsTable';
 
-import { CALL_REASONS, CALL_RESULTS } from '@/entities/call-record/model/model';
+import { CALL_REASONS, CALL_RESULTS } from '@/entities/call';
 import { useClients } from '@/entities/client/model/hooks';
 
 export function CallsPage() {

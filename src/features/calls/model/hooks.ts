@@ -1,67 +1,18 @@
+import { useCalls as useEntityCalls, useCreateCall } from '@/entities/call';
+import type { CallPayload } from '@/entities/call';
 
-import { useState, useEffect } from 'react';
-import type { CallRecord } from '@/entities/call-record/model/types';
-import { useSessionStore } from '@/entities/session/model/store'; // Use user info
+export const useCalls = (clientId?: string) => {
+    const { data: calls = [], isLoading, refetch } = useEntityCalls(clientId);
+    const { mutateAsync: createCall, isPending: isAdding } = useCreateCall();
 
-// Mock data store (in memory for demo)
-let MOCK_CALLS: CallRecord[] = [
-  {
-    id: '1',
-    clientId: 'c1',
-    reason: 'COBRO',
-    result: 'NO_CONTESTA',
-    createdAt: new Date().toISOString(),
-    createdBy: 'admin@example.com',
-    observations: 'Primer intento',
-  },
-   {
-    id: '2',
-    clientId: 'c2',
-    reason: 'VENTA',
-    result: 'INTERESADO',
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-    createdBy: 'vendedor@example.com',
-    observations: 'Quiere ver catálogo nuevo',
-  }
-];
-
-export const useCalls = () => {
-    const [calls, setCalls] = useState<CallRecord[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-
-    const fetchCalls = async () => {
-        setIsLoading(true);
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 500));
-        setCalls([...MOCK_CALLS]);
-        setIsLoading(false);
-    };
-
-    useEffect(() => {
-        fetchCalls();
-    }, []);
-
-    const user = useSessionStore(state => state.user);
-
-    const addCall = async (call: Omit<CallRecord, 'id' | 'createdAt' | 'createdBy'>) => {
-        setIsLoading(true);
-        await new Promise(resolve => setTimeout(resolve, 500));
-        const newCall: CallRecord = {
-            ...call,
-            id: Math.random().toString(36).substr(2, 9),
-            createdAt: new Date().toISOString(),
-            createdBy: user?.email || 'unknown',
-        };
-        MOCK_CALLS = [newCall, ...MOCK_CALLS];
-        setCalls([...MOCK_CALLS]);
-        setIsLoading(false);
-        return newCall;
+    const addCall = async (payload: CallPayload) => {
+        return createCall(payload);
     };
 
     return {
         calls,
-        isLoading,
+        isLoading: isLoading || isAdding,
         addCall,
-        refetch: fetchCalls
+        refetch
     };
 };

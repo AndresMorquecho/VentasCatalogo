@@ -1,44 +1,38 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { callApi } from './api'
-import type { CallPayload } from './types'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { callApi } from './api';
+import type { CallPayload } from './types';
 
 const KEYS = {
     all: ['calls'] as const,
-    list: () => [...KEYS.all, 'list'] as const,
-    byClient: (clientId: string) => [...KEYS.all, 'client', clientId] as const
-}
+    list: (clientId?: string) => [...KEYS.all, 'list', { clientId }] as const,
+    detail: (id: string) => [...KEYS.all, 'detail', id] as const
+};
 
-export function useCallList() {
-    return useQuery({ queryKey: KEYS.list(), queryFn: callApi.getAll })
-}
-
-export function useCallsByClient(clientId: string) {
+export function useCalls(clientId?: string) {
     return useQuery({
-        queryKey: KEYS.byClient(clientId),
-        queryFn: () => callApi.getByClient(clientId),
-        enabled: !!clientId
-    })
+        queryKey: KEYS.list(clientId),
+        queryFn: () => callApi.getAll(clientId)
+    });
 }
 
 export function useCreateCall() {
-    const qc = useQueryClient()
+    const queryClient = useQueryClient();
     return useMutation({
         mutationFn: (data: CallPayload) => callApi.create(data),
-        onSuccess: (_, v) => {
-            qc.invalidateQueries({ queryKey: KEYS.byClient(v.clientId) })
-            qc.invalidateQueries({ queryKey: KEYS.list() })
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: KEYS.all });
         }
-    })
+    });
 }
 
 export function useUpdateCall() {
-    const qc = useQueryClient()
+    const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: ({ id, data }: { id: string; data: Partial<CallPayload> }) => 
+        mutationFn: ({ id, data }: { id: string; data: Partial<CallPayload> }) =>
             callApi.update(id, data),
-        onSuccess: (updatedCall) => {
-            qc.invalidateQueries({ queryKey: KEYS.byClient(updatedCall.clientId) })
-            qc.invalidateQueries({ queryKey: KEYS.list() })
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: KEYS.all });
+            queryClient.invalidateQueries({ queryKey: KEYS.detail(data.id) });
         }
-    })
+    });
 }
