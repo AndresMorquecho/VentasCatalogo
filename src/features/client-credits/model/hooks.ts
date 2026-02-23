@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { clientCreditApi } from '@/shared/api/transactionApi';
+import { clientCreditApi } from '@/shared/api/clientCreditApi';
 import { clientApi } from '@/shared/api/clientApi';
 import type { ClientCreditSummary } from './types';
 

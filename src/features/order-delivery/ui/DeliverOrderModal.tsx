@@ -1,5 +1,4 @@
-// ... imports
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import {
     Dialog,
@@ -16,12 +15,8 @@ import { Input } from "@/shared/ui/input"
 import { Truck, CreditCard, Gift } from "lucide-react"
 import type { Order } from "@/entities/order/model/types"
 import { orderApi } from "@/entities/order/model/api"
-import { inventoryApi } from "@/shared/api/inventoryApi"
-import { rewardsApi } from "@/entities/client-reward/api/rewardsApi"
 import { getPendingAmount, hasClientCredit, getClientCreditAmount, getPaidAmount } from "@/entities/order/model/model"
-import { useAddOrderPayment } from "@/features/order-payments/model"
 import { useBankAccountList } from "@/features/bank-accounts/api/hooks"
-import { processPaymentRegistration } from "@/features/transactions/lib/processPayment"
 import { useToast } from "@/shared/ui/use-toast"
 import { generateDeliveryReceipt } from "../lib/generateDeliveryReceipt"
 
@@ -36,9 +31,9 @@ export function DeliverOrderModal({ order, open, onOpenChange }: DeliverOrderMod
     const [selectedBankId, setSelectedBankId] = useState<string>('')
     const [paymentMethod, setPaymentMethod] = useState("EFECTIVO")
     const [referenceNumber, setReferenceNumber] = useState("")
+    const isProcessingRef = useRef(false)
 
     const qc = useQueryClient()
-    const { mutateAsync: addPayment } = useAddOrderPayment()
     const { data: bankAccounts = [] } = useBankAccountList()
     const { showToast } = useToast()
 
@@ -55,120 +50,45 @@ export function DeliverOrderModal({ order, open, onOpenChange }: DeliverOrderMod
     const amountToCharge = Math.max(0, pendingAmount)
 
     const handleSubmit = async () => {
+        // Prevent multiple simultaneous submissions
+        if (isProcessingRef.current) {
+            console.warn('Already processing delivery, ignoring duplicate request');
+            return;
+        }
+
+        isProcessingRef.current = true;
         setIsSubmitting(true)
         try {
-            // TODO BACKEND: Validate order status before delivery
-            // Prevent double delivery
-            if (order.status === 'ENTREGADO') {
-                showToast("Este pedido ya fue entregado anteriormente", "error")
-                setIsSubmitting(false)
-                return
-            }
-
-            // Validate order is in warehouse
-            if (order.status !== 'RECIBIDO_EN_BODEGA') {
-                showToast("El pedido debe estar recibido en bodega antes de entregar", "error")
-                setIsSubmitting(false)
-                return
-            }
-
-            // 1. Process Payment if pending amount exists (no credit)
+            // 1. Validate if payment is required
             if (amountToCharge > 0.01) {
                 // Validation
                 if (paymentMethod !== 'EFECTIVO' && !referenceNumber) {
                     showToast("Debe ingresar el número de referencia", "error")
                     setIsSubmitting(false)
+                    isProcessingRef.current = false;
                     return
                 }
 
                 if (!selectedBankId && paymentMethod !== 'EFECTIVO') {
                     showToast("Seleccione una cuenta bancaria", "error")
                     setIsSubmitting(false)
+                    isProcessingRef.current = false;
                     return
                 }
-
-                // Transaction Registration
-                try {
-                    const txResult = await processPaymentRegistration({
-                        amount: amountToCharge,
-                        method: paymentMethod,
-                        reference: referenceNumber,
-                        clientId: order.clientId,
-                        currentPendingBalance: amountToCharge,
-                        date: new Date().toISOString(),
-                        user: 'Vendedor' // Mock
-                    })
-
-                    if (txResult.creditGenerated > 0) {
-                        showToast(`Se generó un saldo a favor de ${txResult.creditGenerated.toFixed(2)}`, "success")
-                    }
-                } catch (txError: any) {
-                    showToast(txError.message, "error")
-                    setIsSubmitting(false)
-                    return
-                }
-
-                // Find bank account
-                let bankAccount = bankAccounts.find(b => b.id === selectedBankId)
-                if (!bankAccount && paymentMethod === 'EFECTIVO') {
-                    bankAccount = bankAccounts.find(b => b.type === 'CASH')
-                }
-
-                if (!bankAccount) {
-                    showToast("Advertencia: No se encontró cuenta de caja/banco.", "error")
-                } else {
-                    // Register Payment in Order
-                    await addPayment({
-                        order,
-                        amount: amountToCharge,
-                        bankAccount
-                    })
-                }
             }
 
-            // 2. Mark as Delivered using the updated order state
-            const deliveredOrder: Order = {
-                ...order,
-                status: 'ENTREGADO',
-                deliveryDate: new Date().toISOString(),
-                // REMOVED: paidAmount update - calculated dynamically
-            }
+            // 2. Deliver order using backend endpoint (handles everything in transaction)
+            const deliveredOrder = await orderApi.deliverOrder(order.id, {
+                finalPayment: amountToCharge > 0.01 ? amountToCharge : undefined,
+                bankAccountId: selectedBankId || undefined,
+                paymentMethod: paymentMethod,
+                reference: referenceNumber || undefined,
+                notes: `Entrega al cliente ${order.clientName}`
+            });
 
-            await orderApi.update(deliveredOrder.id, deliveredOrder);
-
-            // 3. Create Inventory Exit Movement
-            // TODO BACKEND: Validate no duplicate DELIVERED exists for this order
-            const existingInventory = await inventoryApi.getAll();
-            const hasDelivered = existingInventory.some(
-                inv => inv.orderId === deliveredOrder.id && inv.type === 'DELIVERED'
-            );
-            
-            if (!hasDelivered) {
-                await inventoryApi.create({
-                    orderId: deliveredOrder.id,
-                    clientId: deliveredOrder.clientId,
-                    brandId: deliveredOrder.brandId,
-                    type: 'DELIVERED',
-                    createdBy: 'Vendedor', // Should be dynamic user
-                    notes: `Salida por entrega al cliente. Pedido: ${deliveredOrder.receiptNumber}`,
-                    deliveryDetails: {
-                        deliveryDate: deliveredOrder.deliveryDate
-                    }
-                });
-            } else {
-                console.warn(`Inventory DELIVERED already exists for order ${deliveredOrder.id}, skipping creation`);
-            }
-
-            // 4. Update Client Rewards (Loyalty Points)
-            try {
-                await rewardsApi.updateClientRewards(deliveredOrder);
-            } catch (rewardError) {
-                console.error("Error updating rewards:", rewardError);
-                // Don't fail delivery if rewards update fails
-            }
-
+            // 3. Invalidate queries to refresh UI
             await qc.invalidateQueries({ queryKey: ['orders'] })
-            await qc.invalidateQueries({ queryKey: ['financial-movements'] })
+            await qc.invalidateQueries({ queryKey: ['financial-records'] })
             await qc.invalidateQueries({ queryKey: ['transactions'] })
             await qc.invalidateQueries({ queryKey: ['inventory-movements'] })
             await qc.invalidateQueries({ queryKey: ['client-rewards'] })
@@ -197,6 +117,7 @@ export function DeliverOrderModal({ order, open, onOpenChange }: DeliverOrderMod
             showToast("Ocurrió un error al procesar la entrega.", "error")
         } finally {
             setIsSubmitting(false)
+            isProcessingRef.current = false;
         }
     }
 

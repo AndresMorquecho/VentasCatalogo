@@ -51,7 +51,7 @@ export function ReceptionBatchPage() {
 
     const handleSaveRequest = () => {
         if (selectedOrders.length === 0) return
-        
+
         // Auto-select cash account for EFECTIVO
         if (paymentMethod === 'EFECTIVO' && !selectedBankId) {
             const cashAccount = bankAccounts.find(b => b.type === 'CASH')
@@ -59,21 +59,21 @@ export function ReceptionBatchPage() {
                 setSelectedBankId(cashAccount.id)
             }
         }
-        
+
         setConfirmOpen(true)
     }
 
     const confirmSave = async () => {
         // Validate if there are payments to register
         const totalAbono = selectedOrders.reduce((acc, o) => acc + o.abonoRecepcion, 0)
-        
+
         if (totalAbono > 0) {
             // Validate payment method requirements
             if (paymentMethod !== 'EFECTIVO' && !referenceNumber.trim()) {
                 showToast("Debe ingresar el número de referencia para este método de pago", "error")
                 return
             }
-            
+
             if (!selectedBankId) {
                 showToast("Debe seleccionar una cuenta bancaria", "error")
                 return
@@ -81,9 +81,13 @@ export function ReceptionBatchPage() {
         }
 
         try {
-            // TODO: Pass payment details to saveBatch
-            // For now, the service uses default EFECTIVO
-            const updatedOrders = await saveBatch.mutateAsync(selectedOrders)
+            // Pass payment details to saveBatch
+            const updatedOrders = await saveBatch.mutateAsync({
+                ordersToSave: selectedOrders,
+                paymentMethod: paymentMethod,
+                bankAccountId: selectedBankId,
+                referenceNumber: referenceNumber
+            });
 
             await generateOrderLabels({
                 orders: updatedOrders,
@@ -93,15 +97,15 @@ export function ReceptionBatchPage() {
 
             showToast(`Recepción de ${updatedOrders.length} pedidos procesada exitosamente. Etiquetas generadas.`, "success")
             setConfirmOpen(false)
-            
+
             // Reset payment fields
             setPaymentMethod('EFECTIVO')
             setReferenceNumber('')
             setSelectedBankId('')
 
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error en recepción batch:", error)
-            showToast("Hubo un error al procesar la recepción.", "error")
+            showToast(error.message || "Hubo un error al procesar la recepción.", "error")
         }
     }
 
@@ -216,7 +220,7 @@ export function ReceptionBatchPage() {
                             Se procesarán <strong>{selectedOrders.length} pedidos</strong>.
                         </DialogDescription>
                     </DialogHeader>
-                    
+
                     <div className="space-y-4">
                         {/* Financial Summary */}
                         <div className="p-4 bg-slate-50 rounded-md space-y-2 text-sm border">
@@ -238,7 +242,7 @@ export function ReceptionBatchPage() {
                         {totalAbono > 0 && (
                             <div className="space-y-3 p-4 bg-blue-50/50 rounded-md border border-blue-100">
                                 <h4 className="font-semibold text-sm text-blue-900">Detalles del Abono</h4>
-                                
+
                                 {/* Payment Method */}
                                 <div className="space-y-2">
                                     <Label htmlFor="paymentMethod" className="text-xs">Método de Pago</Label>

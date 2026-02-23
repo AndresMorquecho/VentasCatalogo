@@ -1,24 +1,26 @@
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useTransactions } from "../model/hooks"
 import { TransactionsTable } from "./TransactionsTable"
 import { TransactionDetailsModal } from "./TransactionDetailsModal"
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
 import { Search, Loader2, X } from "lucide-react"
-import type { FinancialTransaction } from "@/entities/financial-transaction/model/types"
+import type { FinancialRecord } from "@/entities/financial-record/model/types"
 
 export function TransactionsPage() {
     const [searchTerm, setSearchTerm] = useState("")
     const [startDate, setStartDate] = useState("")
     const [endDate, setEndDate] = useState("")
-    const [viewTx, setViewTx] = useState<FinancialTransaction | null>(null)
+    const [viewTx, setViewTx] = useState<FinancialRecord | null>(null)
 
-    // Debounce search or just pass
-    const { data: transactions = [], isLoading } = useTransactions({
+    // Memoize filters to prevent infinite re-render loops from TanStack Query key changes
+    const filters = useMemo(() => ({
         referenceNumber: searchTerm,
         startDate: startDate || undefined,
         endDate: endDate || undefined
-    })
+    }), [searchTerm, startDate, endDate]);
+
+    const { data: transactions = [], isLoading } = useTransactions(filters)
 
     const handleClear = () => {
         setSearchTerm("")

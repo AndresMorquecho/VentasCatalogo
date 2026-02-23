@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useFinancialMovements } from '@/features/financial-movement/api/hooks';
+import { useFinancialRecords } from '@/entities/financial-record/model/queries';
 import { useBankAccountList } from '@/features/bank-accounts/api/hooks';
 import { createCashClosureSnapshot } from '@/entities/cash-closure/model/model';
 import { createDetailedCashClosureReport } from '@/entities/cash-closure/model/detailed-model';
@@ -26,7 +26,7 @@ export function CashClosurePage() {
     const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
     // 2. Hooks de Datos UI
-    const { data: movements = [], isLoading: isLoadingMovements } = useFinancialMovements();
+    const { data: records = [], isLoading: isLoadingRecords } = useFinancialRecords();
     const { data: bankAccounts = [], isLoading: isLoadingBanks } = useBankAccountList();
     const { data: closures = [], isLoading: isLoadingClosures } = useCashClosures();
 
@@ -42,7 +42,7 @@ export function CashClosurePage() {
         const payload = createCashClosureSnapshot(
             fromDate,
             toDate,
-            movements,
+            records,
             bankAccounts
         );
 
@@ -50,7 +50,7 @@ export function CashClosurePage() {
         const detailed = createDetailedCashClosureReport(
             fromDate,
             toDate,
-            movements,
+            records,
             bankAccounts,
             'Usuario Actual' // TODO: Obtener del contexto de autenticación
         );
@@ -119,7 +119,7 @@ export function CashClosurePage() {
         }
     };
 
-    const isLoading = isLoadingMovements || isLoadingBanks || isLoadingClosures;
+    const isLoading = isLoadingRecords || isLoadingBanks || isLoadingClosures;
 
     return (
         <div className="space-y-6 container mx-auto py-6">

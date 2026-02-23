@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { transactionApi, clientCreditApi } from "@/shared/api/transactionApi";
-import type { FinancialTransaction } from "@/entities/financial-transaction/model/types";
+import { clientCreditApi } from "@/shared/api/clientCreditApi";
+import { financialRecordApi } from "@/entities/financial-record/model/api";
 import type { ClientCredit } from "@/entities/client-credit/model/types";
+import type { FinancialRecord } from "@/entities/financial-record/model/types";
 
 export interface TransactionFilters {
     startDate?: string;
@@ -13,16 +14,26 @@ export interface TransactionFilters {
 export const useTransactions = (filters?: TransactionFilters) => {
     return useQuery({
         queryKey: ['transactions', filters],
-        queryFn: () => transactionApi.getAll(filters)
+        queryFn: () => {
+            // Map to financial records API
+            if (filters?.startDate && filters?.endDate) {
+                return financialRecordApi.getByDateRange(filters.startDate, filters.endDate);
+            }
+            if (filters?.clientId) {
+                return financialRecordApi.getByClient(filters.clientId);
+            }
+            return financialRecordApi.getAll();
+        }
     });
 };
 
 export const useCreateTransaction = () => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: (data: Omit<FinancialTransaction, 'id' | 'createdAt'>) => transactionApi.createTransaction(data),
+        mutationFn: (data: Omit<FinancialRecord, 'id' | 'createdAt' | 'version'>) => financialRecordApi.create(data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['transactions'] });
+            queryClient.invalidateQueries({ queryKey: ['financial-records'] });
         }
     });
 };

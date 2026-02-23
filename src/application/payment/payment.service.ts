@@ -2,10 +2,9 @@
 // Transactional logic moved from shared/api/paymentApi.ts
 
 import { orderApi } from '@/entities/order/model/api';
-import { transactionApi, clientCreditApi } from '@/shared/api/transactionApi';
+import { clientCreditApi } from '@/shared/api/clientCreditApi';
 import { bankAccountApi } from '@/shared/api/bankAccountApi';
 import { financialRecordService } from '@/application/financial/financialRecord.service';
-import type { FinancialTransactionPayload } from '@/shared/api/transactionApi';
 
 export interface PaymentPayload {
     orderId: string;

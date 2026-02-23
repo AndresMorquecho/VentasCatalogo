@@ -149,11 +149,10 @@ export function ReceptionHistory({ orders, clients }: Props) {
                 amount: newAmount
             };
 
-            const newPaidAmount = updatedPayments.reduce((sum, p) => sum + p.amount, 0);
+
 
             await orderApi.update(order.id, {
-                payments: updatedPayments,
-                paidAmount: newPaidAmount
+                payments: updatedPayments
             });
 
             showToast("Abono actualizado.", "success");
@@ -282,7 +281,7 @@ export function ReceptionHistory({ orders, clients }: Props) {
                                                 />
                                             ) : (
                                                 <span className="font-mono text-sm text-green-700">
-                                                    ${lastPay.toFixed(2)}
+                                                    ${Number(lastPay || 0).toFixed(2)}
                                                 </span>
                                             )}
                                         </TableCell>

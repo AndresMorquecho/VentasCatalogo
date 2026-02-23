@@ -2,16 +2,21 @@ import { useState } from "react"
 import { Skeleton } from "@/shared/ui/skeleton"
 import { Button } from "@/shared/ui/button"
 import { Plus } from "lucide-react"
-import { useOrderList } from "@/entities/order/model/hooks"
+import { useOrderList, useDeleteOrder } from "@/entities/order/model/hooks"
 import { useOrderFilters } from "../model/useOrderFilters"
 import { OrderFilters } from "./OrderFilters"
 import { OrderTable } from "./OrderTable"
 import { OrderDetailModal } from "./OrderDetailModal"
 import { OrderFormModal } from "./OrderFormModal"
+import { ConfirmDialog } from "@/shared/ui/confirm-dialog"
+import { useToast } from "@/shared/ui/use-toast"
+import { getPaidAmount, getPendingAmount } from "@/entities/order/model/model"
 import type { Order } from "@/entities/order/model/types"
 
 export function OrderList() {
     const { data: orders = [], isLoading } = useOrderList()
+    const deleteOrder = useDeleteOrder()
+    const { showToast } = useToast()
     const {
         statusFilter,
         setStatusFilter,
@@ -21,7 +26,7 @@ export function OrderList() {
     } = useOrderFilters(orders)
 
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
-    const [modalMode, setModalMode] = useState<'none' | 'detail' | 'create' | 'edit'>('none')
+    const [modalMode, setModalMode] = useState<'none' | 'detail' | 'create' | 'edit' | 'delete'>('none')
 
     const handleViewDetails = (order: Order) => {
         setSelectedOrder(order)
@@ -31,6 +36,24 @@ export function OrderList() {
     const handleEdit = (order: Order) => {
         setSelectedOrder(order)
         setModalMode('edit')
+    }
+
+    const handleDeleteClick = (order: Order) => {
+        setSelectedOrder(order)
+        setModalMode('delete')
+    }
+
+    const handleConfirmDelete = async () => {
+        if (!selectedOrder) return
+
+        try {
+            await deleteOrder.mutateAsync(selectedOrder.id)
+            showToast(`Pedido ${selectedOrder.receiptNumber} eliminado correctamente`, 'success')
+            setModalMode('none')
+            setSelectedOrder(null)
+        } catch (error) {
+            showToast('Error al eliminar el pedido', 'error')
+        }
     }
 
     const handleCreate = () => {
@@ -76,6 +99,7 @@ export function OrderList() {
                     orders={filteredOrders}
                     onViewDetails={handleViewDetails}
                     onEdit={handleEdit}
+                    onDelete={handleDeleteClick}
                 />
             )}
 
@@ -90,6 +114,42 @@ export function OrderList() {
                 open={modalMode === 'create' || modalMode === 'edit'}
                 onOpenChange={(open) => !open && handleClose()}
             />
+
+            {selectedOrder && (
+                <ConfirmDialog
+                    open={modalMode === 'delete'}
+                    onOpenChange={(open) => !open && handleClose()}
+                    onConfirm={handleConfirmDelete}
+                    title="Eliminar Pedido"
+                    description={`¿Estás seguro de eliminar el pedido ${selectedOrder.receiptNumber}?`}
+                    confirmText="Eliminar"
+                    cancelText="Cancelar"
+                    variant="destructive"
+                >
+                    <div className="space-y-3 text-sm">
+                        <div className="rounded-lg bg-amber-50 border border-amber-200 p-3">
+                            <p className="font-medium text-amber-900 mb-2">⚠️ Esta acción afectará:</p>
+                            <ul className="space-y-1 text-amber-800">
+                                <li>• El pedido será marcado como <strong>CANCELADO</strong></li>
+                                {getPaidAmount(selectedOrder) > 0 && (
+                                    <li>• Abono realizado: <strong>${getPaidAmount(selectedOrder).toFixed(2)}</strong> (se mantendrá registrado)</li>
+                                )}
+                                {getPendingAmount(selectedOrder) > 0 && (
+                                    <li>• Saldo pendiente: <strong>${getPendingAmount(selectedOrder).toFixed(2)}</strong> (se cancelará)</li>
+                                )}
+                                <li>• Los registros financieros asociados se mantendrán</li>
+                                <li>• Esta acción NO se puede deshacer</li>
+                            </ul>
+                        </div>
+                        
+                        <div className="text-muted-foreground">
+                            <p><strong>Cliente:</strong> {selectedOrder.clientName}</p>
+                            <p><strong>Marca:</strong> {selectedOrder.brandName}</p>
+                            <p><strong>Total:</strong> ${selectedOrder.total.toFixed(2)}</p>
+                        </div>
+                    </div>
+                </ConfirmDialog>
+            )}
         </div>
     )
 }

@@ -9,7 +9,7 @@ import { orderPaymentApi } from '@/shared/api/orderPaymentApi'
 function invalidateFinancialCaches(qc: ReturnType<typeof useQueryClient>) {
     qc.invalidateQueries({ queryKey: ['orders'] })
     qc.invalidateQueries({ queryKey: ['bank-accounts'] })
-    qc.invalidateQueries({ queryKey: ['financial-movements'] })
+    qc.invalidateQueries({ queryKey: ['financial-records'] })
 }
 
 /**

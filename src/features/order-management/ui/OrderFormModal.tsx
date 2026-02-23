@@ -11,6 +11,7 @@ import {
     DialogFooter
 } from "@/shared/ui/dialog"
 import { Input } from "@/shared/ui/input"
+import { Button } from "@/shared/ui/button"
 import { AsyncButton } from "@/shared/ui/async-button"
 import { Label } from "@/shared/ui/label"
 import { Separator } from "@/shared/ui/separator"
@@ -18,6 +19,7 @@ import { Separator } from "@/shared/ui/separator"
 import { useBankAccountList } from "@/features/bank-accounts/api/hooks"
 import { useCreateOrder, useUpdateOrder } from "@/entities/order/model/hooks"
 import type { Order, SalesChannel, OrderType, PaymentMethod, OrderStatus } from "@/entities/order/model/types"
+import { orderApi } from "@/entities/order/model/api"
 import { useClientList } from "@/features/clients/api/hooks"
 import { useBrandList } from "@/features/brands/api/hooks"
 import { getActiveBrands } from "@/entities/brand/model/model"
@@ -29,7 +31,7 @@ import { useAddOrderPayment } from "@/features/order-payments/model"
 // Transaction Imports
 import { processPaymentRegistration } from "@/features/transactions/lib/processPayment"
 import { validateTransaction } from "@/features/transactions/lib/validateTransaction"
-import type { FinancialTransactionType } from "@/entities/financial-transaction/model/types"
+import type { FinancialRecordType } from "@/entities/financial-record/model/types"
 import { useClientCredits } from "@/features/transactions/model/hooks"
 
 interface OrderFormModalProps {
@@ -48,7 +50,14 @@ const validationSchema = Yup.object({
     brandName: Yup.string().required("La marca es requerida"),
     quantity: Yup.number().min(1, "Mínimo 1").required("Requerido"),
     total: Yup.number().min(0, "No negativo").required("Requerido"),
-    deposit: Yup.number().min(0, "No negativo").required("Requerido"),
+    deposit: Yup.number()
+        .min(0, "No negativo")
+        .required("Requerido")
+        .test('min-deposit', 'El abono debe ser al menos el 50% del total', function (value) {
+            const { total } = this.parent;
+            if (!value || !total) return true;
+            return value >= (total * 0.5);
+        }),
     paymentMethod: Yup.string().required("La forma de pago es requerida"),
     bankAccountId: Yup.string().when("paymentMethod", {
         is: (val: string) => ['TRANSFERENCIA', 'DEPOSITO', 'CHEQUE'].includes(val),
@@ -170,8 +179,45 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
     const addOrderPayment = useAddOrderPayment()
     const { showToast } = useToast()
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [isLoadingReceiptNumber, setIsLoadingReceiptNumber] = useState(false)
 
     const isEditing = !!order
+
+    // Generate receipt number when opening form for new order
+    useEffect(() => {
+        if (open && !isEditing) {
+            generateNextReceiptNumber();
+        }
+    }, [open, isEditing]);
+
+    const generateNextReceiptNumber = async () => {
+        try {
+            setIsLoadingReceiptNumber(true);
+            const { receiptNumber } = await orderApi.generateReceiptNumber();
+            formik.setFieldValue('receiptNumber', receiptNumber);
+        } catch (error) {
+            console.error('Error generating receipt number:', error);
+            showToast('Error al generar número de recibo', 'error');
+        } finally {
+            setIsLoadingReceiptNumber(false);
+        }
+    };
+
+    const validateReceiptNumber = async (receiptNumber: string): Promise<boolean> => {
+        if (!receiptNumber || isEditing) return true;
+
+        try {
+            const { exists } = await orderApi.checkReceiptExists(receiptNumber);
+            if (exists) {
+                formik.setFieldError('receiptNumber', 'Este número de recibo ya existe');
+                return false;
+            }
+            return true;
+        } catch (error) {
+            console.error('Error validating receipt number:', error);
+            return true; // Allow submission if validation fails
+        }
+    };
 
     const formik = useFormik({
         initialValues: {
@@ -183,7 +229,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
             brandName: order?.brandName || "",
             quantity: order?.items?.[0]?.quantity || 1,
             total: order?.total || 0,
-            deposit: order?.deposit || 0,
+            deposit: order?.payments?.[0]?.amount || 0, // Get first payment as deposit
             paymentMethod: order?.paymentMethod || "EFECTIVO" as PaymentMethod,
             bankAccountId: order?.bankAccountId || "",
             transactionDate: order?.transactionDate || new Date().toISOString().split('T')[0],
@@ -196,6 +242,15 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
         onSubmit: async (values) => {
             setIsSubmitting(true);
             try {
+                // Validate receipt number uniqueness
+                if (!isEditing) {
+                    const isValidReceipt = await validateReceiptNumber(values.receiptNumber);
+                    if (!isValidReceipt) {
+                        setIsSubmitting(false);
+                        return;
+                    }
+                }
+
                 const client = clients.find(c => c.id === values.clientId)
                 const clientName = client ? client.firstName : "Desconocido"
                 const unitPrice = values.quantity > 0 ? values.total / values.quantity : 0
@@ -206,12 +261,17 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                 if (!isEditing && isFinancial && depositAmount > 0) {
                     try {
                         await validateTransaction({
-                            type: values.paymentMethod as FinancialTransactionType,
+                            type: 'PAYMENT', // Always PAYMENT for order deposits
+                            source: 'ORDER_PAYMENT',
+                            movementType: 'INCOME',
                             referenceNumber: values.transactionReference,
                             amount: depositAmount,
                             date: values.transactionDate,
                             clientId: values.clientId,
-                            createdBy: 'Vendedor' // Mock
+                            clientName,
+                            createdBy: 'Vendedor', // Mock
+                            bankAccountId: values.bankAccountId || 'default',
+                            paymentMethod: values.paymentMethod as 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE'
                         });
                     } catch (e: any) {
                         showToast(e.message, "error");
@@ -231,6 +291,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                         productName: values.brandName,
                         quantity: values.quantity,
                         unitPrice: unitPrice,
+                        brandId: values.brandId, // CRITICAL: Include brandId in items
                         brandName: values.brandName
                     }]
                 };
@@ -242,48 +303,10 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                     // 1. Create the base order
                     let newOrder = await createOrder.mutateAsync(payload)
 
-                    // 2. Process Initial Deposit (if any)
+                    // Initial deposit logic is now handled ATOMICALLY by the backend's CreateOrderUseCase
                     if (depositAmount > 0) {
-                        try {
-                            // Register Transaction first (Transaction Master)
-                            // If EFECTIVO, processPaymentRegistration handles it gracefully (returns null tx)
-                            const txResult = await processPaymentRegistration({
-                                amount: depositAmount,
-                                method: values.paymentMethod,
-                                reference: values.transactionReference,
-                                clientId: values.clientId,
-                                currentPendingBalance: values.total,
-                                date: values.transactionDate,
-                                user: 'Vendedor'
-                            });
-
-                            if (txResult.creditGenerated > 0) {
-                                showToast(`Se generó un saldo a favor de $${txResult.creditGenerated.toFixed(2)}`, "info");
-                            }
-
-                            // Find target bank account
-                            let targetAccount = bankAccounts.find(b => b.id === values.bankAccountId)
-                            if (!targetAccount && values.paymentMethod === 'EFECTIVO') {
-                                targetAccount = bankAccounts.find(b => b.type === 'CASH')
-                            }
-
-                            if (targetAccount) {
-                                // Add payment and get the UPDATED order back
-                                newOrder = await addOrderPayment.mutateAsync({
-                                    order: newOrder,
-                                    amount: depositAmount,
-                                    bankAccount: targetAccount
-                                })
-                            } else {
-                                console.warn("No bank account found for deposit.")
-                                showToast("Abono registrado financieramente, pero no vinculado a caja (Falta configuración).", "warning")
-                            }
-
-                        } catch (paymentError: any) {
-                            console.error("Error processing deposit", paymentError)
-                            showToast(`Error registro pago: ${paymentError.message}`, "error")
-                            // Note: Order was created. 
-                        }
+                        // Just an informative log
+                        console.log(`Initial deposit of $${depositAmount} was processed natively by the backend.`);
                     }
 
                     showToast(`Pedido de ${clientName} creado correctamente.`, "success")
@@ -313,9 +336,9 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                 }
                 onOpenChange(false)
                 formik.resetForm()
-            } catch (error) {
+            } catch (error: any) {
                 console.error("Error saving order", error)
-                showToast("Error al guardar el pedido.", "error")
+                showToast(error.message || "Error al guardar el pedido.", "error")
             } finally {
                 setIsSubmitting(false);
             }
@@ -362,10 +385,34 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="receiptNumber">N° Recibo (Manual)</Label>
-                            <Input id="receiptNumber" {...formik.getFieldProps('receiptNumber')} />
+                            <div className="flex items-center justify-between">
+                                <Label htmlFor="receiptNumber">N° Recibo</Label>
+                                {!isEditing && (
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={generateNextReceiptNumber}
+                                        disabled={isLoadingReceiptNumber}
+                                        className="h-6 text-xs"
+                                    >
+                                        {isLoadingReceiptNumber ? 'Generando...' : '🔄 Regenerar'}
+                                    </Button>
+                                )}
+                            </div>
+                            <Input
+                                id="receiptNumber"
+                                {...formik.getFieldProps('receiptNumber')}
+                                disabled={isLoadingReceiptNumber}
+                                placeholder="ORD-20260223-001"
+                            />
                             {formik.touched.receiptNumber && formik.errors.receiptNumber && (
                                 <p className="text-red-500 text-xs">{formik.errors.receiptNumber}</p>
+                            )}
+                            {!isEditing && (
+                                <p className="text-xs text-muted-foreground">
+                                    Editable - El sistema valida que no exista
+                                </p>
                             )}
                         </div>
                     </div>
@@ -445,11 +492,19 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                         <h4 className="text-sm font-medium mb-4 text-muted-foreground">Pago y Saldos</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="deposit">Abono</Label>
+                                <div className="flex items-center justify-between">
+                                    <Label htmlFor="deposit">Abono</Label>
+                                    <span className="text-xs text-muted-foreground">
+                                        Mínimo: ${(formik.values.total * 0.5).toFixed(2)} (50%)
+                                    </span>
+                                </div>
                                 <div className="relative">
                                     <span className="absolute left-2 top-2.5 text-muted-foreground">$</span>
                                     <Input type="number" id="deposit" {...formik.getFieldProps('deposit')} className="pl-6" min="0" step="0.01" />
                                 </div>
+                                {formik.touched.deposit && formik.errors.deposit && (
+                                    <p className="text-red-500 text-xs">{formik.errors.deposit}</p>
+                                )}
                                 {totalCredit > 0 && (
                                     <Button
                                         type="button"

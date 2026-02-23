@@ -45,3 +45,13 @@ export function useUpdateOrder() {
         }
     })
 }
+
+export function useDeleteOrder() {
+    const qc = useQueryClient()
+    return useMutation({
+        mutationFn: (id: string) => orderApi.delete(id),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: KEYS.list() })
+        }
+    })
+}

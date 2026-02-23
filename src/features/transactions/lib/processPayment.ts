@@ -1,7 +1,7 @@
 import { validateTransaction } from "./validateTransaction";
-import { transactionApi, clientCreditApi } from "@/shared/api/transactionApi";
+import { clientCreditApi } from "@/shared/api/clientCreditApi";
 import { financialRecordService } from "@/application/financial/financialRecord.service";
-import type { FinancialTransactionType } from "@/entities/financial-transaction/model/types";
+import type { FinancialRecordType } from "@/entities/financial-record/model/types";
 
 interface PaymentInput {
     amount: number;
@@ -17,9 +17,7 @@ interface PaymentInput {
 
 /**
  * Process Payment Registration with Transaction Validation
- * Creates both FinancialTransaction (audit) and FinancialMovement (cash closure)
- * 
- * @deprecated Consider using financialRecordService directly for new code
+ * Creates FinancialRecord for audit and cash closure
  */
 export const processPaymentRegistration = async (input: PaymentInput) => {
     // 1. Is financial?
@@ -41,20 +39,17 @@ export const processPaymentRegistration = async (input: PaymentInput) => {
         
         // Create financial record for cash too
         try {
-            const record = await financialRecordService.createRecord({
-                type: 'EFECTIVO',
-                referenceNumber: `EFECTIVO-${Date.now()}`,
-                amount: input.amount,
-                date: input.date,
-                clientId: input.clientId,
-                createdBy: input.user,
-                notes: 'Pago en efectivo',
+            const record = await financialRecordService.createOrderPaymentRecord(
+                '', // orderId - will be set later
+                `CASH-${Date.now()}`, // orderReceiptNumber
+                input.amount,
+                input.clientId,
+                input.clientName || 'Cliente',
+                'EFECTIVO',
                 bankAccountId,
-                source: 'MANUAL',
-                clientName: input.clientName,
-                paymentMethod: 'EFECTIVO',
-                createdByName: input.user
-            });
+                input.user,
+                'Pago en efectivo'
+            );
 
             // Handle credit if overpayment
             let creditGenerated = 0;
@@ -63,12 +58,12 @@ export const processPaymentRegistration = async (input: PaymentInput) => {
                 await clientCreditApi.createCredit({
                     clientId: input.clientId,
                     amount: excess,
-                    originTransactionId: record.transactionId
+                    originTransactionId: record.id
                 });
                 creditGenerated = excess;
             }
 
-            return { transactionId: record.transactionId, creditGenerated };
+            return { transactionId: record.id, creditGenerated };
         } catch (error) {
             console.error('[processPaymentRegistration] Error creating financial record:', error);
             return { transactionId: null, creditGenerated: 0 };
@@ -82,26 +77,33 @@ export const processPaymentRegistration = async (input: PaymentInput) => {
     
     // Check uniqueness & integrity
     const txData = {
-        type: input.method as FinancialTransactionType,
+        type: 'PAYMENT' as FinancialRecordType,
+        source: 'ORDER_PAYMENT' as const,
+        movementType: 'INCOME' as const,
         referenceNumber: input.reference,
         amount: input.amount,
         date: input.date,
         clientId: input.clientId,
+        clientName: input.clientName || 'Cliente',
         createdBy: input.user,
-        notes: `Pago con ${input.method}`
+        bankAccountId,
+        paymentMethod: input.method as 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE'
     };
 
     await validateTransaction(txData); 
     
-    // 3. Create Financial Record (Transaction + Movement)
-    const record = await financialRecordService.createRecord({
-        ...txData,
+    // 3. Create Financial Record
+    const record = await financialRecordService.createOrderPaymentRecord(
+        '', // orderId - will be set later
+        input.reference,
+        input.amount,
+        input.clientId,
+        input.clientName || 'Cliente',
+        input.method as 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE',
         bankAccountId,
-        source: 'MANUAL',
-        clientName: input.clientName,
-        paymentMethod: input.method as 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE',
-        createdByName: input.user
-    });
+        input.user,
+        `Pago con ${input.method}`
+    );
 
     // 4. Handle Credit Logic (Overpayment)
     let creditGenerated = 0;
@@ -110,10 +112,10 @@ export const processPaymentRegistration = async (input: PaymentInput) => {
         await clientCreditApi.createCredit({
             clientId: input.clientId,
             amount: excess,
-            originTransactionId: record.transactionId
+            originTransactionId: record.id
         });
         creditGenerated = excess;
     }
 
-    return { transactionId: record.transactionId, creditGenerated };
+    return { transactionId: record.id, creditGenerated };
 };

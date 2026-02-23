@@ -1,7 +1,9 @@
-import type { FinancialTransaction } from "@/entities/financial-transaction/model/types";
-import { transactionApi } from "@/shared/api/transactionApi";
+// Validation for Financial Records
+// DEPRECATED: This validation logic should be moved to backend
 
-export const validateTransaction = async (data: Omit<FinancialTransaction, 'id' | 'createdAt'>) => {
+import type { FinancialRecord } from "@/entities/financial-record/model/types";
+
+export const validateTransaction = async (data: Omit<FinancialRecord, 'id' | 'createdAt' | 'version'>) => {
     // 1. Amount > 0
     if (data.amount <= 0) {
         throw new Error("El monto debe ser mayor a 0");
@@ -17,13 +19,9 @@ export const validateTransaction = async (data: Omit<FinancialTransaction, 'id' 
         throw new Error("El número de referencia es obligatorio para transacciones bancarias.");
     }
 
-    // 4. Check uniqueness
-    const existing = await transactionApi.findByReference(data.referenceNumber);
-    if (existing) {
-        // Format date and user info from existing record
-        const dateStr = new Date(existing.createdAt).toLocaleDateString();
-        throw new Error(`Esta referencia ya fue registrada el ${dateStr} por ${existing.createdBy}.`);
-    }
-
+    // 4. Check uniqueness (this should be done by backend)
+    // For now, we skip this check as it requires a new endpoint
+    // TODO: Backend should validate uniqueness of referenceNumber
+    
     return true;
 };

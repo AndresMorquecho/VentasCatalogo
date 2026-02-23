@@ -64,8 +64,8 @@ export function BankAccountTable({ accounts, isLoading, onEdit }: BankAccountTab
                                 </Badge>
                             </TableCell>
                             <TableCell>
-                                <span className={acc.currentBalance < 0 ? "text-red-500 font-bold" : "font-medium"}>
-                                    ${acc.currentBalance.toFixed(2)}
+                                <span className={(Number(acc.currentBalance) || 0) < 0 ? "text-red-500 font-bold" : "font-medium"}>
+                                    ${(Number(acc.currentBalance) || 0).toFixed(2)}
                                 </span>
                             </TableCell>
                             <TableCell>

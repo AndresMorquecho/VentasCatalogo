@@ -234,13 +234,7 @@ export function PaymentsPage() {
                             {/* Modals */}
                             {isPaymentModalOpen && (
                                 <PaymentFormModal
-                                    order={{
-                                        id: selectedOrder.id,
-                                        clientId: selectedOrder.clientId,
-                                        finalTotal: selectedOrder.realInvoiceTotal || selectedOrder.total,
-                                        receiptNumber: selectedOrder.receiptNumber,
-                                        totalPaid: (selectedOrder.payments || []).reduce((acc, p) => acc + p.amount, 0)
-                                    }}
+                                    order={selectedOrder}
                                     isOpen={isPaymentModalOpen}
                                     onClose={() => setIsPaymentModalOpen(false)}
                                     onSuccess={handlePaymentSuccess}

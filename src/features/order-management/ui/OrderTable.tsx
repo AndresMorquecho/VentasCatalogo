@@ -1,4 +1,4 @@
-import { Eye, Pencil } from "lucide-react"
+import { Eye, Pencil, Trash2 } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import type { Order, OrderStatus } from "@/entities/order/model/types"
 import { getPaidAmount, getPendingAmount } from "@/entities/order/model/model"
@@ -8,6 +8,7 @@ interface OrderTableProps {
     orders: Order[]
     onViewDetails: (order: Order) => void
     onEdit: (order: Order) => void
+    onDelete: (order: Order) => void
 }
 
 const ROW_STATUS_CLASSES: Record<OrderStatus, string> = {
@@ -31,7 +32,7 @@ function formatCurrency(amount: number): string {
     return `$${amount.toFixed(2)}`
 }
 
-export function OrderTable({ orders, onViewDetails, onEdit }: OrderTableProps) {
+export function OrderTable({ orders, onViewDetails, onEdit, onDelete }: OrderTableProps) {
     return (
         <div className="rounded-lg border bg-card overflow-hidden">
             <div className="overflow-x-auto">
@@ -101,6 +102,15 @@ export function OrderTable({ orders, onViewDetails, onEdit }: OrderTableProps) {
                                         >
                                             <Pencil className="h-4 w-4" />
                                             <span className="sr-only">Editar</span>
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-muted-foreground hover:text-red-600"
+                                            onClick={() => onDelete(order)}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                            <span className="sr-only">Eliminar</span>
                                         </Button>
                                     </div>
                                 </td>

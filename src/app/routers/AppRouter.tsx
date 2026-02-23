@@ -7,7 +7,7 @@ import { BankAccountsPage } from '@/pages/bank-accounts-page'
 import { ClientsPage } from '@/pages/clients-page'
 import { FinancialDashboardPage } from '@/features/financial-dashboard'
 import { FinancialAuditPage } from '@/features/financial-audit'
-import { OrderReceptionHistoryPage } from '@/features/order-reception'
+import { OrderReceptionPage, OrderReceptionHistoryPage } from '@/features/order-reception'
 import { InventoryPage } from "@/features/inventory/ui/InventoryPage"
 import { ReceptionBatchPage } from '@/features/reception-batch'
 import { OrderDeliveryPage, OrderDeliveryHistoryPage } from '@/features/order-delivery'

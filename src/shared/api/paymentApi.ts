@@ -1,18 +1,32 @@
-import { paymentService } from '@/application/payment/payment.service';
+import { httpClient } from '../lib/httpClient';
 
-// Re-export types
-export type { PaymentPayload } from '@/application/payment/payment.service';
+export interface PaymentPayload {
+    orderId: string;
+    amount: number;
+    method: string;
+    referenceNumber?: string;
+    bankAccountId: string;
+    notes?: string;
+    clientId?: string; // Kept for type compatibility but backend gets it from order
+}
 
 /**
  * Payment API - Transport Layer
  * 
- * This file now delegates to application/payment/payment.service.ts
- * which contains the transactional logic.
- * 
- * When backend is ready, replace service calls with HTTP calls.
+ * Directly communicates with the hexagonal backend /payments endpoint.
  */
 export const paymentApi = {
-    registerPayment: paymentService.registerPayment,
-    getHistory: paymentService.getHistory,
-    revertPayment: paymentService.revertPayment
+    registerPayment: async (payload: PaymentPayload): Promise<any> => {
+        return httpClient.post<any>('/payments', payload);
+    },
+
+    getHistory: async (orderId: string): Promise<any[]> => {
+        // We can get history from the order entity itself or dedicated endpoint
+        // For now, let's assume it's part of the order data
+        return httpClient.get<any[]>(`/orders/${orderId}/payments`);
+    },
+
+    revertPayment: async (orderId: string, paymentId: string): Promise<void> => {
+        return httpClient.delete<void>(`/orders/${orderId}/payments/${paymentId}`);
+    }
 };

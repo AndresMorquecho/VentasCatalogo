@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { financialMovementApi } from '@/shared/api/financialMovementApi';
+import { financialRecordApi } from '@/entities/financial-record/model/api';
 
 export const FINANCIAL_MOVEMENT_QUERY_KEYS = {
     all: ['financial-movements'] as const,
@@ -9,6 +9,6 @@ export const FINANCIAL_MOVEMENT_QUERY_KEYS = {
 export function useFinancialMovements() {
     return useQuery({
         queryKey: FINANCIAL_MOVEMENT_QUERY_KEYS.list(),
-        queryFn: financialMovementApi.getAll,
+        queryFn: financialRecordApi.getAll,
     });
 }

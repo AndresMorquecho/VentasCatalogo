@@ -1,212 +1,112 @@
 // Application Layer - Order Reception Service
-// Transactional logic moved from shared/api/receptionApi.ts
+// DEPRECATED: This service will be replaced by backend transactional endpoints
+// For now, delegates to backend API calls
 
-import { bankAccountApi } from '@/shared/api/bankAccountApi';
 import { orderApi } from '@/entities/order/model/api';
-import { receiveOrder, addPayment } from '@/entities/order/model/model';
 import type { Order } from '@/entities/order/model/types';
-import { clientCreditApi } from '@/shared/api/transactionApi';
-import { inventoryApi } from '@/shared/api/inventoryApi';
-import { financialRecordService } from '@/application/financial/financialRecord.service';
 
 /**
  * Order Reception Service
  * 
- * Handles transactional operations for order reception.
- * Coordinates multiple entities: Order, FinancialRecord, ClientCredit, BankAccount, Inventory
+ * Delegates reception operations to backend transactional endpoints.
+ * Backend handles: Order update, FinancialRecord creation, ClientCredit, BankAccount, Inventory
  * 
- * TODO: When backend is ready, replace with single API calls:
+ * Endpoints:
  * - POST /api/orders/batch-reception
- * - POST /api/orders/batch-reception-simple
+ * - POST /api/orders/:id/receive
  */
 export const receptionService = {
-    /**
-     * Batch reception with payments.
-     * Items contain both the order and the payment amount for reception.
-     */
-    saveBatchWithPayments: async (items: { order: Order; abonoRecepcion: number; finalTotal: number; finalInvoiceNumber: string }[]) => {
-        const results = [];
-        console.log(`[MockAPI] Processing batch reception with payments for ${items.length} orders...`);
-        
-        const allAccounts = await bankAccountApi.getAll();
-        const cashAccount = allAccounts.find(b => b.type === 'CASH') || allAccounts[0];
-
-        if (!cashAccount) {
-            throw new Error("No se encontró cuenta de caja para procesar los abonos.");
-        }
-
-        for (const item of items) {
-            try {
-                const { order, abonoRecepcion, finalTotal, finalInvoiceNumber } = item;
-                const batchRef = finalInvoiceNumber || `BATCH-${new Date().toISOString().split('T')[0]}-${Math.floor(Math.random() * 1000)}`;
-                
-                // 1. Receive Order with REAL values
-                let updatedOrder = receiveOrder(
-                    order, 
-                    finalTotal, 
-                    batchRef
-                );
-
-                // Update Invoice Number explicitly if provided
-                if (finalInvoiceNumber) {
-                    updatedOrder.invoiceNumber = finalInvoiceNumber;
-                }
-
-                // 2. Check for Automatic Credit based on Adjustment (Total decreased below Paid)
-                const paid = (updatedOrder.payments || []).reduce((acc, p) => acc + p.amount, 0);
-                const pending = finalTotal - paid; // Can be negative
-
-                if (pending < -0.01) {
-                    // Credit due to Adjustment
-                    const creditAmount = Math.abs(pending);
-                    console.log(`[MockAPI] Generating credit of ${creditAmount} for client due to invoice adjustment.`);
-                    
-                    // Create Financial Record (Transaction + Movement)
-                    const record = await financialRecordService.createAdjustmentRecord(
-                        updatedOrder.id,
-                        updatedOrder.receiptNumber,
-                        creditAmount,
-                        updatedOrder.clientId,
-                        updatedOrder.clientName,
-                        cashAccount.id,
-                        `Saldo a favor generado. Fac. Real: ${finalTotal} vs Pagado: ${paid}`,
-                        'Sistema',
-                        'Sistema'
-                    );
-
-                    // Create Credit
-                    await clientCreditApi.createCredit({
-                        clientId: updatedOrder.clientId,
-                        amount: creditAmount,
-                        originTransactionId: record.transactionId
-                    });
-
-                    // Abono irrelevant here as they are already overpaid
-                } else if (abonoRecepcion > 0) {
-                    // 3. Process Payment
-                    // Check logic for overpayment via Abono
-                    let paymentAmount = abonoRecepcion;
-                    let excess = 0;
-
-                    if (abonoRecepcion > pending) {
-                        excess = abonoRecepcion - pending;
-                        paymentAmount = pending; // Cap payment to debt
-                    }
-
-                    if (paymentAmount > 0) {
-                        const paymentResult = addPayment(updatedOrder, { amount: paymentAmount }, cashAccount);
-                        updatedOrder = paymentResult.updatedOrder;
-                        
-                        // Create Financial Record (Transaction + Movement)
-                        await financialRecordService.createOrderPaymentRecord(
-                            updatedOrder.id,
-                            updatedOrder.receiptNumber,
-                            paymentAmount,
-                            updatedOrder.clientId,
-                            updatedOrder.clientName,
-                            'EFECTIVO',
-                            cashAccount.id,
-                            `PAGO-RECEP-${updatedOrder.receiptNumber}-${Date.now()}`,
-                            'Operador',
-                            'Operador',
-                            false
-                        );
-                        
-                        // Update Bank Account Mock ref
-                        await bankAccountApi.update(cashAccount.id, { currentBalance: paymentResult.updatedBankAccount.currentBalance });
-                    }
-
-                    if (excess > 0) {
-                         // Excess became Credit
-                         const record = await financialRecordService.createAdjustmentRecord(
-                            updatedOrder.id,
-                            updatedOrder.receiptNumber,
-                            excess,
-                            updatedOrder.clientId,
-                            updatedOrder.clientName,
-                            cashAccount.id,
-                            `Excedente abono recepción`,
-                            'Operador',
-                            'Operador'
-                        );
-
-                        await clientCreditApi.createCredit({
-                            clientId: updatedOrder.clientId,
-                            amount: excess,
-                            originTransactionId: record.transactionId
-                        });
-                    }
-                }
-
-                // 4. Persist Order
-                await orderApi.update(updatedOrder.id, updatedOrder);
-                results.push(updatedOrder);
-
-                // 5. Inventory Traceability Integration
-                // TODO BACKEND: Validate no duplicate ENTRY exists for this order
-                // Check if inventory entry already exists to prevent duplicates
-                const existingInventory = await inventoryApi.getAll();
-                const hasEntry = existingInventory.some(
-                    inv => inv.orderId === updatedOrder.id && inv.type === 'ENTRY'
-                );
-                
-                if (!hasEntry) {
-                    // Automatically create physical entry movement
-                    await inventoryApi.create({
-                        orderId: updatedOrder.id,
-                        clientId: updatedOrder.clientId,
-                        brandId: updatedOrder.brandId,
-                        type: 'ENTRY',
-                        createdBy: 'Operador', // Should be dynamic user
-                        notes: `Ingreso automático por recepción batch. Factura: ${updatedOrder.invoiceNumber}`
-                    });
-                } else {
-                    console.warn(`[MockAPI] Inventory ENTRY already exists for order ${updatedOrder.id}, skipping creation`);
-                }
-
-            } catch (error) {
-                console.error(`[MockAPI] Failed to receive order ${item.order.id}:`, error);
-                throw error;
-            }
-        }
-        return results;
-    },
-
-    /**
-     * Legacy simple batch (keep for compatibility if needed)
-     */
-    saveBatch: async (orders: Order[]) => {
-        const results = [];
-        console.log(`[MockAPI] Processing batch reception for ${orders.length} orders...`);
-        
-        for (const order of orders) {
-            try {
-                // Domain Logic Application:
-                // For batch reception without explicit modification UI, 
-                // we assume the received value matches the expected total.
-                // We generate a batch reference for invoice number.
-                const batchRef = `BATCH-${new Date().toISOString().split('T')[0]}-${Math.floor(Math.random() * 1000)}`;
-                
-                // If the order already has a realInvoiceTotal set (e.g. pre-filled), use it.
-                // Otherwise default to current total.
-                const finalTotal = order.realInvoiceTotal || order.total;
-
-                const updatedOrder = receiveOrder(
-                    order, 
-                    finalTotal, 
-                    batchRef
-                );
-
-                // Persistence
-                await orderApi.update(updatedOrder.id, updatedOrder);
-                results.push(updatedOrder);
-            } catch (error) {
-                console.error(`[MockAPI] Failed to receive order ${order.id}:`, error);
-                // In real batch, we might partial fail or rollback everything.
-                // Here we continue best-effort or throw.
-                throw error; // Fail fast for safety
-            }
-        }
-        return results;
+  /**
+   * Batch reception with payments
+   * Backend handles all transactional logic atomically
+   */
+  saveBatchWithPayments: async (
+    params: {
+      selectedOrders: {
+        order: any;
+        abonoRecepcion: number;
+        finalTotal: number;
+        finalInvoiceNumber: string
+      }[],
+      paymentMethod?: string,
+      bankAccountId?: string,
+      referenceNumber?: string
     }
+  ): Promise<Order[]> => {
+    // Transform from component format to API format
+    const items = params.selectedOrders.map(so => ({
+      orderId: so.order.id,
+      abonoRecepcion: so.abonoRecepcion,
+      finalTotal: so.finalTotal,
+      finalInvoiceNumber: so.finalInvoiceNumber,
+      paymentMethod: params.paymentMethod,
+      bankAccountId: params.bankAccountId,
+      referenceNumber: params.referenceNumber
+    }));
+
+    const response = await orderApi.batchReception(items);
+
+    // Backend returns { success: [{data: Order}], errors: [], summary: {} }
+    // Extract the actual Order objects from the nested structure
+    if (response && typeof response === 'object' && 'success' in response) {
+      const batchResponse = response as any;
+      return batchResponse.success.map((item: any) => item.data);
+    }
+
+    // Fallback: if response is already an array, return as-is
+    return response as Order[];
+  },
+
+  /**
+   * Simple batch reception (no payments)
+   * Backend handles all transactional logic atomically
+   */
+  saveBatch: async (orderIds: string[]): Promise<Order[]> => {
+    const response = await orderApi.batchReceptionSimple(orderIds);
+
+    // Backend returns { success: [{data: Order}], errors: [], summary: {} }
+    // Extract the actual Order objects from the nested structure
+    if (response && typeof response === 'object' && 'success' in response) {
+      const batchResponse = response as any;
+      return batchResponse.success.map((item: any) => item.data);
+    }
+
+    // Fallback: if response is already an array, return as-is
+    return response as Order[];
+  },
+
+  /**
+   * Receive single order
+   * Backend handles all transactional logic atomically
+   */
+  receiveOrder: async ({
+    orderId,
+    finalTotal,
+    invoiceNumber,
+    abonoRecepcion
+  }: {
+    orderId: string;
+    finalTotal: number;
+    invoiceNumber: string;
+    abonoRecepcion?: number;
+  }): Promise<Order> => {
+    return orderApi.receiveOrder(orderId, {
+      finalTotal,
+      invoiceNumber,
+      abonoRecepcion
+    });
+  }
 };
+
+// DEPRECATED CODE BELOW - Remove after backend implementation
+// This code has been commented out and will be removed once backend endpoints are ready
+/*
+export const receptionServiceOLD = {
+  saveBatchWithPayments: async (items) => {
+    // Old implementation removed - now delegates to backend
+  },
+  saveBatch: async (orders) => {
+    // Old implementation removed - now delegates to backend
+  }
+};
+*/

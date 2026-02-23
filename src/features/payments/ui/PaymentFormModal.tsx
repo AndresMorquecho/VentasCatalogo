@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { AsyncButton } from "@/shared/ui/async-button";
 import { Input } from "@/shared/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/ui/dialog";
@@ -7,6 +7,7 @@ import { usePaymentOperations } from "../model/hooks";
 import type { PaymentPayload } from "@/shared/api/paymentApi";
 import { calculateCreditFromPayment, formatCurrency } from "@/entities/order/model/financialCalculator";
 import type { Order } from "@/entities/order/model/types";
+import { useToast } from "@/shared/ui/use-toast";
 
 interface Props {
     order: Order;
@@ -24,22 +25,24 @@ export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
     const [reference, setReference] = useState('');
     const [notes, setNotes] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const { showToast } = useToast();
 
     // Use centralized financial calculator
     const pendingBalance = useMemo(() => {
-        const effectiveTotal = order.realInvoiceTotal ?? order.total;
-        const paid = order.payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
-        return Math.max(0, effectiveTotal - paid);
+        if (!order) return 0;
+        const total = Number(order.realInvoiceTotal ?? order.total ?? 0);
+        const paid = order.payments?.reduce((sum, p) => sum + Number(p.amount || 0), 0) || 0;
+        return Math.max(0, total - paid);
     }, [order]);
 
     // Calculate credit if payment exceeds pending
-    const creditGenerated = useMemo(() => 
+    const creditGenerated = useMemo(() =>
         calculateCreditFromPayment(order, amount),
         [order, amount]
     );
 
     // Auto-select bank account based on method
-    useMemo(() => {
+    useEffect(() => {
         if (method === 'EFECTIVO') {
             const cashAccount = bankAccounts.find(a => a.type === 'CASH');
             setBankAccountId(cashAccount?.id || '');
@@ -56,13 +59,10 @@ export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
         try {
             const payload: PaymentPayload = {
                 orderId: order.id,
-                clientId: order.clientId,
                 amount: amount,
                 method: method,
                 referenceNumber: reference,
                 notes: notes,
-                createdBy: 'Operador',
-                createdByName: 'Operador',
                 bankAccountId: bankAccountId
             };
 
@@ -72,9 +72,9 @@ export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
             setNotes('');
             onSuccess();
             onClose();
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error registering payment:", error);
-            // Show toast ideally
+            showToast(error.message || "Error al registrar abono.", "error");
         } finally {
             setIsSubmitting(false);
         }
@@ -175,9 +175,9 @@ export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
                         <AsyncButton type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
                             Cancelar
                         </AsyncButton>
-                        <AsyncButton 
-                            type="submit" 
-                            disabled={amount <= 0} 
+                        <AsyncButton
+                            type="submit"
+                            disabled={amount <= 0 || !bankAccountId}
                             isLoading={isSubmitting}
                             loadingText="Procesando..."
                             className="bg-emerald-600 hover:bg-emerald-700"

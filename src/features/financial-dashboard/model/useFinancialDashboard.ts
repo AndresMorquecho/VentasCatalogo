@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
-import { useFinancialMovements } from '@/features/financial-movement/api/hooks';
-import { getCashFlowSummary } from '@/entities/financial-movement/model';
-import type { CashFlowSummary } from '@/entities/financial-movement/model';
+import { useFinancialRecords } from '@/entities/financial-record/model/queries';
+import { getCashFlowSummary } from '@/entities/financial-record/model/model';
+import type { CashFlowSummary } from '@/entities/financial-record/model/model';
 
 export interface FinancialDashboardData {
     summary: CashFlowSummary;
@@ -15,12 +15,12 @@ export interface FinancialDashboardData {
  * NO business logic - only composition
  */
 export function useFinancialDashboard(): FinancialDashboardData {
-    const { data: movements = [], isLoading, error } = useFinancialMovements();
+    const { data: records = [], isLoading, error } = useFinancialRecords();
     
     // Apply pure query function from entity
     const summary = useMemo(() => {
-        return getCashFlowSummary(movements);
-    }, [movements]);
+        return getCashFlowSummary(records);
+    }, [records]);
     
     return {
         summary,
