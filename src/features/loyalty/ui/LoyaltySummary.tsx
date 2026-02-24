@@ -1,6 +1,5 @@
-
 import { Users, Star, Award, RefreshCw } from 'lucide-react';
-import { useRewards } from '@/features/rewards/model/hooks';
+import { useRewards } from '@/entities/client-reward/model/hooks';
 import { useLoyaltyRedemptions, useLoyaltyPrizes, useLoyaltyRules } from '../model/hooks';
 import { useClients } from '@/entities/client/model/hooks';
 import { Card, CardContent } from '@/shared/ui/card';
@@ -20,12 +19,12 @@ export function LoyaltySummary() {
     const { rules } = useLoyaltyRules();
     const { data: clients = [] } = useClients();
 
-    const totalPoints = rewards.reduce((acc, r) => acc + r.totalPoints, 0);
+    const totalPoints = rewards.reduce((acc, r) => acc + Number(r.totalRewardPoints || 0), 0);
     const totalRedemptions = redemptions.length;
     const activeRules = rules.filter(r => r.active).length;
     const activePrizes = prizes.filter(p => p.active).length;
     const topClients = [...rewards]
-        .sort((a, b) => b.totalPoints - a.totalPoints)
+        .sort((a, b) => Number(b.totalRewardPoints || 0) - Number(a.totalRewardPoints || 0))
         .slice(0, 5);
 
     const isLoading = false;
@@ -109,15 +108,15 @@ export function LoyaltySummary() {
                                     <span className="text-lg font-bold text-slate-300 w-6 text-center">{idx + 1}</span>
                                     <div className="flex-1">
                                         <p className="text-sm font-medium text-slate-700">{clientInfo.name}</p>
-                                        <p className="text-xs text-slate-400">{reward.totalOrders} pedidos · ${reward.totalSpent.toFixed(0)} gastado</p>
+                                        <p className="text-xs text-slate-400">{reward.totalOrders} pedidos · ${Number(reward.totalSpent).toFixed(0)} gastado</p>
                                     </div>
                                     <div className="flex items-center gap-3">
-                                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${LEVEL_STYLES[reward.level] ?? 'bg-slate-100 text-slate-600'}`}>
-                                            {reward.level}
+                                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${LEVEL_STYLES[reward.rewardLevel] ?? 'bg-slate-100 text-slate-600'}`}>
+                                            {reward.rewardLevel}
                                         </span>
                                         <span className="flex items-center gap-1 text-sm font-bold text-amber-600">
                                             <Star className="h-3.5 w-3.5" />
-                                            {reward.totalPoints}
+                                            {Number(reward.totalRewardPoints)}
                                         </span>
                                     </div>
                                 </div>

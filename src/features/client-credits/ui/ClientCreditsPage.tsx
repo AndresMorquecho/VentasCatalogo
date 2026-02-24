@@ -19,7 +19,7 @@ export function ClientCreditsPage() {
     });
 
     // Calculate total credits
-    const totalCredits = filteredCredits.reduce((sum, c) => sum + c.totalCredit, 0);
+    const totalCredits = filteredCredits.reduce((sum, c) => sum + Number(c.totalCredit), 0);
 
     if (isLoading) return <div className="p-8">Cargando saldos a favor...</div>;
     if (isError) return <div className="p-8 text-red-500">Error al cargar saldos a favor.</div>;

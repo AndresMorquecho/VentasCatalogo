@@ -1,4 +1,3 @@
-
 import {
     LayoutDashboard,
     Inbox,
@@ -147,7 +146,7 @@ const groupedItems = [
     },
     {
         title: "Fidelización",
-        icon: Heart, // Represents loyalty
+        icon: Heart,
         items: [
             { title: "Fid. Recompensas", url: "/rewards", icon: Award },
         ]
@@ -158,11 +157,11 @@ export function AppSidebar() {
     const user = authService.getUser();
     const isAdmin = user?.role === 'ADMIN';
     const [showLogoutDialog, setShowLogoutDialog] = useState(false);
-    
+
     const handleLogout = () => {
         authService.logout();
     };
-    
+
     return (
         <Sidebar collapsible="icon">
             <SidebarHeader className="p-0 overflow-hidden">
@@ -242,8 +241,8 @@ export function AppSidebar() {
                 </Button>
             </SidebarFooter>
             <SidebarRail />
-            
-            <LogoutDialog 
+
+            <LogoutDialog
                 open={showLogoutDialog}
                 onOpenChange={setShowLogoutDialog}
                 onConfirm={handleLogout}

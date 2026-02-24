@@ -1,14 +1,20 @@
-
 import { useState } from 'react';
 import { useClients } from '@/entities/client/model/hooks';
-import { useRewards } from '../model/hooks';
+import { useRewards } from '@/entities/client-reward/model/hooks';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
-import { Search } from 'lucide-react'; // if available
+import { Search } from 'lucide-react';
 import { RewardDetailsModal } from './RewardDetailsModal';
 
-export function RewardsPage() {
+const LEVEL_STYLES: Record<string, string> = {
+    PLATINO: 'bg-purple-100 text-purple-700 border-purple-200',
+    ORO: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+    PLATA: 'bg-slate-100 text-slate-700 border-slate-200',
+    BRONCE: 'bg-orange-100 text-orange-700 border-orange-200',
+};
+
+export function LoyaltyClientStatus() {
     const { data: clients } = useClients();
     const { getClientReward } = useRewards();
     const [searchTerm, setSearchTerm] = useState('');
@@ -20,39 +26,35 @@ export function RewardsPage() {
     ) || [];
 
     return (
-        <div className="space-y-6 container mx-auto p-4 md:p-8">
+        <div className="space-y-4">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Fidelización de Clientes</h1>
-                    <p className="text-muted-foreground">Sistema de puntos y recompensas.</p>
+                <p className="text-sm text-slate-500">Maneja los saldos de puntos y niveles de lealtad de tus clientes.</p>
+                <div className="relative w-full md:w-64">
+                    <Search className="h-4 w-4 text-slate-400 absolute left-3 top-3" />
+                    <Input
+                        placeholder="Buscar cliente..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-9 h-9"
+                    />
                 </div>
             </div>
 
-            <div className="flex items-center gap-2 max-w-sm">
-                <Search className="h-4 w-4 text-muted-foreground absolute ml-3" />
-                <Input
-                    placeholder="Buscar cliente..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-9"
-                />
-            </div>
-
-            <div className="rounded-md border">
+            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
                 <Table>
                     <TableHeader>
-                        <TableRow>
+                        <TableRow className="bg-slate-50">
                             <TableHead>Cliente</TableHead>
                             <TableHead>Nivel</TableHead>
-                            <TableHead>Puntos Totales</TableHead>
-                            <TableHead>Gastado Total</TableHead>
+                            <TableHead className="text-center">Puntos Totales</TableHead>
+                            <TableHead className="text-center">Gastado Total</TableHead>
                             <TableHead className="text-right">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {filteredClients.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={5} className="h-24 text-center">
+                                <TableCell colSpan={5} className="h-24 text-center text-slate-400">
                                     No se encontraron clientes.
                                 </TableCell>
                             </TableRow>
@@ -60,26 +62,23 @@ export function RewardsPage() {
                             filteredClients.map(client => {
                                 const reward = getClientReward(client.id);
                                 return (
-                                    <TableRow key={client.id}>
+                                    <TableRow key={client.id} className="hover:bg-slate-50">
                                         <TableCell>
-                                            <div className="font-medium">{client.firstName}</div>
-                                            <div className="text-sm text-muted-foreground">{client.identificationNumber}</div>
+                                            <div className="font-medium text-slate-800">{client.firstName}</div>
+                                            <div className="text-xs text-slate-400">{client.identificationNumber}</div>
                                         </TableCell>
-                                        <TableCell>
-                                            <span className={`px-2 py-1 rounded-full text-xs font-bold ${reward.level === 'PLATINO' ? 'bg-purple-100 text-purple-700' :
-                                                reward.level === 'ORO' ? 'bg-yellow-100 text-yellow-700' :
-                                                    reward.level === 'PLATA' ? 'bg-gray-100 text-gray-700' :
-                                                        'bg-orange-100 text-orange-700'
-                                                }`}>
-                                                {reward.level}
+                                        <TableCell className="text-center">
+                                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${LEVEL_STYLES[reward.rewardLevel] ?? 'bg-slate-100 text-slate-600'}`}>
+                                                {reward.rewardLevel}
                                             </span>
                                         </TableCell>
-                                        <TableCell>{reward.totalPoints} pts</TableCell>
-                                        <TableCell>${reward.totalSpent.toFixed(2)}</TableCell>
+                                        <TableCell className="text-center font-bold text-amber-600">{Number(reward.totalRewardPoints)} pts</TableCell>
+                                        <TableCell className="text-center text-slate-600">${Number(reward.totalSpent).toFixed(2)}</TableCell>
                                         <TableCell className="text-right">
                                             <Button
-                                                variant="outline"
+                                                variant="ghost"
                                                 size="sm"
+                                                className="h-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                                                 onClick={() => setSelectedClientId(client.id)}
                                             >
                                                 Ver Detalle

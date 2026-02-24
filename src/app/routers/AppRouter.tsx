@@ -1,4 +1,3 @@
-
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom'
 import { MainLayout } from '@/widgets/Layout'
 import OrdersPage from '@/pages/orders-page/OrdersPage'
@@ -7,7 +6,7 @@ import { BankAccountsPage } from '@/pages/bank-accounts-page'
 import { ClientsPage } from '@/pages/clients-page'
 import { FinancialDashboardPage } from '@/features/financial-dashboard'
 import { FinancialAuditPage } from '@/features/financial-audit'
-import { OrderReceptionPage, OrderReceptionHistoryPage } from '@/features/order-reception'
+import { OrderReceptionHistoryPage } from '@/features/order-reception'
 import { InventoryPage } from "@/features/inventory/ui/InventoryPage"
 import { ReceptionBatchPage } from '@/features/reception-batch'
 import { OrderDeliveryPage, OrderDeliveryHistoryPage } from '@/features/order-delivery'
@@ -23,8 +22,6 @@ import { DashboardPage } from '@/features/dashboard/ui/DashboardPage'
 import { ProtectedRoute } from '@/shared/components/ProtectedRoute'
 import { ToastProvider } from '@/shared/ui/use-toast'
 
-// ─── All app routes wrapped in MainLayout and ProtectedRoute ─────────────────
-// Any unauthenticated access → ProtectedRoute redirects to /login
 const protectedChildren = [
     { index: true, element: <DashboardPage /> },
     { path: 'transactions', element: <TransactionsPage /> },
