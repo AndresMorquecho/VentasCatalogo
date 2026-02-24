@@ -83,17 +83,23 @@ export const receptionService = {
     orderId,
     finalTotal,
     invoiceNumber,
-    abonoRecepcion
+    abonoRecepcion,
+    bankAccountId,
+    paymentMethod
   }: {
     orderId: string;
     finalTotal: number;
-    invoiceNumber: string;
+    invoiceNumber?: string;
     abonoRecepcion?: number;
+    bankAccountId?: string;
+    paymentMethod?: string;
   }): Promise<Order> => {
     return orderApi.receiveOrder(orderId, {
       finalTotal,
       invoiceNumber,
-      abonoRecepcion
+      abonoRecepcion,
+      bankAccountId,
+      paymentMethod
     });
   }
 };

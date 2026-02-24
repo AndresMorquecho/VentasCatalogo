@@ -2,10 +2,10 @@
 // Simplified to use unified FinancialRecord entity
 
 import { financialRecordApi } from '@/entities/financial-record/model/api';
-import { 
-  createPaymentRecord, 
+import {
+  createPaymentRecord,
   createAdjustmentRecord as createAdjustmentModel,
-  createManualRecord 
+  createManualRecord
 } from '@/entities/financial-record/model/model';
 import type { FinancialRecord } from '@/entities/financial-record/model/types';
 
@@ -27,10 +27,11 @@ export const financialRecordService = {
     amount: number,
     clientId: string,
     clientName: string,
-    paymentMethod: 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE',
+    paymentMethod: 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE' | 'CREDITO_CLIENTE',
     bankAccountId: string,
     createdBy: string,
-    notes?: string
+    notes?: string,
+    referenceNumber?: string
   ): Promise<FinancialRecord> {
     const record = createPaymentRecord(
       orderId,
@@ -41,7 +42,8 @@ export const financialRecordService = {
       paymentMethod,
       bankAccountId,
       createdBy,
-      notes
+      notes,
+      referenceNumber
     );
 
     return financialRecordApi.create(record);
@@ -82,7 +84,7 @@ export const financialRecordService = {
     clientId: string,
     clientName: string,
     bankAccountId: string,
-    paymentMethod: 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE',
+    paymentMethod: 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE' | 'CREDITO_CLIENTE',
     createdBy: string,
     notes: string,
     isExpense: boolean = false

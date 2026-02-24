@@ -11,12 +11,13 @@ import { orderPaymentService } from '@/application/order/orderPayment.service';
 import { paymentApi } from './paymentApi';
 
 export const orderPaymentApi = {
-    addOrderPaymentTransactional: async ({ order, amount, bankAccount }: any) => {
+    addOrderPaymentTransactional: async ({ order, amount, bankAccount, method, creditAmount }: any) => {
         return paymentApi.registerPayment({
             orderId: order.id,
             amount: amount,
-            method: 'EFECTIVO', // Default assumption for the legacy form
-            bankAccountId: bankAccount.id,
+            method: method || 'EFECTIVO',
+            bankAccountId: bankAccount?.id,
+            creditAmount: creditAmount || 0,
             notes: 'Abono manual registrado desde formulario edición'
         });
     },

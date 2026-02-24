@@ -2,7 +2,6 @@
 import { useState, useRef, useEffect } from "react"
 import { useFormik } from "formik"
 import * as Yup from "yup"
-import { Gift } from "lucide-react"
 import {
     Dialog,
     DialogContent,
@@ -26,12 +25,7 @@ import { getActiveBrands } from "@/entities/brand/model/model"
 import { useToast } from "@/shared/ui/use-toast"
 import { pdf } from "@react-pdf/renderer"
 import { OrderReceiptDocument } from "@/features/order-receipt/ui/OrderReceiptDocument"
-import { useAddOrderPayment } from "@/features/order-payments/model"
-
-// Transaction Imports
-import { processPaymentRegistration } from "@/features/transactions/lib/processPayment"
 import { validateTransaction } from "@/features/transactions/lib/validateTransaction"
-import type { FinancialRecordType } from "@/entities/financial-record/model/types"
 import { useClientCredits } from "@/features/transactions/model/hooks"
 
 interface OrderFormModalProps {
@@ -50,20 +44,28 @@ const validationSchema = Yup.object({
     brandName: Yup.string().required("La marca es requerida"),
     quantity: Yup.number().min(1, "Mínimo 1").required("Requerido"),
     total: Yup.number().min(0, "No negativo").required("Requerido"),
+    creditToUse: Yup.number().min(0, "No negativo").notRequired(),
     deposit: Yup.number()
         .min(0, "No negativo")
         .required("Requerido")
         .test('min-deposit', 'El abono debe ser al menos el 50% del total', function (value) {
-            const { total } = this.parent;
-            if (!value || !total) return true;
-            return value >= (total * 0.5);
+            const { total, creditToUse } = this.parent;
+            const totalDeposit = (value || 0) + (creditToUse || 0);
+            if (!totalDeposit || !total) return true;
+            return totalDeposit >= (total * 0.5);
         }),
     paymentMethod: Yup.string().required("La forma de pago es requerida"),
-    bankAccountId: Yup.string().when("paymentMethod", {
-        is: (val: string) => ['TRANSFERENCIA', 'DEPOSITO', 'CHEQUE'].includes(val),
-        then: (schema) => schema.required("Cuenta bancaria requerida"),
-        otherwise: (schema) => schema.notRequired()
-    }),
+    bankAccountId: Yup.string().test(
+        'is-bank-required',
+        "Cuenta bancaria requerida para este método",
+        function (value) {
+            const { deposit, paymentMethod } = this.parent;
+            if (deposit > 0 && paymentMethod !== 'EFECTIVO' && !value) {
+                return false;
+            }
+            return true;
+        }
+    ),
     transactionDate: Yup.string().when("paymentMethod", {
         is: (val: string) => ['TRANSFERENCIA', 'DEPOSITO', 'CHEQUE'].includes(val),
         then: (schema) => schema.required("Fecha requerida"),
@@ -176,7 +178,6 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
     const { data: brands = [] } = useBrandList()
     const createOrder = useCreateOrder()
     const updateOrder = useUpdateOrder()
-    const addOrderPayment = useAddOrderPayment()
     const { showToast } = useToast()
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isLoadingReceiptNumber, setIsLoadingReceiptNumber] = useState(false)
@@ -229,8 +230,9 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
             brandName: order?.brandName || "",
             quantity: order?.items?.[0]?.quantity || 1,
             total: order?.total || 0,
-            deposit: order?.payments?.[0]?.amount || 0, // Get first payment as deposit
-            paymentMethod: order?.paymentMethod || "EFECTIVO" as PaymentMethod,
+            deposit: order?.payments?.find(p => p.method !== 'CREDITO_CLIENTE')?.amount || 0,
+            creditToUse: 0,
+            paymentMethod: (order?.paymentMethod === 'CREDITO_CLIENTE' ? 'EFECTIVO' : order?.paymentMethod) || "EFECTIVO" as PaymentMethod,
             bankAccountId: order?.bankAccountId || "",
             transactionDate: order?.transactionDate || new Date().toISOString().split('T')[0],
             transactionReference: "", // New field
@@ -257,6 +259,14 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                 const depositAmount = Number(values.deposit) || 0
                 const isFinancial = ['TRANSFERENCIA', 'DEPOSITO', 'CHEQUE'].includes(values.paymentMethod);
 
+                let finalBankAccountId = values.bankAccountId;
+                if (values.paymentMethod === 'EFECTIVO') {
+                    const cashAccount = bankAccounts.find(a => a.type === 'CASH');
+                    if (cashAccount) {
+                        finalBankAccountId = cashAccount.id;
+                    }
+                }
+
                 // Pre-validation for financial transactions
                 if (!isEditing && isFinancial && depositAmount > 0) {
                     try {
@@ -270,7 +280,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                             clientId: values.clientId,
                             clientName,
                             createdBy: 'Vendedor', // Mock
-                            bankAccountId: values.bankAccountId || 'default',
+                            bankAccountId: finalBankAccountId || 'default',
                             paymentMethod: values.paymentMethod as 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE'
                         });
                     } catch (e: any) {
@@ -282,6 +292,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
 
                 const payload = {
                     ...values,
+                    bankAccountId: finalBankAccountId,
                     clientName,
                     unitPrice,
                     // The order is created with 0 paidAmount initially. 
@@ -346,9 +357,8 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
     })
 
     const { data: credits = [] } = useClientCredits(formik.values.clientId)
-    const totalCredit = credits.reduce((sum, c) => sum + c.amount, 0)
+    const totalCredit = credits.reduce((sum, c) => sum + Number(c.remainingAmount || 0), 0)
 
-    const balance = Math.max(0, formik.values.total - formik.values.deposit)
     const inputClass = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
 
     const clientOptions = clients.map(c => ({ id: c.id, label: c.firstName, subLabel: c.identificationNumber }))
@@ -505,37 +515,64 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                                 {formik.touched.deposit && formik.errors.deposit && (
                                     <p className="text-red-500 text-xs">{formik.errors.deposit}</p>
                                 )}
-                                {totalCredit > 0 && (
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        className="w-full text-emerald-600 border-emerald-300 hover:bg-emerald-50 mt-2"
-                                        onClick={() => {
-                                            const currentDeposit = Number(formik.values.deposit) || 0;
-                                            const maxCredit = Math.min(totalCredit, formik.values.total - currentDeposit);
-                                            if (maxCredit > 0) {
-                                                formik.setFieldValue('deposit', currentDeposit + maxCredit);
-                                                showToast(`Se aplicó $${maxCredit.toFixed(2)} del saldo a favor`, "success");
-                                            }
-                                        }}
-                                    >
-                                        <Gift className="h-4 w-4 mr-2" />
-                                        Usar Saldo a Favor (${totalCredit.toFixed(2)})
-                                    </Button>
-                                )}
                             </div>
+
+                            {totalCredit > 0 && (
+                                <div className="space-y-2 p-3 bg-emerald-50 border border-emerald-100 rounded-md">
+                                    <Label className="text-emerald-800 text-xs font-bold">Saldo a Favor Disponible: ${totalCredit.toFixed(2)}</Label>
+                                    <div className="flex gap-2">
+                                        <div className="relative flex-1">
+                                            <span className="absolute left-2 top-1.5 text-xs text-emerald-600">$</span>
+                                            <Input
+                                                type="number"
+                                                className="pl-5 h-8 bg-white border-emerald-200 focus:ring-emerald-500"
+                                                placeholder="Monto a usar"
+                                                {...formik.getFieldProps('creditToUse')}
+                                                onChange={(e) => {
+                                                    const val = Math.min(Number(e.target.value), totalCredit, formik.values.total - Number(formik.values.deposit));
+                                                    formik.setFieldValue('creditToUse', val > 0 ? val : 0);
+                                                }}
+                                            />
+                                        </div>
+                                        {Number(formik.values.creditToUse) > 0 ? (
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                                onClick={() => formik.setFieldValue('creditToUse', 0)}
+                                            >
+                                                Quitar
+                                            </Button>
+                                        ) : (
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-8 text-emerald-600 border-emerald-300 hover:bg-emerald-50"
+                                                onClick={() => {
+                                                    const maxPossible = Math.min(totalCredit, formik.values.total - Number(formik.values.deposit));
+                                                    formik.setFieldValue('creditToUse', maxPossible);
+                                                }}
+                                            >
+                                                Usar Máximo
+                                            </Button>
+                                        )}
+                                    </div>
+                                    <p className="text-[10px] text-emerald-600">Este monto se descontará del saldo a favor del cliente.</p>
+                                </div>
+                            )}
 
                             <div className="space-y-2">
                                 <Label>Saldo Pendiente</Label>
                                 <div className="flex h-9 w-full items-center rounded-md border border-input bg-red-50 px-3 text-sm font-bold text-red-600">
-                                    ${balance.toFixed(2)}
+                                    ${(formik.values.total - Number(formik.values.deposit) - Number(formik.values.creditToUse)).toFixed(2)}
                                 </div>
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="paymentMethod">Forma de Pago</Label>
-                                <select id="paymentMethod" {...formik.getFieldProps('paymentMethod')} className={inputClass}>
+                                <Label htmlFor="paymentMethod">Forma de Pago (Abono Inicial)</Label>
+                                <select id="paymentMethod" {...formik.getFieldProps('paymentMethod')} className={inputClass} disabled={Number(formik.values.deposit) === 0}>
                                     <option value="EFECTIVO">Efectivo</option>
                                     <option value="TRANSFERENCIA">Transferencia</option>
                                     <option value="DEPOSITO">Depósito</option>
@@ -543,7 +580,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                                 </select>
                             </div>
 
-                            {formik.values.paymentMethod !== 'EFECTIVO' && (
+                            {Number(formik.values.deposit) > 0 && formik.values.paymentMethod !== 'EFECTIVO' && (
                                 <>
                                     <div className="space-y-2">
                                         <Label htmlFor="bankAccountId">Cuenta de Destino</Label>

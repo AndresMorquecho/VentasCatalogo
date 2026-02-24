@@ -1,12 +1,10 @@
 import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
 import type { Order } from '@/entities/order/model/types';
 import type { Client } from '@/entities/client/model/types';
-import { 
-    getPendingAmount, 
+import {
+    getPendingAmount,
     getPaidAmount,
-    getEffectiveTotal,
-    hasClientCredit, 
-    getClientCreditAmount 
+    getEffectiveTotal
 } from '@/entities/order/model/model';
 
 const styles = StyleSheet.create({
@@ -183,6 +181,8 @@ interface Props {
         amountPaidNow: number;
         method: string;
         user: string;
+        currentCreditAmount?: number;
+        hasCurrentCredit?: boolean;
     };
 }
 
@@ -194,14 +194,15 @@ export const DeliveryReceiptDocument = ({ order, client, paymentInfo }: Props) =
     const realTotal = getEffectiveTotal(order);
     const totalPaid = getPaidAmount(order);
     const paidNow = paymentInfo?.amountPaidNow || 0;
-    const initialPaid = Math.max(0, totalPaid - paidNow);
 
     const pendingAmount = getPendingAmount(order);
-    const hasCredit = hasClientCredit(order);
-    const creditAmount = getClientCreditAmount(order);
-    
-    // Display pending as 0 if there's credit
-    const displayPending = hasCredit ? 0 : Math.max(0, pendingAmount);
+
+    // Instead of computing if THIS order generated credit, we show the actual CURRENT client credit total
+    const hasCredit = paymentInfo?.hasCurrentCredit || false;
+    const creditAmount = paymentInfo?.currentCreditAmount || 0;
+
+    // Display pending as 0 if there's no actual pending for this order
+    const displayPending = Math.max(0, pendingAmount);
 
     return (
         <Document>
@@ -293,14 +294,14 @@ export const DeliveryReceiptDocument = ({ order, client, paymentInfo }: Props) =
                             <Text style={{ fontSize: 12, fontWeight: 'bold', color: displayPending > 0.01 ? '#DC2626' : '#059669' }}>Saldo Final:</Text>
                             <Text style={{ fontSize: 12, fontWeight: 'bold', color: displayPending > 0.01 ? '#DC2626' : '#059669' }}>${displayPending.toFixed(2)}</Text>
                         </View>
-                        
+
                         {hasCredit && (
                             <View style={styles.creditAlert}>
                                 <Text style={styles.creditText}>
-                                    ✓ Saldo a Favor: +${creditAmount.toFixed(2)}
+                                    Saldo a Favor del Cliente: ${creditAmount.toFixed(2)}
                                 </Text>
                                 <Text style={{ fontSize: 8, color: '#065F46', textAlign: 'center', marginTop: 2 }}>
-                                    Disponible para futuros pedidos
+                                    (Disponible para pago total o parcial en futuros pedidos)
                                 </Text>
                             </View>
                         )}

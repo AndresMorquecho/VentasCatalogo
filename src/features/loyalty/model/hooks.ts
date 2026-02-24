@@ -49,7 +49,9 @@ export const useLoyaltyRules = () => {
     const { mutateAsync: toggleRule } = useMutation({
         mutationFn: (id: string) => loyaltyRulesApi.toggle(id),
         onSuccess: (rule) => {
-            logAction({ ...actor, action: 'UPDATE_LOYALTY_RULE', module: 'loyalty', detail: `${rule.active ? 'Activó' : 'Desactivó'} regla: "${rule.name}"` });
+            if (rule) {
+                logAction({ ...actor, action: 'UPDATE_LOYALTY_RULE', module: 'loyalty', detail: `${rule.active ? 'Activó' : 'Desactivó'} regla: "${rule.name}"` });
+            }
             qc.invalidateQueries({ queryKey: key });
         },
     });
@@ -93,7 +95,9 @@ export const useLoyaltyPrizes = () => {
     const { mutateAsync: togglePrize } = useMutation({
         mutationFn: (id: string) => loyaltyPrizesApi.toggle(id),
         onSuccess: (prize) => {
-            logAction({ ...actor, action: 'UPDATE_LOYALTY_PRIZE', module: 'loyalty', detail: `${prize.active ? 'Activó' : 'Desactivó'} premio: "${prize.name}"` });
+            if (prize) {
+                logAction({ ...actor, action: 'UPDATE_LOYALTY_PRIZE', module: 'loyalty', detail: `${prize.active ? 'Activó' : 'Desactivó'} premio: "${prize.name}"` });
+            }
             qc.invalidateQueries({ queryKey: key });
         },
     });

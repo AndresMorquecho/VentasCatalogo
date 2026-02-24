@@ -37,8 +37,6 @@ import {
     SidebarFooter,
     SidebarHeader,
     SidebarRail,
-    SidebarTrigger,
-    useSidebar,
 } from "@/shared/ui/sidebar"
 import { Button } from "@/shared/ui/button"
 import { SidebarNavGroup } from "./SidebarNavGroup"

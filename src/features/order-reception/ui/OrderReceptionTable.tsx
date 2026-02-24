@@ -9,6 +9,7 @@ import {
 import { Button } from "@/shared/ui/button"
 import { PackageCheck } from "lucide-react"
 import type { Order } from "@/entities/order/model/types"
+import { getPaidAmount } from "@/entities/order/model/model"
 
 interface OrderReceptionTableProps {
     orders: Order[]
@@ -55,7 +56,7 @@ export function OrderReceptionTable({ orders, onReceive }: OrderReceptionTablePr
                                 <TableCell>{order.clientName}</TableCell>
                                 <TableCell>{order.brandName}</TableCell>
                                 <TableCell className="text-right">{formatCurrency(order.total)}</TableCell>
-                                <TableCell className="text-right">{formatCurrency(order.paidAmount)}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(getPaidAmount(order))}</TableCell>
                                 <TableCell className="text-right">
                                     <Button
                                         size="sm"

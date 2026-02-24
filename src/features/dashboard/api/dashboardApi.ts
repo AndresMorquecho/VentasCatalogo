@@ -111,15 +111,15 @@ export const dashboardApi = {
             const clientsWithoutRecentFollowup = 0;
 
             // ─── LOYALTY METRICS ─────────────────────────────────────────────────
-            const pointsGeneratedThisMonth = safeRewards.reduce((sum, r) => sum + (r.totalPoints || 0), 0);
+            const pointsGeneratedThisMonth = safeRewards.reduce((sum, r) => sum + (r.totalRewardPoints || 0), 0);
             const topClients = [...safeRewards]
-                .sort((a, b) => (b.totalPoints || 0) - (a.totalPoints || 0))
+                .sort((a, b) => (Number(b.totalRewardPoints) || 0) - (Number(a.totalRewardPoints) || 0))
                 .slice(0, 3)
                 .map(r => {
                     const client = safeClients.find(c => c.id === r.clientId);
                     return {
                         name: client?.firstName || 'Cliente Desconocido',
-                        points: r.totalPoints || 0
+                        points: Number(r.totalRewardPoints) || 0
                     };
                 });
 

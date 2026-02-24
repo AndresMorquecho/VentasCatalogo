@@ -1,13 +1,15 @@
 import { useState, useMemo, useEffect } from "react";
 import { AsyncButton } from "@/shared/ui/async-button";
 import { Input } from "@/shared/ui/input";
+import { Button } from "@/shared/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/ui/dialog";
 import { useBankAccountList } from "@/features/bank-accounts/api/hooks";
 import { usePaymentOperations } from "../model/hooks";
 import type { PaymentPayload } from "@/shared/api/paymentApi";
-import { calculateCreditFromPayment, formatCurrency } from "@/entities/order/model/financialCalculator";
+import { calculateCreditFromPayment, formatCurrency, calculatePendingBalance } from "@/entities/order/model/financialCalculator";
 import type { Order } from "@/entities/order/model/types";
 import { useToast } from "@/shared/ui/use-toast";
+import { useClientCredits } from "@/features/transactions/model/hooks";
 
 interface Props {
     order: Order;
@@ -19,25 +21,27 @@ interface Props {
 export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
     const { registerPayment } = usePaymentOperations();
     const { data: bankAccounts = [] } = useBankAccountList();
+    const { data: credits = [] } = useClientCredits(order?.clientId || "");
     const [amount, setAmount] = useState<number>(0);
-    const [method, setMethod] = useState<'EFECTIVO' | 'TRANSFERENCIA' | 'CHEQUE' | 'DEPOSITO' | 'CREDITO_CLIENTE'>('EFECTIVO');
+    const [creditToUse, setCreditToUse] = useState<number>(0);
+    const [method, setMethod] = useState<'EFECTIVO' | 'TRANSFERENCIA' | 'CHEQUE' | 'DEPOSITO'>('EFECTIVO');
     const [bankAccountId, setBankAccountId] = useState<string>('');
     const [reference, setReference] = useState('');
     const [notes, setNotes] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { showToast } = useToast();
 
+    const totalCredit = credits.reduce((sum, c) => sum + Number(c.amount || 0), 0);
+
     // Use centralized financial calculator
     const pendingBalance = useMemo(() => {
         if (!order) return 0;
-        const total = Number(order.realInvoiceTotal ?? order.total ?? 0);
-        const paid = order.payments?.reduce((sum, p) => sum + Number(p.amount || 0), 0) || 0;
-        return Math.max(0, total - paid);
+        return calculatePendingBalance(order);
     }, [order]);
 
     // Calculate credit if payment exceeds pending
     const creditGenerated = useMemo(() =>
-        calculateCreditFromPayment(order, amount),
+        calculateCreditFromPayment(order, amount), // Note: using creditToUse to overpay is not allowed, so credit only comes from cash amount
         [order, amount]
     );
 
@@ -54,6 +58,29 @@ export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (amount <= 0 && creditToUse <= 0) {
+            showToast("Debes ingresar un monto manual o usar saldo a favor.", "error");
+            return;
+        }
+
+        if (amount > 0 && !bankAccountId) {
+            showToast("Debes seleccionar una cuenta para el abono manual.", "error");
+            return;
+        }
+
+        if (amount + creditToUse > pendingBalance && creditToUse > 0) {
+            // Cannot use credit to overpay
+            if (amount < pendingBalance) {
+                // Adjust creditToUse
+                setCreditToUse(pendingBalance - amount);
+            } else {
+                setCreditToUse(0);
+            }
+            showToast("No puedes usar saldo a favor si el monto supera el pendiente.", "error");
+            return;
+        }
+
         setIsSubmitting(true);
 
         try {
@@ -63,11 +90,13 @@ export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
                 method: method,
                 referenceNumber: reference,
                 notes: notes,
-                bankAccountId: bankAccountId
+                bankAccountId: bankAccountId || 'default', // Fallback, won't be used if amount is 0
+                creditAmount: creditToUse
             };
 
             await registerPayment.mutateAsync(payload);
             setAmount(0);
+            setCreditToUse(0);
             setReference('');
             setNotes('');
             onSuccess();
@@ -86,11 +115,57 @@ export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
                 <DialogHeader>
                     <DialogTitle>Registrar Abono</DialogTitle>
                     <DialogDescription>
-                        Pedido <strong>#{order.receiptNumber}</strong> - Saldo: <span className="text-red-600 font-bold">{formatCurrency(pendingBalance)}</span>
+                        Pedido <strong>#{order?.receiptNumber}</strong> - Saldo: <span className="text-red-600 font-bold">{formatCurrency(pendingBalance)}</span>
                     </DialogDescription>
                 </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
+                    {totalCredit > 0 && (
+                        <div className="space-y-2 p-3 bg-emerald-50 border border-emerald-100 rounded-md">
+                            <label className="text-emerald-800 text-xs font-bold">Usar Saldo a Favor (Disponible: ${totalCredit.toFixed(2)})</label>
+                            <div className="flex gap-2">
+                                <div className="relative flex-1">
+                                    <span className="absolute left-2 top-1.5 text-xs text-emerald-600">$</span>
+                                    <Input
+                                        type="number"
+                                        className="pl-5 h-8 bg-white border-emerald-200"
+                                        placeholder="Monto a usar"
+                                        value={creditToUse || ''}
+                                        onChange={(e) => {
+                                            const val = Math.min(Number(e.target.value), totalCredit, Math.max(0, pendingBalance - amount));
+                                            setCreditToUse(val > 0 ? val : 0);
+                                        }}
+                                    />
+                                </div>
+                                {creditToUse > 0 ? (
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 text-red-500 hover:bg-red-50"
+                                        onClick={() => setCreditToUse(0)}
+                                    >
+                                        Quitar
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-8 text-emerald-600 border-emerald-300 hover:bg-emerald-50"
+                                        onClick={() => {
+                                            const maxPossible = Math.min(totalCredit, Math.max(0, pendingBalance - amount));
+                                            setCreditToUse(maxPossible);
+                                        }}
+                                    >
+                                        Usar Máximo
+                                    </Button>
+                                )}
+                            </div>
+                            <p className="text-[10px] text-emerald-600">Este monto se descontará del saldo a favor del cliente.</p>
+                        </div>
+                    )}
+
                     <div className="grid grid-cols-2 gap-4">
                         {/* Amount Input */}
                         <div className="space-y-1">
@@ -98,33 +173,33 @@ export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
                             <Input
                                 type="number"
                                 step="0.01"
-                                min="0.01"
-                                value={amount}
-                                onChange={(e) => setAmount(parseFloat(e.target.value))}
+                                min="0"
+                                value={amount || ''}
+                                onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
                                 className="font-mono font-bold text-lg"
-                                required
                             />
                         </div>
 
                         {/* Method Select */}
-                        <div className="space-y-1">
-                            <label className="text-sm font-medium">Método</label>
-                            <select
-                                value={method}
-                                onChange={(e) => setMethod(e.target.value as any)}
-                                className="w-full h-10 px-3 rounded-md border border-input bg-background"
-                            >
-                                <option value="EFECTIVO">Efectivo</option>
-                                <option value="TRANSFERENCIA">Transferencia</option>
-                                <option value="DEPOSITO">Depósito</option>
-                                <option value="CHEQUE">Cheque</option>
-                                <option value="CREDITO_CLIENTE">Crédito a Favor</option>
-                            </select>
-                        </div>
+                        {amount > 0 && (
+                            <div className="space-y-1">
+                                <label className="text-sm font-medium">Método</label>
+                                <select
+                                    value={method}
+                                    onChange={(e) => setMethod(e.target.value as any)}
+                                    className="w-full h-10 px-3 rounded-md border border-input bg-background"
+                                >
+                                    <option value="EFECTIVO">Efectivo</option>
+                                    <option value="TRANSFERENCIA">Transferencia</option>
+                                    <option value="DEPOSITO">Depósito</option>
+                                    <option value="CHEQUE">Cheque</option>
+                                </select>
+                            </div>
+                        )}
                     </div>
 
-                    {/* Reference Input (Conditional) */}
-                    {method !== 'EFECTIVO' && method !== 'CREDITO_CLIENTE' && (
+                    {/* Reference and Bank Account (Conditional) */}
+                    {amount > 0 && method !== 'EFECTIVO' && (
                         <>
                             <div className="space-y-1 animate-in fade-in">
                                 <label className="text-sm font-medium text-blue-600">Cuenta Bancaria</label>
@@ -132,12 +207,12 @@ export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
                                     value={bankAccountId}
                                     onChange={(e) => setBankAccountId(e.target.value)}
                                     className="w-full h-10 px-3 rounded-md border border-input bg-background"
-                                    required
+                                    required={amount > 0}
                                 >
                                     <option value="">Seleccionar cuenta...</option>
-                                    {bankAccounts.filter(a => a.type === 'BANK').map(account => (
+                                    {bankAccounts.filter(a => a.type !== 'CASH').map(account => (
                                         <option key={account.id} value={account.id}>
-                                            {account.name} - {account.accountNumber}
+                                            {account.name} (Banco)
                                         </option>
                                     ))}
                                 </select>
@@ -161,6 +236,16 @@ export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
                         </div>
                     )}
 
+                    <div className="pt-2 border-t">
+                        <div className="flex justify-between text-sm font-bold">
+                            <span>Total a abonar:</span>
+                            <span className="text-emerald-600">${(Number(amount) + Number(creditToUse)).toFixed(2)}</span>
+                        </div>
+                        {pendingBalance - (Number(amount) + Number(creditToUse)) > 0 && (
+                            <p className="text-[10px] text-muted-foreground text-right mt-1">Saldo pendiente tras abono: ${(pendingBalance - (Number(amount) + Number(creditToUse))).toFixed(2)}</p>
+                        )}
+                    </div>
+
                     <div className="space-y-1">
                         <label className="text-sm font-medium text-slate-500">Observación (Opcional)</label>
                         <Input
@@ -177,7 +262,7 @@ export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
                         </AsyncButton>
                         <AsyncButton
                             type="submit"
-                            disabled={amount <= 0 || !bankAccountId}
+                            disabled={(amount <= 0 && creditToUse <= 0) || (amount > 0 && method !== 'EFECTIVO' && !bankAccountId)}
                             isLoading={isSubmitting}
                             loadingText="Procesando..."
                             className="bg-emerald-600 hover:bg-emerald-700"

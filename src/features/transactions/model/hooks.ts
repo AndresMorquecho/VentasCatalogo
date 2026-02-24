@@ -41,7 +41,7 @@ export const useCreateTransaction = () => {
 export const useClientCredits = (clientId: string) => {
     return useQuery({
         queryKey: ['client-credits', clientId],
-        queryFn: () => clientCreditApi.getByClient(clientId),
+        queryFn: () => clientCreditApi.getAvailableByClient(clientId),
         enabled: !!clientId
     });
 };

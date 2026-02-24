@@ -15,8 +15,9 @@ import { Input } from "@/shared/ui/input"
 import { Truck, CreditCard, Gift } from "lucide-react"
 import type { Order } from "@/entities/order/model/types"
 import { orderApi } from "@/entities/order/model/api"
-import { getPendingAmount, hasClientCredit, getClientCreditAmount, getPaidAmount } from "@/entities/order/model/model"
+import { getPendingAmount, getPaidAmount } from "@/entities/order/model/model"
 import { useBankAccountList } from "@/features/bank-accounts/api/hooks"
+import { useClientCredit } from "@/features/client-credits/model/hooks"
 import { useToast } from "@/shared/ui/use-toast"
 import { generateDeliveryReceipt } from "../lib/generateDeliveryReceipt"
 
@@ -35,6 +36,7 @@ export function DeliverOrderModal({ order, open, onOpenChange }: DeliverOrderMod
 
     const qc = useQueryClient()
     const { data: bankAccounts = [] } = useBankAccountList()
+    const { data: creditData } = useClientCredit(order?.clientId || '')
     const { showToast } = useToast()
 
     if (!order) return null
@@ -43,9 +45,11 @@ export function DeliverOrderModal({ order, open, onOpenChange }: DeliverOrderMod
     const effectiveTotal = order.realInvoiceTotal ?? order.total
     const paid = getPaidAmount(order) // Use function instead of field
     const pendingAmount = getPendingAmount(order)
-    const hasCredit = hasClientCredit(order)
-    const creditAmount = getClientCreditAmount(order)
-    
+
+    // Get current actual credit balance directly from the client account
+    const currentCreditAmount = creditData?.totalCredit || 0
+    const hasCurrentCredit = currentCreditAmount > 0
+
     // For payment: only charge if there's actual debt
     const amountToCharge = Math.max(0, pendingAmount)
 
@@ -77,38 +81,46 @@ export function DeliverOrderModal({ order, open, onOpenChange }: DeliverOrderMod
                 }
             }
 
+            let finalBankAccountId = selectedBankId || undefined;
+            if (amountToCharge > 0.01 && paymentMethod === 'EFECTIVO') {
+                const cashAccount = bankAccounts.find(a => a.type === 'CASH');
+                if (cashAccount) finalBankAccountId = cashAccount.id;
+            }
+
             // 2. Deliver order using backend endpoint (handles everything in transaction)
             const deliveredOrder = await orderApi.deliverOrder(order.id, {
                 finalPayment: amountToCharge > 0.01 ? amountToCharge : undefined,
-                bankAccountId: selectedBankId || undefined,
+                bankAccountId: finalBankAccountId,
                 paymentMethod: paymentMethod,
                 reference: referenceNumber || undefined,
                 notes: `Entrega al cliente ${order.clientName}`
             });
 
-            // 3. Invalidate queries to refresh UI
-            await qc.invalidateQueries({ queryKey: ['orders'] })
-            await qc.invalidateQueries({ queryKey: ['financial-records'] })
-            await qc.invalidateQueries({ queryKey: ['transactions'] })
-            await qc.invalidateQueries({ queryKey: ['inventory-movements'] })
-            await qc.invalidateQueries({ queryKey: ['client-rewards'] })
-
-            if (hasCredit) {
-                showToast(`Entrega registrada. Cliente tiene saldo a favor de $${creditAmount.toFixed(2)}`, "success")
-            } else {
-                showToast("Entrega registrada correctamente", "success")
-            }
-
-            // Generate Receipt
+            // 3. Generate Receipt IMMEDIATELY (while order is in hand and before UI refreshes)
             try {
                 await generateDeliveryReceipt(deliveredOrder, {
                     amountPaidNow: amountToCharge > 0.01 ? amountToCharge : 0,
                     method: paymentMethod,
-                    user: 'Vendedor' // Should be logged user
+                    user: 'Vendedor', // Should be logged user
+                    currentCreditAmount: currentCreditAmount,
+                    hasCurrentCredit: hasCurrentCredit
                 })
             } catch (pdfError) {
                 console.error("Error PDF", pdfError)
                 showToast("Entrega guardada, pero error al generar PDF", "warning")
+            }
+
+            // 4. Invalidate queries and Show Toast
+            qc.invalidateQueries({ queryKey: ['orders'] })
+            qc.invalidateQueries({ queryKey: ['financial-records'] })
+            qc.invalidateQueries({ queryKey: ['transactions'] })
+            qc.invalidateQueries({ queryKey: ['inventory-movements'] })
+            qc.invalidateQueries({ queryKey: ['client-rewards'] })
+
+            if (hasCurrentCredit) {
+                showToast(`Entrega registrada. El cliente aún cuenta con un saldo a favor de $${currentCreditAmount.toFixed(2)}`, "success")
+            } else {
+                showToast("Entrega registrada correctamente", "success")
             }
 
             onOpenChange(false)
@@ -152,13 +164,13 @@ export function DeliverOrderModal({ order, open, onOpenChange }: DeliverOrderMod
                                 {formatCurrency(amountToCharge)}
                             </span>
                         </div>
-                        {hasCredit && (
+                        {hasCurrentCredit && (
                             <div className="flex justify-between text-sm bg-emerald-50 -mx-4 -mb-4 mt-2 p-3 rounded-b-lg border-t border-emerald-200">
                                 <span className="text-emerald-700 font-medium flex items-center gap-1">
                                     <Gift className="h-4 w-4" />
-                                    Saldo a Favor del Cliente:
+                                    Saldo a Favor (Disponible):
                                 </span>
-                                <span className="font-bold text-emerald-700">{formatCurrency(creditAmount)}</span>
+                                <span className="font-bold text-emerald-700">{formatCurrency(currentCreditAmount)}</span>
                             </div>
                         )}
                     </div>
@@ -171,7 +183,7 @@ export function DeliverOrderModal({ order, open, onOpenChange }: DeliverOrderMod
                                 {order.payments.map((payment, idx) => (
                                     <div key={payment.id} className="flex justify-between text-xs text-blue-800">
                                         <span>
-                                            {idx === 0 ? '📝 Abono inicial' : '💵 Abono posterior'} 
+                                            {idx === 0 ? '📝 Abono inicial' : '💵 Abono posterior'}
                                             {payment.method && ` (${payment.method})`}
                                             {payment.createdAt && ` - ${new Date(payment.createdAt).toLocaleDateString('es-EC')}`}
                                         </span>
@@ -241,12 +253,12 @@ export function DeliverOrderModal({ order, open, onOpenChange }: DeliverOrderMod
                                 )}
                             </div>
                         </div>
-                    ) : hasCredit ? (
-                        <Alert className="bg-emerald-50 border-emerald-200 text-emerald-800">
-                            <Gift className="h-4 w-4" />
-                            <AlertTitle>Cliente con Saldo a Favor</AlertTitle>
+                    ) : hasCurrentCredit ? (
+                        <Alert className="bg-emerald-50 text-emerald-800 border-emerald-200 mt-4">
+                            <Gift className="h-4 w-4 stroke-emerald-600" />
+                            <AlertTitle>Saldo a Favor Disponible</AlertTitle>
                             <AlertDescription>
-                                El cliente tiene un saldo a favor de {formatCurrency(creditAmount)}. Puede proceder con la entrega sin cobros adicionales. El crédito quedará disponible para futuros pedidos.
+                                El cliente actualmente cuenta con un saldo a favor de {formatCurrency(currentCreditAmount)} en su cuenta. Puede utilizarse para descontar futuros pedidos. Puede proceder con la entrega sin cobros adicionales.
                             </AlertDescription>
                         </Alert>
                     ) : (

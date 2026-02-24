@@ -7,7 +7,8 @@ export interface PaymentPayload {
     referenceNumber?: string;
     bankAccountId: string;
     notes?: string;
-    clientId?: string; // Kept for type compatibility but backend gets it from order
+    clientId?: string;
+    creditAmount?: number;
 }
 
 /**

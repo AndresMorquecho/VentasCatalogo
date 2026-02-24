@@ -1,9 +1,8 @@
 // Financial Record Domain Model
 
-import type { 
-  FinancialRecord, 
+import type {
+  FinancialRecord,
   CreateFinancialRecordPayload,
-  FinancialRecordType,
   FinancialSource,
   MovementType
 } from './types';
@@ -31,18 +30,19 @@ export const createPaymentRecord = (
   amount: number,
   clientId: string,
   clientName: string,
-  paymentMethod: 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE',
+  paymentMethod: 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE' | 'CREDITO_CLIENTE',
   bankAccountId: string,
   createdBy: string,
-  notes?: string
+  notes?: string,
+  referenceNumber?: string
 ): FinancialRecord => {
-  const referenceNumber = `PAY-${orderReceiptNumber}-${Date.now()}`;
-  
+  const finalReferenceNumber = referenceNumber || `PAY-${orderReceiptNumber}-${Date.now()}`;
+
   return createFinancialRecord({
     type: 'PAYMENT',
     source: 'ORDER_PAYMENT',
     movementType: 'INCOME',
-    referenceNumber,
+    referenceNumber: finalReferenceNumber,
     amount,
     date: new Date().toISOString(),
     clientId,
@@ -69,7 +69,7 @@ export const createAdjustmentRecord = (
   createdBy: string
 ): FinancialRecord => {
   const referenceNumber = `AJUSTE-${orderReceiptNumber}-${Date.now()}`;
-  
+
   return createFinancialRecord({
     type: 'ADJUSTMENT',
     source: 'ADJUSTMENT',
@@ -95,13 +95,13 @@ export const createManualRecord = (
   clientId: string,
   clientName: string,
   bankAccountId: string,
-  paymentMethod: 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE',
+  paymentMethod: 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE' | 'CREDITO_CLIENTE',
   createdBy: string,
   notes: string,
   movementType: MovementType = 'INCOME'
 ): FinancialRecord => {
   const referenceNumber = `MANUAL-${Date.now()}`;
-  
+
   return createFinancialRecord({
     type: movementType === 'EXPENSE' ? 'EXPENSE' : 'PAYMENT',
     source: 'MANUAL',
@@ -167,7 +167,7 @@ export const getRecordsByDateRange = (
 ): FinancialRecord[] => {
   const start = new Date(startDate).getTime();
   const end = new Date(endDate).getTime();
-  
+
   return records.filter(record => {
     const recordDate = new Date(record.date).getTime();
     return recordDate >= start && recordDate <= end;
@@ -230,17 +230,17 @@ export interface CashFlowSummary {
 export const getCashFlowSummary = (records: FinancialRecord[]): CashFlowSummary => {
   const totalIncome = getTotalIncome(records);
   const totalExpense = getTotalExpense(records);
-  
+
   // Group by source
   const bySource: CashFlowSummary['bySource'] = {
     ORDER_PAYMENT: { income: 0, expense: 0, count: 0 },
     MANUAL: { income: 0, expense: 0, count: 0 },
     ADJUSTMENT: { income: 0, expense: 0, count: 0 }
   };
-  
+
   // Group by bank account
   const byBankAccount: CashFlowSummary['byBankAccount'] = {};
-  
+
   records.forEach(r => {
     // By source
     bySource[r.source].count++;
@@ -249,7 +249,7 @@ export const getCashFlowSummary = (records: FinancialRecord[]): CashFlowSummary 
     } else {
       bySource[r.source].expense += r.amount;
     }
-    
+
     // By bank account
     if (!byBankAccount[r.bankAccountId]) {
       byBankAccount[r.bankAccountId] = {
@@ -259,7 +259,7 @@ export const getCashFlowSummary = (records: FinancialRecord[]): CashFlowSummary 
         count: 0
       };
     }
-    
+
     byBankAccount[r.bankAccountId].count++;
     if (r.movementType === 'INCOME') {
       byBankAccount[r.bankAccountId].income += r.amount;
@@ -269,7 +269,7 @@ export const getCashFlowSummary = (records: FinancialRecord[]): CashFlowSummary 
       byBankAccount[r.bankAccountId].balance -= r.amount;
     }
   });
-  
+
   return {
     totalIncome,
     totalExpense,

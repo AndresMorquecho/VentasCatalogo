@@ -64,15 +64,21 @@ export function ReceiveOrderModal({ order, open, onOpenChange }: ReceiveOrderMod
         const total = parseFloat(invoiceTotal)
         if (isNaN(total) || total <= 0) return
 
+        let finalBankAccountId = bankAccountId
+
         // Validate abono if provided
         const abono = abonoRecepcion ? parseFloat(abonoRecepcion) : 0
         if (abono > 0) {
-            if (!bankAccountId) {
-                alert('Debe seleccionar una cuenta bancaria para el abono')
-                return
-            }
             if (!paymentMethod) {
                 alert('Debe seleccionar un método de pago')
+                return
+            }
+            if (paymentMethod === 'EFECTIVO') {
+                const cashAccount = bankAccounts.find(a => a.type === 'CASH')
+                if (cashAccount) finalBankAccountId = cashAccount.id
+            }
+            if (!finalBankAccountId) {
+                alert('Debe seleccionar una cuenta bancaria para el abono')
                 return
             }
         }
@@ -84,10 +90,10 @@ export function ReceiveOrderModal({ order, open, onOpenChange }: ReceiveOrderMod
                 finalTotal: total,
                 invoiceNumber: invoiceNumber || undefined,
                 abonoRecepcion: abono > 0 ? abono : undefined,
-                bankAccountId: abono > 0 ? bankAccountId : undefined,
+                bankAccountId: abono > 0 ? finalBankAccountId : undefined,
                 paymentMethod: abono > 0 ? paymentMethod : undefined
             })
-            
+
             // Invalidate strictly necessary queries
             await qc.invalidateQueries({ queryKey: ['orders'] })
             onOpenChange(false)
@@ -147,7 +153,7 @@ export function ReceiveOrderModal({ order, open, onOpenChange }: ReceiveOrderMod
                             <DollarSign className="h-4 w-4 text-blue-600" />
                             <Label className="text-sm font-semibold text-blue-900">Abono Adicional (Opcional)</Label>
                         </div>
-                        
+
                         <div className="grid gap-3">
                             <div className="grid gap-2">
                                 <Label htmlFor="abono-recepcion" className="text-xs">Monto del Abono ($)</Label>
@@ -178,23 +184,25 @@ export function ReceiveOrderModal({ order, open, onOpenChange }: ReceiveOrderMod
                                         </Select>
                                     </div>
 
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="bank-account" className="text-xs">Cuenta Bancaria</Label>
-                                        <Select value={bankAccountId} onValueChange={setBankAccountId}>
-                                            <SelectTrigger id="bank-account">
-                                                <SelectValue placeholder="Seleccionar cuenta" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {bankAccounts
-                                                    .filter(acc => acc.isActive)
-                                                    .map(account => (
-                                                        <SelectItem key={account.id} value={account.id}>
-                                                            {account.name} - {account.bankName}
-                                                        </SelectItem>
-                                                    ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
+                                    {paymentMethod !== 'EFECTIVO' && (
+                                        <div className="grid gap-2">
+                                            <Label htmlFor="bank-account" className="text-xs">Cuenta Bancaria</Label>
+                                            <Select value={bankAccountId} onValueChange={setBankAccountId}>
+                                                <SelectTrigger id="bank-account">
+                                                    <SelectValue placeholder="Seleccionar cuenta" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {bankAccounts
+                                                        .filter(acc => acc.isActive && acc.type !== 'CASH')
+                                                        .map(account => (
+                                                            <SelectItem key={account.id} value={account.id}>
+                                                                {account.name} (Banco)
+                                                            </SelectItem>
+                                                        ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    )}
                                 </>
                             )}
                         </div>

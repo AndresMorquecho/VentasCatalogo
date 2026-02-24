@@ -11,10 +11,12 @@ export function useClientCredits() {
             const summaries: ClientCreditSummary[] = [];
 
             for (const client of clients) {
-                const credits = await clientCreditApi.getByClient(client.id);
+                const credits = await clientCreditApi.getAvailableByClient(client.id);
 
                 if (credits.length > 0) {
-                    const totalCredit = credits.reduce((sum, c) => sum + Number(c.amount), 0);
+                    const totalCredit = credits.reduce((sum, c) => sum + Number(c.remainingAmount), 0);
+                    const totalGenerated = credits.reduce((sum, c) => sum + Number(c.amount), 0);
+                    const totalUsed = totalGenerated - totalCredit;
 
                     if (totalCredit > 0.01) {
                         summaries.push({
@@ -23,12 +25,12 @@ export function useClientCredits() {
                             clientIdentification: client.identificationNumber,
                             clientPhone: client.phone1,
                             totalCredit: totalCredit,
-                            totalGenerated: totalCredit,
-                            totalUsed: 0,
+                            totalGenerated: totalGenerated,
+                            totalUsed: totalUsed,
                             lastUpdated: credits[credits.length - 1].createdAt,
                             credits: credits.map(c => ({
                                 id: c.id,
-                                amount: c.amount,
+                                amount: c.remainingAmount, // use remaining conceptually mapping to 'amount' in UI for this view
                                 originTransactionId: c.originTransactionId,
                                 createdAt: c.createdAt
                             }))
@@ -47,8 +49,8 @@ export function useClientCredit(clientId: string) {
     return useQuery({
         queryKey: ['client-credit', clientId],
         queryFn: async () => {
-            const credits = await clientCreditApi.getByClient(clientId);
-            const totalCredit = credits.reduce((sum, c) => sum + Number(c.amount), 0);
+            const credits = await clientCreditApi.getAvailableByClient(clientId);
+            const totalCredit = credits.reduce((sum, c) => sum + Number(c.remainingAmount), 0);
             return {
                 credits,
                 totalCredit

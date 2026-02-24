@@ -119,8 +119,10 @@ export const orderApi = {
         orderId: string,
         data: {
             finalTotal: number;
-            invoiceNumber: string;
+            invoiceNumber?: string;
             abonoRecepcion?: number;
+            bankAccountId?: string;
+            paymentMethod?: string;
         }
     ): Promise<Order> => {
         return httpClient.post<Order>(`/orders/${orderId}/receive`, data);

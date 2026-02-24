@@ -4,7 +4,6 @@ import { useBankAccountList } from '@/features/bank-accounts/api/hooks';
 import { createCashClosureSnapshot } from '@/entities/cash-closure/model/model';
 import { createDetailedCashClosureReport } from '@/entities/cash-closure/model/detailed-model';
 import { useCreateCashClosure, useCashClosures } from '@/features/cash-closure/api/hooks';
-import { CashClosureSummary } from './CashClosureSummary';
 import { CashClosureDetailedSummary } from './CashClosureDetailedSummary';
 import { CashClosureHistory } from './CashClosureHistory';
 import { generateCashClosurePDF } from '../lib/generateCashClosurePDF';
@@ -64,7 +63,7 @@ export function CashClosurePage() {
 
         try {
             // Check if closure already exists for this period
-            const existingClosure = closures.find(c => 
+            const existingClosure = closures.find(c =>
                 c.fromDate === fromDate && c.toDate === toDate
             );
 
@@ -91,7 +90,7 @@ export function CashClosurePage() {
                 movementCount: payloadWithDetails.movementCount,
                 hasDetailedReport: !!payloadWithDetails.detailedReport
             });
-            
+
             await createClosure.mutateAsync(payloadWithDetails);
             setPreviewPayload(null); // Reset after success
             setDetailedReport(null);

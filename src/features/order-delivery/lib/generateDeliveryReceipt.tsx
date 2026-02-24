@@ -9,9 +9,8 @@ export const generateDeliveryReceipt = async (order: Order, paymentInfo?: any) =
     try {
         console.log("Generando comprobante de entrega...", order);
 
-        // Fetch client details
-        const clients = await clientApi.getAll();
-        const client = clients.find(c => c.id === order.clientId);
+        // Fetch client details using getById for performance
+        const client = await clientApi.getById(order.clientId);
 
         const blob = await pdf(
             <DeliveryReceiptDocument
@@ -26,8 +25,14 @@ export const generateDeliveryReceipt = async (order: Order, paymentInfo?: any) =
         const link = document.createElement('a');
         link.href = url;
         link.download = fileName;
+
+        // Append to body is crucial for some browsers
+        document.body.appendChild(link);
         link.click();
-        URL.revokeObjectURL(url);
+
+        // Cleanup with small delay
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(url), 100);
 
         return true;
     } catch (error) {
