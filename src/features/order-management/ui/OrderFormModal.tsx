@@ -357,14 +357,14 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto w-[95vw] max-w-[95vw] sm:w-full">
                 <DialogHeader>
-                    <DialogTitle>{isEditing ? "Editar Pedido" : "Nuevo Pedido"}</DialogTitle>
+                    <DialogTitle className="text-base sm:text-lg">{isEditing ? "Editar Pedido" : "Nuevo Pedido"}</DialogTitle>
                 </DialogHeader>
 
-                <form onSubmit={formik.handleSubmit} className="space-y-6 py-4">
+                <form onSubmit={formik.handleSubmit} className="space-y-4 sm:space-y-6 py-2 sm:py-4">
                     {/* Fila 1: Cliente y Recibo */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                         <div className="space-y-2">
                             <Label htmlFor="clientId">Cliente (Nombre / Cédula)</Label>
                             <SearchableSelect
@@ -420,7 +420,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                     <Separator />
 
                     {/* Fila 2: Detalles del Pedido */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
                         <div className="space-y-2">
                             <Label htmlFor="salesChannel">Pedido Por</Label>
                             <select id="salesChannel" {...formik.getFieldProps('salesChannel')} className={inputClass}>
@@ -449,10 +449,10 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                     </div>
 
                     {/* Fila 3: Marca y Valores */}
-                    <div className="bg-muted/10 p-4 rounded-lg border">
-                        <h4 className="text-sm font-medium mb-4 text-muted-foreground">Detalle Financiero</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                            <div className="space-y-2 md:col-span-2">
+                    <div className="bg-muted/10 p-3 sm:p-4 rounded-lg border">
+                        <h4 className="text-xs sm:text-sm font-medium mb-3 sm:mb-4 text-muted-foreground">Detalle Financiero</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 items-end">
+                            <div className="space-y-2 sm:col-span-2">
                                 <Label htmlFor="brandId">Marca</Label>
                                 <SearchableSelect
                                     options={brandOptions}
@@ -488,9 +488,9 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                     </div>
 
                     {/* Fila 4: Pagos */}
-                    <div className="bg-muted/10 p-4 rounded-lg border">
-                        <h4 className="text-sm font-medium mb-4 text-muted-foreground">Pago y Saldos</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-muted/10 p-3 sm:p-4 rounded-lg border">
+                        <h4 className="text-xs sm:text-sm font-medium mb-3 sm:mb-4 text-muted-foreground">Pago y Saldos</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between">
                                     <Label htmlFor="deposit">Abono</Label>
@@ -582,11 +582,11 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                         </div>
                     </div>
 
-                    <DialogFooter>
-                        <AsyncButton type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                    <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
+                        <AsyncButton type="button" variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
                             Cancelar
                         </AsyncButton>
-                        <AsyncButton type="submit" isLoading={isSubmitting} loadingText="Procesando...">
+                        <AsyncButton type="submit" isLoading={isSubmitting} loadingText="Procesando..." className="w-full sm:w-auto">
                             {isEditing ? "Guardar Cambios" : "Crear Pedido"}
                         </AsyncButton>
                     </DialogFooter>

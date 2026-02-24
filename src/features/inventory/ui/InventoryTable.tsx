@@ -51,50 +51,52 @@ export function InventoryTable({ movements }: Props) {
 
     return (
         <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
             <Table>
                 <TableHeader className="bg-slate-50">
                     <TableRow>
-                        <TableHead className="w-[50px]">Mov.</TableHead>
-                        <TableHead>Fecha Ingreso</TableHead>
-                        <TableHead>Cliente</TableHead>
-                        <TableHead>Marca / Pedido</TableHead>
-                        <TableHead className="text-center">Días en Bodega</TableHead>
-                        <TableHead className="text-right">Estado</TableHead>
+                        <TableHead className="w-[50px] text-xs sm:text-sm whitespace-nowrap">Mov.</TableHead>
+                        <TableHead className="text-xs sm:text-sm whitespace-nowrap">Fecha Ingreso</TableHead>
+                        <TableHead className="text-xs sm:text-sm whitespace-nowrap">Cliente</TableHead>
+                        <TableHead className="text-xs sm:text-sm whitespace-nowrap">Marca / Pedido</TableHead>
+                        <TableHead className="text-center text-xs sm:text-sm whitespace-nowrap">Días en Bodega</TableHead>
+                        <TableHead className="text-right text-xs sm:text-sm whitespace-nowrap">Estado</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {movements.map((move) => (
                         <TableRow key={move.id} className="hover:bg-slate-50 transition-colors cursor-pointer">
-                            <TableCell className="py-3 pl-4">
+                            <TableCell className="py-2 sm:py-3 pl-2 sm:pl-4">
                                 {renderTypeIcon(move.type)}
                             </TableCell>
-                            <TableCell className="font-mono text-sm text-slate-600">
+                            <TableCell className="font-mono text-xs sm:text-sm text-slate-600 whitespace-nowrap">
                                 {new Date(move.date).toLocaleDateString('es-EC')}
                             </TableCell>
-                            <TableCell className="font-medium text-slate-800">
+                            <TableCell className="font-medium text-xs sm:text-sm text-slate-800">
                                 {move.clientName}
                             </TableCell>
                             <TableCell>
                                 <div className="flex flex-col">
-                                    <span className="text-xs font-bold text-slate-700">{move.brandName}</span>
-                                    <span className="text-[10px] bg-slate-100 px-1 rounded w-fit mt-0.5 text-slate-500">#{move.orderCode}</span>
+                                    <span className="text-[10px] sm:text-xs font-bold text-slate-700">{move.brandName}</span>
+                                    <span className="text-[9px] sm:text-[10px] bg-slate-100 px-1 rounded w-fit mt-0.5 text-slate-500">#{move.orderCode}</span>
                                 </div>
                             </TableCell>
                             <TableCell className="text-center">
-                                <span className={`font-bold px-2 py-1 rounded text-xs ${move.daysInWarehouse > 10 && move.type === 'ENTRY'
+                                <span className={`font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-[10px] sm:text-xs whitespace-nowrap ${move.daysInWarehouse > 10 && move.type === 'ENTRY'
                                         ? 'bg-red-100 text-red-700'
                                         : 'bg-slate-100 text-slate-700'
                                     }`}>
                                     {move.daysInWarehouse} días
                                 </span>
                             </TableCell>
-                            <TableCell className="text-right pr-4">
+                            <TableCell className="text-right pr-2 sm:pr-4">
                                 {renderStatusBadge(move.type)}
                             </TableCell>
                         </TableRow>
                     ))}
                 </TableBody>
             </Table>
+            </div>
         </div>
     );
 }

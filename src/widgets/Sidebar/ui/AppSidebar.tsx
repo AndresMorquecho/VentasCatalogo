@@ -45,11 +45,9 @@ import { SidebarNavGroup } from "./SidebarNavGroup"
 
 // ─── Sidebar Header: banner cuando expandido, logo-botón cuando colapsado ────
 function CollapsibleHeader() {
-    const { toggleSidebar } = useSidebar();
-
     return (
         <>
-            {/* ── EXPANDIDO: banner a la izquierda + botón toggle a la derecha ── */}
+            {/* ── EXPANDIDO: banner a la izquierda ── */}
             <div
                 className="group-data-[collapsible=icon]:hidden flex items-center gap-2 bg-white"
                 style={{ padding: '6px 10px 6px 12px', minHeight: 72 }}
@@ -67,17 +65,11 @@ function CollapsibleHeader() {
                         mixBlendMode: 'multiply',
                     }}
                 />
-                {/* Toggle button — a la derecha del banner */}
-                <SidebarTrigger
-                    className="shrink-0 h-7 w-7 rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
-                />
             </div>
 
-            {/* ── COLAPSADO: logo centrado, clic en cualquier parte expande ─── */}
-            <button
-                onClick={toggleSidebar}
-                aria-label="Expandir menú"
-                className="hidden group-data-[collapsible=icon]:flex w-full items-center justify-center cursor-pointer bg-white hover:bg-slate-50 transition-colors"
+            {/* ── COLAPSADO: logo centrado ─── */}
+            <div
+                className="hidden group-data-[collapsible=icon]:flex w-full items-center justify-center bg-white"
                 style={{ minHeight: 56, border: 'none', padding: '8px 0' }}
             >
                 <img
@@ -90,7 +82,7 @@ function CollapsibleHeader() {
                         mixBlendMode: 'multiply',
                     }}
                 />
-            </button>
+            </div>
         </>
     );
 }

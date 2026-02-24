@@ -21,15 +21,15 @@ const fmt = (n: number) =>
 
 function SmallCard({ label, value, icon: Icon, color }: { label: string; value: string | number; icon: any; color: string }) {
     return (
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-50 flex justify-between items-start group hover:shadow-md transition-all cursor-pointer">
-            <div className="space-y-4">
+        <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 shadow-sm border border-slate-50 flex justify-between items-start group hover:shadow-md transition-all cursor-pointer">
+            <div className="space-y-2 sm:space-y-3 md:space-y-4">
                 <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-slate-500">{label}</span>
+                    <span className="text-xs sm:text-sm font-bold text-slate-500">{label}</span>
                 </div>
-                <div className="text-2xl font-black text-[#1a1c1e] tracking-tight">{value}</div>
+                <div className="text-xl sm:text-2xl font-black text-[#1a1c1e] tracking-tight">{value}</div>
             </div>
-            <div className={`p-2 rounded-lg ${color} bg-opacity-10 text-${color.split('-')[1]}-600`}>
-                <Icon size={24} />
+            <div className={`p-1.5 sm:p-2 rounded-lg ${color} bg-opacity-10 text-${color.split('-')[1]}-600`}>
+                <Icon size={20} className="sm:w-6 sm:h-6" />
             </div>
         </div>
     );
@@ -110,43 +110,43 @@ export function DashboardPage() {
     const oldestOrders = data?.alerts.oldestOrders ?? [];
 
     return (
-        <div className="min-h-screen bg-[#f4f7f9] p-8 pb-12 font-sans selection:bg-[#004d40] selection:text-white">
+        <div className="min-h-screen bg-[#f4f7f9] p-2 sm:p-4 md:p-6 lg:p-8 pb-6 sm:pb-12 font-sans selection:bg-[#004d40] selection:text-white">
 
-            <main className="max-w-[1400px] mx-auto px-8 mt-8 space-y-8">
+            <main className="max-w-[1400px] mx-auto px-2 sm:px-4 md:px-6 lg:px-8 mt-4 sm:mt-6 md:mt-8 space-y-4 sm:space-y-6 md:space-y-8">
 
                 {/* ── SECCIÓN SUPERIOR ── */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
                     {/* Tarjeta Principal */}
-                    <div className="lg:col-span-8 bg-white rounded-3xl p-8 shadow-sm border border-slate-50 relative overflow-hidden flex flex-col justify-between">
-                        <div className="flex justify-between items-start mb-6">
+                    <div className="lg:col-span-8 bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 shadow-sm border border-slate-50 relative overflow-hidden flex flex-col justify-between">
+                        <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-4 sm:mb-6">
                             <div>
-                                <h2 className="text-3xl font-black text-[#1a1c1e]">Balance General del Mes</h2>
+                                <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-[#1a1c1e]">Balance General del Mes</h2>
                             </div>
-                            <div className="text-right">
+                            <div className="text-left sm:text-right w-full sm:w-auto">
                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Fondos Disponibles</p>
-                                <div className="text-4xl font-black text-[#1a1c1e] tracking-tighter">{fmt(data?.financial.currentCash ?? 0)}</div>
+                                <div className="text-2xl sm:text-3xl md:text-4xl font-black text-[#1a1c1e] tracking-tighter">{fmt(data?.financial.currentCash ?? 0)}</div>
                             </div>
                         </div>
                         <div className="flex gap-4">
-                            <button onClick={() => navigate('/transactions')} className="bg-[#004d40] text-white px-8 py-3 rounded-xl font-bold text-sm hover:bg-[#003d33] transition-all shadow-lg shadow-[#004d40]/20">Ver Finanzas</button>
+                            <button onClick={() => navigate('/transactions')} className="bg-[#004d40] text-white px-6 sm:px-8 py-2.5 sm:py-3 rounded-xl font-bold text-xs sm:text-sm hover:bg-[#003d33] transition-all shadow-lg shadow-[#004d40]/20 w-full sm:w-auto">Ver Finanzas</button>
                         </div>
                     </div>
 
                     {/* Banner Lateral */}
-                    <div className="lg:col-span-4 bg-[#004d40] rounded-3xl p-8 text-white relative overflow-hidden group">
+                    <div className="lg:col-span-4 bg-[#004d40] rounded-2xl sm:rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden group min-h-[200px]">
                         <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-                            <AlertCircle size={120} strokeWidth={1} />
+                            <AlertCircle size={80} strokeWidth={1} className="sm:w-[120px] sm:h-[120px]" />
                         </div>
                         <div className="relative z-10 flex flex-col h-full justify-between">
                             <div>
-                                <h3 className="text-xl font-black mb-4">Pedidos Críticos</h3>
-                                <p className="text-emerald-100/70 text-sm leading-relaxed">
+                                <h3 className="text-lg sm:text-xl font-black mb-3 sm:mb-4">Pedidos Críticos</h3>
+                                <p className="text-emerald-100/70 text-xs sm:text-sm leading-relaxed">
                                     Tienes {data?.alerts.ordersOver15Days} pedidos que han superado el tiempo máximo en bodega. Es necesario gestionar su entrega inmediata para evitar retrasos en facturación.
                                 </p>
                             </div>
                             <button
                                 onClick={() => navigate('/orders/delivery')}
-                                className="w-full bg-white text-[#004d40] py-3 rounded-xl font-bold text-sm hover:bg-emerald-50 transition-all shadow-xl shadow-black/10 mt-6"
+                                className="w-full bg-white text-[#004d40] py-2.5 sm:py-3 rounded-xl font-bold text-xs sm:text-sm hover:bg-emerald-50 transition-all shadow-xl shadow-black/10 mt-4 sm:mt-6"
                             >
                                 Revisar Alertas Críticas
                             </button>
@@ -155,7 +155,7 @@ export function DashboardPage() {
                 </div>
 
                 {/* ── KPI GRID ── */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
                     <SmallCard label="Pendientes" value={data?.operational.ordersPending ?? 0} icon={Clock} color="bg-amber-500" />
                     <SmallCard label="En Bodega" value={data?.operational.ordersInWarehouse ?? 0} icon={Package} color="bg-blue-500" />
                     <SmallCard label="N° Clientes" value={data?.operational.totalActiveClients ?? 0} icon={Users} color="bg-rose-500" />
@@ -163,19 +163,20 @@ export function DashboardPage() {
                 </div>
 
                 {/* ── SECCIÓN INFERIOR ── */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 md:gap-8">
 
                     {/* TABLA DE PEDIDOS ESTANCADOS (Left: 70%) */}
-                    <div className="lg:col-span-8 bg-white rounded-3xl p-8 shadow-sm border border-slate-50">
-                        <div className="flex items-center justify-between mb-8">
-                            <h3 className="text-xl font-black text-[#1a1c1e]">Pedidos Estancados (+15 días)</h3>
-                            <div className="p-2 bg-slate-100 rounded-lg text-slate-500 cursor-pointer hover:bg-slate-200" onClick={() => navigate('/orders')}>
-                                <ArrowUpRight size={20} />
+                    <div className="lg:col-span-8 bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 shadow-sm border border-slate-50">
+                        <div className="flex items-center justify-between mb-4 sm:mb-6 md:mb-8">
+                            <h3 className="text-base sm:text-lg md:text-xl font-black text-[#1a1c1e]">Pedidos Estancados (+15 días)</h3>
+                            <div className="p-1.5 sm:p-2 bg-slate-100 rounded-lg text-slate-500 cursor-pointer hover:bg-slate-200 shrink-0" onClick={() => navigate('/orders')}>
+                                <ArrowUpRight size={18} className="sm:w-5 sm:h-5" />
                             </div>
                         </div>
 
-                        <div className="overflow-x-auto">
-                            <table className="w-full">
+                        <div className="overflow-x-auto -mx-4 sm:mx-0">
+                            <div className="inline-block min-w-full align-middle px-4 sm:px-0">
+                            <table className="w-full min-w-[640px]">
                                 <thead>
                                     <tr className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-50">
                                         <th className="pb-4">Fecha/Día</th>
@@ -207,14 +208,15 @@ export function DashboardPage() {
                                     )}
                                 </tbody>
                             </table>
-                            <div className="mt-8 flex items-center justify-center">
+                            </div>
+                            <div className="mt-6 sm:mt-8 flex items-center justify-center">
                                 <button onClick={() => navigate('/orders')} className="text-xs font-black text-[#004d40] hover:underline flex items-center gap-2">VER TODOS LOS PEDIDOS <ArrowUpRight size={14} /></button>
                             </div>
                         </div>
                     </div>
 
                     {/* GRÁFICO / RESUMEN (Right: 30%) */}
-                    <div className="lg:col-span-4 bg-white rounded-3xl p-8 shadow-sm border border-slate-50">
+                    <div className="lg:col-span-4 bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 shadow-sm border border-slate-50">
                         <div className="flex items-center justify-between mb-8">
                             <h3 className="text-xl font-black text-[#1a1c1e]">Estado de Pedidos</h3>
                             <MoreVertical size={20} className="text-slate-300 cursor-pointer" />

@@ -89,22 +89,22 @@ export function ClientList() {
 
     if (isError) {
         return (
-            <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                    <h2 className="text-xl font-semibold tracking-tight">
+            <div className="space-y-3 sm:space-y-4">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
+                    <h2 className="text-lg sm:text-xl font-semibold tracking-tight">
                         Listado de Empresarias
                     </h2>
                 </div>
                 <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
                     <AlertTitle>Error</AlertTitle>
-                    <AlertDescription className="flex items-center justify-between">
+                    <AlertDescription className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
                         <span>Ocurrió un error al cargar las empresarias.</span>
                         <Button
                             variant="outline"
                             size="sm"
                             onClick={() => refetch()}
-                            className="bg-background text-foreground hover:bg-accent border-destructive/50"
+                            className="bg-background text-foreground hover:bg-accent border-destructive/50 w-full sm:w-auto"
                         >
                             <RotateCw className="mr-2 h-3 w-3" />
                             Reintentar
@@ -116,12 +116,12 @@ export function ClientList() {
     }
 
     return (
-        <div className="space-y-4">
-            <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold tracking-tight">
+        <div className="space-y-3 sm:space-y-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
+                <h2 className="text-lg sm:text-xl font-semibold tracking-tight">
                     Listado de Empresarias
                 </h2>
-                <Button onClick={handleCreate}>
+                <Button onClick={handleCreate} className="w-full sm:w-auto">
                     <Plus className="mr-2 h-4 w-4" /> Nueva Empresaria
                 </Button>
             </div>
@@ -177,23 +177,24 @@ export function ClientList() {
                     if (!open) setDeleteTarget(null);
                 }}
             >
-                <DialogContent className="sm:max-w-md">
+                <DialogContent className="sm:max-w-md w-[95vw] max-w-[95vw] sm:w-full">
                     <DialogHeader>
-                        <DialogTitle>Confirmar Eliminación</DialogTitle>
+                        <DialogTitle className="text-base sm:text-lg">Confirmar Eliminación</DialogTitle>
                     </DialogHeader>
-                    <p className="text-sm text-muted-foreground py-4">
+                    <p className="text-xs sm:text-sm text-muted-foreground py-3 sm:py-4">
                         ¿Está seguro que desea eliminar a{" "}
                         <strong>{deleteTarget?.firstName}</strong>? Esta acción no se puede
                         deshacer.
                     </p>
-                    <DialogFooter>
+                    <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
                         <Button
                             variant="outline"
                             onClick={() => setDeleteTarget(null)}
+                            className="w-full sm:w-auto"
                         >
                             Cancelar
                         </Button>
-                        <Button variant="destructive" onClick={handleConfirmDelete}>
+                        <Button variant="destructive" onClick={handleConfirmDelete} className="w-full sm:w-auto">
                             Eliminar
                         </Button>
                     </DialogFooter>
