@@ -36,3 +36,12 @@ export function useUpdateCall() {
         }
     });
 }
+export function useDeleteCall() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (id: string) => callApi.delete(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: KEYS.all });
+        }
+    });
+}

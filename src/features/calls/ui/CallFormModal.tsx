@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/shared/ui/dialog';
 import { AsyncButton } from '@/shared/ui/async-button';
 import { Label } from '@/shared/ui/label';
@@ -10,20 +10,23 @@ import {
     callReasonsMap,
     callResultsMap,
     type CallReason,
-    type CallResult
+    type CallResult,
+    type Call
 } from '@/entities/call';
 import { useClients } from '@/entities/client/model/hooks';
 import type { Client } from '@/entities/client/model/types';
-import { useCalls } from '../model/hooks';
+import { useUpdateCall, useCreateCall } from '@/entities/call/model/hooks';
 
 interface CallFormModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onSuccess?: () => void;
+    call?: Call; // For Edit Mode
 }
 
-export function CallFormModal({ open, onOpenChange, onSuccess }: CallFormModalProps) {
-    const { addCall } = useCalls();
+export function CallFormModal({ open, onOpenChange, onSuccess, call }: CallFormModalProps) {
+    const { mutateAsync: createCall } = useCreateCall();
+    const { mutateAsync: updateCall } = useUpdateCall();
     const { data: clients } = useClients();
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -33,6 +36,26 @@ export function CallFormModal({ open, onOpenChange, onSuccess }: CallFormModalPr
     const [notes, setNotes] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
     const [isSearching, setIsSearching] = useState(false);
+
+    // Sync state with call object for Edit Mode
+    useEffect(() => {
+        if (call && open) {
+            setClientId(call.clientId);
+            setReason(call.reason);
+            setResult(call.result);
+            setNotes(call.notes || '');
+            const client = clients?.find(c => c.id === call.clientId);
+            if (client) {
+                setSearchTerm(`${client.firstName} (${client.identificationNumber})`);
+            }
+        } else if (!call && open) {
+            setClientId('');
+            setReason('SEGUIMIENTO_PEDIDO');
+            setResult('NO_CONTESTA');
+            setNotes('');
+            setSearchTerm('');
+        }
+    }, [call, open, clients]);
 
     const filteredClients = clients?.filter(c =>
         c.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -51,16 +74,21 @@ export function CallFormModal({ open, onOpenChange, onSuccess }: CallFormModalPr
 
         setIsSubmitting(true);
         try {
-            await addCall({
+            const payload = {
                 clientId,
                 reason,
                 result,
-                notes
-            });
+                notes: notes || null
+            };
+
+            if (call) {
+                await updateCall({ id: call.id, data: payload });
+            } else {
+                await createCall(payload);
+            }
 
             onOpenChange(false);
             onSuccess?.();
-            // Reset
             setClientId('');
             setSearchTerm('');
             setNotes('');
@@ -75,7 +103,7 @@ export function CallFormModal({ open, onOpenChange, onSuccess }: CallFormModalPr
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
-                    <DialogTitle>Registrar Nueva Llamada</DialogTitle>
+                    <DialogTitle>{call ? 'Editar Llamada' : 'Registrar Nueva Llamada'}</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="grid gap-4 py-4">
                     <div className="grid gap-2">
@@ -92,8 +120,9 @@ export function CallFormModal({ open, onOpenChange, onSuccess }: CallFormModalPr
                                 }}
                                 onFocus={() => setIsSearching(true)}
                                 autoComplete="off"
+                                disabled={!!call}
                             />
-                            {isSearching && searchTerm && (
+                            {isSearching && searchTerm && !call && (
                                 <div className="absolute z-10 w-full bg-white border rounded-md shadow-lg mt-1 max-h-40 overflow-auto">
                                     {filteredClients.map(client => (
                                         <div
@@ -154,7 +183,7 @@ export function CallFormModal({ open, onOpenChange, onSuccess }: CallFormModalPr
 
                     <DialogFooter>
                         <AsyncButton type="submit" isLoading={isSubmitting} loadingText="Guardando...">
-                            Guardar Llamada
+                            {call ? 'Guardar Cambios' : 'Registrar Llamada'}
                         </AsyncButton>
                     </DialogFooter>
                 </form>
