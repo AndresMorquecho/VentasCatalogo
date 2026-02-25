@@ -7,9 +7,13 @@
  * - If delivered -> days between entry and delivery
  * - Only date diff, no time diff considered (Operational days)
  */
-export const calculateDaysInWarehouse = (entryDate: string, deliveryDate?: string): number => {
+export const calculateDaysInWarehouse = (entryDate: string | Date | undefined, deliveryDate?: string | Date): number => {
+    if (!entryDate) return 0;
+
     const entry = new Date(entryDate);
     const end = deliveryDate ? new Date(deliveryDate) : new Date();
+
+    if (isNaN(entry.getTime()) || isNaN(end.getTime())) return 0;
 
     // Normalize to start of day to count full operational days
     entry.setHours(0, 0, 0, 0);

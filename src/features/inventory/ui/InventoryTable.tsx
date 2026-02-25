@@ -1,9 +1,12 @@
 import { Badge } from "@/shared/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
 import { ArrowDown, ArrowUp, Undo2, AlertCircle } from "lucide-react";
-import type { InventoryMovement, InventoryMovementType } from "@/entities/inventory-movement/model/types";
+import type { InventoryMovementType } from "@/entities/inventory-movement/model/types";
 
-interface ExtendedMovement extends InventoryMovement {
+interface TraceabilityMovement {
+    id: string;
+    type: string;
+    createdAt: string;
     clientName: string;
     brandName: string;
     orderCode: string;
@@ -11,7 +14,7 @@ interface ExtendedMovement extends InventoryMovement {
 }
 
 interface Props {
-    movements: ExtendedMovement[];
+    movements: TraceabilityMovement[];
 }
 
 const renderTypeIcon = (type: InventoryMovementType) => {
@@ -52,50 +55,50 @@ export function InventoryTable({ movements }: Props) {
     return (
         <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
-            <Table>
-                <TableHeader className="bg-slate-50">
-                    <TableRow>
-                        <TableHead className="w-[50px] text-xs sm:text-sm whitespace-nowrap">Mov.</TableHead>
-                        <TableHead className="text-xs sm:text-sm whitespace-nowrap">Fecha Ingreso</TableHead>
-                        <TableHead className="text-xs sm:text-sm whitespace-nowrap">Cliente</TableHead>
-                        <TableHead className="text-xs sm:text-sm whitespace-nowrap">Marca / Pedido</TableHead>
-                        <TableHead className="text-center text-xs sm:text-sm whitespace-nowrap">Días en Bodega</TableHead>
-                        <TableHead className="text-right text-xs sm:text-sm whitespace-nowrap">Estado</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {movements.map((move) => (
-                        <TableRow key={move.id} className="hover:bg-slate-50 transition-colors cursor-pointer">
-                            <TableCell className="py-2 sm:py-3 pl-2 sm:pl-4">
-                                {renderTypeIcon(move.type)}
-                            </TableCell>
-                            <TableCell className="font-mono text-xs sm:text-sm text-slate-600 whitespace-nowrap">
-                                {new Date(move.date).toLocaleDateString('es-EC')}
-                            </TableCell>
-                            <TableCell className="font-medium text-xs sm:text-sm text-slate-800">
-                                {move.clientName}
-                            </TableCell>
-                            <TableCell>
-                                <div className="flex flex-col">
-                                    <span className="text-[10px] sm:text-xs font-bold text-slate-700">{move.brandName}</span>
-                                    <span className="text-[9px] sm:text-[10px] bg-slate-100 px-1 rounded w-fit mt-0.5 text-slate-500">#{move.orderCode}</span>
-                                </div>
-                            </TableCell>
-                            <TableCell className="text-center">
-                                <span className={`font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-[10px] sm:text-xs whitespace-nowrap ${move.daysInWarehouse > 10 && move.type === 'ENTRY'
+                <Table>
+                    <TableHeader className="bg-slate-50">
+                        <TableRow>
+                            <TableHead className="w-[50px]">Mov.</TableHead>
+                            <TableHead>Fecha</TableHead>
+                            <TableHead>Cliente</TableHead>
+                            <TableHead>Marca / Pedido</TableHead>
+                            <TableHead className="text-center">Días en Bodega</TableHead>
+                            <TableHead className="text-right">Estado</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {movements.map((move) => (
+                            <TableRow key={move.id} className="hover:bg-slate-50 transition-colors">
+                                <TableCell className="py-3 pl-4">
+                                    {renderTypeIcon(move.type as any)}
+                                </TableCell>
+                                <TableCell className="font-mono text-xs text-slate-600">
+                                    {new Date(move.createdAt).toLocaleDateString('es-EC')}
+                                </TableCell>
+                                <TableCell className="font-medium text-sm text-slate-800">
+                                    {move.clientName}
+                                </TableCell>
+                                <TableCell>
+                                    <div className="flex flex-col">
+                                        <span className="text-xs font-bold text-slate-700">{move.brandName}</span>
+                                        <span className="text-[10px] bg-slate-100 px-1 rounded w-fit mt-0.5 text-slate-500">#{move.orderCode}</span>
+                                    </div>
+                                </TableCell>
+                                <TableCell className="text-center">
+                                    <span className={`font-bold px-2 py-1 rounded text-xs whitespace-nowrap ${move.daysInWarehouse > 10 && move.type === 'ENTRY'
                                         ? 'bg-red-100 text-red-700'
                                         : 'bg-slate-100 text-slate-700'
-                                    }`}>
-                                    {move.daysInWarehouse} días
-                                </span>
-                            </TableCell>
-                            <TableCell className="text-right pr-2 sm:pr-4">
-                                {renderStatusBadge(move.type)}
-                            </TableCell>
-                        </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
+                                        }`}>
+                                        {move.daysInWarehouse} días
+                                    </span>
+                                </TableCell>
+                                <TableCell className="text-right pr-4">
+                                    {renderStatusBadge(move.type as any)}
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
             </div>
         </div>
     );
