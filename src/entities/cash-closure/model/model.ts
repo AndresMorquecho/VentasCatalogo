@@ -50,6 +50,7 @@ export function createCashClosureSnapshot(
         totalExpense,
         netTotal,
         balanceByBank,
-        movementCount: rangeRecords.length
+        movementCount: rangeRecords.length,
+        actualAmount: 0 // Will be filled later by User in CashClosurePage
     };
 }

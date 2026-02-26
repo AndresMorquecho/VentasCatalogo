@@ -7,7 +7,15 @@ interface CashClosureSummaryProps {
 }
 
 export function CashClosureSummary({ data }: CashClosureSummaryProps) {
-    const { totalIncome, totalExpense, netTotal, balanceByBank, movementCount, fromDate, toDate } = data
+    const {
+        totalIncome = 0,
+        totalExpense = 0,
+        netTotal = 0,
+        balanceByBank = [],
+        movementCount = 0,
+        fromDate = "",
+        toDate
+    } = data
 
     return (
         <div className="space-y-6">
@@ -45,7 +53,7 @@ export function CashClosureSummary({ data }: CashClosureSummaryProps) {
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-4">
-                        {balanceByBank.map((item) => (
+                        {balanceByBank.map((item: any) => (
                             <div key={item.bankAccountId} className="flex justify-between items-center py-2 border-b last:border-0 hover:bg-slate-50/50 px-2 rounded transition-colors">
                                 <span className="font-medium">{item.bankAccountName}</span>
                                 <span className={`font-mono ${item.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>

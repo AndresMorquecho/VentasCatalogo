@@ -76,6 +76,7 @@ export function AuditLog() {
 
     // Filters
     const [search, setSearch] = useState('');
+    const [userFilter, setUserFilter] = useState<string>('');
     const [moduleFilter, setModuleFilter] = useState<string>('');
     const [severityFilter, setSeverityFilter] = useState<AuditSeverity | ''>('');
     const [dateFrom, setDateFrom] = useState('');
@@ -84,6 +85,7 @@ export function AuditLog() {
 
     const filtered = useMemo(() => {
         return entries.filter(e => {
+            if (userFilter && e.userName !== userFilter) return false;
             if (moduleFilter && e.module !== moduleFilter) return false;
             if (severityFilter && e.severity !== severityFilter) return false;
             if (dateFrom && new Date(e.timestamp) < new Date(dateFrom)) return false;
@@ -108,7 +110,7 @@ export function AuditLog() {
     const pageData = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
     const resetFilters = () => {
-        setSearch(''); setModuleFilter(''); setSeverityFilter('');
+        setSearch(''); setUserFilter(''); setModuleFilter(''); setSeverityFilter('');
         setDateFrom(''); setDateTo(''); setPage(1);
     };
 
@@ -133,8 +135,14 @@ export function AuditLog() {
             <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3">
                 <div className="flex flex-wrap gap-3 items-end">
                     <div className="flex-1 min-w-[180px]">
-                        <Input placeholder="Buscar usuario, acción, detalle..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
+                        <Input placeholder="Buscar por detalle o acción..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
                     </div>
+                    <select className="border rounded-md px-3 py-2 text-sm bg-white h-10 w-44" value={userFilter} onChange={e => { setUserFilter(e.target.value); setPage(1); }}>
+                        <option value="">Todos los usuarios</option>
+                        {Array.from(new Set(entries.map(e => e.userName))).sort().map(u => (
+                            <option key={u} value={u}>{u}</option>
+                        ))}
+                    </select>
                     <select className="border rounded-md px-3 py-2 text-sm bg-white h-10" value={moduleFilter} onChange={e => { setModuleFilter(e.target.value); setPage(1); }}>
                         <option value="">Todos los módulos</option>
                         {MODULES.map(m => <option key={m} value={m}>{MODULE_LABELS[m as ModuleKey]}</option>)}

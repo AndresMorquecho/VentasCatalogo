@@ -29,7 +29,7 @@ const EMPTY_FORM: LoyaltyPrizeFormData = {
     description: '',
     type: 'ENVIO_GRATIS',
     pointsRequired: 100,
-    active: true,
+    isActive: true,
 };
 
 export function LoyaltyRewards() {
@@ -47,7 +47,7 @@ export function LoyaltyRewards() {
 
     const openEdit = (prize: LoyaltyPrize) => {
         setEditTarget(prize);
-        setForm({ name: prize.name, description: prize.description, type: prize.type, pointsRequired: prize.pointsRequired, active: prize.active });
+        setForm({ name: prize.name, description: prize.description, type: prize.type, pointsRequired: prize.pointsRequired, isActive: prize.isActive });
         setModalOpen(true);
     };
 
@@ -83,14 +83,22 @@ export function LoyaltyRewards() {
                     <p className="col-span-full text-center py-10 text-slate-400 text-sm">No hay premios configurados.</p>
                 )}
                 {prizes.map(prize => (
-                    <div key={prize.id} className={`rounded-xl border p-4 flex flex-col gap-3 transition-all hover:shadow-md ${prize.active ? 'bg-white border-slate-200' : 'bg-slate-50 border-slate-200 opacity-60'}`}>
+                    <div key={prize.id} className={`rounded-xl border p-4 flex flex-col gap-3 transition-all hover:shadow-md ${prize.isActive ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-100 border-slate-300 opacity-80'}`}>
                         <div className="flex justify-between items-start">
-                            <div className={`p-2 rounded-lg ${PRIZE_TYPE_COLORS[prize.type]}`}>
-                                <Gift className="h-5 w-5" />
+                            <div className="flex items-center gap-3">
+                                <div className={`p-2 rounded-lg ${PRIZE_TYPE_COLORS[prize.type]}`}>
+                                    <Gift className="h-5 w-5" />
+                                </div>
+                                <Badge
+                                    variant={prize.isActive ? "default" : "secondary"}
+                                    className={`text-[10px] uppercase font-bold tracking-wider ${prize.isActive ? 'bg-emerald-500 hover:bg-emerald-600' : 'text-slate-500 bg-slate-200'}`}
+                                >
+                                    {prize.isActive ? 'Activo' : 'Inactivo'}
+                                </Badge>
                             </div>
                             <div className="flex gap-1">
                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => togglePrize(prize.id)}>
-                                    <Power className={`h-3.5 w-3.5 ${prize.active ? 'text-emerald-600' : 'text-slate-400'}`} />
+                                    <Power className={`h-3.5 w-3.5 ${prize.isActive ? 'text-emerald-600' : 'text-slate-400'}`} />
                                 </Button>
                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(prize)}>
                                     <Edit2 className="h-3.5 w-3.5 text-blue-600" />
@@ -132,25 +140,13 @@ export function LoyaltyRewards() {
                             <Label htmlFor="prize-desc">Descripción</Label>
                             <Input id="prize-desc" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Describe el beneficio..." />
                         </div>
-                        <div className="space-y-1">
-                            <Label htmlFor="prize-type">Tipo de Premio</Label>
-                            <select
-                                id="prize-type"
-                                className="w-full border rounded-md px-3 py-2 text-sm bg-white"
-                                value={form.type}
-                                onChange={e => setForm(f => ({ ...f, type: e.target.value as PrizeType }))}
-                            >
-                                {(Object.entries(PRIZE_TYPE_LABELS) as [PrizeType, string][]).map(([k, v]) => (
-                                    <option key={k} value={k}>{v}</option>
-                                ))}
-                            </select>
-                        </div>
+
                         <div className="space-y-1">
                             <Label htmlFor="prize-pts">Puntos Requeridos</Label>
                             <Input id="prize-pts" type="number" min={1} value={form.pointsRequired} onChange={e => setForm(f => ({ ...f, pointsRequired: Number(e.target.value) }))} />
                         </div>
                         <div className="flex items-center gap-3">
-                            <input id="prize-active" type="checkbox" checked={form.active} onChange={e => setForm(f => ({ ...f, active: e.target.checked }))} className="h-4 w-4 rounded border-slate-300" />
+                            <input id="prize-active" type="checkbox" checked={form.isActive} onChange={e => setForm(f => ({ ...f, isActive: e.target.checked }))} className="h-4 w-4 rounded border-slate-300" />
                             <Label htmlFor="prize-active">Premio activo</Label>
                         </div>
                     </div>

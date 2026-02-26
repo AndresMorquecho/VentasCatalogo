@@ -58,6 +58,7 @@ export const processPaymentRegistration = async (input: PaymentInput) => {
                 await clientCreditApi.createCredit({
                     clientId: input.clientId,
                     amount: excess,
+                    remainingAmount: excess,
                     originTransactionId: record.id
                 });
                 creditGenerated = excess;
@@ -112,6 +113,7 @@ export const processPaymentRegistration = async (input: PaymentInput) => {
         await clientCreditApi.createCredit({
             clientId: input.clientId,
             amount: excess,
+            remainingAmount: excess,
             originTransactionId: record.id
         });
         creditGenerated = excess;

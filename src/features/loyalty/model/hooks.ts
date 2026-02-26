@@ -50,7 +50,7 @@ export const useLoyaltyRules = () => {
         mutationFn: (id: string) => loyaltyRulesApi.toggle(id),
         onSuccess: (rule) => {
             if (rule) {
-                logAction({ ...actor, action: 'UPDATE_LOYALTY_RULE', module: 'loyalty', detail: `${rule.active ? 'Activó' : 'Desactivó'} regla: "${rule.name}"` });
+                logAction({ ...actor, action: 'UPDATE_LOYALTY_RULE', module: 'loyalty', detail: `${rule.isActive ? 'Activó' : 'Desactivó'} regla: "${rule.name}"` });
             }
             qc.invalidateQueries({ queryKey: key });
         },
@@ -96,7 +96,7 @@ export const useLoyaltyPrizes = () => {
         mutationFn: (id: string) => loyaltyPrizesApi.toggle(id),
         onSuccess: (prize) => {
             if (prize) {
-                logAction({ ...actor, action: 'UPDATE_LOYALTY_PRIZE', module: 'loyalty', detail: `${prize.active ? 'Activó' : 'Desactivó'} premio: "${prize.name}"` });
+                logAction({ ...actor, action: 'UPDATE_LOYALTY_PRIZE', module: 'loyalty', detail: `${prize.isActive ? 'Activó' : 'Desactivó'} premio: "${prize.name}"` });
             }
             qc.invalidateQueries({ queryKey: key });
         },
@@ -107,9 +107,31 @@ export const useLoyaltyPrizes = () => {
 
 // ─── Redemptions ──────────────────────────────────────────────────────────────
 export const useLoyaltyRedemptions = () => {
-    const { data: redemptions = [], isLoading } = useQuery({
+    const qc = useQueryClient();
+    const actor = useActor();
+
+    const { data: redemptions = [], isLoading, refetch } = useQuery({
         queryKey: ['loyalty-redemptions'],
         queryFn: loyaltyRedemptionsApi.getAll,
     });
-    return { redemptions, isLoading };
+
+    const { mutateAsync: redeemPrize, isPending: isRedeeming } = useMutation({
+        mutationFn: (data: { clientId: string, prizeId: string }) => loyaltyRedemptionsApi.redeem(data),
+        onSuccess: (redemption) => {
+            logAction({ ...actor, action: 'REDEEM_PRIZE', module: 'loyalty', detail: `El cliente (${redemption.clientId}) canjeó el premio: ${redemption.prizeName} por ${redemption.pointsUsed} puntos.` });
+            qc.invalidateQueries({ queryKey: ['loyalty-redemptions'] });
+            qc.invalidateQueries({ queryKey: ['rewards'] });
+            qc.invalidateQueries({ queryKey: ['client-rewards'] });
+        },
+    });
+
+    return { redemptions, isLoading, refetch, redeemPrize, isRedeeming };
+};
+
+export const useLoyaltyHistory = (clientId: string | null) => {
+    return useQuery({
+        queryKey: ['loyalty-history', clientId],
+        queryFn: () => loyaltyRedemptionsApi.getHistory(clientId!),
+        enabled: !!clientId,
+    });
 };

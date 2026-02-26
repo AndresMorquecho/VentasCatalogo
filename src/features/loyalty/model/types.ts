@@ -1,14 +1,14 @@
 
 // ─── Loyalty Rule ─────────────────────────────────────────────────────────────
-export type RuleType = 'POR_MONTO' | 'POR_PEDIDO' | 'BONO_ESPECIAL';
+export type RuleType = 'POR_MONTO';
 
 export type LoyaltyRule = {
     id: string;
     name: string;
     type: RuleType;
     pointsValue: number;        // points awarded per unit ($ or order)
-    condition: string;          // e.g. "min $50", "every order"
-    active: boolean;
+    condition: string;          // it remains string for backend compatibility, but we enforce number in UI
+    isActive: boolean;
     createdAt: string;
 };
 
@@ -21,7 +21,7 @@ export type LoyaltyPrize = {
     description: string;
     type: PrizeType;
     pointsRequired: number;
-    active: boolean;
+    isActive: boolean;
     createdAt: string;
 };
 
@@ -37,6 +37,7 @@ export type LoyaltyRedemption = {
     pointsUsed: number;
     date: string;
     status: RedemptionStatus;
+    authorName?: string;
 };
 
 // ─── Form DTOs ────────────────────────────────────────────────────────────────

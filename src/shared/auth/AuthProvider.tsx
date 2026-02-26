@@ -11,8 +11,29 @@ const SESSION_KEY = 'temu_session';
 function loadSession(): AuthUser | null {
     try {
         const raw = localStorage.getItem(SESSION_KEY);
-        if (!raw) return null;
-        return JSON.parse(raw) as AuthUser;
+        if (raw) return JSON.parse(raw) as AuthUser;
+
+        // --- BRIDGE: check legacy session if new one is missing ---
+        const legacyUserRaw = localStorage.getItem('user');
+        const legacyToken = localStorage.getItem('token');
+        if (legacyUserRaw && legacyToken) {
+            const legacyUserToken = JSON.parse(legacyUserRaw);
+            // Default mock role for legacy users
+            const isAdmin = legacyUserToken.role === 'ADMIN';
+            return {
+                id: legacyUserToken.id,
+                username: legacyUserToken.name || 'usuario_migrado',
+                role: {
+                    id: isAdmin ? 'role-admin' : 'role-user',
+                    name: legacyUserToken.role,
+                    description: 'Sesión migrada',
+                    permissions: (isAdmin ? ['dashboard.view', 'users.view'] : ['dashboard.view']) as Permission[],
+                    active: true,
+                    createdAt: new Date().toISOString()
+                }
+            };
+        }
+        return null;
     } catch {
         return null;
     }
@@ -30,7 +51,7 @@ function clearSession(): void {
 export interface AuthContextValue {
     user: AuthUser | null;
     isLoading: boolean;
-    login: (email: string, password: string) => Promise<void>;
+    login: (username: string, password: string) => Promise<void>;
     logout: () => void;
     hasPermission: (permission: Permission) => boolean;
     isAdmin: () => boolean;
@@ -53,17 +74,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     }, [user]);
 
-    const login = useCallback(async (email: string, password: string) => {
+    const login = useCallback(async (username: string, password: string) => {
         setIsLoading(true);
         try {
             // authApi.login already calls logAction('LOGIN') on success
             // and logAction('LOGIN_FAILED') on failure — no duplication needed here
-            const result = await usersApi.login(email, password);
+            const result = await usersApi.login(username, password);
             const authUser: AuthUser = {
                 id: result.id,
-                firstName: result.firstName,
-                lastName: result.lastName,
-                email: result.email,
+                username: result.username,
                 role: result.role,
             };
             setUser(authUser);
@@ -76,7 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (user) {
             logAction({
                 userId: user.id,
-                userName: `${user.firstName} ${user.lastName}`,
+                userName: user.username,
                 action: 'LOGOUT',
                 module: 'auth',
                 detail: 'Cerró sesión',

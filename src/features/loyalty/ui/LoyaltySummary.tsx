@@ -1,9 +1,15 @@
-import { Users, Star, Award, RefreshCw } from 'lucide-react';
+import { useState } from 'react';
+import { Users, Star, Award, RefreshCw, Search } from 'lucide-react';
 import { useRewards } from '@/entities/client-reward/model/hooks';
 import { useLoyaltyRedemptions, useLoyaltyPrizes, useLoyaltyRules } from '../model/hooks';
 import { useClients } from '@/entities/client/model/hooks';
 import { Card, CardContent } from '@/shared/ui/card';
 import { Skeleton } from '@/shared/ui/skeleton';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
+import { Button } from '@/shared/ui/button';
+import { Input } from '@/shared/ui/input';
+import { RewardDetailsModal } from './RewardDetailsModal';
+import { LoyaltyPointHistoryModal } from './LoyaltyPointHistoryModal';
 
 const LEVEL_STYLES: Record<string, string> = {
     PLATINO: 'bg-purple-100 text-purple-700 border-purple-200',
@@ -13,33 +19,44 @@ const LEVEL_STYLES: Record<string, string> = {
 };
 
 export function LoyaltySummary() {
-    const { rewards } = useRewards();
-    const { redemptions } = useLoyaltyRedemptions();
-    const { prizes } = useLoyaltyPrizes();
-    const { rules } = useLoyaltyRules();
-    const { data: clients = [] } = useClients();
+    const { rewards, isLoading: rewardsLoading } = useRewards();
+    const { redemptions, isLoading: redemptionsLoading } = useLoyaltyRedemptions();
+    const { prizes, isLoading: prizesLoading } = useLoyaltyPrizes();
+    const { rules, isLoading: rulesLoading } = useLoyaltyRules();
+    const { data: clients = [], isLoading: clientsLoading } = useClients();
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+    const [historyClientId, setHistoryClientId] = useState<string | null>(null);
+
+    const isLoading = rewardsLoading || redemptionsLoading || prizesLoading || rulesLoading || clientsLoading;
 
     const totalPoints = rewards.reduce((acc, r) => acc + Number(r.totalRewardPoints || 0), 0);
     const totalRedemptions = redemptions.length;
-    const activeRules = rules.filter(r => r.active).length;
-    const activePrizes = prizes.filter(p => p.active).length;
-    const topClients = [...rewards]
-        .sort((a, b) => Number(b.totalRewardPoints || 0) - Number(a.totalRewardPoints || 0))
-        .slice(0, 5);
+    const activeRules = rules.filter(r => r.isActive).length;
+    const activePrizes = prizes.filter(p => p.isActive).length;
 
-    const isLoading = false;
+    const filteredClients = clients?.filter(client =>
+        client.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        client.identificationNumber.includes(searchTerm)
+    ) || [];
 
-    // Helper to get client info
-    const getClientInfo = (clientId: string) => {
-        const client = clients.find(c => c.id === clientId);
-        return {
-            name: client?.firstName || 'Cliente Desconocido',
-            identification: client?.identificationNumber || clientId
-        };
-    };
+    const sortedClients = [...filteredClients].sort((a, b) => {
+        const rewardA = rewards.find(r => r.clientId === a.id);
+        const rewardB = rewards.find(r => r.clientId === b.id);
+        return Number(rewardB?.totalRewardPoints || 0) - Number(rewardA?.totalRewardPoints || 0);
+    });
+
+    const getClientName = (id: string) => clients.find(c => c.id === id)?.firstName || '';
 
     if (isLoading) {
-        return <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">{[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-28" />)}</div>;
+        return (
+            <div className="space-y-6">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-28 rounded-xl" />)}
+                </div>
+                <Skeleton className="h-96 w-full rounded-xl" />
+            </div>
+        );
     }
 
     return (
@@ -92,39 +109,113 @@ export function LoyaltySummary() {
                 </Card>
             </div>
 
-            {/* Top Clients Table */}
-            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-                <div className="px-4 py-3 border-b border-slate-100 bg-slate-50">
-                    <h3 className="font-semibold text-slate-700 text-sm">Top 5 Clientes por Puntos</h3>
+            {/* Clients Table (Unified View) */}
+            <div className="space-y-4">
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <h3 className="font-bold text-slate-800 text-lg">Saldo y Estado de Clientes</h3>
+                    <div className="relative w-full md:w-64">
+                        <Search className="h-4 w-4 text-slate-400 absolute left-3 top-3" />
+                        <Input
+                            placeholder="Buscar cliente..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-9 h-9"
+                        />
+                    </div>
                 </div>
-                <div className="divide-y divide-slate-100">
-                    {topClients.length === 0 ? (
-                        <p className="text-center py-8 text-slate-400 text-sm">No hay datos de puntos aún.</p>
-                    ) : (
-                        topClients.map((reward, idx) => {
-                            const clientInfo = getClientInfo(reward.clientId);
-                            return (
-                                <div key={reward.id} className="flex items-center gap-4 px-4 py-3 hover:bg-slate-50 transition-colors">
-                                    <span className="text-lg font-bold text-slate-300 w-6 text-center">{idx + 1}</span>
-                                    <div className="flex-1">
-                                        <p className="text-sm font-medium text-slate-700">{clientInfo.name}</p>
-                                        <p className="text-xs text-slate-400">{reward.totalOrders} pedidos · ${Number(reward.totalSpent).toFixed(0)} gastado</p>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${LEVEL_STYLES[reward.rewardLevel] ?? 'bg-slate-100 text-slate-600'}`}>
-                                            {reward.rewardLevel}
-                                        </span>
-                                        <span className="flex items-center gap-1 text-sm font-bold text-amber-600">
-                                            <Star className="h-3.5 w-3.5" />
-                                            {Number(reward.totalRewardPoints)}
-                                        </span>
-                                    </div>
-                                </div>
-                            );
-                        })
-                    )}
+
+                <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+                    <Table>
+                        <TableHeader>
+                            <TableRow className="bg-slate-50">
+                                <TableHead className="w-12 text-center">#</TableHead>
+                                <TableHead>Cliente</TableHead>
+                                <TableHead className="text-center">Nivel</TableHead>
+                                <TableHead className="text-center">Puntos Totales</TableHead>
+                                <TableHead className="text-center">Gastado Total</TableHead>
+                                <TableHead className="text-right">Acciones</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {sortedClients.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={6} className="h-24 text-center text-slate-400">
+                                        No se encontraron clientes.
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                sortedClients.map((client, idx) => {
+                                    const reward = rewards.find(r => r.clientId === client.id) || {
+                                        totalRewardPoints: 0,
+                                        totalSpent: 0,
+                                        rewardLevel: 'BRONCE'
+                                    };
+                                    return (
+                                        <TableRow key={client.id} className="hover:bg-slate-50 transition-colors">
+                                            <TableCell className="text-center text-slate-400 font-bold">{idx + 1}</TableCell>
+                                            <TableCell>
+                                                <div className="font-medium text-slate-800">{client.firstName}</div>
+                                                <div className="text-xs text-slate-400">{client.identificationNumber}</div>
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border ${LEVEL_STYLES[reward.rewardLevel] ?? 'bg-slate-100 text-slate-600'}`}>
+                                                    {reward.rewardLevel}
+                                                </span>
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                <span className="flex items-center justify-center gap-1 font-bold text-amber-600">
+                                                    <Star className="h-3.5 w-3.5" />
+                                                    {Number(reward.totalRewardPoints)}
+                                                </span>
+                                            </TableCell>
+                                            <TableCell className="text-center text-slate-600 font-medium">
+                                                ${Number(reward.totalSpent).toLocaleString()}
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <div className="flex items-center gap-2 justify-end">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 font-bold"
+                                                        onClick={() => setSelectedClientId(client.id)}
+                                                    >
+                                                        Reclamar
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                        onClick={() => setHistoryClientId(client.id)}
+                                                    >
+                                                        Historial
+                                                    </Button>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })
+                            )}
+                        </TableBody>
+                    </Table>
                 </div>
             </div>
+
+            {selectedClientId && (
+                <RewardDetailsModal
+                    open={!!selectedClientId}
+                    onOpenChange={(open) => !open && setSelectedClientId(null)}
+                    clientId={selectedClientId}
+                />
+            )}
+
+            {historyClientId && (
+                <LoyaltyPointHistoryModal
+                    open={!!historyClientId}
+                    onOpenChange={(open) => !open && setHistoryClientId(null)}
+                    clientId={historyClientId}
+                    clientName={getClientName(historyClientId)}
+                />
+            )}
         </div>
     );
 }

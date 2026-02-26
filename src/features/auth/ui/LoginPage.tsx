@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { authService } from '@/shared/services/authService';
+import { useNavigate, Navigate } from 'react-router-dom';
+import { useAuth } from '@/shared/auth';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { Label } from '@/shared/ui/label';
@@ -8,23 +8,29 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/sha
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('admin@ventascatalogo.com');
-  const [password, setPassword] = useState('admin123');
-  const [isLoading, setIsLoading] = useState(false);
+  const { login, user } = useAuth();
+  const [username, setUsername] = useState('admin');
+  const [password, setPassword] = useState('Admin123!');
+  const [isSubmitLoading, setIsSubmitLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // If already logged in, go to home
+  if (user) return <Navigate to="/" replace />;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setIsLoading(true);
+    setIsSubmitLoading(true);
 
     try {
-      await authService.login({ email, password });
+      await login(username, password);
+      // login in AuthProvider sets the user, which triggers Navigate above via re-render, 
+      // but we can also push manually for immediate feedback
       navigate('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al iniciar sesión');
     } finally {
-      setIsLoading(false);
+      setIsSubmitLoading(false);
     }
   };
 
@@ -42,18 +48,18 @@ export function LoginPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="username">Usuario</Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="admin@ventascatalogo.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="username"
+                type="text"
+                placeholder="Ingresa tu usuario"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 required
-                disabled={isLoading}
+                disabled={isSubmitLoading}
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="password">Contraseña</Label>
               <Input
@@ -63,7 +69,7 @@ export function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                disabled={isLoading}
+                disabled={isSubmitLoading}
               />
             </div>
 
@@ -76,15 +82,15 @@ export function LoginPage() {
             <Button
               type="submit"
               className="w-full"
-              disabled={isLoading}
+              disabled={isSubmitLoading}
             >
-              {isLoading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+              {isSubmitLoading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
             </Button>
 
             <div className="text-xs text-center text-gray-500 mt-4">
               <p>Credenciales de prueba:</p>
-              <p>Email: admin@ventascatalogo.com</p>
-              <p>Password: admin123</p>
+              <p>Usuario: admin</p>
+              <p>Password: Admin123!</p>
             </div>
           </form>
         </CardContent>

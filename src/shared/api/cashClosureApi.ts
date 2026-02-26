@@ -29,13 +29,11 @@ export const cashClosureApi = {
   },
 
   /**
-   * Get cash closures by date range
-   * @endpoint GET /api/cash-closures?startDate=:startDate&endDate=:endDate
+   * Get cash closure preview
+   * @endpoint GET /api/cash-closures/preview?toDate=:toDate
    */
-  getByDateRange: async (startDate: string, endDate: string): Promise<CashClosure[]> => {
-    return httpClient.get<CashClosure[]>(
-      `/cash-closures?startDate=${startDate}&endDate=${endDate}`
-    );
+  getPreview: async (toDate?: string): Promise<any> => {
+    return httpClient.get<any>(`/cash-closures/preview${toDate ? `?toDate=${toDate}` : ''}`);
   },
 
   /**

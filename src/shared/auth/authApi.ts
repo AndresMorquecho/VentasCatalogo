@@ -80,9 +80,7 @@ let ROLES: AppRole[] = [
 let USERS: AppUser[] = [
     {
         id: 'user-admin',
-        firstName: 'Administrador',
-        lastName: 'Principal',
-        email: 'admin@temu.com',
+        username: 'admin',
         passwordHash: mockHash('Admin123!'),
         roleId: 'role-admin',
         active: true,
@@ -91,9 +89,7 @@ let USERS: AppUser[] = [
     },
     {
         id: 'user-cajera',
-        firstName: 'Laura',
-        lastName: 'Ramírez',
-        email: 'cajera@temu.com',
+        username: 'cajera',
         passwordHash: mockHash('Caja123!'),
         roleId: 'role-cajera',
         active: true,
@@ -143,12 +139,10 @@ export const usersApi = {
     },
     create: async (data: UserFormData, actorId: string, actorName: string): Promise<AppUser> => {
         await delay();
-        if (USERS.find(u => u.email === data.email)) throw new Error('El email ya está en uso.');
+        if (USERS.find(u => u.username === data.username)) throw new Error('El nombre de usuario ya está en uso.');
         const user: AppUser = {
             id: `user-${Date.now()}`,
-            firstName: data.firstName,
-            lastName: data.lastName,
-            email: data.email,
+            username: data.username,
             passwordHash: mockHash(data.password),
             roleId: data.roleId,
             active: data.active,
@@ -156,7 +150,7 @@ export const usersApi = {
             lastAccessAt: null,
         };
         USERS = [...USERS, user];
-        logAction({ userId: actorId, userName: actorName, action: 'CREATE_USER', module: 'users', detail: `Creó usuario: ${user.email}` });
+        logAction({ userId: actorId, userName: actorName, action: 'CREATE_USER', module: 'users', detail: `Creó usuario: ${user.username}` });
         return { ...user, passwordHash: '***' };
     },
     update: async (id: string, data: Partial<Omit<UserFormData, 'password'>>, actorId: string, actorName: string): Promise<AppUser> => {
@@ -164,14 +158,14 @@ export const usersApi = {
         USERS = USERS.map(u => u.id === id ? { ...u, ...data } : u);
         const updated = USERS.find(u => u.id === id);
         if (!updated) throw new Error('User not found');
-        logAction({ userId: actorId, userName: actorName, action: 'UPDATE_USER', module: 'users', detail: `Actualizó usuario: ${updated.email}` });
+        logAction({ userId: actorId, userName: actorName, action: 'UPDATE_USER', module: 'users', detail: `Actualizó usuario: ${updated.username}` });
         return { ...updated, passwordHash: '***' };
     },
     changePassword: async (userId: string, newPassword: string, actorId: string, actorName: string): Promise<void> => {
         await delay();
         USERS = USERS.map(u => u.id === userId ? { ...u, passwordHash: mockHash(newPassword) } : u);
         const user = USERS.find(u => u.id === userId);
-        logAction({ userId: actorId, userName: actorName, action: 'CHANGE_PASSWORD', module: 'users', detail: `Cambió contraseña de: ${user?.email}` });
+        logAction({ userId: actorId, userName: actorName, action: 'CHANGE_PASSWORD', module: 'users', detail: `Cambió contraseña de: ${user?.username}` });
     },
     softDelete: async (id: string, actorId: string, actorName: string): Promise<void> => {
         await delay();
@@ -184,23 +178,23 @@ export const usersApi = {
         }
         USERS = USERS.map(u => u.id === id ? { ...u, active: false } : u);
         const user = USERS.find(u => u.id === id);
-        logAction({ userId: actorId, userName: actorName, action: 'DEACTIVATE_USER', module: 'users', detail: `Desactivó usuario: ${user?.email}` });
+        logAction({ userId: actorId, userName: actorName, action: 'DEACTIVATE_USER', module: 'users', detail: `Desactivó usuario: ${user?.username}` });
     },
-    login: async (email: string, password: string): Promise<AppUser & { role: AppRole }> => {
+    login: async (username: string, password: string): Promise<AppUser & { role: AppRole }> => {
         await delay();
-        const user = USERS.find(u => u.email === email);
+        const user = USERS.find(u => u.username === username);
         if (!user || !user.active) {
-            logAction({ userId: 'anonymous', userName: email, action: 'LOGIN_FAILED', module: 'auth', detail: `Intento de login fallido para: ${email}`, success: false });
+            logAction({ userId: 'anonymous', userName: username, action: 'LOGIN_FAILED', module: 'auth', detail: `Intento de login fallido para: ${username}`, success: false });
             throw new Error('Credenciales inválidas o usuario inactivo.');
         }
         if (user.passwordHash !== mockHash(password)) {
-            logAction({ userId: user.id, userName: `${user.firstName} ${user.lastName}`, action: 'LOGIN_FAILED', module: 'auth', detail: `Contraseña incorrecta para: ${email}`, success: false });
+            logAction({ userId: user.id, userName: user.username, action: 'LOGIN_FAILED', module: 'auth', detail: `Contraseña incorrecta para: ${username}`, success: false });
             throw new Error('Contraseña incorrecta.');
         }
         const role = ROLES.find(r => r.id === user.roleId);
         if (!role) throw new Error('Rol no encontrado.');
         USERS = USERS.map(u => u.id === user.id ? { ...u, lastAccessAt: new Date().toISOString() } : u);
-        logAction({ userId: user.id, userName: `${user.firstName} ${user.lastName}`, action: 'LOGIN', module: 'auth', detail: 'Inició sesión exitosamente' });
+        logAction({ userId: user.id, userName: user.username, action: 'LOGIN', module: 'auth', detail: 'Inició sesión exitosamente' });
         return { ...user, passwordHash: '***', role };
     },
 };

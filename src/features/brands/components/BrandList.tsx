@@ -8,6 +8,7 @@ import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
 import { AlertCircle, Plus, RotateCw, Search } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert"
+import { ConfirmDialog } from "@/shared/ui/confirm-dialog"
 
 export function BrandList() {
     const { data: brands = [], isLoading, isError, refetch } = useBrandList()
@@ -15,6 +16,8 @@ export function BrandList() {
     const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null)
     const [isFormOpen, setIsFormOpen] = useState(false)
     const [searchTerm, setSearchTerm] = useState("")
+    const [brandToDelete, setBrandToDelete] = useState<Brand | null>(null)
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
     const filteredBrands = useMemo(
         () => searchBrands(brands, searchTerm),
@@ -31,10 +34,16 @@ export function BrandList() {
         setIsFormOpen(true)
     }
 
-    const handleDelete = async (brand: Brand) => {
-        if (!confirm(`¿Está seguro de eliminar la marca "${brand.name}"? Esta acción no se puede deshacer.`)) return
+    const handleDeleteClick = (brand: Brand) => {
+        setBrandToDelete(brand)
+        setIsDeleteDialogOpen(true)
+    }
+
+    const handleConfirmDelete = async () => {
+        if (!brandToDelete) return
         try {
-            await deleteBrand.mutateAsync(brand.id)
+            await deleteBrand.mutateAsync(brandToDelete.id)
+            setBrandToDelete(null)
         } catch (error) {
             console.error("Error deleting brand", error)
         }
@@ -89,13 +98,23 @@ export function BrandList() {
                 brands={filteredBrands}
                 isLoading={isLoading}
                 onEdit={handleEdit}
-                onDelete={handleDelete}
+                onDelete={handleDeleteClick}
             />
 
             <BrandForm
                 brand={selectedBrand}
                 open={isFormOpen}
                 onOpenChange={setIsFormOpen}
+            />
+
+            <ConfirmDialog
+                open={isDeleteDialogOpen}
+                onOpenChange={setIsDeleteDialogOpen}
+                onConfirm={handleConfirmDelete}
+                title="Eliminar Marca"
+                description={`¿Está seguro de eliminar la marca "${brandToDelete?.name}"? Esta acción no se puede deshacer si no tiene pedidos asociados.`}
+                confirmText="Eliminar"
+                variant="destructive"
             />
         </div>
     )

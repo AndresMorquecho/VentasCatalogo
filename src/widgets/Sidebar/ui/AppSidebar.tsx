@@ -21,7 +21,7 @@ import {
     Gift,
 } from "lucide-react"
 import { Link } from "react-router-dom"
-import { authService } from "@/shared/services/authService"
+import { useAuth } from "@/shared/auth"
 import { LogoutDialog } from "@/shared/components/LogoutDialog"
 import { useState } from "react"
 
@@ -144,12 +144,12 @@ const groupedItems = [
 ]
 
 export function AppSidebar() {
-    const user = authService.getUser();
-    const isAdmin = user?.role === 'ADMIN';
+    const { user, logout, isAdmin } = useAuth();
+    const adminMode = isAdmin();
     const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
     const handleLogout = () => {
-        authService.logout();
+        logout();
     };
 
     return (
@@ -191,7 +191,7 @@ export function AppSidebar() {
                 </SidebarGroup>
 
                 {/* 3. Admin-only Config Section */}
-                {isAdmin && (
+                {adminMode && (
                     <SidebarGroup>
                         <SidebarGroupLabel>Configuración</SidebarGroupLabel>
                         <SidebarGroupContent>
@@ -217,8 +217,8 @@ export function AppSidebar() {
                         <User className="h-5 w-5" />
                     </div>
                     <div className="flex flex-col overflow-hidden group-data-[collapsible=icon]:hidden">
-                        <span className="text-sm font-medium truncate">{user?.name || 'Usuario'}</span>
-                        <span className="text-xs text-muted-foreground truncate">{user?.role || ''}</span>
+                        <span className="text-sm font-medium truncate">{user?.username || 'Usuario'}</span>
+                        <span className="text-xs text-muted-foreground truncate">{user?.role?.name || 'Vendedor'}</span>
                     </div>
                 </div>
                 <Button

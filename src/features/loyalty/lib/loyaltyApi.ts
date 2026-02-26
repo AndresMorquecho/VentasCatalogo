@@ -39,6 +39,12 @@ export const loyaltyPrizesApi = {
 
 export const loyaltyRedemptionsApi = {
     getAll: async (): Promise<LoyaltyRedemption[]> => {
-        return httpClient.get<LoyaltyRedemption[]>('/rewards/history/all');
+        return httpClient.get<LoyaltyRedemption[]>('/loyalty/redemptions');
+    },
+    redeem: async (data: { clientId: string, prizeId: string }): Promise<LoyaltyRedemption> => {
+        return httpClient.post<LoyaltyRedemption>('/loyalty/redeem', data);
+    },
+    getHistory: async (clientId: string): Promise<any[]> => {
+        return httpClient.get<any[]>(`/loyalty/history/${clientId}`);
     }
 };

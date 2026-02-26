@@ -19,7 +19,7 @@ import { LoyaltyPage } from '@/features/loyalty'
 import { AdminUsersPage } from '@/features/users'
 import { LoginPage } from '@/features/auth/ui/LoginPage'
 import { DashboardPage } from '@/features/dashboard/ui/DashboardPage'
-import { ProtectedRoute } from '@/shared/components/ProtectedRoute'
+import { ProtectedRoute } from '@/shared/auth'
 import { ToastProvider } from '@/shared/ui/use-toast'
 
 const protectedChildren = [

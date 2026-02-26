@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
 import { Skeleton } from '@/shared/ui/skeleton';
 
-const EMPTY_FORM: UserFormData = { firstName: '', lastName: '', email: '', password: '', roleId: '', active: true };
+const EMPTY_FORM: UserFormData = { username: '', password: '', roleId: '', active: true };
 
 type ModalMode = 'create' | 'edit' | 'password' | 'delete' | null;
 
@@ -27,7 +27,7 @@ export function UserList() {
     const [search, setSearch] = useState('');
 
     const openCreate = () => { setTarget(null); setForm(EMPTY_FORM); setError(''); setMode('create'); };
-    const openEdit = (u: AppUser) => { setTarget(u); setForm({ firstName: u.firstName, lastName: u.lastName, email: u.email, password: '', roleId: u.roleId, active: u.active }); setError(''); setMode('edit'); };
+    const openEdit = (u: AppUser) => { setTarget(u); setForm({ username: u.username, password: '', roleId: u.roleId, active: u.active }); setError(''); setMode('edit'); };
     const openPassword = (u: AppUser) => { setTarget(u); setNewPw(''); setConfirmPw(''); setError(''); setMode('password'); };
     const openDelete = (u: AppUser) => { setTarget(u); setMode('delete'); };
     const closeModal = () => { setMode(null); setTarget(null); setError(''); };
@@ -35,13 +35,13 @@ export function UserList() {
     const handleSave = async () => {
         try {
             if (mode === 'create') await createUser(form);
-            else if (mode === 'edit' && target) await updateUser({ id: target.id, data: { firstName: form.firstName, lastName: form.lastName, email: form.email, roleId: form.roleId, active: form.active } });
+            else if (mode === 'edit' && target) await updateUser({ id: target.id, data: { username: form.username, roleId: form.roleId, active: form.active } });
             closeModal();
         } catch (e) { setError(e instanceof Error ? e.message : 'Error al guardar'); }
     };
 
     const handlePassword = async () => {
-        if (newPw.length < 8) { setError('La contraseña debe tener al menos 8 caracteres.'); return; }
+        if (newPw.length < 4) { setError('La contraseña debe tener al menos 4 caracteres.'); return; }
         if (newPw !== confirmPw) { setError('Las contraseñas no coinciden.'); return; }
         try {
             if (target) await changePassword({ userId: target.id, newPassword: newPw });
@@ -57,7 +57,7 @@ export function UserList() {
     };
 
     const filtered = users.filter(u =>
-        `${u.firstName} ${u.lastName} ${u.email}`.toLowerCase().includes(search.toLowerCase())
+        u.username.toLowerCase().includes(search.toLowerCase())
     );
 
     if (isLoading) return <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-14" />)}</div>;
@@ -76,7 +76,6 @@ export function UserList() {
                     <TableHeader>
                         <TableRow className="bg-slate-50">
                             <TableHead>Usuario</TableHead>
-                            <TableHead>Email</TableHead>
                             <TableHead>Rol</TableHead>
                             <TableHead className="text-center">Estado</TableHead>
                             <TableHead className="text-center">Último acceso</TableHead>
@@ -94,14 +93,13 @@ export function UserList() {
                                     <TableCell>
                                         <div className="flex items-center gap-3">
                                             <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600 shrink-0">
-                                                {u.firstName[0]}{u.lastName[0]}
+                                                {u.username[0].toUpperCase()}
                                             </div>
                                             <div>
-                                                <p className="font-medium text-slate-800">{u.firstName} {u.lastName}</p>
+                                                <p className="font-medium text-slate-800">{u.username}</p>
                                             </div>
                                         </div>
                                     </TableCell>
-                                    <TableCell className="text-slate-600 text-sm">{u.email}</TableCell>
                                     <TableCell>
                                         <Badge variant="outline" className="text-xs gap-1">
                                             <ShieldCheck className="h-3 w-3" />
@@ -146,19 +144,9 @@ export function UserList() {
                         <DialogTitle>{mode === 'create' ? 'Nuevo Usuario' : 'Editar Usuario'}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-3 py-2">
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1">
-                                <Label htmlFor="u-first">Nombre</Label>
-                                <Input id="u-first" value={form.firstName} onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))} />
-                            </div>
-                            <div className="space-y-1">
-                                <Label htmlFor="u-last">Apellido</Label>
-                                <Input id="u-last" value={form.lastName} onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))} />
-                            </div>
-                        </div>
                         <div className="space-y-1">
-                            <Label htmlFor="u-email">Email</Label>
-                            <Input id="u-email" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+                            <Label htmlFor="u-user">Nombre de Usuario</Label>
+                            <Input id="u-user" value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} />
                         </div>
                         {mode === 'create' && (
                             <div className="space-y-1">
@@ -181,7 +169,7 @@ export function UserList() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={closeModal}>Cancelar</Button>
-                        <Button onClick={handleSave} disabled={!form.firstName || !form.email || !form.roleId || isCreating || isUpdating}>
+                        <Button onClick={handleSave} disabled={!form.username || isCreating || isUpdating}>
                             {isCreating || isUpdating ? 'Guardando...' : 'Guardar'}
                         </Button>
                     </DialogFooter>
@@ -192,7 +180,7 @@ export function UserList() {
             <Dialog open={mode === 'password'} onOpenChange={closeModal}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Cambiar Contraseña — {target?.firstName}</DialogTitle>
+                        <DialogTitle>Cambiar Contraseña — {target?.username}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-3 py-2">
                         <div className="space-y-1">
@@ -216,7 +204,7 @@ export function UserList() {
             <Dialog open={mode === 'delete'} onOpenChange={closeModal}>
                 <DialogContent>
                     <DialogHeader><DialogTitle>¿Desactivar usuario?</DialogTitle></DialogHeader>
-                    <p className="text-sm text-slate-600">Se desactivará a <span className="font-semibold">"{target?.firstName} {target?.lastName}"</span>. Podrá reactivarlo editando el usuario.</p>
+                    <p className="text-sm text-slate-600">Se desactivará a <span className="font-semibold">"{target?.username}"</span>. Podrá reactivarlo editando el usuario.</p>
                     {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
                     <DialogFooter>
                         <Button variant="outline" onClick={closeModal}>Cancelar</Button>
