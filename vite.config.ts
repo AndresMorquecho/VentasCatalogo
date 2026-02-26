@@ -6,10 +6,20 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
+import { nodePolyfills } from 'vite-plugin-node-polyfills'
 
 // Config updated at: 2026-02-12T11:03:00 to trigger restart
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    nodePolyfills({
+      globals: {
+        Buffer: true,
+        global: true,
+        process: true,
+      },
+    }),
+  ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
