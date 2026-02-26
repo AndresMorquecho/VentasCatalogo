@@ -193,5 +193,13 @@ export const orderApi = {
      */
     cancelOrder: async (orderId: string, reason?: string): Promise<Order> => {
         return httpClient.post<Order>(`/orders/${orderId}/cancel`, { reason });
+    },
+
+    /**
+     * Reverse reception (back to POR_RECIBIR)
+     * @endpoint POST /api/orders/:id/reverse-reception
+     */
+    reverseReception: async (orderId: string): Promise<{ message: string }> => {
+        return httpClient.post<{ message: string }>(`/orders/${orderId}/reverse-reception`, {});
     }
 };

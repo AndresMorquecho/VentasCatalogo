@@ -53,7 +53,8 @@ export function OrderDeliveryTable({ orders, onDeliver }: OrderDeliveryTableProp
                         orders.map((order) => {
                             // Use centralized calculator to get actual paid amount
                             const paidAmount = getPaidAmount(order);
-                            const pending = (order.realInvoiceTotal || order.total) - paidAmount;
+                            const actualPending = (order.realInvoiceTotal || order.total) - paidAmount;
+                            const pendingForDisplay = Math.max(0, actualPending);
 
                             // Calculate days in warehouse
                             const now = new Date();
@@ -79,9 +80,9 @@ export function OrderDeliveryTable({ orders, onDeliver }: OrderDeliveryTableProp
                                     <TableCell className="text-right text-green-600">
                                         {formatCurrency(paidAmount)}
                                     </TableCell>
-                                    <TableCell className={`text-right font-bold ${pending > 0.01 ? 'text-red-600' : 'text-slate-400'}`}>
-                                        {formatCurrency(pending)}
-                                        {pending > 0.01 && <AlertTriangle className="inline-block ml-1 h-3 w-3 text-red-500" />}
+                                    <TableCell className={`text-right font-bold ${pendingForDisplay > 0.01 ? 'text-red-600' : 'text-slate-400'}`}>
+                                        {formatCurrency(pendingForDisplay)}
+                                        {pendingForDisplay > 0.01 && <AlertTriangle className="inline-block ml-1 h-3 w-3 text-red-500" />}
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <Button

@@ -16,6 +16,8 @@ import {
     DialogTitle,
     DialogFooter,
 } from "@/shared/ui/dialog";
+import { useAuth } from "@/shared/auth";
+import { useToast } from "@/shared/ui/use-toast";
 
 /**
  * Filters clients in memory by search query.
@@ -43,6 +45,8 @@ export function ClientList() {
     const [deleteTarget, setDeleteTarget] = useState<Client | null>(null);
     const [deleteError, setDeleteError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
+    const { hasPermission } = useAuth();
+    const { showToast } = useToast();
 
     // In-memory filtering — no API call, no cache mutation
     const filteredClients = useMemo(
@@ -51,16 +55,28 @@ export function ClientList() {
     );
 
     const handleCreate = () => {
+        if (!hasPermission('clients.create')) {
+            showToast('No tienes permiso para crear empresarias', 'error');
+            return;
+        }
         setSelectedClient(null);
         setIsFormOpen(true);
     };
 
     const handleEdit = (client: Client) => {
+        if (!hasPermission('clients.edit')) {
+            showToast('No tienes permiso para editar empresarias', 'error');
+            return;
+        }
         setSelectedClient(client);
         setIsFormOpen(true);
     };
 
     const handleDeleteRequest = (client: Client) => {
+        if (!hasPermission('clients.delete')) {
+            showToast('No tienes permiso para eliminar empresarias', 'error');
+            return;
+        }
         setDeleteError(null);
 
         // Check referential integrity: does any order reference this client?
@@ -173,7 +189,7 @@ export function ClientList() {
             {/* Delete Confirmation Dialog */}
             <Dialog
                 open={!!deleteTarget}
-                onOpenChange={(open) => {
+                onOpenChange={(open: boolean) => {
                     if (!open) setDeleteTarget(null);
                 }}
             >

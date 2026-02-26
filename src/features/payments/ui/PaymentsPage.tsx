@@ -8,6 +8,7 @@ import { PaymentFormModal } from "./PaymentFormModal";
 import { useToast } from "@/shared/ui/use-toast";
 import { Badge } from "@/shared/ui/badge";
 import { generatePaymentReceipt } from "@/features/payment-receipt/lib/generatePaymentReceipt";
+import { useAuth } from "@/shared/auth";
 
 import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 
@@ -15,6 +16,7 @@ export function PaymentsPage() {
     const { orders, searchOrders, loading } = usePaymentSearch();
     const { revertPayment } = usePaymentOperations();
     const { showToast } = useToast();
+    const { hasPermission, user } = useAuth();
 
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
@@ -52,6 +54,10 @@ export function PaymentsPage() {
     };
 
     const handleDeletePayment = async (paymentId: string) => {
+        if (!hasPermission('payments.delete')) {
+            showToast("No tienes permiso para eliminar abonos", "error");
+            return;
+        }
         if (!confirm("¿Está seguro de eliminar este abono? Esta acción revertirá el saldo y la caja.")) return;
         try {
             if (selectedOrderId) {
@@ -175,7 +181,7 @@ export function PaymentsPage() {
                                             ...p,
                                             date: p.createdAt,
                                             method: p.method || 'EFECTIVO' // Fallback
-                                        })))}
+                                        })), user?.username || 'Sistema')}
                                     >
                                         <Printer className="h-4 w-4" />
                                         <span>Estado Cuenta</span>
@@ -183,7 +189,13 @@ export function PaymentsPage() {
                                     <Button
                                         size="default"
                                         className="gap-2 bg-emerald-600 hover:bg-emerald-700 shadow-md transform hover:scale-105 transition-all"
-                                        onClick={() => setIsPaymentModalOpen(true)}
+                                        onClick={() => {
+                                            if (!hasPermission('payments.create')) {
+                                                showToast("No tienes permiso para registrar abonos", "error");
+                                                return;
+                                            }
+                                            setIsPaymentModalOpen(true);
+                                        }}
                                     >
                                         <DollarSign className="h-4 w-4" />
                                         Registrar Abono

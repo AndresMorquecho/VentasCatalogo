@@ -12,6 +12,7 @@ import { Badge } from "@/shared/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/ui/dialog";
 import { generateCashClosurePDF } from '../lib/generateCashClosurePDF';
+import { useAuth } from '@/shared/auth';
 
 export function CashClosurePage() {
     // 1. Estados Locales
@@ -27,6 +28,7 @@ export function CashClosurePage() {
     // 3. Mutación
     const createClosure = useCreateCashClosure();
     const { showToast } = useToast();
+    const { hasPermission } = useAuth();
 
     // 4. Cargar Vista Previa Inicial
     const fetchPreview = async () => {
@@ -55,6 +57,10 @@ export function CashClosurePage() {
 
     // 5. Handlers
     const handleConfirmClosure = async () => {
+        if (!hasPermission('cash_closure.close')) {
+            showToast("No tienes permiso para realizar cierres de caja", "error");
+            return;
+        }
         if (!previewData) return;
 
         try {

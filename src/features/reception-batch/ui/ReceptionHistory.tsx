@@ -4,12 +4,14 @@ import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
 import { useToast } from "@/shared/ui/use-toast"
 import { generateOrderLabels } from "@/features/order-labels/lib/generateOrderLabels"
-import { Search, Printer, Edit2, Save, X, AlertTriangle } from "lucide-react"
+import { Search, Printer, RotateCcw, X, AlertTriangle } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import type { Order } from "@/entities/order/model/types"
 import type { Client } from "@/entities/client/model/types"
 import { orderApi } from "@/entities/order/model/api"
 import { getPendingAmount } from "@/entities/order/model/model"
+import { useAuth } from "@/shared/auth"
+import { ConfirmDialog } from "@/shared/ui/confirm-dialog"
 
 interface Props {
     orders: Order[]
@@ -20,12 +22,12 @@ export function ReceptionHistory({ orders, clients }: Props) {
     const [selected, setSelected] = useState<Set<string>>(new Set())
     const [searchTerm, setSearchTerm] = useState("")
     const [dateFilter, setDateFilter] = useState("")
-    const [editingId, setEditingId] = useState<string | null>(null)
-    const [editAmount, setEditAmount] = useState<string>("")
-    const [isSaving, setIsSaving] = useState(false)
+    const [isProcessing, setIsProcessing] = useState<string | null>(null)
+    const [reversingOrder, setReversingOrder] = useState<Order | null>(null)
 
     const { showToast } = useToast()
     const queryClient = useQueryClient()
+    const { user } = useAuth()
 
     // 1. Filter Logic
     const receivedOrders = useMemo(() => {
@@ -93,7 +95,7 @@ export function ReceptionHistory({ orders, clients }: Props) {
             await generateOrderLabels({
                 orders: toPrint,
                 clients: clients,
-                user: { name: 'Operador' }
+                user: { name: user?.username || 'Operador' }
             });
             showToast("Etiquetas generadas exitosamente", "success");
             setSelected(new Set());
@@ -103,67 +105,20 @@ export function ReceptionHistory({ orders, clients }: Props) {
         }
     }
 
-    // 4. Edit Logic
-    const startEdit = (order: Order) => {
-        const payments = order.payments || [];
-        if (payments.length === 0) {
-            showToast("Este pedido no tiene pagos registrados.", "error");
-            return;
-        }
-        const lastPayment = payments[payments.length - 1];
-        setEditingId(order.id);
-        setEditAmount(lastPayment.amount.toString());
-    }
+    // 4. Reverse Logic
+    const handleReverse = async () => {
+        if (!reversingOrder) return
 
-    const saveEdit = async () => {
-        if (!editingId) return;
-        const order = orders.find(o => o.id === editingId);
-        if (!order) return;
-
-        const newAmount = parseFloat(editAmount);
-        if (isNaN(newAmount) || newAmount < 0) {
-            showToast("Monto inválido", "error");
-            return;
-        }
-
-        setIsSaving(true);
+        setIsProcessing(reversingOrder.id)
         try {
-            const payments = order.payments || [];
-            if (payments.length === 0) return;
-
-            const lastPayment = payments[payments.length - 1];
-
-            const otherPaymentsSum = payments.slice(0, -1).reduce((sum, p) => sum + p.amount, 0);
-            const totalToCover = order.realInvoiceTotal || order.total;
-            const maxAllowed = totalToCover - otherPaymentsSum;
-
-            if (newAmount > maxAllowed + 0.01) {
-                showToast(`El nuevo monto excede el saldo. Máximo: $${maxAllowed.toFixed(2)}`, "error");
-                setIsSaving(false);
-                return;
-            }
-
-            const updatedPayments = [...payments];
-            updatedPayments[updatedPayments.length - 1] = {
-                ...lastPayment,
-                amount: newAmount
-            };
-
-
-
-            await orderApi.update(order.id, {
-                payments: updatedPayments
-            });
-
-            showToast("Abono actualizado.", "success");
-            queryClient.invalidateQueries({ queryKey: ['orders'] });
-            setEditingId(null);
-
+            await orderApi.reverseReception(reversingOrder.id)
+            showToast("La recepción ha sido revertida correctamente.", "success")
+            await queryClient.invalidateQueries({ queryKey: ['orders'] })
+            setReversingOrder(null)
         } catch (error) {
-            console.error(error);
-            showToast("Error al actualizar abono", "error");
+            showToast(error instanceof Error ? error.message : "Error al revertir recepción", "error")
         } finally {
-            setIsSaving(false);
+            setIsProcessing(null)
         }
     }
 
@@ -238,7 +193,6 @@ export function ReceptionHistory({ orders, clients }: Props) {
                         ) : (
                             filteredOrders.map(order => {
                                 const pending = getPendingAmount(order);
-                                const isEditing = editingId === order.id;
                                 const lastPay = (order.payments && order.payments.length > 0)
                                     ? order.payments[order.payments.length - 1].amount
                                     : 0;
@@ -271,19 +225,9 @@ export function ReceptionHistory({ orders, clients }: Props) {
                                         </TableCell>
 
                                         <TableCell className="text-right">
-                                            {isEditing ? (
-                                                <Input
-                                                    type="number"
-                                                    value={editAmount}
-                                                    onChange={(e) => setEditAmount(e.target.value)}
-                                                    className="w-24 text-right h-8 px-2 text-sm ml-auto border-blue-300 ring-2 ring-blue-100"
-                                                    autoFocus
-                                                />
-                                            ) : (
-                                                <span className="font-mono text-sm text-green-700">
-                                                    ${Number(lastPay || 0).toFixed(2)}
-                                                </span>
-                                            )}
+                                            <span className="font-mono text-sm text-green-700">
+                                                ${Number(lastPay || 0).toFixed(2)}
+                                            </span>
                                         </TableCell>
 
                                         <TableCell className={`text-right font-mono text-sm font-bold ${pending > 0.01 ? 'text-amber-600' : 'text-slate-400'}`}>
@@ -291,24 +235,16 @@ export function ReceptionHistory({ orders, clients }: Props) {
                                         </TableCell>
 
                                         <TableCell>
-                                            {isEditing ? (
-                                                <div className="flex gap-1 justify-end">
-                                                    <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50" onClick={saveEdit} disabled={isSaving}>
-                                                        <Save className="h-4 w-4" />
-                                                    </Button>
-                                                    <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => setEditingId(null)} disabled={isSaving}>
-                                                        <X className="h-4 w-4" />
-                                                    </Button>
-                                                </div>
-                                            ) : (
+                                            {order.status === 'RECIBIDO_EN_BODEGA' && (
                                                 <Button
                                                     size="icon"
                                                     variant="ghost"
-                                                    className="h-8 w-8 opacity-50 hover:opacity-100 hover:bg-blue-50 text-blue-600"
-                                                    onClick={() => startEdit(order)}
-                                                    title="Editar último pago"
+                                                    className="h-8 w-8 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                                    onClick={() => setReversingOrder(order)}
+                                                    disabled={isProcessing === order.id}
+                                                    title="Regresar Recepción"
                                                 >
-                                                    <Edit2 className="h-4 w-4" />
+                                                    <RotateCcw className={`h-4 w-4 ${isProcessing === order.id ? 'animate-spin' : ''}`} />
                                                 </Button>
                                             )}
                                         </TableCell>
@@ -320,11 +256,30 @@ export function ReceptionHistory({ orders, clients }: Props) {
                 </Table>
             </div>
 
-            <div className="bg-amber-50 text-amber-700 px-4 py-2 rounded-md text-xs flex items-center gap-2 border border-amber-100">
+            <ConfirmDialog
+                open={!!reversingOrder}
+                onOpenChange={(open) => !open && setReversingOrder(null)}
+                onConfirm={handleReverse}
+                title="Regresar Recepción"
+                description={`¿Está seguro de regresar la recepción del pedido ${reversingOrder?.receiptNumber}?`}
+                confirmText="Regresar Recepción"
+                cancelText="Cancelar"
+            >
+                <div className="p-3 bg-amber-50 rounded border border-amber-200 text-amber-800 text-sm">
+                    <p>Esta acción:</p>
+                    <ul className="list-disc ml-4 mt-1">
+                        <li>Revertirá los abonos asociados al banco y caja.</li>
+                        <li>Eliminará la factura y movimientos de inventario.</li>
+                        <li>El pedido volverá al estado <strong>POR RECIBIR</strong>.</li>
+                    </ul>
+                </div>
+            </ConfirmDialog>
+
+            <div className="bg-blue-50 text-blue-700 px-4 py-2 rounded-md text-xs flex items-center gap-2 border border-blue-100">
                 <AlertTriangle className="h-4 w-4" />
                 <p>
-                    <strong>Cuidado:</strong> Editar el "Último Abono" modifica el historial financiero y el saldo pendiente.
-                    Realice cambios solo si es estrictamente necesario (ej. corrección de errores).
+                    <strong>Nota:</strong> Solo se pueden regresar los pedidos que no han sido entregados al cliente final.
+                    Esta acción restaurará el inventario y los saldos bancarios.
                 </p>
             </div>
         </div>

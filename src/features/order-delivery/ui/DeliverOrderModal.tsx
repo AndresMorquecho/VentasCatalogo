@@ -20,6 +20,7 @@ import { useBankAccountList } from "@/features/bank-accounts/api/hooks"
 import { useClientCredit } from "@/features/client-credits/model/hooks"
 import { useToast } from "@/shared/ui/use-toast"
 import { generateDeliveryReceipt } from "../lib/generateDeliveryReceipt"
+import { useAuth } from "@/shared/auth/AuthProvider"
 
 interface DeliverOrderModalProps {
     order: Order | null
@@ -38,6 +39,7 @@ export function DeliverOrderModal({ order, open, onOpenChange }: DeliverOrderMod
     const { data: bankAccounts = [] } = useBankAccountList()
     const { data: creditData } = useClientCredit(order?.clientId || '')
     const { showToast } = useToast()
+    const { user, hasPermission } = useAuth()
 
     if (!order) return null
 
@@ -54,6 +56,10 @@ export function DeliverOrderModal({ order, open, onOpenChange }: DeliverOrderMod
     const amountToCharge = Math.max(0, pendingAmount)
 
     const handleSubmit = async () => {
+        if (!hasPermission('delivery.confirm')) {
+            showToast('No tienes permiso para realizar entregas', 'error')
+            return
+        }
         // Prevent multiple simultaneous submissions
         if (isProcessingRef.current) {
             console.warn('Already processing delivery, ignoring duplicate request');
@@ -101,7 +107,7 @@ export function DeliverOrderModal({ order, open, onOpenChange }: DeliverOrderMod
                 await generateDeliveryReceipt(deliveredOrder, {
                     amountPaidNow: amountToCharge > 0.01 ? amountToCharge : 0,
                     method: paymentMethod,
-                    user: 'Vendedor', // Should be logged user
+                    user: deliveredOrder.deliveredByName || user?.username || 'Administrador',
                     currentCreditAmount: currentCreditAmount,
                     hasCurrentCredit: hasCurrentCredit
                 })

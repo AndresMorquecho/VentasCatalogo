@@ -27,6 +27,7 @@ import { pdf } from "@react-pdf/renderer"
 import { OrderReceiptDocument } from "@/features/order-receipt/ui/OrderReceiptDocument"
 import { validateTransaction } from "@/features/transactions/lib/validateTransaction"
 import { useClientCredits } from "@/features/transactions/model/hooks"
+import { useAuth } from "@/shared/auth"
 
 interface OrderFormModalProps {
     order?: Order | null
@@ -179,6 +180,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
     const createOrder = useCreateOrder()
     const updateOrder = useUpdateOrder()
     const { showToast } = useToast()
+    const { user } = useAuth()
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isLoadingReceiptNumber, setIsLoadingReceiptNumber] = useState(false)
 
@@ -279,7 +281,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                             date: values.transactionDate,
                             clientId: values.clientId,
                             clientName,
-                            createdBy: 'Vendedor', // Mock
+                            createdBy: user?.username || 'Vendedor',
                             bankAccountId: finalBankAccountId || 'default',
                             paymentMethod: values.paymentMethod as 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE'
                         });
@@ -328,7 +330,14 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                             <OrderReceiptDocument
                                 order={newOrder}
                                 client={client}
-                                user={{ id: '1', name: 'Vendedor', role: 'OPERATOR', email: 'vendedor@temu.com', status: 'ACTIVE', createdAt: new Date().toISOString() }}
+                                user={{
+                                    id: user?.id || '1',
+                                    name: user?.username || 'Vendedor',
+                                    role: 'OPERATOR',
+                                    email: '',
+                                    status: 'ACTIVE',
+                                    createdAt: new Date().toISOString()
+                                } as any}
                             />
                         ).toBlob()
 

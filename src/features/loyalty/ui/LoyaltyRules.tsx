@@ -9,6 +9,8 @@ import { Label } from '@/shared/ui/label';
 import { Badge } from '@/shared/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/shared/ui/dialog';
 import { Skeleton } from '@/shared/ui/skeleton';
+import { useAuth } from '@/shared/auth';
+import { useToast } from '@/shared/ui/use-toast';
 
 const RULE_TYPE_LABELS: Record<RuleType, string> = {
     POR_MONTO: 'Por Monto Gastado',
@@ -24,23 +26,37 @@ const EMPTY_FORM: LoyaltyRuleFormData = {
 
 export function LoyaltyRules() {
     const { rules, isLoading, createRule, updateRule, toggleRule, isCreating, isUpdating } = useLoyaltyRules();
+    const { hasPermission } = useAuth();
+    const { showToast } = useToast();
     const [modalOpen, setModalOpen] = useState(false);
     const [editTarget, setEditTarget] = useState<LoyaltyRule | null>(null);
     const [form, setForm] = useState<LoyaltyRuleFormData>(EMPTY_FORM);
 
     const openCreate = () => {
+        if (!hasPermission('loyalty.manage_rules')) {
+            showToast("No tienes permiso para crear reglas", "error");
+            return;
+        }
         setEditTarget(null);
         setForm(EMPTY_FORM);
         setModalOpen(true);
     };
 
     const openEdit = (rule: LoyaltyRule) => {
+        if (!hasPermission('loyalty.manage_rules')) {
+            showToast("No tienes permiso para editar reglas", "error");
+            return;
+        }
         setEditTarget(rule);
         setForm({ name: rule.name, type: rule.type, pointsValue: rule.pointsValue, condition: rule.condition, isActive: rule.isActive });
         setModalOpen(true);
     };
 
     const handleSave = async () => {
+        if (!hasPermission('loyalty.manage_rules')) {
+            showToast("No tienes permiso para guardar reglas", "error");
+            return;
+        }
         if (editTarget) {
             await updateRule({ id: editTarget.id, data: form });
         } else {
@@ -85,7 +101,13 @@ export function LoyaltyRules() {
                         </div>
                         <div className="flex items-center gap-2">
                             <span className="text-sm font-bold text-slate-700 mr-2">{rule.pointsValue} pts</span>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => toggleRule(rule.id)} title={rule.isActive ? 'Desactivar' : 'Activar'}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
+                                if (!hasPermission('loyalty.manage_rules')) {
+                                    showToast("No tienes permiso para activar/desactivar reglas", "error");
+                                    return;
+                                }
+                                toggleRule(rule.id);
+                            }} title={rule.isActive ? 'Desactivar' : 'Activar'}>
                                 <Power className={`h-4 w-4 ${rule.isActive ? 'text-emerald-600' : 'text-slate-400'}`} />
                             </Button>
                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(rule)}>

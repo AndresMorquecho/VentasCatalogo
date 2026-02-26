@@ -13,6 +13,8 @@ import { Pencil } from "lucide-react"
 import { Switch } from "@/shared/ui/switch"
 import type { BankAccount } from "@/entities/bank-account/model/types"
 import { useToggleBankAccountStatus } from "@/features/bank-accounts/api/hooks"
+import { useAuth } from "@/shared/auth"
+import { useToast } from "@/shared/ui/use-toast"
 
 interface BankAccountTableProps {
     accounts: BankAccount[]
@@ -22,6 +24,8 @@ interface BankAccountTableProps {
 
 export function BankAccountTable({ accounts, isLoading, onEdit }: BankAccountTableProps) {
     const toggleStatus = useToggleBankAccountStatus()
+    const { hasPermission } = useAuth()
+    const { showToast } = useToast()
 
     if (isLoading) {
         return (
@@ -72,7 +76,13 @@ export function BankAccountTable({ accounts, isLoading, onEdit }: BankAccountTab
                                 <div className="flex items-center space-x-2">
                                     <Switch
                                         checked={acc.isActive}
-                                        onCheckedChange={() => toggleStatus.mutate(acc.id)}
+                                        onCheckedChange={() => {
+                                            if (!hasPermission('bank_accounts.edit')) {
+                                                showToast('No tienes permiso para cambiar el estado de cuentas', 'error')
+                                                return
+                                            }
+                                            toggleStatus.mutate(acc.id)
+                                        }}
                                     />
                                     <span className={`text-xs ${acc.isActive ? "text-green-600" : "text-muted-foreground"}`}>
                                         {acc.isActive ? "Activa" : "Inactiva"}

@@ -8,17 +8,38 @@ import type { Order } from "@/entities/order/model/types"
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
 import { Search, History } from "lucide-react"
+import { orderApi } from "@/entities/order/model/api"
+import { useToast } from "@/shared/ui/use-toast"
+import { useQueryClient } from "@tanstack/react-query"
 
 export function OrderReceptionPage() {
     const [filters, setFilters] = useState<ReceptionFilters>({})
     const { data: orders = [], isLoading, isError } = useOrderReceptionList(filters)
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
     const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false)
+    const [isProcessing, setIsProcessing] = useState<string | null>(null)
     const navigate = useNavigate()
+    const { showToast } = useToast()
+    const qc = useQueryClient()
 
     const handleReceive = (order: Order) => {
         setSelectedOrder(order)
         setIsReceiveModalOpen(true)
+    }
+
+    const handleReverse = async (orderId: string) => {
+        if (!confirm('¿Está seguro de regresar la recepción de este pedido? Se revertirán los abonos asociados y el estado volverá a "POR RECIBIR".')) return
+
+        setIsProcessing(orderId)
+        try {
+            await orderApi.reverseReception(orderId)
+            showToast("La recepción ha sido revertida correctamente.", "success")
+            await qc.invalidateQueries({ queryKey: ['orders'] })
+        } catch (error) {
+            showToast(error instanceof Error ? error.message : "Error al revertir recepción", "error")
+        } finally {
+            setIsProcessing(null)
+        }
     }
 
     if (isLoading) return <div className="p-8">Cargando pedidos...</div>
@@ -33,10 +54,12 @@ export function OrderReceptionPage() {
                     </h1>
                     <p className="text-amber-700 text-sm mt-1">Gestión de llegada de pedidos y ajuste de facturación</p>
                 </div>
-                <Button variant="outline" onClick={() => navigate('/orders/reception/history')} className="gap-2">
-                    <History className="h-4 w-4" />
-                    Historial de Recepciones
-                </Button>
+                <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => navigate('/orders/reception/history')} className="gap-2">
+                        <History className="h-4 w-4" />
+                        Historial
+                    </Button>
+                </div>
             </div>
 
             {/* Filters Bar */}
@@ -66,11 +89,15 @@ export function OrderReceptionPage() {
                         onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
                     />
                 </div>
-                {/* Brand select placeholder - could be populated */}
             </div>
 
             <div className="bg-amber-50/50 rounded-lg p-1 border border-amber-100">
-                <OrderReceptionTable orders={orders} onReceive={handleReceive} />
+                <OrderReceptionTable
+                    orders={orders}
+                    onReceive={handleReceive}
+                    onReverse={handleReverse}
+                    isProcessing={isProcessing}
+                />
             </div>
 
             <ReceiveOrderModal

@@ -110,11 +110,11 @@ const styles = StyleSheet.create({
         color: '#111827',
         textAlign: 'center',
     },
-    c1: { width: '10%' },
-    c2: { width: '10%' },
+    c1: { width: '12%' },
+    c2: { width: '12%' },
     c3: { width: '12%' },
-    c4: { width: '10%' },
-    c5: { width: '10%' },
+    c4: { width: '12%' },
+    c5: { width: '12%' },
     c6: { width: '12%', textAlign: 'right' },
     c7: { width: '12%', textAlign: 'right' },
     c8: { width: '12%', textAlign: 'right' },
@@ -190,18 +190,19 @@ export const DeliveryReceiptDocument = ({ order, client, paymentInfo }: Props) =
     const currentDate = new Date().toLocaleDateString('es-EC');
     const logoUrl = '/images/mochitopng.png';
 
-    const estimatedTotal = order.total;
-    const realTotal = getEffectiveTotal(order);
-    const totalPaid = getPaidAmount(order);
-    const paidNow = paymentInfo?.amountPaidNow || 0;
+    const estimatedTotal = Number(order.total) || 0;
+    const realTotal = Number(getEffectiveTotal(order)) || 0;
+    const totalPaid = Number(getPaidAmount(order)) || 0;
+    const paidNow = Number(paymentInfo?.amountPaidNow) || 0;
 
-    const pendingAmount = getPendingAmount(order);
+    const pendingAmount = Number(getPendingAmount(order)) || 0;
 
     // Instead of computing if THIS order generated credit, we show the actual CURRENT client credit total
     const hasCredit = paymentInfo?.hasCurrentCredit || false;
-    const creditAmount = paymentInfo?.currentCreditAmount || 0;
+    const creditAmount = Number(paymentInfo?.currentCreditAmount) || 0;
 
-    // Display pending as 0 if there's no actual pending for this order
+    // IMPORTANT: Ensure values are treated as numbers to avoid concatenation errors (e.g. 50 + 50 = 100, not 5050)
+    const displayPaid = Number(totalPaid);
     const displayPending = Math.max(0, pendingAmount);
 
     return (
@@ -237,11 +238,11 @@ export const DeliveryReceiptDocument = ({ order, client, paymentInfo }: Props) =
 
                 <View style={styles.table}>
                     <View style={[styles.tableRow, styles.tableHeader]}>
-                        <View style={[styles.col, styles.c1]}><Text style={styles.headerText}>N° Recibo</Text></View>
-                        <View style={[styles.col, styles.c2]}><Text style={styles.headerText}>N° Pedido</Text></View>
+                        <View style={[styles.col, styles.c1]}><Text style={styles.headerText}>N° Pedido</Text></View>
+                        <View style={[styles.col, styles.c2]}><Text style={styles.headerText}>N° Factura</Text></View>
                         <View style={[styles.col, styles.c3]}><Text style={styles.headerText}>Tipo Pedido</Text></View>
-                        <View style={[styles.col, styles.c4]}><Text style={styles.headerText}>Documento</Text></View>
-                        <View style={[styles.col, styles.c5]}><Text style={styles.headerText}>N° Doc</Text></View>
+                        <View style={[styles.col, styles.c4]}><Text style={styles.headerText}>Forma Pago</Text></View>
+                        <View style={[styles.col, styles.c5]}><Text style={styles.headerText}>Documento</Text></View>
                         <View style={[styles.col, styles.c6]}><Text style={styles.headerText}>Valor Pedido</Text></View>
                         <View style={[styles.col, styles.c7]}><Text style={styles.headerText}>Valor Factura</Text></View>
                         <View style={[styles.col, styles.c8]}><Text style={styles.headerText}>Abonado</Text></View>
@@ -249,13 +250,13 @@ export const DeliveryReceiptDocument = ({ order, client, paymentInfo }: Props) =
                     </View>
                     <View style={styles.tableRow}>
                         <View style={[styles.col, styles.c1]}><Text style={styles.cellText}>{order.receiptNumber}</Text></View>
-                        <View style={[styles.col, styles.c2]}><Text style={styles.cellText}>{order.receiptNumber}</Text></View>
+                        <View style={[styles.col, styles.c2]}><Text style={styles.cellText}>{order.invoiceNumber || 'S/N'}</Text></View>
                         <View style={[styles.col, styles.c3]}><Text style={styles.cellText}>{order.type}</Text></View>
-                        <View style={[styles.col, styles.c4]}><Text style={styles.cellText}>Factura</Text></View>
-                        <View style={[styles.col, styles.c5]}><Text style={styles.cellText}>{order.invoiceNumber || 'S/N'}</Text></View>
+                        <View style={[styles.col, styles.c4]}><Text style={styles.cellText}>{paymentInfo?.method || 'N/A'}</Text></View>
+                        <View style={[styles.col, styles.c5]}><Text style={styles.cellText}>Factura</Text></View>
                         <View style={[styles.col, styles.c6]}><Text style={[styles.cellText, { textAlign: 'right' }]}>${estimatedTotal.toFixed(2)}</Text></View>
                         <View style={[styles.col, styles.c7]}><Text style={[styles.cellText, { textAlign: 'right' }]}>${realTotal.toFixed(2)}</Text></View>
-                        <View style={[styles.col, styles.c8]}><Text style={[styles.cellText, { textAlign: 'right' }]}>${totalPaid.toFixed(2)}</Text></View>
+                        <View style={[styles.col, styles.c8]}><Text style={[styles.cellText, { textAlign: 'right' }]}>${displayPaid.toFixed(2)}</Text></View>
                         <View style={[styles.col, styles.c9]}><Text style={[styles.cellText, { textAlign: 'right', fontWeight: 'bold' }]}>${displayPending.toFixed(2)}</Text></View>
                     </View>
                 </View>
@@ -288,7 +289,7 @@ export const DeliveryReceiptDocument = ({ order, client, paymentInfo }: Props) =
                         </View>
                         <View style={styles.summaryRow}>
                             <Text style={{ fontSize: 10 }}>Total Pagado:</Text>
-                            <Text style={{ fontSize: 10, fontWeight: 'bold' }}>${totalPaid.toFixed(2)}</Text>
+                            <Text style={{ fontSize: 10, fontWeight: 'bold' }}>${displayPaid.toFixed(2)}</Text>
                         </View>
                         <View style={styles.summaryRow}>
                             <Text style={{ fontSize: 12, fontWeight: 'bold', color: displayPending > 0.01 ? '#DC2626' : '#059669' }}>Saldo Final:</Text>

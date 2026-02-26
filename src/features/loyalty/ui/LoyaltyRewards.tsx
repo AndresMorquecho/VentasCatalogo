@@ -9,6 +9,8 @@ import { Label } from '@/shared/ui/label';
 import { Badge } from '@/shared/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/shared/ui/dialog';
 import { Skeleton } from '@/shared/ui/skeleton';
+import { useAuth } from '@/shared/auth';
+import { useToast } from '@/shared/ui/use-toast';
 
 const PRIZE_TYPE_LABELS: Record<PrizeType, string> = {
     DESCUENTO_PORCENTAJE: 'Descuento %',
@@ -34,24 +36,38 @@ const EMPTY_FORM: LoyaltyPrizeFormData = {
 
 export function LoyaltyRewards() {
     const { prizes, isLoading, createPrize, updatePrize, deletePrize, togglePrize, isCreating, isUpdating } = useLoyaltyPrizes();
+    const { hasPermission } = useAuth();
+    const { showToast } = useToast();
     const [modalOpen, setModalOpen] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState<LoyaltyPrize | null>(null);
     const [editTarget, setEditTarget] = useState<LoyaltyPrize | null>(null);
     const [form, setForm] = useState<LoyaltyPrizeFormData>(EMPTY_FORM);
 
     const openCreate = () => {
+        if (!hasPermission('loyalty.manage_prizes')) {
+            showToast("No tienes permiso para crear premios", "error");
+            return;
+        }
         setEditTarget(null);
         setForm(EMPTY_FORM);
         setModalOpen(true);
     };
 
     const openEdit = (prize: LoyaltyPrize) => {
+        if (!hasPermission('loyalty.manage_prizes')) {
+            showToast("No tienes permiso para editar premios", "error");
+            return;
+        }
         setEditTarget(prize);
         setForm({ name: prize.name, description: prize.description, type: prize.type, pointsRequired: prize.pointsRequired, isActive: prize.isActive });
         setModalOpen(true);
     };
 
     const handleSave = async () => {
+        if (!hasPermission('loyalty.manage_prizes')) {
+            showToast("No tienes permiso para guardar premios", "error");
+            return;
+        }
         if (editTarget) {
             await updatePrize({ id: editTarget.id, data: form });
         } else {
@@ -61,6 +77,10 @@ export function LoyaltyRewards() {
     };
 
     const handleDelete = async () => {
+        if (!hasPermission('loyalty.manage_prizes')) {
+            showToast("No tienes permiso para eliminar premios", "error");
+            return;
+        }
         if (deleteTarget) {
             await deletePrize(deleteTarget.id);
             setDeleteTarget(null);
@@ -97,13 +117,25 @@ export function LoyaltyRewards() {
                                 </Badge>
                             </div>
                             <div className="flex gap-1">
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => togglePrize(prize.id)}>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
+                                    if (!hasPermission('loyalty.manage_prizes')) {
+                                        showToast("No tienes permiso para activar/desactivar premios", "error");
+                                        return;
+                                    }
+                                    togglePrize(prize.id);
+                                }}>
                                     <Power className={`h-3.5 w-3.5 ${prize.isActive ? 'text-emerald-600' : 'text-slate-400'}`} />
                                 </Button>
                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(prize)}>
                                     <Edit2 className="h-3.5 w-3.5 text-blue-600" />
                                 </Button>
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleteTarget(prize)}>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
+                                    if (!hasPermission('loyalty.manage_prizes')) {
+                                        showToast("No tienes permiso para eliminar premios", "error");
+                                        return;
+                                    }
+                                    setDeleteTarget(prize);
+                                }}>
                                     <Trash2 className="h-3.5 w-3.5 text-red-500" />
                                 </Button>
                             </div>

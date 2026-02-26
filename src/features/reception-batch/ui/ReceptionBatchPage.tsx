@@ -26,6 +26,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/shared/ui/select"
+import { useAuth } from "@/shared/auth"
 
 export function ReceptionBatchPage() {
     const {
@@ -42,6 +43,7 @@ export function ReceptionBatchPage() {
         clients
     } = useReceptionBatch()
 
+    const { user, hasPermission } = useAuth()
     const { showToast } = useToast()
     const { data: bankAccounts = [] } = useBankAccountList()
     const [confirmOpen, setConfirmOpen] = useState(false)
@@ -64,6 +66,10 @@ export function ReceptionBatchPage() {
     }
 
     const confirmSave = async () => {
+        if (!hasPermission('reception.confirm')) {
+            showToast("No tienes permiso para confirmar recepciones", "error")
+            return
+        }
         // Validate if there are payments to register
         const totalAbono = selectedOrders.reduce((acc, o) => acc + o.abonoRecepcion, 0)
 
@@ -92,7 +98,7 @@ export function ReceptionBatchPage() {
             await generateOrderLabels({
                 orders: updatedOrders,
                 clients: clients,
-                user: { name: 'Operador' }
+                user: { name: user?.username || 'Operador' }
             })
 
             showToast(`Recepción de ${updatedOrders.length} pedidos procesada exitosamente. Etiquetas generadas.`, "success")

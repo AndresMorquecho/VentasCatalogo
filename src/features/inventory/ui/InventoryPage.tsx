@@ -16,18 +16,71 @@ export function InventoryPage() {
     // Derived Data for Filters
     const availableBrands = useMemo(() => Array.from(new Set(movements.map(m => m.brandName))).sort(), [movements]);
 
-    // Filter Logic in UI (Pure View Logic)
+    // Filter Logic in UI (Pure View Logic) - Now with Grouping
     const filteredMovements = useMemo(() => {
-        return movements.filter(m => {
+        // 1. Group movements by orderCode/orderId
+        const orderMap = new Map<string, any>();
+
+        // Ensure movements are sorted by date ascending so we process oldest to newest
+        const sortedMovements = [...movements].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+        sortedMovements.forEach(m => {
+            if (!orderMap.has(m.orderId)) {
+                orderMap.set(m.orderId, {
+                    orderId: m.orderId,
+                    clientName: m.clientName,
+                    brandName: m.brandName,
+                    orderCode: m.orderCode,
+                    entryDate: m.type === 'ENTRY' ? m.createdAt : null,
+                    deliveryDate: m.type === 'DELIVERED' ? m.createdAt : null,
+                    returnDate: m.type === 'RETURNED' ? m.createdAt : null,
+                    status: m.type,
+                    daysInWarehouse: 0
+                });
+            } else {
+                const existing = orderMap.get(m.orderId);
+                existing.status = m.type; // Set to the latest status
+                if (m.type === 'ENTRY') existing.entryDate = m.createdAt;
+                if (m.type === 'DELIVERED') existing.deliveryDate = m.createdAt;
+                if (m.type === 'RETURNED') existing.returnDate = m.createdAt;
+            }
+        });
+
+        // 2. Format grouped rows and calculate final Days in Warehouse
+        const groupedRows = Array.from(orderMap.values()).map(order => {
+            let end = new Date(); // default to today if still in warehouse
+            if (order.deliveryDate) end = new Date(order.deliveryDate);
+            if (order.returnDate) end = new Date(order.returnDate);
+
+            let days = 0;
+            if (order.entryDate) {
+                const start = new Date(order.entryDate);
+                // Strip time portion for fair days calculation
+                const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+                const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+                const diffTime = Math.abs(endDay.getTime() - startDay.getTime());
+                days = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            }
+            order.daysInWarehouse = days;
+            return order;
+        });
+
+        // 3. Apply Filters and sort descending
+        return groupedRows.filter(m => {
             const matchesSearch =
                 m.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 m.orderCode.toLowerCase().includes(searchTerm.toLowerCase());
 
-            const matchesStatus = statusFilter === 'ALL' || m.type === statusFilter;
+            const matchesStatus = statusFilter === 'ALL' || m.status === statusFilter;
             const matchesBrand = brandFilter === '' || m.brandName === brandFilter;
 
             return matchesSearch && matchesStatus && matchesBrand;
+        }).sort((a, b) => {
+            const aDate = new Date(a.deliveryDate || a.returnDate || a.entryDate).getTime();
+            const bDate = new Date(b.deliveryDate || b.returnDate || b.entryDate).getTime();
+            return bDate - aDate;
         });
+
     }, [movements, searchTerm, statusFilter, brandFilter]);
 
     if (isLoading) {

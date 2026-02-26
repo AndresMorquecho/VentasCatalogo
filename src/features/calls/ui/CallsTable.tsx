@@ -8,6 +8,8 @@ import {
     useDeleteCall
 } from '@/entities/call';
 import { useClients } from '@/entities/client/model/hooks';
+import { useAuth } from '@/shared/auth';
+import { useToast } from '@/shared/ui/use-toast';
 
 interface CallsTableProps {
     calls: Call[];
@@ -17,6 +19,8 @@ interface CallsTableProps {
 export function CallsTable({ calls, onEdit }: CallsTableProps) {
     const { data: clients } = useClients();
     const { mutateAsync: deleteCall } = useDeleteCall();
+    const { hasPermission } = useAuth();
+    const { showToast } = useToast();
 
     const getClientName = (id: string) => {
         const client = clients?.find(c => c.id === id);
@@ -24,6 +28,10 @@ export function CallsTable({ calls, onEdit }: CallsTableProps) {
     };
 
     const handleDelete = async (id: string) => {
+        if (!hasPermission('calls.create')) {
+            showToast('No tienes permiso para eliminar llamadas', 'error');
+            return;
+        }
         if (window.confirm('¿Estás seguro de que deseas eliminar este registro de llamada?')) {
             try {
                 await deleteCall(id);
@@ -70,13 +78,20 @@ export function CallsTable({ calls, onEdit }: CallsTableProps) {
                                 </TableCell>
                                 <TableCell>
                                     <span className={`text-xs px-2 py-0.5 rounded font-medium ${call.result === 'CONTESTA' || call.result === 'PAGO_PROMETIDO' || call.result === 'INTERESADO'
-                                            ? 'bg-emerald-100 text-emerald-700'
-                                            : 'bg-slate-100 text-slate-600'
+                                        ? 'bg-emerald-100 text-emerald-700'
+                                        : 'bg-slate-100 text-slate-600'
                                         }`}>
                                         {callResultsMap[call.result] || call.result}
                                     </span>
                                 </TableCell>
-                                <TableCell className="text-xs text-slate-500">{call.createdBy}</TableCell>
+                                <TableCell className="text-xs text-slate-500">
+                                    <div className="flex flex-col gap-0.5">
+                                        <span title="Registrado por">{call.createdBy}</span>
+                                        {call.updatedBy && call.updatedBy !== call.createdBy && (
+                                            <span className="text-slate-400 italic" title="Editado por">✎ {call.updatedBy}</span>
+                                        )}
+                                    </div>
+                                </TableCell>
                                 <TableCell className="max-w-[200px] truncate text-xs text-slate-600" title={call.notes || ''}>
                                     {call.notes || '-'}
                                 </TableCell>
@@ -86,7 +101,13 @@ export function CallsTable({ calls, onEdit }: CallsTableProps) {
                                             variant="ghost"
                                             size="icon"
                                             className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50"
-                                            onClick={() => onEdit(call)}
+                                            onClick={() => {
+                                                if (!hasPermission('calls.create')) {
+                                                    showToast('No tienes permiso para editar llamadas', 'error');
+                                                    return;
+                                                }
+                                                onEdit(call);
+                                            }}
                                         >
                                             <Pencil className="h-4 w-4" />
                                         </Button>

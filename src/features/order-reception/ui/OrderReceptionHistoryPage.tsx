@@ -4,7 +4,10 @@ import { useOrderReceptionHistory } from "../model/useOrderReception"
 import type { ReceptionFilters } from "../model/useOrderReception"
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
-import { ArrowLeft, Search } from "lucide-react"
+import { ArrowLeft, Search, RotateCcw } from "lucide-react"
+import { orderApi } from "@/entities/order/model/api"
+import { useToast } from "@/shared/ui/use-toast"
+import { useQueryClient } from "@tanstack/react-query"
 import {
     Table,
     TableBody,
@@ -18,6 +21,9 @@ export function OrderReceptionHistoryPage() {
     const [filters, setFilters] = useState<ReceptionFilters>({})
     const { data: orders = [], isLoading } = useOrderReceptionHistory(filters)
     const navigate = useNavigate()
+    const { showToast } = useToast()
+    const qc = useQueryClient()
+    const [isProcessing, setIsProcessing] = useState<string | null>(null)
 
     function formatDate(date: string) {
         if (!date) return '-'
@@ -28,6 +34,22 @@ export function OrderReceptionHistoryPage() {
 
     function formatCurrency(amount: number) {
         return `$${amount.toFixed(2)}`
+    }
+
+    const handleReverseReception = async (orderId: string) => {
+        if (!confirm('¿Está seguro de regresar la recepción de este pedido? Se revertirán los abonos asociados y el estado volverá a "POR RECIBIR".')) return
+
+        setIsProcessing(orderId)
+        try {
+            await orderApi.reverseReception(orderId)
+            showToast("El pedido ha vuelto al estado pendiente de recepción.", "success")
+            await qc.invalidateQueries({ queryKey: ['orders'] })
+            await qc.invalidateQueries({ queryKey: ['receptionHistory'] })
+        } catch (error) {
+            showToast(error instanceof Error ? error.message : "No se pudo regresar la recepción", "error")
+        } finally {
+            setIsProcessing(null)
+        }
     }
 
     return (
@@ -64,9 +86,9 @@ export function OrderReceptionHistoryPage() {
                 </div>
             </div>
 
-            <div className="rounded-md border bg-white shadow-sm">
+            <div className="rounded-md border bg-white shadow-sm overflow-hidden">
                 <Table>
-                    <TableHeader>
+                    <TableHeader className="bg-amber-50/50">
                         <TableRow>
                             <TableHead>Fecha Recepción</TableHead>
                             <TableHead>N° Recibo</TableHead>
@@ -75,16 +97,17 @@ export function OrderReceptionHistoryPage() {
                             <TableHead className="text-right">Valor Estimado</TableHead>
                             <TableHead className="text-right">Valor Real</TableHead>
                             <TableHead className="text-center">Estado Actual</TableHead>
+                            <TableHead className="text-right">Acción</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {isLoading ? (
                             <TableRow>
-                                <TableCell colSpan={7} className="text-center py-8">Cargando...</TableCell>
+                                <TableCell colSpan={8} className="text-center py-8">Cargando...</TableCell>
                             </TableRow>
                         ) : orders.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                                     No se encontraron registros.
                                 </TableCell>
                             </TableRow>
@@ -105,11 +128,25 @@ export function OrderReceptionHistoryPage() {
                                     </TableCell>
                                     <TableCell className="text-center">
                                         <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${order.status === 'RECIBIDO_EN_BODEGA'
-                                                ? 'bg-blue-100 text-blue-800'
-                                                : 'bg-slate-100 text-slate-800'
+                                            ? 'bg-blue-100 text-blue-800'
+                                            : 'bg-slate-100 text-slate-800'
                                             }`}>
                                             {order.status === 'RECIBIDO_EN_BODEGA' ? 'En Bodega' : 'Entregado'}
                                         </span>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        {order.status === 'RECIBIDO_EN_BODEGA' && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => handleReverseReception(order.id)}
+                                                disabled={isProcessing === order.id}
+                                                className="text-amber-700 hover:text-amber-900 hover:bg-amber-50"
+                                                title="Regresar recepción"
+                                            >
+                                                <RotateCcw className={`h-4 w-4 ${isProcessing === order.id ? 'animate-spin' : ''}`} />
+                                            </Button>
+                                        )}
                                     </TableCell>
                                 </TableRow>
                             ))

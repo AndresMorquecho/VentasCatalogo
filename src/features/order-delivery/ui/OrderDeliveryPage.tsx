@@ -8,6 +8,8 @@ import type { Order } from "@/entities/order/model/types"
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
 import { Search, History } from "lucide-react"
+import { useAuth } from "@/shared/auth"
+import { useToast } from "@/shared/ui/use-toast"
 
 export function OrderDeliveryPage() {
     const [filters, setFilters] = useState<DeliveryFilters>({})
@@ -15,8 +17,14 @@ export function OrderDeliveryPage() {
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
     const [isDeliverModalOpen, setIsDeliverModalOpen] = useState(false)
     const navigate = useNavigate()
+    const { hasPermission } = useAuth()
+    const { showToast } = useToast()
 
     const handleDeliver = (order: Order) => {
+        if (!hasPermission('delivery.confirm')) {
+            showToast('No tienes permiso para realizar entregas', 'error')
+            return
+        }
         setSelectedOrder(order)
         setIsDeliverModalOpen(true)
     }

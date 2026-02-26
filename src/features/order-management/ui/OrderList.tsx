@@ -10,13 +10,17 @@ import { OrderDetailModal } from "./OrderDetailModal"
 import { OrderFormModal } from "./OrderFormModal"
 import { ConfirmDialog } from "@/shared/ui/confirm-dialog"
 import { useToast } from "@/shared/ui/use-toast"
-import { getPaidAmount, getPendingAmount } from "@/entities/order/model/model"
+import { getPaidAmount } from "@/entities/order/model/model"
 import type { Order } from "@/entities/order/model/types"
+import { useAuth } from "@/shared/auth"
+import { orderApi } from "@/entities/order/model/api" // Added orderApi
+import { useQueryClient } from "@tanstack/react-query" // Added queryClient
 
 export function OrderList() {
     const { data: orders = [], isLoading } = useOrderList()
     const deleteOrder = useDeleteOrder()
     const { showToast } = useToast()
+    const qc = useQueryClient()
     const {
         statusFilter,
         setStatusFilter,
@@ -24,9 +28,10 @@ export function OrderList() {
         setSearchQuery,
         filteredOrders
     } = useOrderFilters(orders)
+    const { hasPermission } = useAuth()
 
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
-    const [modalMode, setModalMode] = useState<'none' | 'detail' | 'create' | 'edit' | 'delete'>('none')
+    const [modalMode, setModalMode] = useState<'none' | 'detail' | 'create' | 'edit' | 'delete' | 'reverse'>('none')
 
     const handleViewDetails = (order: Order) => {
         setSelectedOrder(order)
@@ -34,11 +39,37 @@ export function OrderList() {
     }
 
     const handleEdit = (order: Order) => {
+        if (!hasPermission('orders.edit')) {
+            showToast('No tienes permiso para editar pedidos', 'error')
+            return
+        }
         setSelectedOrder(order)
         setModalMode('edit')
     }
 
+    const handleReverseClick = (order: Order) => {
+        setSelectedOrder(order)
+        setModalMode('reverse')
+    }
+
+    const handleConfirmReverse = async () => {
+        if (!selectedOrder) return
+        try {
+            await orderApi.reverseReception(selectedOrder.id)
+            showToast("La recepción ha sido revertida correctamente.", "success")
+            await qc.invalidateQueries({ queryKey: ['orders'] })
+            setModalMode('none')
+            setSelectedOrder(null)
+        } catch (error) {
+            showToast(error instanceof Error ? error.message : "Error al revertir recepción", "error")
+        }
+    }
+
     const handleDeleteClick = (order: Order) => {
+        if (!hasPermission('orders.delete')) {
+            showToast('No tienes permiso para eliminar pedidos', 'error')
+            return
+        }
         setSelectedOrder(order)
         setModalMode('delete')
     }
@@ -48,15 +79,19 @@ export function OrderList() {
 
         try {
             await deleteOrder.mutateAsync(selectedOrder.id)
-            showToast(`Pedido ${selectedOrder.receiptNumber} eliminado correctamente`, 'success')
+            showToast(`Pedido ${selectedOrder.receiptNumber} eliminado físicamente y saldos revertidos`, 'success')
             setModalMode('none')
             setSelectedOrder(null)
         } catch (error) {
-            showToast('Error al eliminar el pedido', 'error')
+            showToast(error instanceof Error ? error.message : 'Error al eliminar el pedido', 'error')
         }
     }
 
     const handleCreate = () => {
+        if (!hasPermission('orders.create')) {
+            showToast('No tienes permiso para crear pedidos', 'error')
+            return
+        }
         setSelectedOrder(null)
         setModalMode('create')
     }
@@ -100,6 +135,7 @@ export function OrderList() {
                     onViewDetails={handleViewDetails}
                     onEdit={handleEdit}
                     onDelete={handleDeleteClick}
+                    onReverse={handleReverseClick}
                 />
             )}
 
@@ -117,32 +153,50 @@ export function OrderList() {
 
             {selectedOrder && (
                 <ConfirmDialog
+                    open={modalMode === 'reverse'}
+                    onOpenChange={(open) => !open && handleClose()}
+                    onConfirm={handleConfirmReverse}
+                    title="Regresar Recepción"
+                    description={`¿Estás seguro de regresar la recepción del pedido ${selectedOrder.receiptNumber}?`}
+                    confirmText="Regresar Recepción"
+                    cancelText="Cancelar"
+                >
+                    <div className="p-3 bg-amber-50 rounded border border-amber-200 text-amber-800 text-sm">
+                        <p>Esta acción:</p>
+                        <ul className="list-disc ml-4 mt-1">
+                            <li>Revertirá el abono realizado en la recepción del banco.</li>
+                            <li>Eliminará la factura real y movimientos de inventario asociados.</li>
+                            <li>El pedido volverá al estado <strong>POR RECIBIR</strong>.</li>
+                        </ul>
+                    </div>
+                </ConfirmDialog>
+            )}
+
+            {selectedOrder && (
+                <ConfirmDialog
                     open={modalMode === 'delete'}
                     onOpenChange={(open) => !open && handleClose()}
                     onConfirm={handleConfirmDelete}
                     title="Eliminar Pedido"
-                    description={`¿Estás seguro de eliminar el pedido ${selectedOrder.receiptNumber}?`}
-                    confirmText="Eliminar"
+                    description={`¿Estás seguro de eliminar PERMANENTEMENTE el pedido ${selectedOrder.receiptNumber}?`}
+                    confirmText="Eliminar Físicamente"
                     cancelText="Cancelar"
                     variant="destructive"
                 >
                     <div className="space-y-3 text-sm">
-                        <div className="rounded-lg bg-amber-50 border border-amber-200 p-3">
-                            <p className="font-medium text-amber-900 mb-2">⚠️ Esta acción afectará:</p>
-                            <ul className="space-y-1 text-amber-800">
-                                <li>• El pedido será marcado como <strong>CANCELADO</strong></li>
+                        <div className="rounded-lg bg-red-50 border border-red-200 p-3">
+                            <p className="font-medium text-red-900 mb-2">⚠️ ATENCIÓN: Eliminación Física</p>
+                            <ul className="space-y-1 text-red-800">
+                                <li>• El pedido será <strong>BORRADO COMPLETAMENTE</strong> de la base de datos.</li>
                                 {getPaidAmount(selectedOrder) > 0 && (
-                                    <li>• Abono realizado: <strong>${getPaidAmount(selectedOrder).toFixed(2)}</strong> (se mantendrá registrado)</li>
+                                    <li>• Los abonos realizados serán <strong>REVERTIDOS</strong> de los saldos bancarios.</li>
                                 )}
-                                {getPendingAmount(selectedOrder) > 0 && (
-                                    <li>• Saldo pendiente: <strong>${getPendingAmount(selectedOrder).toFixed(2)}</strong> (se cancelará)</li>
-                                )}
-                                <li>• Los registros financieros asociados se mantendrán</li>
-                                <li>• Esta acción NO se puede deshacer</li>
+                                <li>• Se eliminarán items, premios y registros financieros vinculados.</li>
+                                <li>• Esta acción NO se puede deshacer y es auditable.</li>
                             </ul>
                         </div>
-                        
-                        <div className="text-muted-foreground">
+
+                        <div className="text-muted-foreground border-t pt-2">
                             <p><strong>Cliente:</strong> {selectedOrder.clientName}</p>
                             <p><strong>Marca:</strong> {selectedOrder.brandName}</p>
                             <p><strong>Total:</strong> ${selectedOrder.total.toFixed(2)}</p>

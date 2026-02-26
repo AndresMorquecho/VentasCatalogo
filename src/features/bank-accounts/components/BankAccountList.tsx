@@ -6,18 +6,30 @@ import { BankAccountForm } from "./BankAccountForm"
 import { Button } from "@/shared/ui/button"
 import { Plus, AlertCircle, RotateCw } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert"
+import { useAuth } from "@/shared/auth"
+import { useToast } from "@/shared/ui/use-toast"
 
 export function BankAccountList() {
     const { data: accounts = [], isLoading, isError, refetch } = useBankAccountList()
+    const { hasPermission } = useAuth()
+    const { showToast } = useToast()
     const [selectedAccount, setSelectedAccount] = useState<BankAccount | null>(null)
     const [isFormOpen, setIsFormOpen] = useState(false)
 
     const handleCreate = () => {
+        if (!hasPermission('bank_accounts.create')) {
+            showToast('No tienes permiso para crear cuentas bancarias', 'error')
+            return
+        }
         setSelectedAccount(null)
         setIsFormOpen(true)
     }
 
     const handleEdit = (account: BankAccount) => {
+        if (!hasPermission('bank_accounts.edit')) {
+            showToast('No tienes permiso para editar cuentas bancarias', 'error')
+            return
+        }
         setSelectedAccount(account)
         setIsFormOpen(true)
     }

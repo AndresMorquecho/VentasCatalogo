@@ -1,9 +1,8 @@
-
 import { pdf } from '@react-pdf/renderer';
+import { createElement } from 'react';
 import { DeliveryReceiptDocument } from '../ui/DeliveryReceiptDocument';
 import { clientApi } from '@/shared/api/clientApi';
 import type { Order } from '@/entities/order/model/types';
-// Removed file-saver dependency
 
 export const generateDeliveryReceipt = async (order: Order, paymentInfo?: any) => {
     try {
@@ -12,13 +11,9 @@ export const generateDeliveryReceipt = async (order: Order, paymentInfo?: any) =
         // Fetch client details using getById for performance
         const client = await clientApi.getById(order.clientId);
 
-        const blob = await pdf(
-            <DeliveryReceiptDocument
-                order={order}
-                client={client}
-                paymentInfo={paymentInfo}
-            />
-        ).toBlob();
+        const element = createElement(DeliveryReceiptDocument, { order, client, paymentInfo } as any);
+
+        const blob = await pdf(element as any).toBlob();
 
         const fileName = `Entrega-${order.receiptNumber}-${new Date().getTime()}.pdf`;
         const url = URL.createObjectURL(blob);
@@ -37,6 +32,6 @@ export const generateDeliveryReceipt = async (order: Order, paymentInfo?: any) =
         return true;
     } catch (error) {
         console.error("Error generating delivery PDF:", error);
-        return false;
+        throw error;
     }
 };

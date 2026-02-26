@@ -45,6 +45,7 @@ function saveSession(u: AuthUser): void {
 
 function clearSession(): void {
     localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem('token');
 }
 
 // ─── Context Definition ───────────────────────────────────────────────────────
@@ -104,14 +105,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
     }, [user]);
 
-    const hasPermission = useCallback((permission: Permission): boolean => {
-        if (!user) return false;
-        return user.role.permissions.includes(permission);
+    const isAdmin = useCallback((): boolean => {
+        const roleName = user?.role.name?.toUpperCase() || '';
+        return roleName === 'ADMIN';
     }, [user]);
 
-    const isAdmin = useCallback((): boolean => {
-        return user?.role.name === 'ADMIN';
-    }, [user]);
+    const hasPermission = useCallback((permission: Permission): boolean => {
+        if (!user) return false;
+        if (isAdmin()) return true; // Admins ALWAYS have all permissions
+        return user.role.permissions.includes(permission);
+    }, [user, isAdmin]);
 
     return (
         <AuthContext.Provider value={{ user, isLoading, login, logout, hasPermission, isAdmin }}>

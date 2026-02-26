@@ -56,6 +56,9 @@ export interface Order {
     clientName: string;
     items: OrderItem[];
     notes?: string;
+    createdByName?: string;   // Usuario que creó el pedido
+    receivedByName?: string;  // Usuario que recibió en bodega
+    deliveredByName?: string; // Usuario que procesó la entrega
 }
 
 export interface OrderPayload {

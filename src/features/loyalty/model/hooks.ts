@@ -9,7 +9,7 @@ function useActor() {
     const { user } = useAuth();
     return {
         userId: user?.id ?? 'system',
-        userName: user ? `${user.firstName} ${user.lastName}` : 'Sistema',
+        userName: user?.username ?? 'Sistema',
     };
 }
 
@@ -118,7 +118,7 @@ export const useLoyaltyRedemptions = () => {
     const { mutateAsync: redeemPrize, isPending: isRedeeming } = useMutation({
         mutationFn: (data: { clientId: string, prizeId: string }) => loyaltyRedemptionsApi.redeem(data),
         onSuccess: (redemption) => {
-            logAction({ ...actor, action: 'REDEEM_PRIZE', module: 'loyalty', detail: `El cliente (${redemption.clientId}) canjeó el premio: ${redemption.prizeName} por ${redemption.pointsUsed} puntos.` });
+            logAction({ ...actor, action: 'LOYALTY_REDEMPTION', module: 'loyalty', detail: `El cliente (${redemption.clientId}) canjeó el premio: ${redemption.prizeName} por ${redemption.pointsUsed} puntos.` });
             qc.invalidateQueries({ queryKey: ['loyalty-redemptions'] });
             qc.invalidateQueries({ queryKey: ['rewards'] });
             qc.invalidateQueries({ queryKey: ['client-rewards'] });

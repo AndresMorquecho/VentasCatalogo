@@ -9,10 +9,14 @@ import { Input } from "@/shared/ui/input"
 import { AlertCircle, Plus, RotateCw, Search } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert"
 import { ConfirmDialog } from "@/shared/ui/confirm-dialog"
+import { useAuth } from "@/shared/auth"
+import { useToast } from "@/shared/ui/use-toast"
 
 export function BrandList() {
     const { data: brands = [], isLoading, isError, refetch } = useBrandList()
     const deleteBrand = useDeleteBrand()
+    const { hasPermission } = useAuth()
+    const { showToast } = useToast()
     const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null)
     const [isFormOpen, setIsFormOpen] = useState(false)
     const [searchTerm, setSearchTerm] = useState("")
@@ -25,21 +29,37 @@ export function BrandList() {
     )
 
     const handleCreate = () => {
+        if (!hasPermission('brands.create')) {
+            showToast('No tienes permiso para crear marcas', 'error')
+            return
+        }
         setSelectedBrand(null)
         setIsFormOpen(true)
     }
 
     const handleEdit = (brand: Brand) => {
+        if (!hasPermission('brands.edit')) {
+            showToast('No tienes permiso para editar marcas', 'error')
+            return
+        }
         setSelectedBrand(brand)
         setIsFormOpen(true)
     }
 
     const handleDeleteClick = (brand: Brand) => {
+        if (!hasPermission('brands.delete')) {
+            showToast('No tienes permiso para eliminar marcas', 'error')
+            return
+        }
         setBrandToDelete(brand)
         setIsDeleteDialogOpen(true)
     }
 
     const handleConfirmDelete = async () => {
+        if (!hasPermission('brands.delete')) {
+            showToast('No tienes permiso para eliminar marcas', 'error')
+            return
+        }
         if (!brandToDelete) return
         try {
             await deleteBrand.mutateAsync(brandToDelete.id)

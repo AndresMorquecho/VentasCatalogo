@@ -10,6 +10,7 @@ export interface Call {
     notes?: string | null;
     followUpDate?: string | null;
     createdBy: string;
+    updatedBy?: string | null;
     createdAt: string;
     // Relations (optional for display)
     client?: {

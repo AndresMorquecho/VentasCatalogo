@@ -2,7 +2,7 @@
 import type { Permission } from '@/shared/lib/permissions';
 
 // ─── Roles ────────────────────────────────────────────────────────────────────
-export type RoleName = 'ADMIN' | 'CAJERA' | 'OPERADOR' | 'VENDEDOR';
+export type RoleName = string;
 
 export type AppRole = {
     id: string;

@@ -69,7 +69,12 @@ class HttpClient {
   private handleUnauthorized(): void {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    window.location.href = '/login';
+    localStorage.removeItem('temu_session');
+
+    // Only redirect if not already on login page to avoid infinite reloads
+    if (!window.location.pathname.includes('/login')) {
+      window.location.href = '/login';
+    }
   }
 
   /**
@@ -124,7 +129,7 @@ class HttpClient {
 
       if (response.status === 401) {
         this.handleUnauthorized();
-        throw new Error('Unauthorized - Please login again');
+        throw new Error('Usuario o contraseña incorrectos');
       }
 
       if (!response.ok && response.status !== 304) {
@@ -210,6 +215,13 @@ class HttpClient {
 
   async delete<T>(endpoint: string): Promise<T> {
     return this.request<T>(endpoint, { method: 'DELETE' });
+  }
+
+  async patch<T>(endpoint: string, body: any): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'PATCH',
+      body: JSON.stringify(body)
+    });
   }
 }
 
