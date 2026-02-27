@@ -71,6 +71,12 @@ export type ComparisonChartData = {
     value2: number;
 };
 
+export type OrdersTrendData = {
+    period: string;
+    created: number;
+    delivered: number;
+};
+
 export type DashboardData = {
     financial: FinancialMetrics;
     operational: OperationalMetrics;
@@ -82,6 +88,10 @@ export type DashboardData = {
         orderStatus: OrderStatusData[];
         warehouseTimeTrend: WarehouseTimeTrendData[];
         comparison: ComparisonChartData;
-        weeklyFlow: { week: string; created: number; delivered: number }[];
+        ordersTrend: {
+            daily: OrdersTrendData[];
+            weekly: OrdersTrendData[];
+            monthly: OrdersTrendData[];
+        };
     };
 };

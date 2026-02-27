@@ -4,7 +4,7 @@ import { LoyaltyTabs } from './LoyaltyTabs';
 
 export function LoyaltyPage() {
     return (
-        <div className="p-6 space-y-6 bg-slate-50 min-h-screen">
+        <div className="p-6 space-y-6 bg-white min-h-screen">
             {/* Header */}
             <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-5">
                 <div className="flex items-center gap-3">

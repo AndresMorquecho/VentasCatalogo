@@ -4,7 +4,7 @@ import { useCreateCashClosure, useCashClosures } from '@/features/cash-closure/a
 import { CashClosureHistory } from './CashClosureHistory';
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
-import { Loader2, Calculator, Info, HelpCircle, Wallet, CheckCircle2, FileText, AlertCircle } from "lucide-react";
+import { Loader2, Info, HelpCircle, Wallet, CheckCircle2, FileText, AlertCircle, Calendar, Banknote } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
 import { useToast } from "@/shared/ui/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/shared/ui/card";
@@ -108,23 +108,18 @@ export function CashClosurePage() {
     };
 
     return (
-        <div className="space-y-6 container mx-auto py-6">
-            <div className="flex justify-between items-center bg-white p-6 rounded-xl shadow-sm border">
-                <div className="flex items-center gap-4">
-                    <div className="p-3 bg-primary/10 rounded-2xl">
-                        <Calculator className="h-8 w-8 text-primary" />
-                    </div>
-                    <div>
-                        <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Control de Caja</h1>
-                        <p className="text-muted-foreground mt-0.5">Gestión de saldos, auditoría y cierres de periodo.</p>
-                    </div>
+        <div className="h-[calc(100vh-70px)] w-full bg-slate-50 p-2 flex flex-col gap-2 overflow-hidden mx-auto">
+            <div className="flex justify-between items-center mb-1 shrink-0 px-1">
+                <div className="space-y-1 sm:space-y-2">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Control de Caja</h1>
+                    <h2 className="text-base font-medium text-muted-foreground tracking-tight">Gestión de saldos, auditoría y cierres de periodo.</h2>
                 </div>
 
                 <Dialog>
                     <DialogTrigger asChild>
-                        <Button variant="outline" className="gap-2 font-bold border-2 hover:bg-slate-50">
-                            <HelpCircle className="h-5 w-5 text-blue-500" />
-                            Guía Profesional
+                        <Button variant="outline" size="sm" className="gap-2 font-bold border-2 hover:bg-slate-50 h-8 text-xs">
+                            <HelpCircle className="h-4 w-4 text-blue-500" />
+                            Guía Rápida
                         </Button>
                     </DialogTrigger>
                     <DialogContent className="max-w-2xl">
@@ -177,38 +172,38 @@ export function CashClosurePage() {
                 </Dialog>
             </div>
 
-            <Tabs defaultValue="closure" className="w-full">
-                <TabsList className="grid w-[400px] grid-cols-2 h-12 p-1 bg-slate-100 mb-6">
-                    <TabsTrigger value="closure" className="font-bold data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Realizar Cierre</TabsTrigger>
-                    <TabsTrigger value="history" className="font-bold data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Historial de Cierres</TabsTrigger>
+            <Tabs defaultValue="closure" className="flex-1 flex flex-col min-h-0">
+                <TabsList className="grid w-[400px] grid-cols-2 h-9 p-1 bg-slate-100 mb-2 shrink-0">
+                    <TabsTrigger value="closure" className="text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Realizar Cierre</TabsTrigger>
+                    <TabsTrigger value="history" className="text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Historial</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="closure" className="mt-0 outline-none">
-                    <div className="grid gap-6 lg:grid-cols-12">
+                <TabsContent value="closure" className="flex-1 min-h-0 outline-none">
+                    <div className="grid gap-2 lg:grid-cols-12 h-full">
                         {/* Panel de Auditoría (Izquierda) */}
-                        <div className="lg:col-span-5 space-y-6">
-                            <Card className="shadow-lg border-none ring-1 ring-slate-200 overflow-hidden">
-                                <div className="h-2 bg-primary w-full" />
-                                <CardHeader className="bg-slate-50/50 pb-4">
-                                    <CardTitle className="text-xl font-black text-slate-800 flex items-center gap-2">
-                                        <Wallet className="h-5 w-5 text-primary" />
+                        <div className="lg:col-span-4 flex flex-col min-h-0">
+                            <Card className="shadow-lg border-none ring-1 ring-slate-200 overflow-hidden flex flex-col h-full">
+                                <div className="h-2 bg-primary w-full shrink-0" />
+                                <CardHeader className="bg-slate-50/50 pb-2 pt-3 shrink-0">
+                                    <CardTitle className="text-sm font-black text-slate-800 flex items-center gap-2">
+                                        <Wallet className="h-4 w-4 text-primary" />
                                         Saldos del Sistema
                                     </CardTitle>
                                 </CardHeader>
-                                <CardContent className="space-y-6 pt-6 italic">
-                                    <div className="grid grid-cols-2 gap-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                                        <span>Desde (Inicio)</span>
-                                        <span>Hasta (Seleccionado)</span>
+                                <CardContent className="space-y-3 pt-3 flex-1 overflow-y-auto pb-4">
+                                    <div className="grid grid-cols-2 gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                                        <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> Inicio</span>
+                                        <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> Fin</span>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-4 items-center">
-                                        <div className="p-3 bg-slate-100 rounded-lg text-sm font-bold text-slate-600 border border-slate-200 truncate">
+                                    <div className="grid grid-cols-2 gap-2 items-center">
+                                        <div className="p-2 bg-slate-100 rounded-md text-xs font-bold text-slate-600 border border-slate-200 truncate flex items-center h-8">
                                             {formatStartDate(previewData?.fromDate)}
                                         </div>
                                         <Input
                                             type="date"
                                             value={date}
                                             onChange={(e) => setDate(e.target.value)}
-                                            className="h-11 border-primary/20 focus:border-primary font-black text-slate-900"
+                                            className="h-8 border-primary/20 focus:border-primary font-bold text-slate-900 text-xs px-2"
                                         />
                                     </div>
 
@@ -222,73 +217,79 @@ export function CashClosurePage() {
                                         </Alert>
                                     )}
 
-                                    <div className="grid grid-cols-1 gap-4 pt-4 border-t border-slate-100">
-                                        <p className="text-[10px] font-black uppercase text-slate-400">Resumen de Cuentas Activas</p>
+                                    <div className="grid grid-cols-1 gap-2 pt-2 border-t border-slate-100">
+                                        <p className="text-[10px] font-bold uppercase text-slate-400 flex items-center gap-1">
+                                            <Wallet className="w-3 h-3" /> Cuentas Activas
+                                        </p>
                                         {previewData?.allAccountsBalances.map((acc: any) => (
-                                            <div key={acc.id} className="flex justify-between items-center p-3 rounded-xl bg-slate-50 border border-slate-100">
-                                                <div className="flex items-center gap-3">
-                                                    <div className={`p-1.5 rounded-lg ${acc.type === 'CASH' ? 'bg-primary text-white' : 'bg-slate-200 text-slate-600'}`}>
-                                                        <Wallet className="h-4 w-4" />
+                                            <div key={acc.id} className="flex justify-between items-center p-2 rounded-lg bg-slate-50 border border-slate-100">
+                                                <div className="flex items-center gap-2">
+                                                    <div className={`p-1 rounded-md ${acc.type === 'CASH' ? 'bg-primary text-white' : 'bg-slate-200 text-slate-600'}`}>
+                                                        <Wallet className="h-3 w-3" />
                                                     </div>
-                                                    <span className="font-bold text-slate-700">{acc.name}</span>
+                                                    <span className="font-semibold text-xs text-slate-700">{acc.name}</span>
                                                 </div>
-                                                <span className={`font-black tracking-tight ${acc.expectedBalance < 0 ? 'text-red-500' : 'text-slate-900'}`}>
+                                                <span className={`font-bold text-xs tracking-tight ${acc.expectedBalance < 0 ? 'text-red-500' : 'text-slate-900'}`}>
                                                     ${acc.expectedBalance.toFixed(2)}
                                                 </span>
                                             </div>
                                         ))}
                                     </div>
 
-                                    <div className="space-y-4 pt-6">
-                                        <div className="space-y-2">
-                                            <label className="text-sm font-black text-slate-700">Contar Efectivo Físico</label>
+                                    <div className="space-y-3 pt-2">
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-bold text-slate-700 uppercase flex items-center gap-1">
+                                                <Banknote className="h-3 w-3" /> Efectivo Físico
+                                            </label>
                                             <div className="relative">
-                                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-slate-400">$</span>
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg font-bold text-slate-400 px-1">$</span>
                                                 <Input
                                                     type="number"
                                                     step="0.01"
                                                     value={actualAmount === 0 ? '' : actualAmount}
                                                     onChange={(e) => setActualAmount(Number(e.target.value))}
-                                                    className="text-4xl font-black h-20 pl-10 border-4 focus-visible:ring-primary border-slate-100 bg-white shadow-inner text-slate-900"
+                                                    className="text-lg font-bold h-9 pl-8 border-2 focus-visible:ring-primary border-slate-100 bg-white shadow-inner text-slate-900"
                                                     placeholder="0.00"
                                                 />
                                             </div>
                                         </div>
 
                                         {previewData && !previewData.isAlreadyClosed && (
-                                            <div className={`p-5 rounded-2xl border-2 flex items-center justify-between transition-colors shadow-sm ${isDifferenceSignificant ? 'bg-orange-50 border-orange-200 text-orange-800' : 'bg-green-50 border-green-200 text-green-800'}`}>
+                                            <div className={`p-2 rounded-lg border flex items-center justify-between transition-colors shadow-sm ${isDifferenceSignificant ? 'bg-orange-50 border-orange-200 text-orange-800' : 'bg-green-50 border-green-200 text-green-800'}`}>
                                                 <div>
-                                                    <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Diferencia Sobrante/Faltante</p>
-                                                    <p className="text-3xl font-black tracking-tighter">
+                                                    <p className="text-[10px] font-bold uppercase tracking-widest opacity-70">Diferencia</p>
+                                                    <p className="text-xl font-bold tracking-tighter">
                                                         ${difference.toFixed(2)}
                                                     </p>
                                                 </div>
                                                 {isDifferenceSignificant ? (
-                                                    <Badge className="bg-orange-500 text-white font-black border-none">DESCUADRE</Badge>
+                                                    <Badge className="bg-orange-500 text-white font-bold text-[10px] border-none px-1.5 py-0">DESCUADRE</Badge>
                                                 ) : (
-                                                    <Badge className="bg-green-500 text-white font-black border-none">CUADRADO</Badge>
+                                                    <Badge className="bg-green-500 text-white font-bold text-[10px] border-none px-1.5 py-0">CUADRADO</Badge>
                                                 )}
                                             </div>
                                         )}
 
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-bold uppercase text-slate-400">Notas de Auditoría</label>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-bold uppercase text-slate-400 flex items-center gap-1">
+                                                <FileText className="h-3 w-3" /> Notas
+                                            </label>
                                             <Input
                                                 value={notes}
                                                 onChange={(e) => setNotes(e.target.value)}
-                                                placeholder="Ej: Justificación de diferencia..."
-                                                className="bg-slate-50 border-slate-200"
+                                                placeholder="Auditoría/Justificación..."
+                                                className="bg-slate-50 border-slate-200 h-8 text-xs px-2"
                                             />
                                         </div>
 
                                         <Button
                                             onClick={handleConfirmClosure}
                                             disabled={!previewData || previewData.isAlreadyClosed || createClosure.isPending || isCalculating}
-                                            className="w-full h-16 text-xl font-black shadow-xl rounded-2xl transition-all active:scale-95"
+                                            className="w-full h-10 text-sm font-bold shadow-md rounded-lg transition-all active:scale-95"
                                             variant={isDifferenceSignificant ? "secondary" : "default"}
                                         >
-                                            {createClosure.isPending ? <Loader2 className="h-6 w-6 animate-spin" /> : <CheckCircle2 className="mr-2 h-6 w-6" />}
-                                            {previewData?.isAlreadyClosed ? "Periodo ya Cerrado" : "Finalizar y Generar Comprobante"}
+                                            {createClosure.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+                                            {previewData?.isAlreadyClosed ? "Periodo ya Cerrado" : "Generar Cierre"}
                                         </Button>
                                     </div>
                                 </CardContent>
@@ -296,19 +297,19 @@ export function CashClosurePage() {
                         </div>
 
                         {/* Detalle de Movimientos (Derecha) */}
-                        <div className="lg:col-span-7 space-y-6">
-                            <Card className="shadow-lg border-none ring-1 ring-slate-200 h-full max-h-[850px] flex flex-col">
-                                <CardHeader className="bg-white border-b sticky top-0 z-10">
+                        <div className="lg:col-span-8 flex flex-col min-h-0">
+                            <Card className="shadow-sm border-none ring-1 ring-slate-200 h-full flex flex-col overflow-hidden">
+                                <CardHeader className="bg-white border-b sticky top-0 z-10 p-2 shrink-0">
                                     <div className="flex justify-between items-center">
-                                        <CardTitle className="text-xl font-black text-slate-800 flex items-center gap-2">
-                                            <FileText className="h-5 w-5 text-blue-500" />
-                                            Detalle de Movimientos del Periodo
+                                        <CardTitle className="text-sm font-black text-slate-800 flex items-center gap-2">
+                                            <FileText className="h-4 w-4 text-blue-500" />
+                                            Detalle de Movimientos
                                         </CardTitle>
-                                        <Badge variant="outline" className="font-bold">{previewData?.movementCount || 0} Registros</Badge>
+                                        <Badge variant="outline" className="font-bold text-[10px]">{previewData?.movementCount || 0} Registros</Badge>
                                     </div>
-                                    <CardDescription>Movimientos de la cuenta de EFECTIVO desde el último cierre.</CardDescription>
+                                    <CardDescription className="text-[10px]">Movimientos de la cuenta de EFECTIVO desde el último cierre.</CardDescription>
                                 </CardHeader>
-                                <CardContent className="p-0 overflow-y-auto flex-grow bg-slate-50/50">
+                                <CardContent className="p-0 overflow-y-auto flex-grow bg-slate-50/50 min-h-0">
                                     {isCalculating ? (
                                         <div className="flex flex-col items-center justify-center p-20 space-y-4">
                                             <Loader2 className="h-10 w-10 text-primary animate-spin" />
@@ -368,23 +369,23 @@ export function CashClosurePage() {
                                         </div>
                                     )}
                                 </CardContent>
-                                <div className="p-4 bg-slate-50 border-t mt-auto flex flex-col gap-2">
+                                <div className="p-2 bg-slate-50 border-t shrink-0 flex flex-col gap-1">
                                     <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-slate-400">
                                         <div className="flex gap-4">
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-1">
                                                 <div className="h-2 w-2 rounded-full bg-green-500" />
                                                 Ingresos: <span className="text-green-600">${previewData?.totalIncome.toFixed(2) || '0.00'}</span>
                                             </div>
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-1">
                                                 <div className="h-2 w-2 rounded-full bg-red-500" />
                                                 Egresos: <span className="text-red-500">${previewData?.totalExpense.toFixed(2) || '0.00'}</span>
                                             </div>
                                         </div>
-                                        <div className="bg-primary/10 text-primary px-3 py-1 rounded-full">
+                                        <div className="bg-primary/10 text-primary px-2 py-0.5 rounded-md">
                                             Neto Efectivo: <span className="font-black">${((previewData?.totalIncome || 0) - (previewData?.totalExpense || 0)).toFixed(2)}</span>
                                         </div>
                                     </div>
-                                    <p className="text-[9px] text-slate-400 italic text-center font-bold">
+                                    <p className="text-[10px] text-muted-foreground text-center">
                                         * El Neto solo incluye movimientos de "Efectivo" que afectan el conteo físico.
                                     </p>
                                 </div>
@@ -393,19 +394,12 @@ export function CashClosurePage() {
                     </div>
                 </TabsContent>
 
-                <TabsContent value="history" className="mt-0 outline-none">
-                    <Card className="shadow-lg border-none ring-1 ring-slate-200 overflow-hidden">
-                        <div className="h-2 bg-slate-900 w-full" />
-                        <CardHeader>
-                            <CardTitle className="text-2xl font-black">Historial Auditado</CardTitle>
-                            <CardDescription>Cierres realizados con control administrativo para edición o eliminación.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="pt-0">
-                            <CashClosureHistory closures={closures} />
-                        </CardContent>
-                    </Card>
+                <TabsContent value="history" className="flex-1 min-h-0 outline-none">
+                    <div className="h-full bg-white rounded-lg shadow-sm border border-slate-200 p-2 overflow-hidden flex flex-col">
+                        <CashClosureHistory closures={closures} />
+                    </div>
                 </TabsContent>
             </Tabs>
-        </div>
+        </div >
     )
 }

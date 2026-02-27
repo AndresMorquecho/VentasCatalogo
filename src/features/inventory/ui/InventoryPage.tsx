@@ -88,7 +88,7 @@ export function InventoryPage() {
     }
 
     return (
-        <div className="p-6 space-y-6 bg-slate-50 min-h-screen">
+        <div className="p-6 space-y-6 bg-white min-h-screen">
             {/* Header & Stats */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
@@ -102,34 +102,34 @@ export function InventoryPage() {
                 </div>
 
                 {/* KPI Cards */}
-                <div className="flex gap-4">
-                    <div className="bg-white p-3 rounded-lg border shadow-sm flex items-center gap-3">
-                        <div className="bg-emerald-100 p-2 rounded-full text-emerald-600">
+                <div className="flex flex-wrap gap-4">
+                    <div className="bg-white px-5 py-3 rounded-xl border border-emerald-100 shadow-[0_2px_10px_-3px_rgba(16,185,129,0.3)] flex items-center gap-3 min-w-[180px]">
+                        <div className="bg-emerald-50 p-2.5 rounded-lg text-emerald-600">
                             <PackageOpen className="h-5 w-5" />
                         </div>
                         <div>
-                            <span className="text-xs text-slate-400 font-bold uppercase block">En Bodega</span>
-                            <span className="text-xl font-bold text-slate-800">{stats.inWarehouse}</span>
+                            <p className="text-slate-500 text-[11px] font-semibold mb-0.5">En Bodega</p>
+                            <p className="text-xl font-bold text-slate-800 tracking-tight leading-none">{stats.inWarehouse}</p>
                         </div>
                     </div>
 
-                    <div className="bg-white p-3 rounded-lg border shadow-sm flex items-center gap-3">
-                        <div className="bg-blue-100 p-2 rounded-full text-blue-600">
+                    <div className="bg-white px-5 py-3 rounded-xl border border-blue-100 shadow-[0_2px_10px_-3px_rgba(59,130,246,0.3)] flex items-center gap-3 min-w-[180px]">
+                        <div className="bg-blue-50 p-2.5 rounded-lg text-blue-600">
                             <Truck className="h-5 w-5" />
                         </div>
                         <div>
-                            <span className="text-xs text-slate-400 font-bold uppercase block">Entregados Hoy</span>
-                            <span className="text-xl font-bold text-slate-800">{stats.deliveredToday}</span>
+                            <p className="text-slate-500 text-[11px] font-semibold mb-0.5">Entregados Hoy</p>
+                            <p className="text-xl font-bold text-slate-800 tracking-tight leading-none">{stats.deliveredToday}</p>
                         </div>
                     </div>
 
-                    <div className="bg-white p-3 rounded-lg border shadow-sm flex items-center gap-3">
-                        <div className="bg-red-100 p-2 rounded-full text-red-600">
+                    <div className="bg-white px-5 py-3 rounded-xl border border-red-100 shadow-[0_2px_10px_-3px_rgba(239,68,68,0.3)] flex items-center gap-3 min-w-[180px]">
+                        <div className="bg-red-50 p-2.5 rounded-lg text-red-600">
                             <Clock className="h-5 w-5" />
                         </div>
                         <div>
-                            <span className="text-xs text-slate-400 font-bold uppercase block">+10 Días</span>
-                            <span className="text-xl font-bold text-red-600">{stats.longStorage}</span>
+                            <p className="text-slate-500 text-[11px] font-semibold mb-0.5">+10 Días</p>
+                            <p className="text-xl font-bold text-red-600 tracking-tight leading-none">{stats.longStorage}</p>
                         </div>
                     </div>
                 </div>

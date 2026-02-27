@@ -70,7 +70,7 @@ export const dashboardApi = {
             ).length;
 
             const ordersPending = safeOrders.filter(o =>
-                o.status === 'POR_RECIBIR' || o.status === 'RECIBIDO_EN_BODEGA'
+                o.status === 'POR_RECIBIR'
             ).length;
 
             const ordersInWarehouse = safeOrders.filter(o =>
@@ -171,6 +171,53 @@ export const dashboardApi = {
                 { status: 'Cancelado', count: ordersByStatus.cancelado, color: '#EF4444' }
             ];
 
+            // ─── ORDERS TREND (DAILY: 7 days, WEEKLY: 4 weeks, MONTHLY: 6 months) ───
+            const daily: any[] = [];
+            for (let i = 6; i >= 0; i--) {
+                const start = new Date(now);
+                start.setDate(start.getDate() - i);
+                start.setHours(0, 0, 0, 0);
+
+                const end = new Date(start);
+                end.setHours(23, 59, 59, 999);
+
+                daily.push({
+                    period: `${start.getDate().toString().padStart(2, '0')}/${(start.getMonth() + 1).toString().padStart(2, '0')}`,
+                    created: safeOrders.filter(o => o.createdAt && new Date(o.createdAt) >= start && new Date(o.createdAt) <= end).length,
+                    delivered: safeOrders.filter(o => o.deliveryDate && new Date(o.deliveryDate) >= start && new Date(o.deliveryDate) <= end).length
+                });
+            }
+
+            const weekly: any[] = [];
+            for (let i = 3; i >= 0; i--) {
+                const start = new Date(now);
+                start.setDate(start.getDate() - (start.getDay() || 7) + 1 - (i * 7));
+                start.setHours(0, 0, 0, 0);
+
+                const end = new Date(start);
+                end.setDate(end.getDate() + 6);
+                end.setHours(23, 59, 59, 999);
+
+                weekly.push({
+                    period: `Sem ${start.getDate().toString().padStart(2, '0')}/${(start.getMonth() + 1).toString().padStart(2, '0')}`,
+                    created: safeOrders.filter(o => o.createdAt && new Date(o.createdAt) >= start && new Date(o.createdAt) <= end).length,
+                    delivered: safeOrders.filter(o => o.deliveryDate && new Date(o.deliveryDate) >= start && new Date(o.deliveryDate) <= end).length
+                });
+            }
+
+            const monthly: any[] = [];
+            for (let i = 5; i >= 0; i--) {
+                const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59, 999);
+                const monthName = start.toLocaleString('es-ES', { month: 'short' }).substring(0, 3).toUpperCase();
+
+                monthly.push({
+                    period: monthName,
+                    created: safeOrders.filter(o => o.createdAt && new Date(o.createdAt) >= start && new Date(o.createdAt) <= end).length,
+                    delivered: safeOrders.filter(o => o.deliveryDate && new Date(o.deliveryDate) >= start && new Date(o.deliveryDate) <= end).length
+                });
+            }
+
             return {
                 financial: {
                     dailyIncome,
@@ -217,7 +264,11 @@ export const dashboardApi = {
                         value1: monthlyIncome,
                         value2: totalPortfolioPending
                     },
-                    weeklyFlow: []
+                    ordersTrend: {
+                        daily,
+                        weekly,
+                        monthly
+                    }
                 }
             };
         } catch (error) {
@@ -229,7 +280,7 @@ export const dashboardApi = {
                 tracking: { ordersWithoutCall7Days: 0, callsMadeToday: 0, clientsWithoutRecentFollowup: 0 },
                 loyalty: { pointsGeneratedThisMonth: 0, topClients: [], redemptionsMade: 0 },
                 alerts: { ordersOver15Days: 0, ordersOver30Days: 0, totalRetainedValue: 0, oldestOrders: [] },
-                charts: { salesTrend: [], orderStatus: [], warehouseTimeTrend: [], comparison: { category: 'Finanzas', value1: 0, value2: 0 }, weeklyFlow: [] }
+                charts: { salesTrend: [], orderStatus: [], warehouseTimeTrend: [], comparison: { category: 'Finanzas', value1: 0, value2: 0 }, ordersTrend: { daily: [], weekly: [], monthly: [] } }
             };
         }
     }

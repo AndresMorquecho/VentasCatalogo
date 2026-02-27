@@ -48,11 +48,11 @@ export function OrderReceptionPage() {
     return (
         <div className="container mx-auto py-8">
             <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4 border-b pb-4 border-amber-200">
-                <div>
-                    <h1 className="text-3xl font-bold text-amber-900">
+                <div className="space-y-1 sm:space-y-2 px-1">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
                         Recepción en Bodega
                     </h1>
-                    <p className="text-amber-700 text-sm mt-1">Gestión de llegada de pedidos y ajuste de facturación</p>
+                    <h2 className="text-base font-medium text-muted-foreground tracking-tight">Gestión de llegada de pedidos y ajuste de facturación</h2>
                 </div>
                 <div className="flex gap-2">
                     <Button variant="outline" onClick={() => navigate('/orders/reception/history')} className="gap-2">

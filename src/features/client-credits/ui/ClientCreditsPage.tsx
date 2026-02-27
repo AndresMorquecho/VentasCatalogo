@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useClientCredits } from "../model/hooks";
 import { ClientCreditsTable } from "./ClientCreditsTable";
 import { Input } from "@/shared/ui/input";
-import { Search, Gift } from "lucide-react";
+import { Search, Gift, DollarSign } from "lucide-react";
 
 export function ClientCreditsPage() {
     const [searchText, setSearchText] = useState("");
@@ -36,9 +36,14 @@ export function ClientCreditsPage() {
                         Créditos disponibles de clientes para futuros pedidos
                     </p>
                 </div>
-                <div className="bg-emerald-50 px-6 py-3 rounded-lg border border-emerald-200">
-                    <p className="text-xs text-emerald-600 font-medium">Total Saldos a Favor</p>
-                    <p className="text-2xl font-bold text-emerald-700">${totalCredits.toFixed(2)}</p>
+                <div className="bg-white px-5 py-3 rounded-xl border border-emerald-100 shadow-[0_2px_10px_-3px_rgba(16,185,129,0.3)] flex items-center gap-3 min-w-[220px]">
+                    <div className="bg-emerald-50 p-2.5 rounded-lg text-emerald-600">
+                        <DollarSign className="h-5 w-5" />
+                    </div>
+                    <div>
+                        <p className="text-slate-500 text-[11px] font-semibold mb-0.5">Total Saldos a Favor</p>
+                        <p className="text-xl font-bold text-slate-800 tracking-tight leading-none">${totalCredits.toFixed(2)}</p>
+                    </div>
                 </div>
             </div>
 

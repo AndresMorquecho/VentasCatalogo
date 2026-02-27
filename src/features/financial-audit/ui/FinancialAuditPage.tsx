@@ -1,5 +1,5 @@
 import { useFinancialAudit } from '../model/useFinancialAudit';
-import { AlertTriangle, CheckCircle2, Shield, TrendingUp } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, TrendingUp } from 'lucide-react';
 import {
     Table,
     TableBody,
@@ -42,16 +42,9 @@ export function FinancialAuditPage() {
         <div className="space-y-6 p-6">
             {/* Header */}
             <div className="border-b pb-4">
-                <div className="flex items-center gap-3">
-                    <div className="p-3 bg-purple-100 rounded-lg">
-                        <Shield className="h-6 w-6 text-purple-600" />
-                    </div>
-                    <div>
-                        <h1 className="text-3xl font-bold text-foreground">Auditoría Financiera</h1>
-                        <p className="text-muted-foreground mt-1">
-                            Reconciliación de balances calculados vs reportados
-                        </p>
-                    </div>
+                <div className="space-y-1 sm:space-y-2 px-1 mb-2">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Auditoría Financiera</h1>
+                    <h2 className="text-base font-medium text-muted-foreground tracking-tight">Reconciliación de balances calculados vs reportados</h2>
                 </div>
             </div>
 

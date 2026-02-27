@@ -107,7 +107,7 @@ export function ClientList() {
         return (
             <div className="space-y-3 sm:space-y-4">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
-                    <h2 className="text-lg sm:text-xl font-semibold tracking-tight">
+                    <h2 className="text-base font-medium text-muted-foreground tracking-tight">
                         Listado de Empresarias
                     </h2>
                 </div>
@@ -134,7 +134,7 @@ export function ClientList() {
     return (
         <div className="space-y-3 sm:space-y-4">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
-                <h2 className="text-lg sm:text-xl font-semibold tracking-tight">
+                <h2 className="text-base font-medium text-muted-foreground tracking-tight">
                     Listado de Empresarias
                 </h2>
                 <Button onClick={handleCreate} className="w-full sm:w-auto">

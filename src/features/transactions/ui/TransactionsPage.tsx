@@ -30,10 +30,10 @@ export function TransactionsPage() {
 
     return (
         <div className="container mx-auto py-8">
-            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-slate-900">Transacciones Financieras</h1>
-                    <p className="text-slate-500 text-sm">Registro centralizado de depósitos, transferencias y cheques.</p>
+            <div className="mb-2 px-1">
+                <div className="space-y-1 sm:space-y-2">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Transacciones Financieras</h1>
+                    <h2 className="text-base font-medium text-muted-foreground tracking-tight">Registro centralizado de depósitos, transferencias y cheques.</h2>
                 </div>
             </div>
 

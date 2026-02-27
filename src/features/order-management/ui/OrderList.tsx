@@ -111,19 +111,22 @@ export function OrderList() {
     }
 
     return (
-        <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <OrderFilters
-                    statusFilter={statusFilter}
-                    onStatusChange={setStatusFilter}
-                    searchQuery={searchQuery}
-                    onSearchChange={setSearchQuery}
-                />
-
+        <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
+                <h2 className="text-base font-medium text-muted-foreground tracking-tight">
+                    Listado de Pedidos
+                </h2>
                 <Button onClick={handleCreate} className="w-full sm:w-auto">
                     <Plus className="mr-2 h-4 w-4" /> Nuevo Pedido
                 </Button>
             </div>
+
+            <OrderFilters
+                statusFilter={statusFilter}
+                onStatusChange={setStatusFilter}
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+            />
 
             {filteredOrders.length === 0 ? (
                 <div className="text-center py-12 border rounded-lg bg-card text-muted-foreground">
