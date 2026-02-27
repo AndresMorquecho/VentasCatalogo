@@ -1,24 +1,26 @@
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useTransactions } from "../model/hooks"
 import { TransactionsTable } from "./TransactionsTable"
 import { TransactionDetailsModal } from "./TransactionDetailsModal"
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
 import { Search, Loader2, X } from "lucide-react"
-import type { FinancialTransaction } from "@/entities/financial-transaction/model/types"
+import type { FinancialRecord } from "@/entities/financial-record/model/types"
 
 export function TransactionsPage() {
     const [searchTerm, setSearchTerm] = useState("")
     const [startDate, setStartDate] = useState("")
     const [endDate, setEndDate] = useState("")
-    const [viewTx, setViewTx] = useState<FinancialTransaction | null>(null)
+    const [viewTx, setViewTx] = useState<FinancialRecord | null>(null)
 
-    // Debounce search or just pass
-    const { data: transactions = [], isLoading } = useTransactions({
+    // Memoize filters to prevent infinite re-render loops from TanStack Query key changes
+    const filters = useMemo(() => ({
         referenceNumber: searchTerm,
         startDate: startDate || undefined,
         endDate: endDate || undefined
-    })
+    }), [searchTerm, startDate, endDate]);
+
+    const { data: transactions = [], isLoading } = useTransactions(filters)
 
     const handleClear = () => {
         setSearchTerm("")
@@ -28,10 +30,10 @@ export function TransactionsPage() {
 
     return (
         <div className="container mx-auto py-8">
-            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-slate-900">Transacciones Financieras</h1>
-                    <p className="text-slate-500 text-sm">Registro centralizado de depósitos, transferencias y cheques.</p>
+            <div className="mb-2 px-1">
+                <div className="space-y-1 sm:space-y-2">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Transacciones Financieras</h1>
+                    <h2 className="text-base font-medium text-muted-foreground tracking-tight">Registro centralizado de depósitos, transferencias y cheques.</h2>
                 </div>
             </div>
 

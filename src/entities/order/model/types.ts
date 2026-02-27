@@ -1,15 +1,15 @@
 export type OrderStatus = 'RECIBIDO' | 'POR_RECIBIR' | 'ATRASADO' | 'CANCELADO' | 'RECIBIDO_EN_BODEGA' | 'ENTREGADO';
 export type SalesChannel = 'OFICINA' | 'WHATSAPP' | 'DOMICILIO';
 export type OrderType = 'NORMAL' | 'PREVENTA' | 'REPROGRAMACION';
-export type PaymentMethod = 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE';
+export type PaymentMethod = 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE' | 'CREDITO_CLIENTE';
 
 export interface OrderItem {
     id: string;
-    productName: string; 
+    productName: string;
     quantity: number;
     unitPrice: number;
     brandId?: string;
-    brandName?: string; 
+    brandName?: string;
     link?: string;
 }
 
@@ -25,18 +25,18 @@ export type OrderPayment = {
 
 export interface Order {
     id: string;
-    receiptNumber: string; 
+    receiptNumber: string;
     salesChannel: SalesChannel;
     type: OrderType;
     brandId: string; // Mandatory linkage to Brand entity
     brandName: string; // Denormalized name for display 
-    
+
     // Financials
     total: number; // Initial / Estimated Total
     realInvoiceTotal?: number; // Actual Invoice Total upon reception
     paymentMethod: PaymentMethod;
-    bankAccountId?: string; 
-    transactionDate?: string; 
+    bankAccountId?: string;
+    transactionDate?: string;
 
     // Payment History
     payments: OrderPayment[];
@@ -44,25 +44,28 @@ export interface Order {
 
     // Dates
     createdAt: string;
-    possibleDeliveryDate: string; 
+    possibleDeliveryDate: string;
     receptionDate?: string; // Date received in warehouse
     deliveryDate?: string; // Date delivered to client
     invoiceNumber?: string; // Official Invoice Number (optional)
-    
+
     status: OrderStatus;
-    
+
     // Relations
     clientId: string;
     clientName: string;
     items: OrderItem[];
     notes?: string;
+    createdByName?: string;   // Usuario que creó el pedido
+    receivedByName?: string;  // Usuario que recibió en bodega
+    deliveredByName?: string; // Usuario que procesó la entrega
 }
 
 export interface OrderPayload {
     salesChannel: SalesChannel;
     type: OrderType;
     brandName: string;
-    brandId: string; 
+    brandId: string;
     total: number;
     paymentMethod: PaymentMethod;
     bankAccountId?: string;

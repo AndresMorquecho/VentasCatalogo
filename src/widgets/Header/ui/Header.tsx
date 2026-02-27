@@ -14,7 +14,7 @@ export function Header() {
     };
 
     return (
-        <div className="flex flex-1 items-center gap-4">
+        <div className="flex flex-1 items-center gap-2 sm:gap-4">
             <div className="relative ml-auto flex-1 md:grow-0">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <input
@@ -23,11 +23,11 @@ export function Header() {
                     className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[320px]"
                 />
             </div>
-            <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground hidden md:inline">
+            <div className="flex items-center gap-1 sm:gap-2">
+                <span className="text-xs sm:text-sm text-muted-foreground hidden md:inline truncate max-w-[120px] lg:max-w-none">
                     {user?.name || user?.email}
                 </span>
-                <Button variant="outline" size="icon" className="h-8 w-8">
+                <Button variant="outline" size="icon" className="h-8 w-8 shrink-0">
                     <Avatar className="h-8 w-8">
                         <AvatarImage src="/placeholder-user.jpg" alt={user?.name} />
                         <AvatarFallback>
@@ -38,7 +38,7 @@ export function Header() {
                 <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-8 w-8"
+                    className="h-8 w-8 shrink-0"
                     onClick={() => setShowLogoutDialog(true)}
                     title="Cerrar sesión"
                 >

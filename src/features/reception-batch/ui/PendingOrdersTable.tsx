@@ -116,69 +116,67 @@ export function PendingOrdersTable({ orders, clients = [], onMove }: Props) {
     return (
         <div className="space-y-4 h-full flex flex-col">
             {/* Filters Section */}
-            <div className="bg-amber-50/50 p-2 rounded-lg border border-amber-100 space-y-2 shrink-0">
-                <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
-                    {/* Search Input */}
-                    <div className="sm:col-span-5 relative">
-                        <Search className="absolute left-2 top-2 h-4 w-4 text-amber-600/50" />
-                        <Input
-                            placeholder="Cliente, Cédula, Recibo..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-8 bg-white border-amber-200 focus-visible:ring-amber-500 h-8"
-                        />
+            <div className="bg-amber-50/50 p-1.5 rounded-lg border border-amber-100 shrink-0">
+                <div className="flex flex-col sm:flex-row gap-2 items-center justify-between">
+                    <div className="flex flex-1 gap-2 items-center w-full">
+                        {/* Search Input */}
+                        <div className="relative flex-1">
+                            <Search className="absolute left-2 top-1.5 h-3.5 w-3.5 text-amber-600/50" />
+                            <Input
+                                placeholder="Cliente, Cédula, Recibo..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="pl-7 bg-white border-amber-200 focus-visible:ring-amber-500 h-7 text-xs"
+                            />
+                        </div>
+
+                        {/* Brand Select */}
+                        <div className="relative w-40">
+                            <Tag className="absolute left-2 top-1.5 h-3.5 w-3.5 text-amber-600/50" />
+                            <select
+                                value={brandFilter}
+                                onChange={(e) => setBrandFilter(e.target.value)}
+                                className="w-full h-7 pl-7 pr-3 text-xs bg-white border border-amber-200 rounded-md focus:border-amber-500 focus:outline-none appearance-none"
+                            >
+                                <option value="">Todas las Marcas</option>
+                                {availableBrands.map(b => (
+                                    <option key={b} value={b}>{b}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Date Input */}
+                        <div className="relative w-36">
+                            <Input
+                                type="date"
+                                value={dateFilter}
+                                onChange={(e) => setDateFilter(e.target.value)}
+                                className="h-7 w-full bg-white border-amber-200 focus-visible:ring-amber-500 text-xs px-2"
+                            />
+                        </div>
                     </div>
 
-                    {/* Brand Select */}
-                    <div className="sm:col-span-4 relative">
-                        <Tag className="absolute left-2 top-2 h-4 w-4 text-amber-600/50" />
-                        <select
-                            value={brandFilter}
-                            onChange={(e) => setBrandFilter(e.target.value)}
-                            className="w-full h-8 pl-8 pr-3 text-sm bg-white border border-amber-200 rounded-md focus:border-amber-500 focus:outline-none appearance-none"
-                        >
-                            <option value="">Todas las Marcas</option>
-                            {availableBrands.map(b => (
-                                <option key={b} value={b}>{b}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    {/* Date Input */}
-                    <div className="sm:col-span-3 relative">
-                        <Input
-                            type="date"
-                            value={dateFilter}
-                            onChange={(e) => setDateFilter(e.target.value)}
-                            className="h-8 w-full bg-white border-amber-200 focus-visible:ring-amber-500 text-sm"
-                        />
-                    </div>
-                </div>
-
-                {/* Actions Row */}
-                <div className="flex justify-between items-center pt-1">
-                    <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-full">
-                            {filteredOrders.length} encontrados
+                    <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-1 rounded-md">
+                            {filteredOrders.length}
                         </span>
                         {(searchTerm || brandFilter || dateFilter) && (
                             <button
                                 onClick={() => { setSearchTerm(''); setBrandFilter(''); setDateFilter(''); }}
-                                className="text-xs text-slate-400 hover:text-red-500 underline"
+                                className="text-[10px] text-slate-400 hover:text-red-500 underline"
                             >
-                                Limpiar filtros
+                                Limpiar
                             </button>
                         )}
+                        <Button
+                            size="sm"
+                            onClick={handleMove}
+                            disabled={selected.size === 0}
+                            className="bg-amber-600 hover:bg-amber-700 text-white shadow-sm transition-all active:scale-95 h-7 text-xs px-3 ml-2"
+                        >
+                            Mover ({selected.size}) <ArrowRight className="ml-1 h-3 w-3" />
+                        </Button>
                     </div>
-
-                    <Button
-                        size="sm"
-                        onClick={handleMove}
-                        disabled={selected.size === 0}
-                        className="bg-amber-600 hover:bg-amber-700 text-white shadow-sm transition-all active:scale-95 h-8"
-                    >
-                        Mover Seleccionados ({selected.size}) <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
                 </div>
             </div>
 
@@ -186,18 +184,18 @@ export function PendingOrdersTable({ orders, clients = [], onMove }: Props) {
             <div className="border rounded-md overflow-hidden flex-1 overflow-y-auto bg-white shadow-sm ring-1 ring-amber-100/50">
                 <Table>
                     <TableHeader className="bg-amber-50/80 sticky top-0 z-10 backdrop-blur-sm">
-                        <TableRow>
-                            <TableHead className="w-[40px] py-2">
+                        <TableRow className="h-8">
+                            <TableHead className="w-[30px] p-1 text-center">
                                 <input
                                     type="checkbox"
                                     checked={areAllFilteredSelected}
                                     onChange={toggleAll}
-                                    className="accent-amber-600 h-4 w-4 cursor-pointer rounded"
+                                    className="accent-amber-600 h-3 w-3 cursor-pointer rounded"
                                 />
                             </TableHead>
-                            <TableHead className="py-2">Datos Cliente</TableHead>
-                            <TableHead className="py-2">Detalles</TableHead>
-                            <TableHead className="text-right py-2">Total</TableHead>
+                            <TableHead className="py-1 px-2 whitespace-nowrap text-xs sm:text-sm text-muted-foreground font-normal">Datos Cliente</TableHead>
+                            <TableHead className="py-1 px-2 whitespace-nowrap text-xs sm:text-sm text-muted-foreground font-normal">Detalles</TableHead>
+                            <TableHead className="text-right py-1 px-2 whitespace-nowrap text-xs sm:text-sm text-muted-foreground font-normal">Total</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -211,37 +209,37 @@ export function PendingOrdersTable({ orders, clients = [], onMove }: Props) {
                             filteredOrders.map(order => (
                                 <TableRow
                                     key={order.id}
-                                    className={`cursor-pointer transition-colors ${selected.has(order.id) ? "bg-amber-50" : "hover:bg-slate-50"}`}
+                                    className={`cursor-pointer transition-colors h-10 ${selected.has(order.id) ? "bg-amber-50" : "hover:bg-slate-50"}`}
                                     onClick={() => toggle(order.id)}
                                 >
-                                    <TableCell className="py-2">
+                                    <TableCell className="p-1 w-[30px] text-center">
                                         <input
                                             type="checkbox"
                                             checked={selected.has(order.id)}
                                             onChange={() => toggle(order.id)}
-                                            className="accent-amber-600 h-4 w-4 cursor-pointer rounded"
+                                            className="accent-amber-600 h-3 w-3 cursor-pointer rounded"
                                             onClick={(e) => e.stopPropagation()}
                                         />
                                     </TableCell>
-                                    <TableCell className="py-2">
+                                    <TableCell className="py-1 px-2">
                                         <div className="flex flex-col">
-                                            <span className="font-medium text-slate-800 text-sm flex items-center gap-1">
-                                                <User className="w-3 h-3 text-slate-400" /> {order.clientName}
+                                            <span className="font-medium text-foreground text-xs sm:text-sm flex items-center gap-1">
+                                                <User className="w-3 w-3 sm:w-4 sm:h-4 text-muted-foreground" /> {order.clientName}
                                             </span>
-                                            <span className="text-xs text-amber-600 font-semibold pl-4">{order.brandName}</span>
+                                            <span className="text-[10px] sm:text-xs text-muted-foreground font-normal pl-4 sm:pl-5 leading-tight">{order.brandName}</span>
                                         </div>
                                     </TableCell>
-                                    <TableCell className="py-2">
+                                    <TableCell className="py-1 px-2">
                                         <div className="flex flex-col">
-                                            <span className="font-mono text-xs bg-slate-100 px-1 rounded w-fit text-slate-600 flex items-center gap-1">
-                                                <Receipt className="w-3 h-3" /> #{order.receiptNumber}
+                                            <span className="font-mono text-xs sm:text-sm bg-slate-100 px-1 rounded w-fit text-foreground flex items-center gap-1">
+                                                <Receipt className="w-3 w-3 sm:w-4 sm:h-4 text-muted-foreground" /> #{order.receiptNumber}
                                             </span>
-                                            <span className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1 pl-1">
-                                                <Calendar className="w-3 h-3" /> {new Date(order.createdAt).toLocaleDateString('es-EC')}
+                                            <span className="text-[10px] sm:text-xs text-muted-foreground font-normal mt-0.5 flex items-center gap-1 pl-1">
+                                                <Calendar className="w-3 h-3 text-muted-foreground" /> {new Date(order.createdAt).toLocaleDateString('es-EC')}
                                             </span>
                                         </div>
                                     </TableCell>
-                                    <TableCell className="text-right font-mono font-medium text-slate-700 py-2">
+                                    <TableCell className="text-right font-mono font-medium text-foreground py-1 px-2 text-xs sm:text-sm">
                                         ${order.total.toFixed(2)}
                                     </TableCell>
                                 </TableRow>

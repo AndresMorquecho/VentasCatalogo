@@ -24,9 +24,9 @@ export function useReceptionBatch() {
     const selectedIds = useMemo(() => new Set(Object.keys(selectionMap)), [selectionMap]);
 
     // LEFT TABLE: Available orders
-    const pendingOrders = useMemo(() => 
-        allOrders.filter(o => o.status === 'POR_RECIBIR' && !selectedIds.has(o.id)), 
-    [allOrders, selectedIds]);
+    const pendingOrders = useMemo(() =>
+        allOrders.filter(o => o.status === 'POR_RECIBIR' && !selectedIds.has(o.id)),
+        [allOrders, selectedIds]);
 
     // RIGHT TABLE: Selected orders with local state
     const selectedOrders: SelectedOrderState[] = useMemo(() => {
@@ -60,22 +60,22 @@ export function useReceptionBatch() {
 
     const updateAbono = (id: string, value: number) => {
         setSelectionMap(prev => {
-             if (!prev[id]) return prev;
-             return { ...prev, [id]: { ...prev[id], abono: value } };
+            if (!prev[id]) return prev;
+            return { ...prev, [id]: { ...prev[id], abono: value } };
         });
     };
 
     const updateInvoiceTotal = (id: string, value: number) => {
         setSelectionMap(prev => {
-             if (!prev[id]) return prev;
-             return { ...prev, [id]: { ...prev[id], total: value } };
+            if (!prev[id]) return prev;
+            return { ...prev, [id]: { ...prev[id], total: value } };
         });
     };
 
     const updateInvoiceNumber = (id: string, value: string) => {
         setSelectionMap(prev => {
-             if (!prev[id]) return prev;
-             return { ...prev, [id]: { ...prev[id], invoice: value } };
+            if (!prev[id]) return prev;
+            return { ...prev, [id]: { ...prev[id], invoice: value } };
         });
     };
 
@@ -90,14 +90,24 @@ export function useReceptionBatch() {
     const clearSelection = () => setSelectionMap({});
 
     const saveBatch = useMutation({
-        mutationFn: async (ordersToSave: SelectedOrderState[]) => {
-            if (ordersToSave.length === 0) throw new Error("No hay órdenes seleccionadas");
+        mutationFn: async (params: {
+            ordersToSave: SelectedOrderState[],
+            paymentMethod?: string,
+            bankAccountId?: string,
+            referenceNumber?: string
+        }) => {
+            if (params.ordersToSave.length === 0) throw new Error("No hay órdenes seleccionadas");
             // Call API with the enriched payload
-            return receptionApi.saveBatchWithPayments(ordersToSave);
+            return receptionApi.saveBatchWithPayments({
+                selectedOrders: params.ordersToSave,
+                paymentMethod: params.paymentMethod,
+                bankAccountId: params.bankAccountId,
+                referenceNumber: params.referenceNumber
+            });
         },
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['orders'] });
-            qc.invalidateQueries({ queryKey: ['financial-movements'] });
+            qc.invalidateQueries({ queryKey: ['financial-records'] });
             qc.invalidateQueries({ queryKey: ['bank-accounts'] });
             clearSelection();
         }

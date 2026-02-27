@@ -12,7 +12,7 @@ import { FileDown, Loader2, Trash2 } from "lucide-react"
 import { generateCashClosurePDF } from "../lib/generateCashClosurePDF"
 import { useToast } from "@/shared/ui/use-toast"
 import { useDeleteCashClosure } from "../api/hooks"
-import { useAuth } from "@/shared/auth/AuthProvider"
+import { authService } from "@/shared/services/authService"
 import {
     Dialog,
     DialogContent,
@@ -33,14 +33,20 @@ export function CashClosureHistory({ closures }: CashClosureHistoryProps) {
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const { showToast } = useToast();
     const deleteClosure = useDeleteCashClosure();
-    const { isAdmin } = useAuth();
 
-    // Check if user is admin
-    const userIsAdmin = isAdmin();
+    // Check if user is admin via real authService
+    const currentUser = authService.getUser();
+    const userIsAdmin = currentUser?.role === 'ADMIN';
 
     const handleDownloadPDF = async (closure: CashClosure) => {
         if (!closure.detailedReport) {
             showToast("Este cierre no tiene reporte detallado disponible", "error");
+            return;
+        }
+
+        // Check if detailed report has the required structures for PDF (legacy closures check)
+        if (!closure.detailedReport.incomeBySource || !closure.detailedReport.incomeByMethod) {
+            showToast("Este cierre de caja antiguo no cuenta con la estructura detallada requerida para generar el PDF", "warning");
             return;
         }
 
@@ -88,42 +94,47 @@ export function CashClosureHistory({ closures }: CashClosureHistoryProps) {
                         <TableRow>
                             <TableHead>Fecha Cierre</TableHead>
                             <TableHead>Periodo</TableHead>
-                            <TableHead className="text-right text-green-600">Total Ingresos</TableHead>
-                            <TableHead className="text-right text-red-600">Total Egresos</TableHead>
-                            <TableHead className="text-right">Neto</TableHead>
-                            <TableHead className="text-right text-muted-foreground">Movimientos</TableHead>
+                            <TableHead className="text-right">Esperado</TableHead>
+                            <TableHead className="text-right">Real (Contado)</TableHead>
+                            <TableHead className="text-right">Diferencia</TableHead>
+                            <TableHead className="text-right text-muted-foreground">Movs.</TableHead>
+                            <TableHead>Cerrado Por</TableHead>
                             <TableHead className="text-right">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {closures.map((c) => (
                             <TableRow key={c.id}>
-                                <TableCell className="font-medium">
-                                    {new Date(c.closedAt).toLocaleDateString('es-EC', { 
-                                        year: 'numeric', 
-                                        month: '2-digit', 
-                                        day: '2-digit' 
+                                <TableCell className="font-medium whitespace-nowrap">
+                                    {new Date(c.closedAt).toLocaleDateString('es-EC', {
+                                        year: 'numeric',
+                                        month: '2-digit',
+                                        day: '2-digit'
                                     })}
                                     <div className="text-xs text-muted-foreground">
                                         {new Date(c.closedAt).toLocaleTimeString('es-EC')}
                                     </div>
                                 </TableCell>
-                                <TableCell>
-                                    <span className="text-sm">
-                                        {c.fromDate} - {c.toDate}
-                                    </span>
+                                <TableCell className="text-xs">
+                                    <div className="flex flex-col">
+                                        <span>Desde: {new Date(c.fromDate).toLocaleDateString()}</span>
+                                        <span>Hasta: {new Date(c.toDate).toLocaleDateString()}</span>
+                                    </div>
                                 </TableCell>
-                                <TableCell className="text-right text-green-600 font-mono">
-                                    ${c.totalIncome.toFixed(2)}
+                                <TableCell className="text-right font-mono text-sm">
+                                    ${c.expectedAmount.toFixed(2)}
                                 </TableCell>
-                                <TableCell className="text-right text-red-600 font-mono">
-                                    ${c.totalExpense.toFixed(2)}
+                                <TableCell className="text-right font-bold text-sm">
+                                    ${c.actualAmount.toFixed(2)}
                                 </TableCell>
-                                <TableCell className={`text-right font-bold ${c.netTotal >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
-                                    ${c.netTotal.toFixed(2)}
+                                <TableCell className={`text-right font-black ${c.difference < 0 ? 'text-red-600' : c.difference > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+                                    ${c.difference.toFixed(2)}
                                 </TableCell>
-                                <TableCell className="text-right text-muted-foreground">
+                                <TableCell className="text-right text-muted-foreground text-xs">
                                     {c.movementCount}
+                                </TableCell>
+                                <TableCell className="text-xs font-medium">
+                                    {c.closedBy}
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <div className="flex gap-2 justify-end">

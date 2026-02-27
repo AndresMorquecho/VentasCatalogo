@@ -4,20 +4,32 @@ import type { BankAccount } from "@/entities/bank-account/model/types"
 import { BankAccountTable } from "./BankAccountTable"
 import { BankAccountForm } from "./BankAccountForm"
 import { Button } from "@/shared/ui/button"
-import { Plus, AlertCircle, RotateCw } from "lucide-react"
+import { Plus, AlertCircle, RotateCw, Banknote, Landmark, Wallet } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert"
+import { useAuth } from "@/shared/auth"
+import { useToast } from "@/shared/ui/use-toast"
 
 export function BankAccountList() {
     const { data: accounts = [], isLoading, isError, refetch } = useBankAccountList()
+    const { hasPermission } = useAuth()
+    const { showToast } = useToast()
     const [selectedAccount, setSelectedAccount] = useState<BankAccount | null>(null)
     const [isFormOpen, setIsFormOpen] = useState(false)
 
     const handleCreate = () => {
+        if (!hasPermission('bank_accounts.create')) {
+            showToast('No tienes permiso para crear cuentas bancarias', 'error')
+            return
+        }
         setSelectedAccount(null)
         setIsFormOpen(true)
     }
 
     const handleEdit = (account: BankAccount) => {
+        if (!hasPermission('bank_accounts.edit')) {
+            showToast('No tienes permiso para editar cuentas bancarias', 'error')
+            return
+        }
         setSelectedAccount(account)
         setIsFormOpen(true)
     }
@@ -63,18 +75,33 @@ export function BankAccountList() {
 
     return (
         <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
-                    <p className="text-sm font-medium text-emerald-800 uppercase tracking-wider">Total Efectivo</p>
-                    <p className="text-2xl font-bold text-emerald-700 mt-1">{formatCurrency(totalCash)}</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-white px-5 py-4 rounded-xl border border-emerald-100 shadow-[0_2px_10px_-3px_rgba(16,185,129,0.2)] flex items-center gap-4">
+                    <div className="bg-emerald-50 p-3 rounded-xl text-emerald-600">
+                        <Banknote className="h-6 w-6" />
+                    </div>
+                    <div>
+                        <p className="text-slate-500 text-xs font-semibold mb-1">Total Efectivo</p>
+                        <p className="text-2xl font-bold text-slate-800 tracking-tight leading-none">{formatCurrency(totalCash)}</p>
+                    </div>
                 </div>
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <p className="text-sm font-medium text-blue-800 uppercase tracking-wider">Total Banco</p>
-                    <p className="text-2xl font-bold text-blue-700 mt-1">{formatCurrency(totalBank)}</p>
+                <div className="bg-white px-5 py-4 rounded-xl border border-blue-100 shadow-[0_2px_10px_-3px_rgba(59,130,246,0.2)] flex items-center gap-4">
+                    <div className="bg-blue-50 p-3 rounded-xl text-blue-600">
+                        <Landmark className="h-6 w-6" />
+                    </div>
+                    <div>
+                        <p className="text-slate-500 text-xs font-semibold mb-1">Total Banco</p>
+                        <p className="text-2xl font-bold text-slate-800 tracking-tight leading-none">{formatCurrency(totalBank)}</p>
+                    </div>
                 </div>
-                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-                    <p className="text-sm font-medium text-slate-800 uppercase tracking-wider">Total General</p>
-                    <p className="text-2xl font-bold text-slate-900 mt-1">{formatCurrency(grandTotal)}</p>
+                <div className="bg-white px-5 py-4 rounded-xl border border-slate-200 shadow-[0_2px_10px_-3px_rgba(148,163,184,0.2)] flex items-center gap-4 bg-gradient-to-br from-white to-slate-50">
+                    <div className="bg-slate-100 p-3 rounded-xl text-slate-600">
+                        <Wallet className="h-6 w-6" />
+                    </div>
+                    <div>
+                        <p className="text-slate-500 text-xs font-semibold mb-1">Total General</p>
+                        <p className="text-2xl font-black text-slate-900 tracking-tight leading-none">{formatCurrency(grandTotal)}</p>
+                    </div>
                 </div>
             </div>
 

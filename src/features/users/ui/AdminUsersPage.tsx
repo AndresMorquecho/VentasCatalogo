@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { Users, ShieldCheck, Activity, Settings2 } from 'lucide-react';
+import { Users, ShieldCheck, Activity } from 'lucide-react';
 import { UserList } from './UserList';
 import { RoleList } from './RoleList';
 import { AuditLog } from './AuditLog';
@@ -23,17 +23,11 @@ export function AdminUsersPage() {
     if (!isAdmin()) return <Navigate to="/" replace />;
 
     return (
-        <div className="p-6 space-y-6 bg-slate-50 min-h-screen">
-            {/* Header */}
-            <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-5">
-                <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-xl bg-slate-900">
-                        <Settings2 className="h-6 w-6 text-white" />
-                    </div>
-                    <div>
-                        <h1 className="text-2xl font-bold text-slate-800">Usuarios y Roles</h1>
-                        <p className="text-slate-500 text-sm mt-0.5">Administra el acceso y los permisos del sistema.</p>
-                    </div>
+        <div className="p-6 space-y-6 bg-white min-h-screen">
+            <div className="mb-2 px-1">
+                <div className="space-y-1 sm:space-y-2">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Usuarios y Roles</h1>
+                    <h2 className="text-base font-medium text-muted-foreground tracking-tight">Administra el acceso y los permisos del sistema.</h2>
                 </div>
             </div>
 
@@ -44,8 +38,8 @@ export function AdminUsersPage() {
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
                         className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === tab.id
-                                ? 'bg-slate-900 text-white shadow-sm'
-                                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+                            ? 'bg-slate-900 text-white shadow-sm'
+                            : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
                             }`}
                     >
                         {tab.icon}

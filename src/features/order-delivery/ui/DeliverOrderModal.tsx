@@ -1,5 +1,4 @@
-// ... imports
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import {
     Dialog,
@@ -16,14 +15,12 @@ import { Input } from "@/shared/ui/input"
 import { Truck, CreditCard, Gift } from "lucide-react"
 import type { Order } from "@/entities/order/model/types"
 import { orderApi } from "@/entities/order/model/api"
-import { inventoryApi } from "@/shared/api/inventoryApi"
-import { rewardsApi } from "@/entities/client-reward/api/rewardsApi"
-import { getPendingAmount, hasClientCredit, getClientCreditAmount, getPaidAmount } from "@/entities/order/model/model"
-import { useAddOrderPayment } from "@/features/order-payments/model"
+import { getPendingAmount, getPaidAmount } from "@/entities/order/model/model"
 import { useBankAccountList } from "@/features/bank-accounts/api/hooks"
-import { processPaymentRegistration } from "@/features/transactions/lib/processPayment"
+import { useClientCredit } from "@/features/client-credits/model/hooks"
 import { useToast } from "@/shared/ui/use-toast"
 import { generateDeliveryReceipt } from "../lib/generateDeliveryReceipt"
+import { useAuth } from "@/shared/auth/AuthProvider"
 
 interface DeliverOrderModalProps {
     order: Order | null
@@ -36,11 +33,13 @@ export function DeliverOrderModal({ order, open, onOpenChange }: DeliverOrderMod
     const [selectedBankId, setSelectedBankId] = useState<string>('')
     const [paymentMethod, setPaymentMethod] = useState("EFECTIVO")
     const [referenceNumber, setReferenceNumber] = useState("")
+    const isProcessingRef = useRef(false)
 
     const qc = useQueryClient()
-    const { mutateAsync: addPayment } = useAddOrderPayment()
     const { data: bankAccounts = [] } = useBankAccountList()
+    const { data: creditData } = useClientCredit(order?.clientId || '')
     const { showToast } = useToast()
+    const { user, hasPermission } = useAuth()
 
     if (!order) return null
 
@@ -48,147 +47,86 @@ export function DeliverOrderModal({ order, open, onOpenChange }: DeliverOrderMod
     const effectiveTotal = order.realInvoiceTotal ?? order.total
     const paid = getPaidAmount(order) // Use function instead of field
     const pendingAmount = getPendingAmount(order)
-    const hasCredit = hasClientCredit(order)
-    const creditAmount = getClientCreditAmount(order)
-    
+
+    // Get current actual credit balance directly from the client account
+    const currentCreditAmount = creditData?.totalCredit || 0
+    const hasCurrentCredit = currentCreditAmount > 0
+
     // For payment: only charge if there's actual debt
     const amountToCharge = Math.max(0, pendingAmount)
 
     const handleSubmit = async () => {
+        if (!hasPermission('delivery.confirm')) {
+            showToast('No tienes permiso para realizar entregas', 'error')
+            return
+        }
+        // Prevent multiple simultaneous submissions
+        if (isProcessingRef.current) {
+            console.warn('Already processing delivery, ignoring duplicate request');
+            return;
+        }
+
+        isProcessingRef.current = true;
         setIsSubmitting(true)
         try {
-            // TODO BACKEND: Validate order status before delivery
-            // Prevent double delivery
-            if (order.status === 'ENTREGADO') {
-                showToast("Este pedido ya fue entregado anteriormente", "error")
-                setIsSubmitting(false)
-                return
-            }
-
-            // Validate order is in warehouse
-            if (order.status !== 'RECIBIDO_EN_BODEGA') {
-                showToast("El pedido debe estar recibido en bodega antes de entregar", "error")
-                setIsSubmitting(false)
-                return
-            }
-
-            // 1. Process Payment if pending amount exists (no credit)
+            // 1. Validate if payment is required
             if (amountToCharge > 0.01) {
                 // Validation
                 if (paymentMethod !== 'EFECTIVO' && !referenceNumber) {
                     showToast("Debe ingresar el número de referencia", "error")
                     setIsSubmitting(false)
+                    isProcessingRef.current = false;
                     return
                 }
 
                 if (!selectedBankId && paymentMethod !== 'EFECTIVO') {
                     showToast("Seleccione una cuenta bancaria", "error")
                     setIsSubmitting(false)
+                    isProcessingRef.current = false;
                     return
                 }
-
-                // Transaction Registration
-                try {
-                    const txResult = await processPaymentRegistration({
-                        amount: amountToCharge,
-                        method: paymentMethod,
-                        reference: referenceNumber,
-                        clientId: order.clientId,
-                        currentPendingBalance: amountToCharge,
-                        date: new Date().toISOString(),
-                        user: 'Vendedor' // Mock
-                    })
-
-                    if (txResult.creditGenerated > 0) {
-                        showToast(`Se generó un saldo a favor de ${txResult.creditGenerated.toFixed(2)}`, "success")
-                    }
-                } catch (txError: any) {
-                    showToast(txError.message, "error")
-                    setIsSubmitting(false)
-                    return
-                }
-
-                // Find bank account
-                let bankAccount = bankAccounts.find(b => b.id === selectedBankId)
-                if (!bankAccount && paymentMethod === 'EFECTIVO') {
-                    bankAccount = bankAccounts.find(b => b.type === 'CASH')
-                }
-
-                if (!bankAccount) {
-                    showToast("Advertencia: No se encontró cuenta de caja/banco.", "error")
-                } else {
-                    // Register Payment in Order
-                    await addPayment({
-                        order,
-                        amount: amountToCharge,
-                        bankAccount
-                    })
-                }
             }
 
-            // 2. Mark as Delivered using the updated order state
-            const deliveredOrder: Order = {
-                ...order,
-                status: 'ENTREGADO',
-                deliveryDate: new Date().toISOString(),
-                // REMOVED: paidAmount update - calculated dynamically
+            let finalBankAccountId = selectedBankId || undefined;
+            if (amountToCharge > 0.01 && paymentMethod === 'EFECTIVO') {
+                const cashAccount = bankAccounts.find(a => a.type === 'CASH');
+                if (cashAccount) finalBankAccountId = cashAccount.id;
             }
 
-            await orderApi.update(deliveredOrder.id, deliveredOrder);
+            // 2. Deliver order using backend endpoint (handles everything in transaction)
+            const deliveredOrder = await orderApi.deliverOrder(order.id, {
+                finalPayment: amountToCharge > 0.01 ? amountToCharge : undefined,
+                bankAccountId: finalBankAccountId,
+                paymentMethod: paymentMethod,
+                reference: referenceNumber || undefined,
+                notes: `Entrega al cliente ${order.clientName}`
+            });
 
-            // 3. Create Inventory Exit Movement
-            // TODO BACKEND: Validate no duplicate DELIVERED exists for this order
-            const existingInventory = await inventoryApi.getAll();
-            const hasDelivered = existingInventory.some(
-                inv => inv.orderId === deliveredOrder.id && inv.type === 'DELIVERED'
-            );
-            
-            if (!hasDelivered) {
-                await inventoryApi.create({
-                    orderId: deliveredOrder.id,
-                    clientId: deliveredOrder.clientId,
-                    brandId: deliveredOrder.brandId,
-                    type: 'DELIVERED',
-                    createdBy: 'Vendedor', // Should be dynamic user
-                    notes: `Salida por entrega al cliente. Pedido: ${deliveredOrder.receiptNumber}`,
-                    deliveryDetails: {
-                        deliveryDate: deliveredOrder.deliveryDate
-                    }
-                });
-            } else {
-                console.warn(`Inventory DELIVERED already exists for order ${deliveredOrder.id}, skipping creation`);
-            }
-
-            // 4. Update Client Rewards (Loyalty Points)
-            try {
-                await rewardsApi.updateClientRewards(deliveredOrder);
-            } catch (rewardError) {
-                console.error("Error updating rewards:", rewardError);
-                // Don't fail delivery if rewards update fails
-            }
-
-            await qc.invalidateQueries({ queryKey: ['orders'] })
-            await qc.invalidateQueries({ queryKey: ['financial-movements'] })
-            await qc.invalidateQueries({ queryKey: ['transactions'] })
-            await qc.invalidateQueries({ queryKey: ['inventory-movements'] })
-            await qc.invalidateQueries({ queryKey: ['client-rewards'] })
-
-            if (hasCredit) {
-                showToast(`Entrega registrada. Cliente tiene saldo a favor de $${creditAmount.toFixed(2)}`, "success")
-            } else {
-                showToast("Entrega registrada correctamente", "success")
-            }
-
-            // Generate Receipt
+            // 3. Generate Receipt IMMEDIATELY (while order is in hand and before UI refreshes)
             try {
                 await generateDeliveryReceipt(deliveredOrder, {
                     amountPaidNow: amountToCharge > 0.01 ? amountToCharge : 0,
                     method: paymentMethod,
-                    user: 'Vendedor' // Should be logged user
+                    user: deliveredOrder.deliveredByName || user?.username || 'Administrador',
+                    currentCreditAmount: currentCreditAmount,
+                    hasCurrentCredit: hasCurrentCredit
                 })
             } catch (pdfError) {
                 console.error("Error PDF", pdfError)
                 showToast("Entrega guardada, pero error al generar PDF", "warning")
+            }
+
+            // 4. Invalidate queries and Show Toast
+            qc.invalidateQueries({ queryKey: ['orders'] })
+            qc.invalidateQueries({ queryKey: ['financial-records'] })
+            qc.invalidateQueries({ queryKey: ['transactions'] })
+            qc.invalidateQueries({ queryKey: ['inventory-movements'] })
+            qc.invalidateQueries({ queryKey: ['client-rewards'] })
+
+            if (hasCurrentCredit) {
+                showToast(`Entrega registrada. El cliente aún cuenta con un saldo a favor de $${currentCreditAmount.toFixed(2)}`, "success")
+            } else {
+                showToast("Entrega registrada correctamente", "success")
             }
 
             onOpenChange(false)
@@ -197,6 +135,7 @@ export function DeliverOrderModal({ order, open, onOpenChange }: DeliverOrderMod
             showToast("Ocurrió un error al procesar la entrega.", "error")
         } finally {
             setIsSubmitting(false)
+            isProcessingRef.current = false;
         }
     }
 
@@ -231,13 +170,13 @@ export function DeliverOrderModal({ order, open, onOpenChange }: DeliverOrderMod
                                 {formatCurrency(amountToCharge)}
                             </span>
                         </div>
-                        {hasCredit && (
+                        {hasCurrentCredit && (
                             <div className="flex justify-between text-sm bg-emerald-50 -mx-4 -mb-4 mt-2 p-3 rounded-b-lg border-t border-emerald-200">
                                 <span className="text-emerald-700 font-medium flex items-center gap-1">
                                     <Gift className="h-4 w-4" />
-                                    Saldo a Favor del Cliente:
+                                    Saldo a Favor (Disponible):
                                 </span>
-                                <span className="font-bold text-emerald-700">{formatCurrency(creditAmount)}</span>
+                                <span className="font-bold text-emerald-700">{formatCurrency(currentCreditAmount)}</span>
                             </div>
                         )}
                     </div>
@@ -250,7 +189,7 @@ export function DeliverOrderModal({ order, open, onOpenChange }: DeliverOrderMod
                                 {order.payments.map((payment, idx) => (
                                     <div key={payment.id} className="flex justify-between text-xs text-blue-800">
                                         <span>
-                                            {idx === 0 ? '📝 Abono inicial' : '💵 Abono posterior'} 
+                                            {idx === 0 ? '📝 Abono inicial' : '💵 Abono posterior'}
                                             {payment.method && ` (${payment.method})`}
                                             {payment.createdAt && ` - ${new Date(payment.createdAt).toLocaleDateString('es-EC')}`}
                                         </span>
@@ -320,12 +259,12 @@ export function DeliverOrderModal({ order, open, onOpenChange }: DeliverOrderMod
                                 )}
                             </div>
                         </div>
-                    ) : hasCredit ? (
-                        <Alert className="bg-emerald-50 border-emerald-200 text-emerald-800">
-                            <Gift className="h-4 w-4" />
-                            <AlertTitle>Cliente con Saldo a Favor</AlertTitle>
+                    ) : hasCurrentCredit ? (
+                        <Alert className="bg-emerald-50 text-emerald-800 border-emerald-200 mt-4">
+                            <Gift className="h-4 w-4 stroke-emerald-600" />
+                            <AlertTitle>Saldo a Favor Disponible</AlertTitle>
                             <AlertDescription>
-                                El cliente tiene un saldo a favor de {formatCurrency(creditAmount)}. Puede proceder con la entrega sin cobros adicionales. El crédito quedará disponible para futuros pedidos.
+                                El cliente actualmente cuenta con un saldo a favor de {formatCurrency(currentCreditAmount)} en su cuenta. Puede utilizarse para descontar futuros pedidos. Puede proceder con la entrega sin cobros adicionales.
                             </AlertDescription>
                         </Alert>
                     ) : (

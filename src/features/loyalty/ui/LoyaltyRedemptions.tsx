@@ -38,6 +38,7 @@ export function LoyaltyRedemptions() {
                             <TableHead>Premio</TableHead>
                             <TableHead className="text-center">Puntos Usados</TableHead>
                             <TableHead>Fecha</TableHead>
+                            <TableHead>Autorizado por</TableHead>
                             <TableHead className="text-center">Estado</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -59,6 +60,9 @@ export function LoyaltyRedemptions() {
                                     <TableCell className="text-center font-bold text-amber-600">{r.pointsUsed} pts</TableCell>
                                     <TableCell className="text-slate-500 text-sm">
                                         {new Date(r.date).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                    </TableCell>
+                                    <TableCell className="text-slate-500 text-sm italic">
+                                        {r.authorName || 'Sistema'}
                                     </TableCell>
                                     <TableCell className="text-center">
                                         <Badge className={`text-xs border ${STATUS_STYLES[r.status]}`}>

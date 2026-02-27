@@ -22,9 +22,10 @@ function format(amount: number): string {
 
 interface OrderPaymentListProps {
     order: Order
+    readOnly?: boolean
 }
 
-export function OrderPaymentList({ order }: OrderPaymentListProps) {
+export function OrderPaymentList({ order, readOnly = false }: OrderPaymentListProps) {
     const { data: bankAccounts = [] } = useBankAccountList()
     const removePayment = useRemoveOrderPayment()
 
@@ -72,7 +73,7 @@ export function OrderPaymentList({ order }: OrderPaymentListProps) {
         <div className="space-y-4">
             <div className="flex justify-between items-center bg-muted/20 p-3 rounded-lg border">
                 <div>
-                    <h4 className="font-medium text-sm mb-1">Resumen Financiero</h4>
+                    <h4 className="font-medium text-sm mb-1">Resumen de Abonos</h4>
                     <div className="flex gap-4">
                         <div>
                             <p className="text-xs text-muted-foreground">Pagado</p>
@@ -85,7 +86,7 @@ export function OrderPaymentList({ order }: OrderPaymentListProps) {
                     </div>
                 </div>
                 <div>
-                    {pendingAmount > 0.01 && (
+                    {!readOnly && pendingAmount > 0.01 && (
                         <Button variant="outline" size="sm" onClick={handleCreate}>
                             <Plus className="mr-2 h-3 w-3" /> Agregar Abono
                         </Button>
@@ -100,13 +101,13 @@ export function OrderPaymentList({ order }: OrderPaymentListProps) {
                             <TableHead>Fecha</TableHead>
                             <TableHead>Cuenta</TableHead>
                             <TableHead className="text-right">Monto</TableHead>
-                            <TableHead className="text-right w-[80px]">Acciones</TableHead>
+                            {!readOnly && <TableHead className="text-right w-[80px]">Acciones</TableHead>}
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {payments.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={4} className="text-center text-muted-foreground py-4">
+                                <TableCell colSpan={readOnly ? 3 : 4} className="text-center text-muted-foreground py-4">
                                     No hay abonos registrados.
                                 </TableCell>
                             </TableRow>
@@ -118,16 +119,18 @@ export function OrderPaymentList({ order }: OrderPaymentListProps) {
                                         <TableCell>{new Date(payment.createdAt).toLocaleDateString()}</TableCell>
                                         <TableCell>{account?.name || "Desconocida"}</TableCell>
                                         <TableCell className="text-right font-medium">{format(payment.amount)}</TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex justify-end gap-1">
-                                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleEdit(payment)}>
-                                                    <Pencil className="h-3 w-3" />
-                                                </Button>
-                                                <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => handleDelete(payment.id)}>
-                                                    <Trash2 className="h-3 w-3" />
-                                                </Button>
-                                            </div>
-                                        </TableCell>
+                                        {!readOnly && (
+                                            <TableCell className="text-right">
+                                                <div className="flex justify-end gap-1">
+                                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleEdit(payment)}>
+                                                        <Pencil className="h-3 w-3" />
+                                                    </Button>
+                                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => handleDelete(payment.id)}>
+                                                        <Trash2 className="h-3 w-3" />
+                                                    </Button>
+                                                </div>
+                                            </TableCell>
+                                        )}
                                     </TableRow>
                                 )
                             })
@@ -136,12 +139,14 @@ export function OrderPaymentList({ order }: OrderPaymentListProps) {
                 </Table>
             </div>
 
-            <OrderPaymentForm
-                order={order}
-                payment={selectedPayment}
-                open={isFormOpen}
-                onOpenChange={setIsFormOpen}
-            />
+            {!readOnly && (
+                <OrderPaymentForm
+                    order={order}
+                    payment={selectedPayment}
+                    open={isFormOpen}
+                    onOpenChange={setIsFormOpen}
+                />
+            )}
         </div>
     )
 }

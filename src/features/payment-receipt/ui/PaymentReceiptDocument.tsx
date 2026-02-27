@@ -154,9 +154,10 @@ const styles = StyleSheet.create({
 interface Props {
     order: Order;
     payments: any[];
+    userName: string;
 }
 
-export const PaymentReceiptDocument = ({ order, payments }: Props) => {
+export const PaymentReceiptDocument = ({ order, payments, userName }: Props) => {
     const totalPaid = payments.reduce((acc, p) => acc + p.amount, 0);
     const pending = (order.realInvoiceTotal || order.total) - totalPaid;
     const logoUrl = '/images/mochitopng.png';
@@ -258,7 +259,7 @@ export const PaymentReceiptDocument = ({ order, payments }: Props) => {
                 {/* Footer */}
                 <View style={styles.footerContainer}>
                     <Text style={styles.footerText}>
-                        Generado el {new Date().toLocaleString()} | Usuario Sistema
+                        Generado el {new Date().toLocaleString()} | Vendedor: {userName}
                     </Text>
                 </View>
             </Page>

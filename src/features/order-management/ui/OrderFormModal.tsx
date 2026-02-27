@@ -2,7 +2,6 @@
 import { useState, useRef, useEffect } from "react"
 import { useFormik } from "formik"
 import * as Yup from "yup"
-import { Gift } from "lucide-react"
 import {
     Dialog,
     DialogContent,
@@ -11,6 +10,7 @@ import {
     DialogFooter
 } from "@/shared/ui/dialog"
 import { Input } from "@/shared/ui/input"
+import { Button } from "@/shared/ui/button"
 import { AsyncButton } from "@/shared/ui/async-button"
 import { Label } from "@/shared/ui/label"
 import { Separator } from "@/shared/ui/separator"
@@ -18,19 +18,16 @@ import { Separator } from "@/shared/ui/separator"
 import { useBankAccountList } from "@/features/bank-accounts/api/hooks"
 import { useCreateOrder, useUpdateOrder } from "@/entities/order/model/hooks"
 import type { Order, SalesChannel, OrderType, PaymentMethod, OrderStatus } from "@/entities/order/model/types"
+import { orderApi } from "@/entities/order/model/api"
 import { useClientList } from "@/features/clients/api/hooks"
 import { useBrandList } from "@/features/brands/api/hooks"
 import { getActiveBrands } from "@/entities/brand/model/model"
 import { useToast } from "@/shared/ui/use-toast"
 import { pdf } from "@react-pdf/renderer"
 import { OrderReceiptDocument } from "@/features/order-receipt/ui/OrderReceiptDocument"
-import { useAddOrderPayment } from "@/features/order-payments/model"
-
-// Transaction Imports
-import { processPaymentRegistration } from "@/features/transactions/lib/processPayment"
 import { validateTransaction } from "@/features/transactions/lib/validateTransaction"
-import type { FinancialTransactionType } from "@/entities/financial-transaction/model/types"
 import { useClientCredits } from "@/features/transactions/model/hooks"
+import { useAuth } from "@/shared/auth"
 
 interface OrderFormModalProps {
     order?: Order | null
@@ -48,13 +45,28 @@ const validationSchema = Yup.object({
     brandName: Yup.string().required("La marca es requerida"),
     quantity: Yup.number().min(1, "Mínimo 1").required("Requerido"),
     total: Yup.number().min(0, "No negativo").required("Requerido"),
-    deposit: Yup.number().min(0, "No negativo").required("Requerido"),
+    creditToUse: Yup.number().min(0, "No negativo").notRequired(),
+    deposit: Yup.number()
+        .min(0, "No negativo")
+        .required("Requerido")
+        .test('min-deposit', 'El abono debe ser al menos el 50% del total', function (value) {
+            const { total, creditToUse } = this.parent;
+            const totalDeposit = (value || 0) + (creditToUse || 0);
+            if (!totalDeposit || !total) return true;
+            return totalDeposit >= (total * 0.5);
+        }),
     paymentMethod: Yup.string().required("La forma de pago es requerida"),
-    bankAccountId: Yup.string().when("paymentMethod", {
-        is: (val: string) => ['TRANSFERENCIA', 'DEPOSITO', 'CHEQUE'].includes(val),
-        then: (schema) => schema.required("Cuenta bancaria requerida"),
-        otherwise: (schema) => schema.notRequired()
-    }),
+    bankAccountId: Yup.string().test(
+        'is-bank-required',
+        "Cuenta bancaria requerida para este método",
+        function (value) {
+            const { deposit, paymentMethod } = this.parent;
+            if (deposit > 0 && paymentMethod !== 'EFECTIVO' && !value) {
+                return false;
+            }
+            return true;
+        }
+    ),
     transactionDate: Yup.string().when("paymentMethod", {
         is: (val: string) => ['TRANSFERENCIA', 'DEPOSITO', 'CHEQUE'].includes(val),
         then: (schema) => schema.required("Fecha requerida"),
@@ -167,11 +179,48 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
     const { data: brands = [] } = useBrandList()
     const createOrder = useCreateOrder()
     const updateOrder = useUpdateOrder()
-    const addOrderPayment = useAddOrderPayment()
     const { showToast } = useToast()
+    const { user } = useAuth()
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [isLoadingReceiptNumber, setIsLoadingReceiptNumber] = useState(false)
 
     const isEditing = !!order
+
+    // Generate receipt number when opening form for new order
+    useEffect(() => {
+        if (open && !isEditing) {
+            generateNextReceiptNumber();
+        }
+    }, [open, isEditing]);
+
+    const generateNextReceiptNumber = async () => {
+        try {
+            setIsLoadingReceiptNumber(true);
+            const { receiptNumber } = await orderApi.generateReceiptNumber();
+            formik.setFieldValue('receiptNumber', receiptNumber);
+        } catch (error) {
+            console.error('Error generating receipt number:', error);
+            showToast('Error al generar número de recibo', 'error');
+        } finally {
+            setIsLoadingReceiptNumber(false);
+        }
+    };
+
+    const validateReceiptNumber = async (receiptNumber: string): Promise<boolean> => {
+        if (!receiptNumber || isEditing) return true;
+
+        try {
+            const { exists } = await orderApi.checkReceiptExists(receiptNumber);
+            if (exists) {
+                formik.setFieldError('receiptNumber', 'Este número de recibo ya existe');
+                return false;
+            }
+            return true;
+        } catch (error) {
+            console.error('Error validating receipt number:', error);
+            return true; // Allow submission if validation fails
+        }
+    };
 
     const formik = useFormik({
         initialValues: {
@@ -183,8 +232,9 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
             brandName: order?.brandName || "",
             quantity: order?.items?.[0]?.quantity || 1,
             total: order?.total || 0,
-            deposit: order?.deposit || 0,
-            paymentMethod: order?.paymentMethod || "EFECTIVO" as PaymentMethod,
+            deposit: order?.payments?.find(p => p.method !== 'CREDITO_CLIENTE')?.amount || 0,
+            creditToUse: 0,
+            paymentMethod: (order?.paymentMethod === 'CREDITO_CLIENTE' ? 'EFECTIVO' : order?.paymentMethod) || "EFECTIVO" as PaymentMethod,
             bankAccountId: order?.bankAccountId || "",
             transactionDate: order?.transactionDate || new Date().toISOString().split('T')[0],
             transactionReference: "", // New field
@@ -196,22 +246,44 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
         onSubmit: async (values) => {
             setIsSubmitting(true);
             try {
+                // Validate receipt number uniqueness
+                if (!isEditing) {
+                    const isValidReceipt = await validateReceiptNumber(values.receiptNumber);
+                    if (!isValidReceipt) {
+                        setIsSubmitting(false);
+                        return;
+                    }
+                }
+
                 const client = clients.find(c => c.id === values.clientId)
                 const clientName = client ? client.firstName : "Desconocido"
                 const unitPrice = values.quantity > 0 ? values.total / values.quantity : 0
                 const depositAmount = Number(values.deposit) || 0
                 const isFinancial = ['TRANSFERENCIA', 'DEPOSITO', 'CHEQUE'].includes(values.paymentMethod);
 
+                let finalBankAccountId = values.bankAccountId;
+                if (values.paymentMethod === 'EFECTIVO') {
+                    const cashAccount = bankAccounts.find(a => a.type === 'CASH');
+                    if (cashAccount) {
+                        finalBankAccountId = cashAccount.id;
+                    }
+                }
+
                 // Pre-validation for financial transactions
                 if (!isEditing && isFinancial && depositAmount > 0) {
                     try {
                         await validateTransaction({
-                            type: values.paymentMethod as FinancialTransactionType,
+                            type: 'PAYMENT', // Always PAYMENT for order deposits
+                            source: 'ORDER_PAYMENT',
+                            movementType: 'INCOME',
                             referenceNumber: values.transactionReference,
                             amount: depositAmount,
                             date: values.transactionDate,
                             clientId: values.clientId,
-                            createdBy: 'Vendedor' // Mock
+                            clientName,
+                            createdBy: user?.username || 'Vendedor',
+                            bankAccountId: finalBankAccountId || 'default',
+                            paymentMethod: values.paymentMethod as 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE'
                         });
                     } catch (e: any) {
                         showToast(e.message, "error");
@@ -222,6 +294,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
 
                 const payload = {
                     ...values,
+                    bankAccountId: finalBankAccountId,
                     clientName,
                     unitPrice,
                     // The order is created with 0 paidAmount initially. 
@@ -231,6 +304,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                         productName: values.brandName,
                         quantity: values.quantity,
                         unitPrice: unitPrice,
+                        brandId: values.brandId, // CRITICAL: Include brandId in items
                         brandName: values.brandName
                     }]
                 };
@@ -242,48 +316,10 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                     // 1. Create the base order
                     let newOrder = await createOrder.mutateAsync(payload)
 
-                    // 2. Process Initial Deposit (if any)
+                    // Initial deposit logic is now handled ATOMICALLY by the backend's CreateOrderUseCase
                     if (depositAmount > 0) {
-                        try {
-                            // Register Transaction first (Transaction Master)
-                            // If EFECTIVO, processPaymentRegistration handles it gracefully (returns null tx)
-                            const txResult = await processPaymentRegistration({
-                                amount: depositAmount,
-                                method: values.paymentMethod,
-                                reference: values.transactionReference,
-                                clientId: values.clientId,
-                                currentPendingBalance: values.total,
-                                date: values.transactionDate,
-                                user: 'Vendedor'
-                            });
-
-                            if (txResult.creditGenerated > 0) {
-                                showToast(`Se generó un saldo a favor de $${txResult.creditGenerated.toFixed(2)}`, "info");
-                            }
-
-                            // Find target bank account
-                            let targetAccount = bankAccounts.find(b => b.id === values.bankAccountId)
-                            if (!targetAccount && values.paymentMethod === 'EFECTIVO') {
-                                targetAccount = bankAccounts.find(b => b.type === 'CASH')
-                            }
-
-                            if (targetAccount) {
-                                // Add payment and get the UPDATED order back
-                                newOrder = await addOrderPayment.mutateAsync({
-                                    order: newOrder,
-                                    amount: depositAmount,
-                                    bankAccount: targetAccount
-                                })
-                            } else {
-                                console.warn("No bank account found for deposit.")
-                                showToast("Abono registrado financieramente, pero no vinculado a caja (Falta configuración).", "warning")
-                            }
-
-                        } catch (paymentError: any) {
-                            console.error("Error processing deposit", paymentError)
-                            showToast(`Error registro pago: ${paymentError.message}`, "error")
-                            // Note: Order was created. 
-                        }
+                        // Just an informative log
+                        console.log(`Initial deposit of $${depositAmount} was processed natively by the backend.`);
                     }
 
                     showToast(`Pedido de ${clientName} creado correctamente.`, "success")
@@ -294,7 +330,14 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                             <OrderReceiptDocument
                                 order={newOrder}
                                 client={client}
-                                user={{ id: '1', name: 'Vendedor', role: 'OPERATOR', email: 'vendedor@temu.com', status: 'ACTIVE', createdAt: new Date().toISOString() }}
+                                user={{
+                                    id: user?.id || '1',
+                                    name: user?.username || 'Vendedor',
+                                    role: 'OPERATOR',
+                                    email: '',
+                                    status: 'ACTIVE',
+                                    createdAt: new Date().toISOString()
+                                } as any}
                             />
                         ).toBlob()
 
@@ -313,9 +356,9 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                 }
                 onOpenChange(false)
                 formik.resetForm()
-            } catch (error) {
+            } catch (error: any) {
                 console.error("Error saving order", error)
-                showToast("Error al guardar el pedido.", "error")
+                showToast(error.message || "Error al guardar el pedido.", "error")
             } finally {
                 setIsSubmitting(false);
             }
@@ -323,9 +366,8 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
     })
 
     const { data: credits = [] } = useClientCredits(formik.values.clientId)
-    const totalCredit = credits.reduce((sum, c) => sum + c.amount, 0)
+    const totalCredit = credits.reduce((sum, c) => sum + Number(c.remainingAmount || 0), 0)
 
-    const balance = Math.max(0, formik.values.total - formik.values.deposit)
     const inputClass = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
 
     const clientOptions = clients.map(c => ({ id: c.id, label: c.firstName, subLabel: c.identificationNumber }))
@@ -334,14 +376,14 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto w-[95vw] max-w-[95vw] sm:w-full">
                 <DialogHeader>
-                    <DialogTitle>{isEditing ? "Editar Pedido" : "Nuevo Pedido"}</DialogTitle>
+                    <DialogTitle className="text-base sm:text-lg">{isEditing ? "Editar Pedido" : "Nuevo Pedido"}</DialogTitle>
                 </DialogHeader>
 
-                <form onSubmit={formik.handleSubmit} className="space-y-6 py-4">
+                <form onSubmit={formik.handleSubmit} className="space-y-4 sm:space-y-6 py-2 sm:py-4">
                     {/* Fila 1: Cliente y Recibo */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                         <div className="space-y-2">
                             <Label htmlFor="clientId">Cliente (Nombre / Cédula)</Label>
                             <SearchableSelect
@@ -362,10 +404,34 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="receiptNumber">N° Recibo (Manual)</Label>
-                            <Input id="receiptNumber" {...formik.getFieldProps('receiptNumber')} />
+                            <div className="flex items-center justify-between">
+                                <Label htmlFor="receiptNumber">N° Recibo</Label>
+                                {!isEditing && (
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={generateNextReceiptNumber}
+                                        disabled={isLoadingReceiptNumber}
+                                        className="h-6 text-xs"
+                                    >
+                                        {isLoadingReceiptNumber ? 'Generando...' : '🔄 Regenerar'}
+                                    </Button>
+                                )}
+                            </div>
+                            <Input
+                                id="receiptNumber"
+                                {...formik.getFieldProps('receiptNumber')}
+                                disabled={isLoadingReceiptNumber}
+                                placeholder="ORD-20260223-001"
+                            />
                             {formik.touched.receiptNumber && formik.errors.receiptNumber && (
                                 <p className="text-red-500 text-xs">{formik.errors.receiptNumber}</p>
+                            )}
+                            {!isEditing && (
+                                <p className="text-xs text-muted-foreground">
+                                    Editable - El sistema valida que no exista
+                                </p>
                             )}
                         </div>
                     </div>
@@ -373,7 +439,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                     <Separator />
 
                     {/* Fila 2: Detalles del Pedido */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
                         <div className="space-y-2">
                             <Label htmlFor="salesChannel">Pedido Por</Label>
                             <select id="salesChannel" {...formik.getFieldProps('salesChannel')} className={inputClass}>
@@ -402,10 +468,10 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                     </div>
 
                     {/* Fila 3: Marca y Valores */}
-                    <div className="bg-muted/10 p-4 rounded-lg border">
-                        <h4 className="text-sm font-medium mb-4 text-muted-foreground">Detalle Financiero</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                            <div className="space-y-2 md:col-span-2">
+                    <div className="bg-muted/10 p-3 sm:p-4 rounded-lg border">
+                        <h4 className="text-xs sm:text-sm font-medium mb-3 sm:mb-4 text-muted-foreground">Detalle Financiero</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 items-end">
+                            <div className="space-y-2 sm:col-span-2">
                                 <Label htmlFor="brandId">Marca</Label>
                                 <SearchableSelect
                                     options={brandOptions}
@@ -441,46 +507,81 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                     </div>
 
                     {/* Fila 4: Pagos */}
-                    <div className="bg-muted/10 p-4 rounded-lg border">
-                        <h4 className="text-sm font-medium mb-4 text-muted-foreground">Pago y Saldos</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-muted/10 p-3 sm:p-4 rounded-lg border">
+                        <h4 className="text-xs sm:text-sm font-medium mb-3 sm:mb-4 text-muted-foreground">Pago y Saldos</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="deposit">Abono</Label>
+                                <div className="flex items-center justify-between">
+                                    <Label htmlFor="deposit">Abono</Label>
+                                    <span className="text-xs text-muted-foreground">
+                                        Mínimo: ${(formik.values.total * 0.5).toFixed(2)} (50%)
+                                    </span>
+                                </div>
                                 <div className="relative">
                                     <span className="absolute left-2 top-2.5 text-muted-foreground">$</span>
                                     <Input type="number" id="deposit" {...formik.getFieldProps('deposit')} className="pl-6" min="0" step="0.01" />
                                 </div>
-                                {totalCredit > 0 && (
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        className="w-full text-emerald-600 border-emerald-300 hover:bg-emerald-50 mt-2"
-                                        onClick={() => {
-                                            const currentDeposit = Number(formik.values.deposit) || 0;
-                                            const maxCredit = Math.min(totalCredit, formik.values.total - currentDeposit);
-                                            if (maxCredit > 0) {
-                                                formik.setFieldValue('deposit', currentDeposit + maxCredit);
-                                                showToast(`Se aplicó $${maxCredit.toFixed(2)} del saldo a favor`, "success");
-                                            }
-                                        }}
-                                    >
-                                        <Gift className="h-4 w-4 mr-2" />
-                                        Usar Saldo a Favor (${totalCredit.toFixed(2)})
-                                    </Button>
+                                {formik.touched.deposit && formik.errors.deposit && (
+                                    <p className="text-red-500 text-xs">{formik.errors.deposit}</p>
                                 )}
                             </div>
+
+                            {totalCredit > 0 && (
+                                <div className="space-y-2 p-3 bg-emerald-50 border border-emerald-100 rounded-md">
+                                    <Label className="text-emerald-800 text-xs font-bold">Saldo a Favor Disponible: ${totalCredit.toFixed(2)}</Label>
+                                    <div className="flex gap-2">
+                                        <div className="relative flex-1">
+                                            <span className="absolute left-2 top-1.5 text-xs text-emerald-600">$</span>
+                                            <Input
+                                                type="number"
+                                                className="pl-5 h-8 bg-white border-emerald-200 focus:ring-emerald-500"
+                                                placeholder="Monto a usar"
+                                                {...formik.getFieldProps('creditToUse')}
+                                                onChange={(e) => {
+                                                    const val = Math.min(Number(e.target.value), totalCredit, formik.values.total - Number(formik.values.deposit));
+                                                    formik.setFieldValue('creditToUse', val > 0 ? val : 0);
+                                                }}
+                                            />
+                                        </div>
+                                        {Number(formik.values.creditToUse) > 0 ? (
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                                onClick={() => formik.setFieldValue('creditToUse', 0)}
+                                            >
+                                                Quitar
+                                            </Button>
+                                        ) : (
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-8 text-emerald-600 border-emerald-300 hover:bg-emerald-50"
+                                                onClick={() => {
+                                                    const maxPossible = Math.min(totalCredit, formik.values.total - Number(formik.values.deposit));
+                                                    formik.setFieldValue('creditToUse', maxPossible);
+                                                }}
+                                            >
+                                                Usar Máximo
+                                            </Button>
+                                        )}
+                                    </div>
+                                    <p className="text-[10px] text-emerald-600">Este monto se descontará del saldo a favor del cliente.</p>
+                                </div>
+                            )}
 
                             <div className="space-y-2">
                                 <Label>Saldo Pendiente</Label>
                                 <div className="flex h-9 w-full items-center rounded-md border border-input bg-red-50 px-3 text-sm font-bold text-red-600">
-                                    ${balance.toFixed(2)}
+                                    ${(formik.values.total - Number(formik.values.deposit) - Number(formik.values.creditToUse)).toFixed(2)}
                                 </div>
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="paymentMethod">Forma de Pago</Label>
-                                <select id="paymentMethod" {...formik.getFieldProps('paymentMethod')} className={inputClass}>
+                                <Label htmlFor="paymentMethod">Forma de Pago (Abono Inicial)</Label>
+                                <select id="paymentMethod" {...formik.getFieldProps('paymentMethod')} className={inputClass} disabled={Number(formik.values.deposit) === 0}>
                                     <option value="EFECTIVO">Efectivo</option>
                                     <option value="TRANSFERENCIA">Transferencia</option>
                                     <option value="DEPOSITO">Depósito</option>
@@ -488,7 +589,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                                 </select>
                             </div>
 
-                            {formik.values.paymentMethod !== 'EFECTIVO' && (
+                            {Number(formik.values.deposit) > 0 && formik.values.paymentMethod !== 'EFECTIVO' && (
                                 <>
                                     <div className="space-y-2">
                                         <Label htmlFor="bankAccountId">Cuenta de Destino</Label>
@@ -527,11 +628,11 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                         </div>
                     </div>
 
-                    <DialogFooter>
-                        <AsyncButton type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                    <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
+                        <AsyncButton type="button" variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
                             Cancelar
                         </AsyncButton>
-                        <AsyncButton type="submit" isLoading={isSubmitting} loadingText="Procesando...">
+                        <AsyncButton type="submit" isLoading={isSubmitting} loadingText="Procesando..." className="w-full sm:w-auto">
                             {isEditing ? "Guardar Cambios" : "Crear Pedido"}
                         </AsyncButton>
                     </DialogFooter>

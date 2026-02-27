@@ -2,7 +2,7 @@
 import type { Permission } from '@/shared/lib/permissions';
 
 // ─── Roles ────────────────────────────────────────────────────────────────────
-export type RoleName = 'ADMIN' | 'CAJERA' | 'OPERADOR' | 'VENDEDOR';
+export type RoleName = string;
 
 export type AppRole = {
     id: string;
@@ -16,9 +16,7 @@ export type AppRole = {
 // ─── Users ────────────────────────────────────────────────────────────────────
 export type AppUser = {
     id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
+    username: string;
     passwordHash: string;   // NEVER store plain text
     roleId: string;
     active: boolean;
@@ -29,17 +27,13 @@ export type AppUser = {
 // ─── Auth Session ─────────────────────────────────────────────────────────────
 export type AuthUser = {
     id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
+    username: string;
     role: AppRole;
 };
 
 // ─── Form DTOs ────────────────────────────────────────────────────────────────
 export type UserFormData = {
-    firstName: string;
-    lastName: string;
-    email: string;
+    username: string;
     password: string;
     roleId: string;
     active: boolean;

@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
@@ -8,7 +7,13 @@ import { useCalls } from '../model/hooks';
 import { CallFormModal } from './CallFormModal';
 import { CallsTable } from './CallsTable';
 
-import { CALL_REASONS, CALL_RESULTS } from '@/entities/call-record/model/model';
+import {
+    CALL_REASONS,
+    CALL_RESULTS,
+    callReasonsMap,
+    callResultsMap,
+    type Call
+} from '@/entities/call';
 import { useClients } from '@/entities/client/model/hooks';
 
 export function CallsPage() {
@@ -18,7 +23,18 @@ export function CallsPage() {
     const [filterReason, setFilterReason] = useState<string>('');
     const [filterResult, setFilterResult] = useState<string>('');
     const [filterDate, setFilterDate] = useState('');
-    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [selectedCall, setSelectedCall] = useState<Call | undefined>(undefined);
+
+    const handleCreate = () => {
+        setSelectedCall(undefined);
+        setIsModalOpen(true);
+    };
+
+    const handleEdit = (call: Call) => {
+        setSelectedCall(call);
+        setIsModalOpen(true);
+    };
 
     const filteredCalls = calls.filter(call => {
         const client = clients?.find(c => c.id === call.clientId);
@@ -40,7 +56,7 @@ export function CallsPage() {
                     <h1 className="text-2xl font-bold tracking-tight">Registro de Llamadas</h1>
                     <p className="text-muted-foreground">Gestiona y consulta el historial de llamadas a clientes.</p>
                 </div>
-                <Button onClick={() => setIsCreateModalOpen(true)}>
+                <Button onClick={handleCreate}>
                     <Plus className="mr-2 h-4 w-4" /> Nueva Llamada
                 </Button>
             </div>
@@ -79,7 +95,7 @@ export function CallsPage() {
                         >
                             <option value="">Todos</option>
                             {CALL_REASONS.map(r => (
-                                <option key={r} value={r}>{r}</option>
+                                <option key={r} value={r}>{callReasonsMap[r] || r}</option>
                             ))}
                         </select>
                     </div>
@@ -93,7 +109,7 @@ export function CallsPage() {
                         >
                             <option value="">Todos</option>
                             {CALL_RESULTS.map(r => (
-                                <option key={r} value={r}>{r}</option>
+                                <option key={r} value={r}>{callResultsMap[r] || r}</option>
                             ))}
                         </select>
                     </div>
@@ -103,12 +119,13 @@ export function CallsPage() {
             {isLoading ? (
                 <div className="flex justify-center p-8">Cargando...</div>
             ) : (
-                <CallsTable calls={filteredCalls} />
+                <CallsTable calls={filteredCalls} onEdit={handleEdit} />
             )}
 
             <CallFormModal
-                open={isCreateModalOpen}
-                onOpenChange={setIsCreateModalOpen}
+                open={isModalOpen}
+                onOpenChange={setIsModalOpen}
+                call={selectedCall}
                 onSuccess={() => refetch()}
             />
         </div>

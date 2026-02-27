@@ -2,10 +2,9 @@
 // Transactional logic moved from shared/api/paymentApi.ts
 
 import { orderApi } from '@/entities/order/model/api';
-import { transactionApi, clientCreditApi } from '@/shared/api/transactionApi';
+import { clientCreditApi } from '@/shared/api/clientCreditApi';
 import { bankAccountApi } from '@/shared/api/bankAccountApi';
 import { financialRecordService } from '@/application/financial/financialRecord.service';
-import type { FinancialTransactionPayload } from '@/shared/api/transactionApi';
 
 export interface PaymentPayload {
     orderId: string;
@@ -61,12 +60,12 @@ export const paymentService = {
         // If effective payment > 0
         if (paymentAmount > 0) {
             const refNumber = referenceNumber || `ABONO-${order.receiptNumber}-${Date.now()}`;
-            
+
             // Get bank account from payload or determine automatically
             let finalBankAccountId = payload.bankAccountId;
-            
+            const accounts = await bankAccountApi.getAll();
+
             if (!finalBankAccountId) {
-                const accounts = await bankAccountApi.getAll();
                 if (method === 'EFECTIVO') {
                     const cashAccount = accounts.find(a => a.type === 'CASH');
                     finalBankAccountId = cashAccount?.id || '2';
@@ -85,10 +84,9 @@ export const paymentService = {
                 order.clientName,
                 method,
                 finalBankAccountId,
-                refNumber,
                 createdBy,
-                createdByName,
-                false // Not initial payment (abono posterior)
+                notes || `Abono a pedido #${order.receiptNumber}${createdByName ? ` (Por: ${createdByName})` : ''}`,
+                refNumber
             );
 
             // Update Order Balance (This adds to order.payments array)
@@ -100,7 +98,7 @@ export const paymentService = {
                 reference: referenceNumber,
                 description: notes
             };
-            
+
             const updatedPayments = [...(order.payments || []), newPayment];
             await orderApi.update(orderId, { payments: updatedPayments });
 
@@ -130,14 +128,14 @@ export const paymentService = {
                 order.clientName,
                 bankAccountId,
                 `Saldo a favor generado por exceso en abono pedido #${order.receiptNumber}`,
-                createdBy,
-                createdByName
+                createdBy
             );
 
             // Create client credit
             await clientCreditApi.createCredit({
                 clientId: clientId,
                 amount: creditAmount,
+                remainingAmount: creditAmount,
                 originTransactionId: `CREDITO-${order.receiptNumber}-${Date.now()}`
             });
         }
@@ -153,10 +151,10 @@ export const paymentService = {
         return order.payments || [];
     },
 
-     /**
-     * Delete/Revert a Payment
-     * Complex transaction reversion logic mock using Transaction API
-     */
+    /**
+    * Delete/Revert a Payment
+    * Complex transaction reversion logic mock using Transaction API
+    */
     revertPayment: async (orderId: string, paymentId: string) => {
         // TBD: Logic for reversion is complex. 
         // 1. Find payment in order
@@ -165,7 +163,7 @@ export const paymentService = {
         // 4. Create Reversal Transaction (Negative)
         // 5. Deduct from Cash if applicable
         console.log("Revert payment logic to be implemented fully via Transaction API");
-        
+
         const order = await orderApi.getById(orderId);
         if (!order) throw new Error("Order not found");
 
@@ -178,11 +176,11 @@ export const paymentService = {
 
         // Deduct from Cash (Mock Reversal)
         if (payment.method === 'EFECTIVO') {
-             const accounts = await bankAccountApi.getAll();
-             const cashAccount = accounts.find(a => a.type === 'CASH');
-             if (cashAccount) {
-                 await bankAccountApi.update(cashAccount.id, { currentBalance: cashAccount.currentBalance - payment.amount });
-             }
+            const accounts = await bankAccountApi.getAll();
+            const cashAccount = accounts.find(a => a.type === 'CASH');
+            if (cashAccount) {
+                await bankAccountApi.update(cashAccount.id, { currentBalance: cashAccount.currentBalance - payment.amount });
+            }
         }
     }
 };

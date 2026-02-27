@@ -22,14 +22,15 @@ export function validateOrderPayload(payload: OrderPayload): void {
  * All money that enters the system MUST go through payments[].
  */
 export function getPaidAmount(order: Order): number {
-    return (order.payments || []).reduce((acc, p) => acc + p.amount, 0);
+    return (order.payments || []).reduce((acc, p) => acc + Number(p.amount || 0), 0);
 }
 
 /**
  * Get effective total (real invoice or estimated).
  */
 export function getEffectiveTotal(order: Order): number {
-    return order.realInvoiceTotal ?? order.total;
+    const val = order.realInvoiceTotal ?? order.total;
+    return Number(val || 0);
 }
 
 /**

@@ -9,7 +9,7 @@ import { orderPaymentApi } from '@/shared/api/orderPaymentApi'
 function invalidateFinancialCaches(qc: ReturnType<typeof useQueryClient>) {
     qc.invalidateQueries({ queryKey: ['orders'] })
     qc.invalidateQueries({ queryKey: ['bank-accounts'] })
-    qc.invalidateQueries({ queryKey: ['financial-movements'] })
+    qc.invalidateQueries({ queryKey: ['financial-records'] })
 }
 
 /**
@@ -19,8 +19,8 @@ function invalidateFinancialCaches(qc: ReturnType<typeof useQueryClient>) {
 export const useAddOrderPayment = () => {
     const qc = useQueryClient()
     return useMutation({
-        mutationFn: async ({ order, amount, bankAccount }: { order: Order; amount: number; bankAccount: BankAccount }) => {
-            return orderPaymentApi.addOrderPaymentTransactional({ order, amount, bankAccount });
+        mutationFn: async ({ order, amount, bankAccount, method, creditAmount }: { order: Order; amount: number; bankAccount?: BankAccount; method?: string; creditAmount?: number }) => {
+            return orderPaymentApi.addOrderPaymentTransactional({ order, amount, bankAccount, method, creditAmount });
         },
         onSuccess: () => invalidateFinancialCaches(qc)
     })
@@ -37,14 +37,16 @@ export const useEditOrderPayment = () => {
             order,
             paymentId,
             newAmount,
-            bankAccount
+            bankAccount,
+            method
         }: {
             order: Order;
             paymentId: string;
             newAmount: number;
-            bankAccount: BankAccount
+            bankAccount?: BankAccount;
+            method?: string
         }) => {
-            return orderPaymentApi.editOrderPaymentTransactional({ order, paymentId, newAmount, bankAccount });
+            return orderPaymentApi.editOrderPaymentTransactional({ order, paymentId, newAmount, bankAccount, method });
         },
         onSuccess: () => invalidateFinancialCaches(qc)
     })

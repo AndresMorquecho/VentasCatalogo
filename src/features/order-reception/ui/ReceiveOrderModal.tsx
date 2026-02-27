@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { useQueryClient } from "@tanstack/react-query"
+import { useQueryClient, useQuery } from "@tanstack/react-query"
 import {
     Dialog,
     DialogContent,
@@ -11,10 +11,18 @@ import {
 import { AsyncButton } from "@/shared/ui/async-button"
 import { Input } from "@/shared/ui/input"
 import { Label } from "@/shared/ui/label"
-import { PackageCheck } from "lucide-react"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/shared/ui/select"
+import { PackageCheck, DollarSign } from "lucide-react"
 import type { Order } from "@/entities/order/model/types"
 import { orderApi } from "@/entities/order/model/api"
-import { receiveOrder } from "@/entities/order/model/model"
+import { bankAccountApi } from "@/shared/api/bankAccountApi"
+import { Separator } from "@/shared/ui/separator"
 
 interface ReceiveOrderModalProps {
     order: Order | null
@@ -25,14 +33,27 @@ interface ReceiveOrderModalProps {
 export function ReceiveOrderModal({ order, open, onOpenChange }: ReceiveOrderModalProps) {
     const [invoiceTotal, setInvoiceTotal] = useState<string>('')
     const [invoiceNumber, setInvoiceNumber] = useState<string>('')
+    const [abonoRecepcion, setAbonoRecepcion] = useState<string>('')
+    const [bankAccountId, setBankAccountId] = useState<string>('')
+    const [paymentMethod, setPaymentMethod] = useState<string>('EFECTIVO')
     const [isSubmitting, setIsSubmitting] = useState(false)
     const qc = useQueryClient()
+
+    // Fetch bank accounts
+    const { data: bankAccounts = [] } = useQuery({
+        queryKey: ['bankAccounts'],
+        queryFn: bankAccountApi.getAll,
+        staleTime: 5 * 60 * 1000
+    })
 
     // Reset form when order changes
     useEffect(() => {
         if (order) {
             setInvoiceTotal(order.total.toString())
             setInvoiceNumber('')
+            setAbonoRecepcion('')
+            setBankAccountId('')
+            setPaymentMethod('EFECTIVO')
         }
     }, [order])
 
@@ -43,10 +64,36 @@ export function ReceiveOrderModal({ order, open, onOpenChange }: ReceiveOrderMod
         const total = parseFloat(invoiceTotal)
         if (isNaN(total) || total <= 0) return
 
+        let finalBankAccountId = bankAccountId
+
+        // Validate abono if provided
+        const abono = abonoRecepcion ? parseFloat(abonoRecepcion) : 0
+        if (abono > 0) {
+            if (!paymentMethod) {
+                alert('Debe seleccionar un método de pago')
+                return
+            }
+            if (paymentMethod === 'EFECTIVO') {
+                const cashAccount = bankAccounts.find(a => a.type === 'CASH')
+                if (cashAccount) finalBankAccountId = cashAccount.id
+            }
+            if (!finalBankAccountId) {
+                alert('Debe seleccionar una cuenta bancaria para el abono')
+                return
+            }
+        }
+
         setIsSubmitting(true)
         try {
-            const updatedOrder = receiveOrder(order, total, invoiceNumber)
-            await orderApi.update(updatedOrder.id, updatedOrder)
+            // Use the dedicated reception endpoint instead of generic update
+            await orderApi.receiveOrder(order.id, {
+                finalTotal: total,
+                invoiceNumber: invoiceNumber || undefined,
+                abonoRecepcion: abono > 0 ? abono : undefined,
+                bankAccountId: abono > 0 ? finalBankAccountId : undefined,
+                paymentMethod: abono > 0 ? paymentMethod : undefined
+            })
+
             // Invalidate strictly necessary queries
             await qc.invalidateQueries({ queryKey: ['orders'] })
             onOpenChange(false)
@@ -97,6 +144,68 @@ export function ReceiveOrderModal({ order, open, onOpenChange }: ReceiveOrderMod
                             onChange={(e) => setInvoiceNumber(e.target.value)}
                             placeholder="Ej: 001-002-123456"
                         />
+                    </div>
+
+                    <Separator className="my-2" />
+
+                    <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                        <div className="flex items-center gap-2 mb-3">
+                            <DollarSign className="h-4 w-4 text-blue-600" />
+                            <Label className="text-sm font-semibold text-blue-900">Abono Adicional (Opcional)</Label>
+                        </div>
+
+                        <div className="grid gap-3">
+                            <div className="grid gap-2">
+                                <Label htmlFor="abono-recepcion" className="text-xs">Monto del Abono ($)</Label>
+                                <Input
+                                    id="abono-recepcion"
+                                    type="number"
+                                    value={abonoRecepcion}
+                                    onChange={(e) => setAbonoRecepcion(e.target.value)}
+                                    placeholder="0.00"
+                                    step="0.01"
+                                />
+                            </div>
+
+                            {abonoRecepcion && parseFloat(abonoRecepcion) > 0 && (
+                                <>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="payment-method" className="text-xs">Método de Pago</Label>
+                                        <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                                            <SelectTrigger id="payment-method">
+                                                <SelectValue placeholder="Seleccionar método" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="EFECTIVO">Efectivo</SelectItem>
+                                                <SelectItem value="TRANSFERENCIA">Transferencia</SelectItem>
+                                                <SelectItem value="DEPOSITO">Depósito</SelectItem>
+                                                <SelectItem value="CHEQUE">Cheque</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    {paymentMethod !== 'EFECTIVO' && (
+                                        <div className="grid gap-2">
+                                            <Label htmlFor="bank-account" className="text-xs">Cuenta Bancaria</Label>
+                                            <Select value={bankAccountId} onValueChange={setBankAccountId}>
+                                                <SelectTrigger id="bank-account">
+                                                    <SelectValue placeholder="Seleccionar cuenta" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {bankAccounts
+                                                        .filter(acc => acc.isActive && acc.type !== 'CASH')
+                                                        .map(account => (
+                                                            <SelectItem key={account.id} value={account.id}>
+                                                                {account.name} (Banco)
+                                                            </SelectItem>
+                                                        ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
                     </div>
                 </div>
 

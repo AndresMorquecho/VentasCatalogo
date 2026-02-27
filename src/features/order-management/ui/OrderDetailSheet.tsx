@@ -121,7 +121,7 @@ export function OrderDetailSheet({ order, open, onOpenChange }: OrderDetailSheet
                         <Separator className="my-2" />
                         <div className="flex justify-between text-base font-bold">
                             <span>Saldo Pendiente</span>
-                            <span className="text-red-600">{formatCurrency(getPendingAmount(order))}</span>
+                            <span className="text-red-600">{formatCurrency(Math.max(0, getPendingAmount(order)))}</span>
                         </div>
                     </div>
 

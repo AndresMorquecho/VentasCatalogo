@@ -1,5 +1,3 @@
-import { useState } from "react"
-import { useQueryClient } from "@tanstack/react-query"
 import {
     Dialog,
     DialogContent,
@@ -8,16 +6,15 @@ import {
     DialogDescription,
 } from "@/shared/ui/dialog"
 import { Button } from "@/shared/ui/button"
-import { Input } from "@/shared/ui/input"
-import { PackageCheck, Truck } from "lucide-react"
 import { OrderStatusBadge } from "./OrderStatusBadge"
 import type { Order } from "@/entities/order/model/types"
-import { orderApi } from "@/entities/order/model/api"
 import { useBankAccountList } from "@/features/bank-accounts/api/hooks"
-import { getPaidAmount, getPendingAmount, getEffectiveTotal, receiveOrder, deliverOrder } from "@/entities/order/model/model"
+import { getPaidAmount, getPendingAmount, getEffectiveTotal } from "@/entities/order/model/model"
 import { OrderPaymentList } from "@/features/order-payments"
 import { Printer } from "lucide-react"
 import { generateOrderReceipt } from "@/features/order-receipt"
+import { useAuth } from "@/shared/auth/AuthProvider"
+import { useToast } from "@/shared/ui/use-toast" // Added useToast import
 
 interface OrderDetailModalProps {
     order: Order | null
@@ -41,12 +38,8 @@ function formatCurrency(amount: number): string {
 
 export function OrderDetailModal({ order, open, onOpenChange }: OrderDetailModalProps) {
     const { data: bankAccounts = [] } = useBankAccountList()
-    const qc = useQueryClient()
-
-    // State for reception flow
-    const [isReceiving, setIsReceiving] = useState(false)
-    const [invoiceTotal, setInvoiceTotal] = useState<string>('')
-    const [isSubmitting, setIsSubmitting] = useState(false)
+    const { user } = useAuth()
+    const { showToast } = useToast() // Initialized useToast
 
     if (!order) return null
 
@@ -54,45 +47,25 @@ export function OrderDetailModal({ order, open, onOpenChange }: OrderDetailModal
         ? bankAccounts.find(b => b.id === order.bankAccountId)
         : null
 
-    const handleReceive = async () => {
-        if (!invoiceTotal) return
-        const total = parseFloat(invoiceTotal)
-        if (isNaN(total) || total <= 0) return
-
-        setIsSubmitting(true)
+    const handleGenerateReceipt = async () => {
         try {
-            const updatedOrder = receiveOrder(order, total)
-            await orderApi.update(updatedOrder.id, updatedOrder)
-            await qc.invalidateQueries({ queryKey: ['orders'] })
-            setIsReceiving(false)
-            setInvoiceTotal('')
+            await generateOrderReceipt(order, {
+                id: user?.id || '0',
+                name: order.createdByName || user?.username || 'Administrador',
+                email: '',
+                role: 'OPERATOR',
+                status: 'ACTIVE',
+                createdAt: ''
+            } as any);
+            showToast("El recibo se ha generado y descargado correctamente.", "success");
         } catch (error) {
-            console.error(error)
-        } finally {
-            setIsSubmitting(false)
+            console.error("Error generating receipt:", error);
+            showToast("Hubo un problema al generar el recibo. Inténtalo de nuevo.", "error");
         }
-    }
-
-    const handleDeliver = async () => {
-        if (!confirm('¿Confirmar entrega del pedido al cliente?')) return
-
-        setIsSubmitting(true)
-        try {
-            const updatedOrder = deliverOrder(order)
-            await orderApi.update(updatedOrder.id, updatedOrder)
-            await qc.invalidateQueries({ queryKey: ['orders'] })
-        } catch (error) {
-            console.error(error)
-        } finally {
-            setIsSubmitting(false)
-        }
-    }
+    };
 
     return (
-        <Dialog open={open} onOpenChange={(v) => {
-            if (!v) setIsReceiving(false)
-            onOpenChange(v)
-        }}>
+        <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col">
                 <DialogHeader className="mb-4 border-b pb-4">
                     <div className="flex items-center justify-between">
@@ -191,15 +164,17 @@ export function OrderDetailModal({ order, open, onOpenChange }: OrderDetailModal
                                     <span className="text-muted-foreground">Pagado</span>
                                     <span className="text-green-600 font-medium">{formatCurrency(getPaidAmount(order))}</span>
                                 </div>
-                                <div className="flex justify-between items-center text-sm bg-red-50 p-2 rounded text-red-700 font-bold border border-red-100">
-                                    <span>Saldo Pendiente</span>
-                                    <span>{formatCurrency(getPendingAmount(order))}</span>
-                                </div>
+                                {getPendingAmount(order) > 0 && (
+                                    <div className="flex justify-between items-center text-sm bg-red-50 p-2 rounded text-red-700 font-bold border border-red-100">
+                                        <span>Saldo Pendiente</span>
+                                        <span>{formatCurrency(Math.max(0, getPendingAmount(order)))}</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
                         <div>
-                            <h4 className="text-sm font-medium text-muted-foreground mb-2">Detalles de Pago</h4>
+                            <h4 className="text-sm font-medium text-muted-foreground mb-2">Detalles de Pago Inicial</h4>
                             <div className="text-sm bg-muted/30 p-3 rounded border">
                                 <div className="flex justify-between mb-1">
                                     <span className="text-muted-foreground">Método:</span>
@@ -222,90 +197,12 @@ export function OrderDetailModal({ order, open, onOpenChange }: OrderDetailModal
                     </div>
                 </div>
 
-                {/* Lifecycle Actions Area */}
-                {(order.status === 'POR_RECIBIR' || order.status === 'ATRASADO') && !isReceiving && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h4 className="font-semibold text-amber-900">Recepción de Pedido</h4>
-                                <p className="text-sm text-amber-700">Registrar llegada a bodega y valor real de factura</p>
-                            </div>
-                            <Button
-                                onClick={() => {
-                                    setIsReceiving(true)
-                                    setInvoiceTotal(order.total.toString())
-                                }}
-                                className="bg-amber-600 hover:bg-amber-700 text-white"
-                            >
-                                <PackageCheck className="mr-2 h-4 w-4" />
-                                Recibir Pedido
-                            </Button>
-                        </div>
-                    </div>
-                )}
-
-                {isReceiving && (
-                    <div className="bg-white border-2 border-amber-400 rounded-lg p-6 mt-6 shadow-sm animate-in fade-in zoom-in-95 duration-200">
-                        <h4 className="font-semibold text-lg mb-4 text-amber-900 flex items-center gap-2">
-                            <PackageCheck className="h-5 w-5" />
-                            Confirmar Recepción
-                        </h4>
-                        <div className="space-y-4">
-                            <div className="grid gap-2">
-                                <label className="text-sm font-medium">Valor Real de la Factura ($)</label>
-                                <Input
-                                    type="number"
-                                    value={invoiceTotal}
-                                    onChange={(e) => setInvoiceTotal(e.target.value)}
-                                    placeholder="0.00"
-                                    className="text-lg font-bold"
-                                    autoFocus
-                                />
-                                <p className="text-xs text-muted-foreground">
-                                    Este valor reemplazará el estimado de {formatCurrency(order.total)} y recalculará el saldo pendiente.
-                                </p>
-                            </div>
-                            <div className="flex justify-end gap-3 pt-2">
-                                <Button variant="outline" onClick={() => setIsReceiving(false)}>
-                                    Cancelar
-                                </Button>
-                                <Button
-                                    onClick={handleReceive}
-                                    className="bg-amber-600 hover:bg-amber-700 text-white"
-                                    disabled={!invoiceTotal || parseFloat(invoiceTotal) <= 0 || isSubmitting}
-                                >
-                                    {isSubmitting ? 'Guardando...' : 'Confirmar y Actualizar Saldo'}
-                                </Button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {order.status === 'RECIBIDO_EN_BODEGA' && (
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h4 className="font-semibold text-green-900">Entrega Final</h4>
-                                <p className="text-sm text-green-700">El pedido está listo para ser entregado al cliente</p>
-                            </div>
-                            <Button
-                                onClick={handleDeliver}
-                                className="bg-green-600 hover:bg-green-700 text-white"
-                                disabled={isSubmitting}
-                            >
-                                <Truck className="mr-2 h-4 w-4" />
-                                Entregar Pedido
-                            </Button>
-                        </div>
-                    </div>
-                )}
-
                 <div className="mt-8 border-t pt-6">
-                    <OrderPaymentList order={order} />
+                    <OrderPaymentList order={order} readOnly />
                 </div>
 
                 <div className="border-t pt-4 mt-6 flex justify-end">
-                    <Button variant="outline" onClick={() => generateOrderReceipt(order, { id: '0', name: 'Vendedor', email: '', role: 'OPERATOR', status: 'ACTIVE', createdAt: '' } as any)}>
+                    <Button variant="outline" onClick={handleGenerateReceipt}>
                         <Printer className="mr-2 h-4 w-4" />
                         Imprimir Recibo
                     </Button>

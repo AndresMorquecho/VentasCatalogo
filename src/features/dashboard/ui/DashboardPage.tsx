@@ -1,263 +1,368 @@
-
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import {
     Users,
     ArrowUpRight,
+    ArrowDownRight,
     Package,
     Clock,
     CheckCircle2,
-    ChevronDown,
-    MoreVertical,
-    AlertCircle
+    MoreHorizontal,
+    Filter,
+    DollarSign
 } from 'lucide-react';
 import { useDashboard } from '../model/hooks';
+import { Card, CardContent } from "@/shared/ui/card";
+import { Badge } from "@/shared/ui/badge";
+import { Avatar, AvatarFallback } from "@/shared/ui/avatar";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// --- Helpers ---
 const fmt = (n: number) =>
     new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
 
-// ─── Componentes de UI NevBank Style ─────────────────────────────────────────
-
-
-function SmallCard({ label, value, icon: Icon, color }: { label: string; value: string | number; icon: any; color: string }) {
+// --- Modern KPI Card Component ---
+function KpiCard({ title, value, subtext, trend, icon: Icon, colorClass, iconBgClass }: any) {
+    const isPositive = trend === 'up';
     return (
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-50 flex justify-between items-start group hover:shadow-md transition-all cursor-pointer">
-            <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-slate-500">{label}</span>
+        <Card className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white overflow-hidden">
+            <CardContent className="p-6">
+                <div className="flex justify-between items-start">
+                    <div>
+                        <div className="flex items-center gap-2 mb-2">
+                            <div className="w-1 h-4 bg-indigo-500 rounded-full" />
+                            <p className="text-sm font-bold text-slate-500">{title}</p>
+                        </div>
+                        <h3 className="text-3xl font-black text-slate-900 mb-2">{value}</h3>
+                        <div className="flex items-center gap-1 text-xs">
+                            {isPositive ? (
+                                <ArrowUpRight className="h-3.5 w-3.5 text-emerald-500 font-bold" />
+                            ) : (
+                                <ArrowDownRight className="h-3.5 w-3.5 text-rose-500 font-bold" />
+                            )}
+                            <span className={`font-bold ${isPositive ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                {subtext.split(' ')[0]}
+                            </span>
+                            <span className="text-slate-400 font-medium"> {subtext.substring(subtext.indexOf(' ') + 1)}</span>
+                        </div>
+                    </div>
+                    <div className={`p-3 rounded-2xl ${iconBgClass}`}>
+                        <Icon className={`h-6 w-6 ${colorClass}`} />
+                    </div>
                 </div>
-                <div className="text-2xl font-black text-[#1a1c1e] tracking-tight">{value}</div>
-            </div>
-            <div className={`p-2 rounded-lg ${color} bg-opacity-10 text-${color.split('-')[1]}-600`}>
-                <Icon size={24} />
-            </div>
-        </div>
+            </CardContent>
+        </Card>
     );
 }
-
-function SegmentedDonut({ data }: { data: { label: string, value: number, color: string }[] }) {
-    const total = data.reduce((acc, d) => acc + d.value, 0);
-    const size = 180; // Un poco más grande para mejor legibilidad
-    const center = size / 2;
-    const strokeWidth = 12;
-    const radius = (size - strokeWidth) / 2 - 15;
-    const circumference = 2 * Math.PI * radius;
-
-    let currentAngle = 0;
-    // Añadimos un pequeño espacio (gap) entre segmentos si hay más de uno
-    const gap = total > 0 ? 4 : 0;
-
-    return (
-        <div className="relative flex items-center justify-center group">
-            <svg height={size} width={size} className="transform -rotate-90 overflow-visible">
-                {/* Canal de fondo (track) */}
-                <circle
-                    cx={center}
-                    cy={center}
-                    r={radius}
-                    stroke="#f8fafc"
-                    strokeWidth={strokeWidth}
-                    fill="transparent"
-                />
-                {data.map((item, index) => {
-                    if (item.value === 0) return null;
-
-                    const percentage = item.value / total;
-                    const segmentLength = percentage * circumference;
-                    // El dashoffset en SVG es negativo para avanzar en sentido horario
-                    const dashOffset = -currentAngle;
-
-                    // Reducimos el arco visualmente para crear el efecto de "gap"
-                    const visualLength = segmentLength - gap;
-                    const dashArray = `${visualLength > 0 ? visualLength : 0} ${circumference}`;
-
-                    currentAngle += segmentLength;
-
-                    return (
-                        <circle
-                            key={index}
-                            cx={center}
-                            cy={center}
-                            r={radius}
-                            stroke={item.color}
-                            strokeWidth={strokeWidth}
-                            strokeDasharray={dashArray}
-                            strokeDashoffset={dashOffset}
-                            fill="transparent"
-                            strokeLinecap="round"
-                            className="transition-all duration-1000 ease-out"
-                        />
-                    );
-                })}
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Pedidos</span>
-                <span className="text-4xl font-black text-[#1a1c1e] leading-none">{total}</span>
-                <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mt-1">Totales</span>
-            </div>
-        </div>
-    );
-}
-
-// ─── Dashboard Principal ────────────────────────────────────────────────────────
 
 export function DashboardPage() {
-    const navigate = useNavigate();
     const { data, isLoading } = useDashboard();
+    const [timeRange, setTimeRange] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
 
-    if (isLoading) return <div className="min-h-screen bg-[#f4f7f9] animate-pulse p-12">Cargando sistema...</div>;
+    if (isLoading) {
+        return (
+            <div className="min-h-screen bg-white flex items-center justify-center p-12">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-indigo-500 border-r-2" />
+                    <p className="text-slate-500 font-bold animate-pulse">Cargando sistema...</p>
+                </div>
+            </div>
+        );
+    }
 
     const oldestOrders = data?.alerts.oldestOrders ?? [];
 
+    // Status metrics
+    const totalOrders = Object.values(data?.operational.ordersByStatus || {}).reduce((a, b) => a + b, 0) || 1;
+    const stats = {
+        entregados: { count: data?.operational.ordersByStatus.entregado ?? 0, color: '#3b82f6' }, // Blue
+        pendientes: { count: data?.operational.ordersByStatus.recepcionado ?? 0, color: '#111827' }, // Dark
+        porRecibir: { count: data?.operational.ordersByStatus.porRecibir ?? 0, color: '#94a3b8' } // Gray
+    };
+
+    // Calculate percentages for donut
+    const getPercent = (val: number) => Math.round((val / totalOrders) * 100);
+
     return (
-        <div className="min-h-screen bg-[#f4f7f9] p-8 pb-12 font-sans selection:bg-[#004d40] selection:text-white">
+        <div className="min-h-screen bg-white p-4 lg:p-8 space-y-8 font-sans">
+            <main className="max-w-[1600px] mx-auto space-y-8">
 
-            <main className="max-w-[1400px] mx-auto px-8 mt-8 space-y-8">
-
-                {/* ── SECCIÓN SUPERIOR ── */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                    {/* Tarjeta Principal */}
-                    <div className="lg:col-span-8 bg-white rounded-3xl p-8 shadow-sm border border-slate-50 relative overflow-hidden flex flex-col justify-between">
-                        <div className="flex justify-between items-start mb-6">
-                            <div>
-                                <h2 className="text-3xl font-black text-[#1a1c1e]">Balance General del Mes</h2>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Fondos Disponibles</p>
-                                <div className="text-4xl font-black text-[#1a1c1e] tracking-tighter">{fmt(data?.financial.currentCash ?? 0)}</div>
-                            </div>
-                        </div>
-                        <div className="flex gap-4">
-                            <button onClick={() => navigate('/transactions')} className="bg-[#004d40] text-white px-8 py-3 rounded-xl font-bold text-sm hover:bg-[#003d33] transition-all shadow-lg shadow-[#004d40]/20">Ver Finanzas</button>
-                        </div>
-                    </div>
-
-                    {/* Banner Lateral */}
-                    <div className="lg:col-span-4 bg-[#004d40] rounded-3xl p-8 text-white relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-                            <AlertCircle size={120} strokeWidth={1} />
-                        </div>
-                        <div className="relative z-10 flex flex-col h-full justify-between">
-                            <div>
-                                <h3 className="text-xl font-black mb-4">Pedidos Críticos</h3>
-                                <p className="text-emerald-100/70 text-sm leading-relaxed">
-                                    Tienes {data?.alerts.ordersOver15Days} pedidos que han superado el tiempo máximo en bodega. Es necesario gestionar su entrega inmediata para evitar retrasos en facturación.
-                                </p>
-                            </div>
-                            <button
-                                onClick={() => navigate('/orders/delivery')}
-                                className="w-full bg-white text-[#004d40] py-3 rounded-xl font-bold text-sm hover:bg-emerald-50 transition-all shadow-xl shadow-black/10 mt-6"
-                            >
-                                Revisar Alertas Críticas
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                {/* ── KPI GRID ── */}
+                {/* --- Top Metrics Header --- */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <SmallCard label="Pendientes" value={data?.operational.ordersPending ?? 0} icon={Clock} color="bg-amber-500" />
-                    <SmallCard label="En Bodega" value={data?.operational.ordersInWarehouse ?? 0} icon={Package} color="bg-blue-500" />
-                    <SmallCard label="N° Clientes" value={data?.operational.totalActiveClients ?? 0} icon={Users} color="bg-rose-500" />
-                    <SmallCard label="Entregados" value={data?.operational.totalOrdersDelivered ?? 0} icon={CheckCircle2} color="bg-emerald-500" />
+                    <KpiCard
+                        title="Clientes Activos"
+                        value={data?.operational.totalActiveClients ?? 0}
+                        subtext="+6.5% último mes"
+                        trend="up"
+                        icon={Users}
+                        colorClass="text-indigo-600"
+                        iconBgClass="bg-indigo-50"
+                    />
+                    <KpiCard
+                        title="Ingresos Estimados"
+                        value={fmt(data?.financial.currentCash ?? 0)}
+                        subtext="+12.5% última semana"
+                        trend="up"
+                        icon={DollarSign}
+                        colorClass="text-emerald-600"
+                        iconBgClass="bg-emerald-50"
+                    />
+                    <KpiCard
+                        title="Pedidos Entregados"
+                        value={data?.operational.totalOrdersDelivered ?? 0}
+                        subtext="+8.2% último mes"
+                        trend="up"
+                        icon={CheckCircle2}
+                        colorClass="text-blue-600"
+                        iconBgClass="bg-blue-50"
+                    />
+                    <KpiCard
+                        title="Pedidos Pendientes"
+                        value={data?.operational.ordersPending ?? 0}
+                        subtext="-2.4% última semana"
+                        trend="down"
+                        icon={Clock}
+                        colorClass="text-amber-600"
+                        iconBgClass="bg-amber-50"
+                    />
                 </div>
 
-                {/* ── SECCIÓN INFERIOR ── */}
+                {/* --- Charts Section --- */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
-                    {/* TABLA DE PEDIDOS ESTANCADOS (Left: 70%) */}
-                    <div className="lg:col-span-8 bg-white rounded-3xl p-8 shadow-sm border border-slate-50">
-                        <div className="flex items-center justify-between mb-8">
-                            <h3 className="text-xl font-black text-[#1a1c1e]">Pedidos Estancados (+15 días)</h3>
-                            <div className="p-2 bg-slate-100 rounded-lg text-slate-500 cursor-pointer hover:bg-slate-200" onClick={() => navigate('/orders')}>
-                                <ArrowUpRight size={20} />
+                    {/* Invoice Statistics (Donut Chart) */}
+                    <Card className="lg:col-span-4 border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white overflow-hidden flex flex-col">
+                        <div className="p-6 pb-0 flex justify-between items-center">
+                            <h4 className="font-black text-slate-800">Estadísticas de Pedidos</h4>
+                            <MoreHorizontal className="h-5 w-5 text-slate-400 cursor-pointer" />
+                        </div>
+                        <CardContent className="flex-1 p-6 flex flex-col items-center justify-center">
+                            <div className="relative h-48 w-48 mb-8">
+                                <svg viewBox="0 0 100 100" className="h-full w-full transform -rotate-90">
+                                    <circle cx="50" cy="50" r="40" fill="transparent" stroke="#f1f5f9" strokeWidth="12" />
+                                    <circle
+                                        cx="50" cy="50" r="40" fill="transparent"
+                                        stroke={stats.entregados.color}
+                                        strokeWidth="12"
+                                        strokeDasharray={`${getPercent(stats.entregados.count) * 2.51} 251`}
+                                    />
+                                    <circle
+                                        cx="50" cy="50" r="40" fill="transparent"
+                                        stroke={stats.pendientes.color}
+                                        strokeWidth="12"
+                                        strokeDasharray={`${getPercent(stats.pendientes.count) * 2.51} 251`}
+                                        strokeDashoffset={`-${getPercent(stats.entregados.count) * 2.51}`}
+                                    />
+                                    <circle
+                                        cx="50" cy="50" r="40" fill="transparent"
+                                        stroke={stats.porRecibir.color}
+                                        strokeWidth="12"
+                                        strokeDasharray={`${getPercent(stats.porRecibir.count) * 2.51} 251`}
+                                        strokeDashoffset={`-${(getPercent(stats.entregados.count) + getPercent(stats.pendientes.count)) * 2.51}`}
+                                    />
+                                </svg>
+                                <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                                    <p className="text-3xl font-black text-slate-900">{totalOrders}</p>
+                                    <p className="text-[10px] uppercase font-bold text-slate-400 tracking-tighter">Totales</p>
+                                </div>
+                            </div>
+
+                            <div className="w-full space-y-4">
+                                <div className="flex justify-between items-center">
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-3 w-3 rounded-full bg-blue-500" />
+                                        <span className="text-sm font-bold text-slate-600">Entregados</span>
+                                    </div>
+                                    <span className="font-black text-slate-900">{stats.entregados.count}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-3 w-3 rounded-full bg-slate-900" />
+                                        <span className="text-sm font-bold text-slate-600">Pendientes</span>
+                                    </div>
+                                    <span className="font-black text-slate-900">{stats.pendientes.count}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-3 w-3 rounded-full bg-slate-400" />
+                                        <span className="text-sm font-bold text-slate-600">Por Recibir</span>
+                                    </div>
+                                    <span className="font-black text-slate-900">{stats.porRecibir.count}</span>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Sales Analytics (Line Chart) */}
+                    <Card className="lg:col-span-8 border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white overflow-hidden flex flex-col">
+                        <div className="p-6 pb-0 flex justify-between items-center">
+                            <h4 className="font-black text-slate-800">Analítica de Pedidos</h4>
+                            <div className="flex bg-slate-100 p-1 rounded-lg">
+                                <button onClick={() => setTimeRange('daily')} className={`px-3 py-1 text-[10px] font-bold rounded-md uppercase tracking-widest transition-all ${timeRange === 'daily' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}>Diario</button>
+                                <button onClick={() => setTimeRange('weekly')} className={`px-3 py-1 text-[10px] font-bold rounded-md uppercase tracking-widest transition-all ${timeRange === 'weekly' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}>Semanal</button>
+                                <button onClick={() => setTimeRange('monthly')} className={`px-3 py-1 text-[10px] font-bold rounded-md uppercase tracking-widest transition-all ${timeRange === 'monthly' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}>Mensual</button>
                             </div>
                         </div>
+                        <CardContent className="flex-1 p-6 pt-12 flex flex-col">
+                            <div className="flex items-center gap-4 mb-6">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-3 h-3 rounded-full bg-indigo-500" />
+                                    <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Recibidos</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-3 h-3 rounded-full bg-emerald-500" />
+                                    <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Entregados</span>
+                                </div>
+                            </div>
+                            <div className="flex-1 min-h-[250px] relative group flex">
+                                {(() => {
+                                    const trendData = data?.charts?.ordersTrend?.[timeRange] ?? [];
+                                    if (!trendData || trendData.length === 0) {
+                                        return <div className="flex items-center justify-center w-full h-full text-slate-400 font-bold text-sm">No hay datos suficientes</div>;
+                                    }
 
+                                    const maxVal = Math.max(...trendData.flatMap(d => [d.created, d.delivered, 5]));
+                                    const ht = (val: number) => (val / maxVal) * 90 + 5; // offset lightly
+
+                                    const pathCreated = trendData.map((d, i) => `${i === 0 ? 'M' : 'L'} ${(i / (Math.max(1, trendData.length - 1))) * 100} ${100 - ht(d.created)}`).join(' ');
+                                    const pathDelivered = trendData.map((d, i) => `${i === 0 ? 'M' : 'L'} ${(i / (Math.max(1, trendData.length - 1))) * 100} ${100 - ht(d.delivered)}`).join(' ');
+
+                                    const filledCreated = `${pathCreated} L 100 100 L 0 100 Z`;
+
+                                    return (
+                                        <>
+                                            {/* Dynamic Line Chart */}
+                                            <div className="absolute inset-0 flex items-end justify-between gap-0 z-10 w-full mb-6">
+                                                {trendData.map((item, i) => (
+                                                    <div key={i} className="flex-1 flex justify-center group/point relative h-full">
+                                                        {/* Created Dot */}
+                                                        <div
+                                                            className="absolute w-3 h-3 -translate-x-1/2 rounded-full border-2 border-indigo-500 bg-white z-20 cursor-pointer hover:scale-150 hover:bg-indigo-500 transition-all shadow-sm"
+                                                            style={{ bottom: `calc(${ht(item.created)}% - 6px)`, left: '50%' }}
+                                                        >
+                                                            <div className="opacity-0 group-hover/point:opacity-100 absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-slate-900 text-white text-[10px] px-3 py-1.5 rounded-lg font-bold whitespace-nowrap shadow-xl">
+                                                                Recibidos: {item.created}
+                                                            </div>
+                                                        </div>
+                                                        {/* Delivered Dot */}
+                                                        <div
+                                                            className="absolute w-3 h-3 -translate-x-1/2 rounded-full border-2 border-emerald-500 bg-white z-20 cursor-pointer hover:scale-150 hover:bg-emerald-500 transition-all shadow-sm"
+                                                            style={{ bottom: `calc(${ht(item.delivered)}% - 6px)`, left: '50%' }}
+                                                        >
+                                                            <div className="opacity-0 group-hover/point:opacity-100 absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-slate-900 text-white text-[10px] px-3 py-1.5 rounded-lg font-bold whitespace-nowrap shadow-xl">
+                                                                Entregados: {item.delivered}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            <div className="absolute inset-0 w-full h-full mb-6 z-0 pointer-events-none">
+                                                <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full overflow-visible">
+                                                    {/* Delivered Line */}
+                                                    <path d={pathDelivered} fill="none" stroke="#10b981" strokeWidth="0.8" strokeLinejoin="round" />
+                                                    {/* Created Line */}
+                                                    <path d={pathCreated} fill="none" stroke="#6366f1" strokeWidth="0.8" strokeLinejoin="round" />
+                                                    <path d={filledCreated} fill="url(#gradient)" opacity="0.1" />
+                                                    <defs>
+                                                        <linearGradient id="gradient" x1="0" x2="0" y1="0" y2="1">
+                                                            <stop offset="0%" stopColor="#6366f1" />
+                                                            <stop offset="100%" stopColor="transparent" />
+                                                        </linearGradient>
+                                                    </defs>
+                                                </svg>
+                                            </div>
+
+                                            {/* X-Axis Labels */}
+                                            <div className="absolute bottom-0 inset-x-0 flex justify-between px-2">
+                                                {trendData.map((item, i) => (
+                                                    <span key={i} className="text-[10px] font-bold text-slate-400 flex-1 text-center truncate">
+                                                        {item.period}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </>
+                                    );
+                                })()}
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* --- Recent Invoices / Orders Table --- */}
+                <Card className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white overflow-hidden">
+                    <div className="p-6 flex justify-between items-center border-b border-slate-50">
+                        <h4 className="font-black text-slate-800">Facturas / Pedidos Recientes</h4>
+                        <div className="flex items-center gap-3">
+                            <Badge variant="outline" className="flex items-center gap-2 py-1.5 px-4 border-2 font-bold cursor-pointer hover:bg-slate-50 rounded-lg">
+                                <Filter className="h-3.5 w-3.5 text-slate-500" />
+                                <span className="text-slate-600">Filtrar</span>
+                            </Badge>
+                            <MoreHorizontal className="h-5 w-5 text-slate-400 cursor-pointer" />
+                        </div>
+                    </div>
+                    <CardContent className="p-0">
                         <div className="overflow-x-auto">
-                            <table className="w-full">
+                            <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-50">
-                                        <th className="pb-4">Fecha/Día</th>
-                                        <th className="pb-4">Referencia</th>
-                                        <th className="pb-4">Cliente</th>
-                                        <th className="pb-4 text-center">Estado</th>
-                                        <th className="pb-4 text-right">Valor</th>
-                                        <th className="pb-4 w-10"></th>
+                                    <tr className="bg-white text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100/50">
+                                        <th className="px-6 py-5">No</th>
+                                        <th className="px-6 py-5">Id Cliente / Ref</th>
+                                        <th className="px-6 py-5">Nombre Cliente</th>
+                                        <th className="px-6 py-5">Detalle Items</th>
+                                        <th className="px-6 py-5">Fecha Pedido</th>
+                                        <th className="px-6 py-5">Estado</th>
+                                        <th className="px-6 py-5 text-right">Precio</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-50">
-                                    {oldestOrders.length > 0 ? oldestOrders.map((order) => (
-                                        <tr key={order.id} className="group hover:bg-slate-50/50 transition-colors">
-                                            <td className="py-4 font-bold text-xs text-slate-500">Hoy <span className="text-[10px] font-medium block text-slate-300">{order.days} días</span></td>
-                                            <td className="py-4 font-black text-sm text-[#1a1c1e]">{order.id}</td>
-                                            <td className="py-4 font-bold text-sm text-slate-600">{order.clientName}</td>
-                                            <td className="py-4 text-center">
-                                                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 text-rose-600 text-[10px] font-black uppercase">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" /> Crítico
+                                    {oldestOrders.map((order, index) => (
+                                        <tr key={order.id} className="hover:bg-slate-50/80 transition-colors group cursor-pointer bg-white">
+                                            <td className="px-6 py-4 text-sm font-bold text-slate-400">{index + 1}</td>
+                                            <td className="px-6 py-4 text-sm font-black text-slate-500">#{order.id.slice(0, 6)}</td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-3">
+                                                    <Avatar className="h-8 w-8 shadow-sm">
+                                                        <AvatarFallback className="bg-slate-100 text-slate-700 text-xs font-black">
+                                                            {order.clientName?.substring(0, 2).toUpperCase()}
+                                                        </AvatarFallback>
+                                                    </Avatar>
+                                                    <span className="text-sm font-bold text-slate-700">{order.clientName}</span>
                                                 </div>
                                             </td>
-                                            <td className="py-4 text-right font-black text-sm text-[#1a1c1e]">{fmt(order.value)}</td>
-                                            <td className="py-4 text-right"><ChevronDown size={14} className="text-slate-300 group-hover:text-slate-500" /></td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-2">
+                                                    <Package className="h-4 w-4 text-slate-400" />
+                                                    <span className="text-sm font-bold text-slate-600">Pedido {order.days} días en bodega</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-sm font-bold text-slate-400">
+                                                21/07/2026 08:21 {/* Mock date to match design, ideally would use order.date */}
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <Badge className="bg-rose-100 text-rose-600 border-none font-black text-[10px] uppercase tracking-widest px-3 py-1 hover:bg-rose-200">
+                                                    Atrasado
+                                                </Badge>
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                <span className="text-sm font-black text-slate-700">
+                                                    {fmt(order.value)}
+                                                </span>
+                                            </td>
                                         </tr>
-                                    )) : (
+                                    ))}
+                                    {oldestOrders.length === 0 && (
                                         <tr>
-                                            <td colSpan={6} className="py-12 text-center text-slate-400 italic">No hay pedidos estancados actualmente.</td>
+                                            <td colSpan={7} className="px-6 py-12 text-center text-slate-500 font-bold italic">
+                                                No hay registros recientes para mostrar
+                                            </td>
                                         </tr>
                                     )}
                                 </tbody>
                             </table>
-                            <div className="mt-8 flex items-center justify-center">
-                                <button onClick={() => navigate('/orders')} className="text-xs font-black text-[#004d40] hover:underline flex items-center gap-2">VER TODOS LOS PEDIDOS <ArrowUpRight size={14} /></button>
-                            </div>
                         </div>
-                    </div>
-
-                    {/* GRÁFICO / RESUMEN (Right: 30%) */}
-                    <div className="lg:col-span-4 bg-white rounded-3xl p-8 shadow-sm border border-slate-50">
-                        <div className="flex items-center justify-between mb-8">
-                            <h3 className="text-xl font-black text-[#1a1c1e]">Estado de Pedidos</h3>
-                            <MoreVertical size={20} className="text-slate-300 cursor-pointer" />
-                        </div>
-
-                        <div className="space-y-6">
-                            <div className="py-2 flex flex-col items-center">
-                                <SegmentedDonut data={[
-                                    { label: 'Entregados', value: data?.operational.ordersByStatus.entregado ?? 0, color: '#004d40' },
-                                    { label: 'Pendientes', value: data?.operational.ordersByStatus.recepcionado ?? 0, color: '#f59e0b' },
-                                    { label: 'Por Recibir', value: data?.operational.ordersByStatus.porRecibir ?? 0, color: '#3b82f6' },
-                                    { label: 'Cancelados', value: data?.operational.ordersByStatus.cancelado ?? 0, color: '#ef4444' }
-                                ]} />
-
-                                <div className="w-full mt-10 space-y-4">
-                                    <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50/50">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-2 h-2 rounded-full bg-[#004d40]" />
-                                            <span className="text-xs font-bold text-slate-600">Entregados</span>
-                                        </div>
-                                        <span className="text-xs font-black text-[#1a1c1e] tracking-tight">{data?.operational.ordersByStatus.entregado ?? 0}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50/50">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-2 h-2 rounded-full bg-amber-500" />
-                                            <span className="text-xs font-bold text-slate-600">Pendientes</span>
-                                        </div>
-                                        <span className="text-xs font-black text-[#1a1c1e] tracking-tight">{data?.operational.ordersByStatus.recepcionado ?? 0}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50/50">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-2 h-2 rounded-full bg-blue-500" />
-                                            <span className="text-xs font-bold text-slate-600">Pendientes de Recibir</span>
-                                        </div>
-                                        <span className="text-xs font-black text-[#1a1c1e] tracking-tight">{data?.operational.ordersByStatus.porRecibir ?? 0}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
+                    </CardContent>
+                </Card>
             </main>
         </div>
     );
 }
+

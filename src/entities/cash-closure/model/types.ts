@@ -6,39 +6,39 @@ export interface CashClosureBalanceByBank {
 
 export interface CashClosure {
     id: string;
-    closedAt: string; // ISO Date of closure
+    closedAt: string; // Date of closure
     fromDate: string; // Period start
     toDate: string;   // Period end
     
     // Financial Snapshot
     totalIncome: number;
     totalExpense: number;
-    netTotal: number;
+    expectedAmount: number; // System balance
+    actualAmount: number;   // Counted cash
+    difference: number;     // actual - expected
     
-    // Detailed Breakdown
-    balanceByBank: CashClosureBalanceByBank[];
     movementCount: number;
 
     // Metadata
     createdAt: string;
     notes?: string;
+    closedBy: string;
     
     // Detailed Report (for PDF regeneration)
-    detailedReport?: any; // Will store the full CashClosureDetailedReport
+    detailedReport?: any; 
 }
 
 export interface CreateCashClosurePayload {
-    fromDate: string;
     toDate: string;
+    actualAmount: number;
     notes?: string;
-    // The following are calculated by domain logic, but passed in payload for persistence
-    totalIncome: number;
-    totalExpense: number;
-    netTotal: number;
-    balanceByBank: CashClosureBalanceByBank[];
-    movementCount: number;
-    detailedReport?: any; // Optional detailed report for PDF regeneration
+    // adding missing properties that are returned in createCashClosureSnapshot
+    fromDate?: string;
+    totalIncome?: number;
+    totalExpense?: number;
+    netTotal?: number;
+    balanceByBank?: CashClosureBalanceByBank[];
+    movementCount?: number;
 }
 
-// Summary interface for display components (can be same as payload for now)
-export type CashClosureSummary = CreateCashClosurePayload;
+export type CashClosureSummary = CashClosure;

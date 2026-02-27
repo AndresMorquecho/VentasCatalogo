@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { inventoryApi } from "@/shared/api/inventoryApi";
 
@@ -17,24 +18,26 @@ export const useInventory = () => {
     const { data: clients = [] } = useClients();
     const { data: orders = [] } = useOrderList();
 
-    // 3️⃣ Map IDs to Names
-    const inventoryData = movements.map(move => {
-        const client = clients.find(c => c.id === move.clientId);
-        const order = orders.find(o => o.id === move.orderId);
-        
-        return {
-            ...move,
-            clientName: client ? `${client.firstName}` : "Unknown Client",
-            brandName: order ? order.brandName : "Unknown Brand",
-            orderCode: order ? order.receiptNumber : "N/A",
-            daysInWarehouse: calculateDaysInWarehouse(move.date, move.deliveryDetails?.deliveryDate),
-            status: move.type,
-        };
-    });
+    // 3️⃣ Map IDs to Names for individual movements
+    const inventoryData = useMemo(() => {
+        return movements.map(move => {
+            const client = clients.find(c => c.id === move.clientId);
+            const order = orders.find(o => o.id === move.orderId);
 
-    // 4️⃣ Compute Dashboard Counters (Pure logic here)
+            return {
+                ...move,
+                clientName: client ? `${client.firstName}` : "Unknown Client",
+                brandName: order ? order.brandName : "Unknown Brand",
+                orderCode: order ? order.receiptNumber : "N/A",
+                daysInWarehouse: calculateDaysInWarehouse(move.createdAt, move.type === 'DELIVERED' ? move.createdAt : undefined),
+                status: move.type,
+            };
+        });
+    }, [movements, clients, orders]);
+
+    // 4️⃣ Compute Dashboard Counters
     const inWarehouseCount = inventoryData.filter(i => i.status === 'ENTRY').length;
-    const deliveredTodayCount = inventoryData.filter(i => i.status === 'DELIVERED' && new Date(i.date).toDateString() === new Date().toDateString()).length;
+    const deliveredTodayCount = inventoryData.filter(i => i.status === 'DELIVERED' && new Date(i.createdAt).toDateString() === new Date().toDateString()).length;
     const longStorageCount = inventoryData.filter(i => i.daysInWarehouse > 10 && i.status === 'ENTRY').length;
 
     return {

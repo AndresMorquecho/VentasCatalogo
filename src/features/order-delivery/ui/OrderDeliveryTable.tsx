@@ -10,6 +10,7 @@ import { Button } from "@/shared/ui/button"
 import { Truck, AlertTriangle } from "lucide-react"
 import type { Order } from "@/entities/order/model/types"
 import { getPaidAmount } from "@/entities/order/model/model"
+import { Badge } from "@/shared/ui/badge"
 
 interface OrderDeliveryTableProps {
     orders: Order[]
@@ -53,7 +54,8 @@ export function OrderDeliveryTable({ orders, onDeliver }: OrderDeliveryTableProp
                         orders.map((order) => {
                             // Use centralized calculator to get actual paid amount
                             const paidAmount = getPaidAmount(order);
-                            const pending = (order.realInvoiceTotal || order.total) - paidAmount;
+                            const actualPending = (order.realInvoiceTotal || order.total) - paidAmount;
+                            const pendingForDisplay = Math.max(0, actualPending);
 
                             // Calculate days in warehouse
                             const now = new Date();
@@ -62,14 +64,27 @@ export function OrderDeliveryTable({ orders, onDeliver }: OrderDeliveryTableProp
                             const days = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
                             let rowClass = "transition-colors border-l-4 border-l-transparent hover:bg-slate-50"
-                            if (days > 15) rowClass = "bg-red-50 hover:bg-red-100/80 border-l-red-500"
-                            else if (days > 5) rowClass = "bg-amber-50 hover:bg-amber-100/80 border-l-amber-500"
+                            if (days > 15) rowClass = "bg-red-50 hover:bg-red-100 border-l-red-400"
+                            else if (days > 5) rowClass = "bg-amber-50 hover:bg-amber-100 border-l-amber-400"
+                            else rowClass = "bg-emerald-50/50 hover:bg-emerald-50 border-l-emerald-300"
 
                             return (
                                 <TableRow key={order.id} className={rowClass}>
                                     <TableCell>
-                                        {formatDate(order.receptionDate!)}
-                                        {days > 0 && <span className="text-xs text-muted-foreground block">{days} días en bodega</span>}
+                                        <div className="flex flex-col items-start gap-1">
+                                            <span className="font-medium text-slate-700">{formatDate(order.receptionDate!)}</span>
+                                            {days > 0 && (
+                                                <Badge
+                                                    variant="outline"
+                                                    className={`text-[9px] px-1.5 py-0 uppercase font-black border-transparent tracking-widest ${days > 15 ? 'bg-red-200 text-red-800' :
+                                                            days > 5 ? 'bg-amber-200 text-amber-800' :
+                                                                'bg-emerald-100 text-emerald-800'
+                                                        }`}
+                                                >
+                                                    {days} {days === 1 ? 'día' : 'días'} en bodega
+                                                </Badge>
+                                            )}
+                                        </div>
                                     </TableCell>
                                     <TableCell className="font-medium">{order.receiptNumber}</TableCell>
                                     <TableCell>{order.clientName}</TableCell>
@@ -79,9 +94,9 @@ export function OrderDeliveryTable({ orders, onDeliver }: OrderDeliveryTableProp
                                     <TableCell className="text-right text-green-600">
                                         {formatCurrency(paidAmount)}
                                     </TableCell>
-                                    <TableCell className={`text-right font-bold ${pending > 0.01 ? 'text-red-600' : 'text-slate-400'}`}>
-                                        {formatCurrency(pending)}
-                                        {pending > 0.01 && <AlertTriangle className="inline-block ml-1 h-3 w-3 text-red-500" />}
+                                    <TableCell className={`text-right font-bold ${pendingForDisplay > 0.01 ? 'text-red-600' : 'text-slate-400'}`}>
+                                        {formatCurrency(pendingForDisplay)}
+                                        {pendingForDisplay > 0.01 && <AlertTriangle className="inline-block ml-1 h-3 w-3 text-red-500" />}
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <Button

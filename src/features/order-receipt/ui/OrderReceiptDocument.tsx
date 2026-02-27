@@ -318,9 +318,9 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({ order, user,
                         <Text style={[styles.tableCell, styles.colDate]}>
                             {order.possibleDeliveryDate ? new Date(order.possibleDeliveryDate).toLocaleDateString() : 'N/A'}
                         </Text>
-                        <Text style={[styles.tableCell, styles.colPrice]}>${order.total.toFixed(2)}</Text>
-                        <Text style={[styles.tableCell, styles.colPaid]}>${getPaidAmount(order).toFixed(2)}</Text>
-                        <Text style={[styles.tableCell, styles.colPending]}>${getPendingAmount(order).toFixed(2)}</Text>
+                        <Text style={[styles.tableCell, styles.colPrice]}>${Number(order.total).toFixed(2)}</Text>
+                        <Text style={[styles.tableCell, styles.colPaid]}>${Number(getPaidAmount(order)).toFixed(2)}</Text>
+                        <Text style={[styles.tableCell, styles.colPending]}>${Number(Math.max(0, getPendingAmount(order))).toFixed(2)}</Text>
                     </View>
                 </View>
 
@@ -329,15 +329,15 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({ order, user,
                     <View style={styles.summaryBlock}>
                         <View style={styles.summaryRow}>
                             <Text style={styles.summaryLabel}>Subtotal:</Text>
-                            <Text style={styles.summaryValue}>${order.total.toFixed(2)}</Text>
+                            <Text style={styles.summaryValue}>${Number(order.total).toFixed(2)}</Text>
                         </View>
                         <View style={styles.summaryRow}>
                             <Text style={styles.summaryLabel}>Abono Inicial:</Text>
-                            <Text style={styles.summaryValue}>- ${getPaidAmount(order).toFixed(2)}</Text>
+                            <Text style={styles.summaryValue}>- ${Number(getPaidAmount(order)).toFixed(2)}</Text>
                         </View>
                         <View style={styles.summaryTotalRow}>
                             <Text style={styles.totalLabel}>Monto Pendiente:</Text>
-                            <Text style={styles.totalValue}>${getPendingAmount(order).toFixed(2)}</Text>
+                            <Text style={styles.totalValue}>${Number(Math.max(0, getPendingAmount(order))).toFixed(2)}</Text>
                         </View>
                     </View>
                 </View>

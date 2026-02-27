@@ -130,20 +130,20 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto w-[95vw] max-w-[95vw] sm:w-full">
                 <DialogHeader>
-                    <DialogTitle>
+                    <DialogTitle className="text-base sm:text-lg">
                         {isEditing ? "Editar Empresaria" : "Nueva Empresaria"}
                     </DialogTitle>
                 </DialogHeader>
 
-                <form onSubmit={formik.handleSubmit} className="space-y-6 py-4">
+                <form onSubmit={formik.handleSubmit} className="space-y-4 sm:space-y-6 py-2 sm:py-4">
                     {/* Sección: Identificación */}
                     <div>
-                        <h4 className="text-sm font-medium text-muted-foreground mb-3">
+                        <h4 className="text-xs sm:text-sm font-medium text-muted-foreground mb-2 sm:mb-3">
                             Identificación
                         </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="identificationNumber">Nº Cédula</Label>
                                 <Input
@@ -178,10 +178,10 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
 
                     {/* Sección: Ubicación */}
                     <div>
-                        <h4 className="text-sm font-medium text-muted-foreground mb-3">
+                        <h4 className="text-xs sm:text-sm font-medium text-muted-foreground mb-2 sm:mb-3">
                             Ubicación
                         </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="country">País</Label>
                                 <Input
@@ -222,7 +222,7 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
                                 )}
                             </div>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mt-3 sm:mt-4">
                             <div className="space-y-2">
                                 <Label htmlFor="address">Dirección</Label>
                                 <Input
@@ -245,7 +245,7 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
                                 />
                             </div>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mt-3 sm:mt-4">
                             <div className="space-y-2">
                                 <Label htmlFor="neighborhood">Barrio (Opcional)</Label>
                                 <Input
@@ -269,10 +269,10 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
 
                     {/* Sección: Contacto */}
                     <div>
-                        <h4 className="text-sm font-medium text-muted-foreground mb-3">
+                        <h4 className="text-xs sm:text-sm font-medium text-muted-foreground mb-2 sm:mb-3">
                             Contacto
                         </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
                             <div className="space-y-2 md:col-span-1">
                                 <Label htmlFor="email">Correo Electrónico</Label>
                                 <Input
@@ -320,7 +320,7 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
                                 )}
                             </div>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 mt-3 sm:mt-4">
                             <div className="md:col-span-1" /> {/* spacer */}
                             <div className="space-y-2">
                                 <Label htmlFor="phone2">Teléfono Secundario (Opc.)</Label>
@@ -357,15 +357,16 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
                         <p className="text-red-500 text-sm text-center">{submitError}</p>
                     )}
 
-                    <DialogFooter>
+                    <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
                         <AsyncButton
                             type="button"
                             variant="outline"
                             onClick={() => onOpenChange(false)}
+                            className="w-full sm:w-auto"
                         >
                             Cancelar
                         </AsyncButton>
-                        <AsyncButton type="submit" isLoading={isSubmitting} loadingText="Guardando...">
+                        <AsyncButton type="submit" isLoading={isSubmitting} loadingText="Guardando..." className="w-full sm:w-auto">
                             {isEditing ? "Guardar Cambios" : "Crear Empresaria"}
                         </AsyncButton>
                     </DialogFooter>

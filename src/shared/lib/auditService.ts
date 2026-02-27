@@ -30,12 +30,55 @@ function resolveSeverity(action: AuditAction, explicit?: AuditSeverity): AuditSe
     return 'INFO';
 }
 
+const IMPORTANT_ACTIONS: AuditAction[] = ['LOGIN', 'LOGOUT'];
+
+// ─── Persistence ─────────────────────────────────────────────────────────────
+const STORAGE_KEY = 'ventas_audit_logs';
+
+function loadStoredEntries(): AuditEntry[] {
+    try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        return stored ? JSON.parse(stored) : [];
+    } catch {
+        return [];
+    }
+}
+
+function saveEntries(entries: AuditEntry[]) {
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(entries.slice(0, 500)));
+    } catch (e) {
+        console.error('Error saving audit logs', e);
+    }
+}
+
 // ─── In-memory store ─────────────────────────────────────────────────────────
-let ENTRIES: AuditEntry[] = [];
+let ENTRIES: AuditEntry[] = loadStoredEntries();
 type Listener = (entries: AuditEntry[]) => void;
 const listeners: Set<Listener> = new Set();
 
-const notify = () => { listeners.forEach(fn => fn([...ENTRIES])); };
+const notify = () => {
+    saveEntries(ENTRIES);
+    listeners.forEach(fn => fn([...ENTRIES]));
+};
+
+/**
+ * Enviar log al servidor para persistencia en Base de Datos
+ */
+async function syncToBackend(entry: AuditEntry) {
+    try {
+        const { httpClient } = await import('@/shared/lib/httpClient');
+        await httpClient.post('/audit', {
+            action: entry.action,
+            module: entry.module,
+            detail: entry.detail,
+            severity: entry.severity,
+            success: entry.success
+        });
+    } catch (e) {
+        console.warn('Could not sync audit log to backend', e);
+    }
+}
 
 // ─── Service ─────────────────────────────────────────────────────────────────
 export const auditService = {
@@ -43,6 +86,13 @@ export const auditService = {
      * Log an action. Call this from any API function or mutation.
      */
     log(params: LogActionParams): void {
+        const severity = resolveSeverity(params.action, params.severity);
+
+        // FILTRADO: Solo guardamos logs importantes (CRITICAL, WARNING o acciones explícitas como LOGIN)
+        const isImportant = severity === 'CRITICAL' || severity === 'WARNING' || IMPORTANT_ACTIONS.includes(params.action);
+
+        if (!isImportant) return;
+
         const entry: AuditEntry = {
             id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
             userId: params.userId,
@@ -50,14 +100,17 @@ export const auditService = {
             action: params.action,
             module: params.module,
             detail: params.detail,
-            severity: resolveSeverity(params.action, params.severity),
+            severity,
             timestamp: new Date().toISOString(),
             success: params.success ?? true,
         };
         ENTRIES.unshift(entry);
-        // Keep max 1000 entries in memory
-        if (ENTRIES.length > 1000) ENTRIES = ENTRIES.slice(0, 1000);
+        // Keep max 500 entries (important only)
+        if (ENTRIES.length > 500) ENTRIES = ENTRIES.slice(0, 500);
         notify();
+
+        // Enviar al backend de forma asíncrona
+        syncToBackend(entry);
     },
 
     getAll(): AuditEntry[] {

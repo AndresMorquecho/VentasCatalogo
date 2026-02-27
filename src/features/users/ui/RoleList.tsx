@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Plus, Edit2, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 import { useRoles } from '../model/hooks';
-import type { AppRole, RoleFormData, RoleName } from '@/shared/auth';
+import type { AppRole, RoleFormData } from '@/shared/auth';
 import type { Permission } from '@/shared/lib/permissions';
 import { MODULES, MODULE_ACTIONS, MODULE_LABELS, ACTION_LABELS } from '@/shared/lib/permissions';
 import { Button } from '@/shared/ui/button';
@@ -11,13 +11,15 @@ import { Label } from '@/shared/ui/label';
 import { Badge } from '@/shared/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/shared/ui/dialog';
 import { Skeleton } from '@/shared/ui/skeleton';
+import { useAuth } from '@/shared/auth';
+import { useToast } from '@/shared/ui/use-toast';
 
-const ROLE_NAMES: RoleName[] = ['ADMIN', 'CAJERA', 'OPERADOR', 'VENDEDOR'];
-
-const EMPTY_FORM: RoleFormData = { name: 'OPERADOR', description: '', permissions: [], active: true };
+const EMPTY_FORM: RoleFormData = { name: '' as any, description: '', permissions: [], active: true };
 
 export function RoleList() {
     const { roles, isLoading, createRole, updateRole, deleteRole } = useRoles();
+    const { hasPermission } = useAuth();
+    const { showToast } = useToast();
     const [modalOpen, setModalOpen] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState<AppRole | null>(null);
     const [editTarget, setEditTarget] = useState<AppRole | null>(null);
@@ -52,8 +54,18 @@ export function RoleList() {
         }));
     };
 
-    const openCreate = () => { setEditTarget(null); setForm(EMPTY_FORM); setError(''); setExpandedModules(new Set()); setModalOpen(true); };
+    const openCreate = () => {
+        if (!hasPermission('users.assign_roles')) {
+            showToast("No tienes permiso para crear roles", "error");
+            return;
+        }
+        setEditTarget(null); setForm(EMPTY_FORM); setError(''); setExpandedModules(new Set()); setModalOpen(true);
+    };
     const openEdit = (role: AppRole) => {
+        if (!hasPermission('users.assign_roles')) {
+            showToast("No tienes permiso para editar roles", "error");
+            return;
+        }
         setEditTarget(role);
         setForm({ name: role.name, description: role.description, permissions: [...role.permissions], active: role.active });
         setError(''); setExpandedModules(new Set()); setModalOpen(true);
@@ -89,11 +101,11 @@ export function RoleList() {
                 {roles.map(role => {
                     const permCount = role.permissions.length;
                     return (
-                        <div key={role.id} className={`rounded-xl border p-4 space-y-3 ${role.active ? 'bg-white border-slate-200' : 'bg-slate-50 border-slate-100 opacity-60'}`}>
+                        <div key={role.id} className="rounded-xl border p-4 space-y-3 bg-white border-slate-200 shadow-sm hover:shadow-md transition-shadow">
                             <div className="flex justify-between items-start">
                                 <div>
                                     <div className="flex items-center gap-2">
-                                        <h3 className="font-bold text-slate-800">{role.name}</h3>
+                                        <h3 className="font-bold text-slate-800">{role.name.toUpperCase() === 'ADMIN' ? 'Administrador' : role.name}</h3>
                                         <Badge variant="outline" className="text-xs">{permCount} permisos</Badge>
                                     </div>
                                     <p className="text-xs text-slate-500 mt-0.5">{role.description}</p>
@@ -102,9 +114,18 @@ export function RoleList() {
                                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(role)}>
                                         <Edit2 className="h-3.5 w-3.5 text-blue-600" />
                                     </Button>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setError(''); setDeleteTarget(role); }}>
-                                        <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                                    </Button>
+                                    {role.name.toUpperCase() !== 'ADMIN' && (
+                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
+                                            if (!hasPermission('users.assign_roles')) {
+                                                showToast("No tienes permiso para eliminar roles", "error");
+                                                return;
+                                            }
+                                            setError('');
+                                            setDeleteTarget(role);
+                                        }}>
+                                            <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                                        </Button>
+                                    )}
                                 </div>
                             </div>
                             <div className="flex flex-wrap gap-1">
@@ -133,13 +154,21 @@ export function RoleList() {
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1">
                                 <Label>Nombre del Rol</Label>
-                                <select className="w-full border rounded-md px-3 py-2 text-sm bg-white" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value as RoleName }))}>
-                                    {ROLE_NAMES.map(n => <option key={n} value={n}>{n}</option>)}
-                                </select>
+                                <Input
+                                    value={form.name}
+                                    onChange={e => setForm(f => ({ ...f, name: e.target.value as any }))}
+                                    placeholder="Ej: SUPERVISOR, SECRETARIA..."
+                                    disabled={editTarget?.name?.toUpperCase() === 'ADMIN'}
+                                />
                             </div>
                             <div className="space-y-1">
                                 <Label>Descripción</Label>
-                                <Input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Descripción del rol..." />
+                                <Input
+                                    value={form.description}
+                                    onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                                    placeholder="Descripción del rol..."
+                                    disabled={editTarget?.name?.toUpperCase() === 'ADMIN'}
+                                />
                             </div>
                         </div>
 
@@ -179,9 +208,10 @@ export function RoleList() {
                                                             <label key={perm} className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
                                                                 <input
                                                                     type="checkbox"
-                                                                    checked={form.permissions.includes(perm)}
+                                                                    checked={form.permissions.includes(perm) || editTarget?.name?.toUpperCase() === 'ADMIN'}
                                                                     onChange={() => togglePermission(perm)}
                                                                     className="h-4 w-4 rounded"
+                                                                    disabled={editTarget?.name?.toUpperCase() === 'ADMIN'}
                                                                 />
                                                                 {ACTION_LABELS[action] ?? action}
                                                             </label>
@@ -195,10 +225,6 @@ export function RoleList() {
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-3">
-                            <input id="role-active" type="checkbox" checked={form.active} onChange={e => setForm(f => ({ ...f, active: e.target.checked }))} className="h-4 w-4" />
-                            <Label htmlFor="role-active">Rol activo</Label>
-                        </div>
                         {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
                     </div>
                     <DialogFooter>

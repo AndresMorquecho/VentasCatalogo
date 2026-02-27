@@ -1,22 +1,29 @@
-export type CallResult = 'ANSWERED' | 'NO_ANSWER' | 'VOICEMAIL' | 'INVALID' | 'CALL_BACK';
-export type CallType = 'COLLECTION' | 'SALES' | 'FOLLOW_UP';
+export type CallReason = 'COBRO' | 'SEGUIMIENTO_PEDIDO' | 'VENTA' | 'RECORDATORIO' | 'OTRO';
+export type CallResult = 'CONTESTA' | 'NO_CONTESTA' | 'OCUPADO' | 'EQUIVOCADO' | 'PAGO_PROMETIDO' | 'INTERESADO' | 'NO_INTERESADO';
 
 export interface Call {
     id: string;
     clientId: string;
-    dateTime: string;
+    orderId?: string | null;
+    reason: CallReason;
     result: CallResult;
-    type: CallType;
-    durationSeconds?: number;
-    notes?: string;
-    userId?: string; 
+    notes?: string | null;
+    followUpDate?: string | null;
+    createdBy: string;
+    updatedBy?: string | null;
+    createdAt: string;
+    // Relations (optional for display)
+    client?: {
+        firstName: string;
+        identificationNumber: string;
+    };
 }
 
 export interface CallPayload {
     clientId: string;
-    dateTime?: string;
+    orderId?: string | null;
+    reason: CallReason;
     result: CallResult;
-    type: CallType;
-    durationSeconds?: number;
-    notes?: string;
+    notes?: string | null;
+    followUpDate?: string | null;
 }

@@ -5,13 +5,13 @@ import {
     DialogTitle,
     DialogDescription
 } from "@/shared/ui/dialog"
-import type { FinancialTransaction } from "@/entities/financial-transaction/model/types"
+import type { FinancialRecord } from "@/entities/financial-record/model/types"
 import { Badge } from "@/shared/ui/badge"
 
 interface Props {
     open: boolean
     onOpenChange: (open: boolean) => void
-    transaction: FinancialTransaction | null
+    transaction: FinancialRecord | null
 }
 
 export function TransactionDetailsModal({ open, onOpenChange, transaction }: Props) {

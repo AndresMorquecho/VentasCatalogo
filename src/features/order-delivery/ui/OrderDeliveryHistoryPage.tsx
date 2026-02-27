@@ -6,6 +6,7 @@ import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
 import { ArrowLeft, Search, Printer } from "lucide-react"
 import { generateDeliveryReceipt } from "../lib/generateDeliveryReceipt"
+import { useAuth } from "@/shared/auth"
 import {
     Table,
     TableBody,
@@ -19,6 +20,7 @@ export function OrderDeliveryHistoryPage() {
     const [filters, setFilters] = useState<DeliveryFilters>({})
     const { data: orders = [], isLoading } = useOrderDeliveryHistory(filters)
     const navigate = useNavigate()
+    const { user } = useAuth()
 
     function formatDate(date: string) {
         if (!date) return '-'
@@ -124,7 +126,7 @@ export function OrderDeliveryHistoryPage() {
                                             onClick={() => generateDeliveryReceipt(order, {
                                                 amountPaidNow: 0,
                                                 method: order.paymentMethod || 'N/A',
-                                                user: 'Sistema'
+                                                user: order.deliveredByName || user?.username || 'Administrador'
                                             })}
                                         >
                                             <Printer className="h-4 w-4 text-slate-500 hover:text-green-600" />

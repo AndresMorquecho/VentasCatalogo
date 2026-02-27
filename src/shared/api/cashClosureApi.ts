@@ -1,39 +1,62 @@
+// Cash Closure API - HTTP calls to backend
+
+import { httpClient } from '@/shared/lib/httpClient';
 import type { CashClosure, CreateCashClosurePayload } from '@/entities/cash-closure/model/types';
 
-const MOCK_CLOSURES: CashClosure[] = [];
-
-const delay = (ms: number = 300) => new Promise(resolve => setTimeout(resolve, ms));
-
 export const cashClosureApi = {
-    getAll: async (): Promise<CashClosure[]> => {
-        await delay();
-        // Return sorted by closedAt descending by default
-        return [...MOCK_CLOSURES].sort(
-            (a, b) => new Date(b.closedAt).getTime() - new Date(a.closedAt).getTime()
-        );
-    },
+  /**
+   * Get all cash closures
+   * @endpoint GET /api/cash-closures
+   */
+  getAll: async (): Promise<CashClosure[]> => {
+    return httpClient.get<CashClosure[]>('/cash-closures');
+  },
 
-    getById: async (id: string): Promise<CashClosure | undefined> => {
-        await delay();
-        return MOCK_CLOSURES.find(c => c.id === id);
-    },
+  /**
+   * Get cash closure by ID
+   * @endpoint GET /api/cash-closures/:id
+   */
+  getById: async (id: string): Promise<CashClosure> => {
+    return httpClient.get<CashClosure>(`/cash-closures/${id}`);
+  },
 
-    create: async (payload: CreateCashClosurePayload): Promise<CashClosure> => {
-        await delay();
-        const newClosure: CashClosure = {
-            id: crypto.randomUUID(),
-            ...payload,
-            closedAt: new Date().toISOString(),
-            createdAt: new Date().toISOString()
-        };
-        MOCK_CLOSURES.unshift(newClosure);
-        return newClosure;
-    },
+  /**
+   * Get cash closures by date
+   * @endpoint GET /api/cash-closures?date=:date
+   */
+  getByDate: async (date: string): Promise<CashClosure[]> => {
+    return httpClient.get<CashClosure[]>(`/cash-closures?date=${date}`);
+  },
 
-    delete: async (id: string): Promise<void> => {
-        await delay();
-        const index = MOCK_CLOSURES.findIndex(c => c.id === id);
-        if (index === -1) throw new Error('Cierre de caja no encontrado');
-        MOCK_CLOSURES.splice(index, 1);
-    }
+  /**
+   * Get cash closure preview
+   * @endpoint GET /api/cash-closures/preview?toDate=:toDate
+   */
+  getPreview: async (toDate?: string): Promise<any> => {
+    return httpClient.get<any>(`/cash-closures/preview${toDate ? `?toDate=${toDate}` : ''}`);
+  },
+
+  /**
+   * Create cash closure
+   * @endpoint POST /api/cash-closures
+   */
+  create: async (payload: CreateCashClosurePayload): Promise<CashClosure> => {
+    return httpClient.post<CashClosure>('/cash-closures', payload);
+  },
+
+  /**
+   * Update cash closure
+   * @endpoint PUT /api/cash-closures/:id
+   */
+  update: async (id: string, payload: Partial<CreateCashClosurePayload>): Promise<CashClosure> => {
+    return httpClient.put<CashClosure>(`/cash-closures/${id}`, payload);
+  },
+
+  /**
+   * Delete cash closure
+   * @endpoint DELETE /api/cash-closures/:id
+   */
+  delete: async (id: string): Promise<void> => {
+    return httpClient.delete<void>(`/cash-closures/${id}`);
+  }
 };

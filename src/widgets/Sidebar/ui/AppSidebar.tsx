@@ -1,4 +1,3 @@
-
 import {
     LayoutDashboard,
     Inbox,
@@ -9,7 +8,6 @@ import {
     Users,
     Calculator,
     Banknote,
-    User,
     LogOut,
     Boxes,
     DollarSign,
@@ -22,7 +20,7 @@ import {
     Gift,
 } from "lucide-react"
 import { Link } from "react-router-dom"
-import { authService } from "@/shared/services/authService"
+import { useAuth } from "@/shared/auth"
 import { LogoutDialog } from "@/shared/components/LogoutDialog"
 import { useState } from "react"
 
@@ -38,19 +36,15 @@ import {
     SidebarFooter,
     SidebarHeader,
     SidebarRail,
-    SidebarTrigger,
-    useSidebar,
 } from "@/shared/ui/sidebar"
 import { Button } from "@/shared/ui/button"
 import { SidebarNavGroup } from "./SidebarNavGroup"
 
 // ─── Sidebar Header: banner cuando expandido, logo-botón cuando colapsado ────
 function CollapsibleHeader() {
-    const { toggleSidebar } = useSidebar();
-
     return (
         <>
-            {/* ── EXPANDIDO: banner a la izquierda + botón toggle a la derecha ── */}
+            {/* ── EXPANDIDO: banner a la izquierda ── */}
             <div
                 className="group-data-[collapsible=icon]:hidden flex items-center gap-2 bg-white"
                 style={{ padding: '6px 10px 6px 12px', minHeight: 72 }}
@@ -68,17 +62,11 @@ function CollapsibleHeader() {
                         mixBlendMode: 'multiply',
                     }}
                 />
-                {/* Toggle button — a la derecha del banner */}
-                <SidebarTrigger
-                    className="shrink-0 h-7 w-7 rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
-                />
             </div>
 
-            {/* ── COLAPSADO: logo centrado, clic en cualquier parte expande ─── */}
-            <button
-                onClick={toggleSidebar}
-                aria-label="Expandir menú"
-                className="hidden group-data-[collapsible=icon]:flex w-full items-center justify-center cursor-pointer bg-white hover:bg-slate-50 transition-colors"
+            {/* ── COLAPSADO: logo centrado ─── */}
+            <div
+                className="hidden group-data-[collapsible=icon]:flex w-full items-center justify-center bg-white"
                 style={{ minHeight: 56, border: 'none', padding: '8px 0' }}
             >
                 <img
@@ -91,7 +79,7 @@ function CollapsibleHeader() {
                         mixBlendMode: 'multiply',
                     }}
                 />
-            </button>
+            </div>
         </>
     );
 }
@@ -147,29 +135,47 @@ const groupedItems = [
     },
     {
         title: "Fidelización",
-        icon: Heart, // Represents loyalty
+        icon: Heart,
         items: [
             { title: "Fid. Recompensas", url: "/rewards", icon: Award },
         ]
     }
 ]
 
+const getAvatarColor = (name: string) => {
+    const colors = [
+        "bg-red-500", "bg-blue-500", "bg-green-500", "bg-amber-500",
+        "bg-purple-500", "bg-pink-500", "bg-indigo-500", "bg-orange-500",
+        "bg-teal-500", "bg-cyan-500"
+    ];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % colors.length;
+    return colors[index];
+};
+
 export function AppSidebar() {
-    const user = authService.getUser();
-    const isAdmin = user?.role === 'ADMIN';
+    const { user, logout, isAdmin } = useAuth();
+    const adminMode = isAdmin();
     const [showLogoutDialog, setShowLogoutDialog] = useState(false);
-    
+
     const handleLogout = () => {
-        authService.logout();
+        logout();
     };
-    
+
+    const userName = user?.username || 'Usuario';
+    const userInitial = userName.charAt(0).toUpperCase();
+    const avatarColor = getAvatarColor(userName);
+
     return (
         <Sidebar collapsible="icon">
             <SidebarHeader className="p-0 overflow-hidden">
                 <CollapsibleHeader />
             </SidebarHeader>
 
-            <SidebarContent>
+            <SidebarContent className="no-scrollbar">
                 {/* 1. Main / Home Section (Single Items) */}
                 <SidebarGroup>
                     <SidebarGroupLabel>Principal</SidebarGroupLabel>
@@ -202,7 +208,7 @@ export function AppSidebar() {
                 </SidebarGroup>
 
                 {/* 3. Admin-only Config Section */}
-                {isAdmin && (
+                {adminMode && (
                     <SidebarGroup>
                         <SidebarGroupLabel>Configuración</SidebarGroupLabel>
                         <SidebarGroupContent>
@@ -223,27 +229,43 @@ export function AppSidebar() {
 
             {/* Footer */}
             <SidebarFooter className="border-t">
-                <div className="flex items-center gap-3 p-2 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center">
-                    <div className="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center border text-slate-600 shrink-0">
-                        <User className="h-5 w-5" />
+                <div className="flex items-center justify-between gap-2 p-2 group-data-[collapsible=icon]:p-2 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:items-center">
+                    <div className="flex items-center gap-3 overflow-hidden group-data-[collapsible=icon]:overflow-visible">
+                        <div className={`h-8 w-8 group-data-[collapsible=icon]:h-7 group-data-[collapsible=icon]:w-7 rounded-full ${avatarColor} flex items-center justify-center shrink-0 shadow-sm transition-all`}>
+                            <span className="text-white font-bold text-sm group-data-[collapsible=icon]:text-xs">{userInitial}</span>
+                        </div>
+                        <div className="flex flex-col min-w-0 group-data-[collapsible=icon]:hidden">
+                            <span className="text-sm font-semibold truncate leading-none mb-1">{userName}</span>
+                            <span className="text-[10px] text-muted-foreground truncate uppercase tracking-widest">{user?.role?.name || 'Vendedor'}</span>
+                        </div>
                     </div>
-                    <div className="flex flex-col overflow-hidden group-data-[collapsible=icon]:hidden">
-                        <span className="text-sm font-medium truncate">{user?.name || 'Usuario'}</span>
-                        <span className="text-xs text-muted-foreground truncate">{user?.role || ''}</span>
-                    </div>
+
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50 shrink-0 group-data-[collapsible=icon]:hidden"
+                        onClick={() => setShowLogoutDialog(true)}
+                        title="Cerrar Sesión"
+                    >
+                        <LogOut className="h-4 w-4" />
+                    </Button>
                 </div>
-                <Button
-                    variant="ghost"
-                    className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 gap-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
-                    onClick={() => setShowLogoutDialog(true)}
-                >
-                    <LogOut className="h-4 w-4" />
-                    <span className="group-data-[collapsible=icon]:hidden">Cerrar Sesión</span>
-                </Button>
+
+                {/* Visible solo cuando está colapsado para permitir logout */}
+                <div className="hidden group-data-[collapsible=icon]:flex items-center justify-center py-2">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => setShowLogoutDialog(true)}
+                    >
+                        <LogOut className="h-4 w-4" />
+                    </Button>
+                </div>
             </SidebarFooter>
             <SidebarRail />
-            
-            <LogoutDialog 
+
+            <LogoutDialog
                 open={showLogoutDialog}
                 onOpenChange={setShowLogoutDialog}
                 onConfirm={handleLogout}

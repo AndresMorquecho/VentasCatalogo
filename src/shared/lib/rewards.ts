@@ -8,7 +8,7 @@ export const calculateRewardPoints = (order: Order): number => {
 
     // Use effective total (realInvoiceTotal if available, otherwise total)
     const effectiveTotal = getEffectiveTotal(order);
-    
+
     // 1 punto por cada $10
     points += Math.floor(effectiveTotal / 10);
 
@@ -40,19 +40,19 @@ export const updateClientRewards = (currentReward: ClientReward, order: Order): 
     }
 
     const pointsEarned = calculateRewardPoints(order);
-    const newTotalPoints = currentReward.totalPoints + pointsEarned;
+    const newTotalPoints = currentReward.totalRewardPoints + pointsEarned;
     const newTotalOrders = currentReward.totalOrders + 1;
-    
+
     // Use effective total for spent calculation
     const effectiveTotal = getEffectiveTotal(order);
-    const newTotalSpent = currentReward.totalSpent + effectiveTotal;
+    const newTotalSpent = Number(currentReward.totalSpent) + effectiveTotal;
 
     return {
         ...currentReward,
-        totalPoints: newTotalPoints,
+        totalRewardPoints: newTotalPoints,
         totalOrders: newTotalOrders,
         totalSpent: newTotalSpent,
-        level: calculateLevel(newTotalPoints),
+        rewardLevel: calculateLevel(newTotalPoints),
         updatedAt: new Date().toISOString(),
         appliedOrderIds: [...(currentReward.appliedOrderIds || []), order.id]
     };

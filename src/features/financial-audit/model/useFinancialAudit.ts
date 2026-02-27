@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { useFinancialMovements } from '@/features/financial-movement/api/hooks';
-import { getBalanceByBankAccount } from '@/entities/financial-movement/model';
+import { useFinancialRecords } from '@/entities/financial-record/model/queries';
+import { getBalanceByBankAccount } from '@/entities/financial-record/model/model';
 import { useBankAccountList } from '@/features/bank-accounts/api/hooks';
 
 export interface BankAccountAudit {
@@ -23,22 +23,22 @@ export interface FinancialAuditData {
 
 /**
  * Hook for Financial Audit
- * Compares calculated balances (from movements) with reported balances (from BankAccount)
+ * Compares calculated balances (from records) with reported balances (from BankAccount)
  * NO business logic - only orchestration + pure query application
  */
 export function useFinancialAudit(): FinancialAuditData {
-    const { data: movements = [], isLoading: loadingMovements, error: movementsError } = useFinancialMovements();
+    const { data: records = [], isLoading: loadingRecords, error: recordsError } = useFinancialRecords();
     const { data: bankAccounts = [], isLoading: loadingAccounts, error: accountsError } = useBankAccountList();
 
     const audits = useMemo<BankAccountAudit[]>(() => {
         return bankAccounts.map(account => {
             // Use pure query from entity
-            const calculatedBalance = getBalanceByBankAccount(movements, account.id);
+            const calculatedBalance = getBalanceByBankAccount(records, account.id);
             const reportedBalance = account.currentBalance;
             const difference = Math.abs(calculatedBalance - reportedBalance);
             
-            // Count movements for this account
-            const movementCount = movements.filter(m => m.bankAccountId === account.id).length;
+            // Count records for this account
+            const movementCount = records.filter(r => r.bankAccountId === account.id).length;
 
             return {
                 accountId: account.id,
@@ -51,7 +51,7 @@ export function useFinancialAudit(): FinancialAuditData {
                 movementCount
             };
         });
-    }, [movements, bankAccounts]);
+    }, [records, bankAccounts]);
 
     const totalDiscrepancies = useMemo(() => {
         return audits.filter(a => a.hasDiscrepancy).length;
@@ -60,7 +60,7 @@ export function useFinancialAudit(): FinancialAuditData {
     return {
         audits,
         totalDiscrepancies,
-        loading: loadingMovements || loadingAccounts,
-        error: (movementsError || accountsError) as Error | null
+        loading: loadingRecords || loadingAccounts,
+        error: (recordsError || accountsError) as Error | null
     };
 }

@@ -4,11 +4,11 @@ import {
 import { Badge } from "@/shared/ui/badge"
 import { Button } from "@/shared/ui/button"
 import { Eye } from "lucide-react"
-import type { FinancialTransaction } from "@/entities/financial-transaction/model/types"
+import type { FinancialRecord } from "@/entities/financial-record/model/types"
 
 interface Props {
-    transactions: FinancialTransaction[]
-    onView: (t: FinancialTransaction) => void
+    transactions: FinancialRecord[]
+    onView: (t: FinancialRecord) => void
 }
 
 export function TransactionsTable({ transactions, onView }: Props) {
@@ -44,10 +44,10 @@ export function TransactionsTable({ transactions, onView }: Props) {
                                 </TableCell>
                                 <TableCell>
                                     <Badge variant={
-                                        t.type === 'DEPOSITO' ? 'default' :
-                                            t.type === 'TRANSFERENCIA' ? 'outline' : 'secondary'
+                                        t.paymentMethod === 'DEPOSITO' ? 'default' :
+                                            t.paymentMethod === 'TRANSFERENCIA' ? 'outline' : 'secondary'
                                     }>
-                                        {t.type}
+                                        {t.paymentMethod || t.type}
                                     </Badge>
                                 </TableCell>
                                 <TableCell className="font-mono text-xs">{t.referenceNumber}</TableCell>

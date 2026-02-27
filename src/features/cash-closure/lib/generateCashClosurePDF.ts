@@ -15,18 +15,18 @@ export async function generateCashClosurePDF(
 ): Promise<void> {
     try {
         // Generate PDF blob
-        const blob = await pdf(createElement(CashClosureDetailedPDF, { report })).toBlob();
+        const blob = await pdf(createElement(CashClosureDetailedPDF, { report }) as any).toBlob();
 
         // Create download link
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
         link.download = fileName || `Cierre_Caja_${report.fromDate}_${report.toDate}.pdf`;
-        
+
         // Trigger download
         document.body.appendChild(link);
         link.click();
-        
+
         // Cleanup
         document.body.removeChild(link);
         URL.revokeObjectURL(url);

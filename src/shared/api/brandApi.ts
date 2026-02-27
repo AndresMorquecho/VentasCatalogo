@@ -3,7 +3,7 @@ import { httpClient } from '../lib/httpClient';
 
 export const brandApi = {
     getAll: async (): Promise<Brand[]> => {
-        return httpClient.get<Brand[]>('/brands');
+        return httpClient.get<Brand[]>('/brands?include_inactive=true');
     },
 
     getById: async (id: string): Promise<Brand | undefined> => {

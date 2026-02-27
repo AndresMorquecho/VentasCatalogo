@@ -171,12 +171,12 @@ export const OrderLabelsDocument = ({ orders, clientsMap, user }: OrderLabelsPro
                 <Page key={pageIndex} size="A4" orientation="portrait" style={styles.page}>
                     {pageOrders.map((order) => {
                         const client = clientsMap?.[order.clientId];
-                        const paid = getPaidAmount(order);
-                        const pendingAmount = getPendingAmount(order);
+                        const paid = Number(getPaidAmount(order)) || 0;
+                        const pendingAmount = Number(getPendingAmount(order)) || 0;
                         const hasCredit = hasClientCredit(order);
-                        const creditAmount = getClientCreditAmount(order);
-                        const effectiveTotal = order.realInvoiceTotal ?? order.total;
-                        
+                        const creditAmount = Number(getClientCreditAmount(order)) || 0;
+                        const effectiveTotal = Number(order.realInvoiceTotal ?? order.total) || 0;
+
                         // Display pending as 0 if there's credit
                         const displayPending = hasCredit ? 0 : pendingAmount;
 
@@ -209,12 +209,12 @@ export const OrderLabelsDocument = ({ orders, clientsMap, user }: OrderLabelsPro
 
                                     <View style={styles.rightSection}>
                                         <View style={styles.finBox}>
-                                            {order.realInvoiceTotal && order.realInvoiceTotal !== order.total && (
+                                            {(order.realInvoiceTotal && order.realInvoiceTotal !== order.total) ? (
                                                 <View style={styles.finRow}>
                                                     <Text style={styles.finLabel}>Valor Pedido:</Text>
-                                                    <Text style={styles.finValue}>${order.total.toFixed(2)}</Text>
+                                                    <Text style={styles.finValue}>${Number(order.total || 0).toFixed(2)}</Text>
                                                 </View>
-                                            )}
+                                            ) : null}
                                             <View style={styles.finRow}>
                                                 <Text style={styles.finLabel}>Total Factura:</Text>
                                                 <Text style={styles.finValue}>${effectiveTotal.toFixed(2)}</Text>
@@ -227,13 +227,13 @@ export const OrderLabelsDocument = ({ orders, clientsMap, user }: OrderLabelsPro
                                                 <Text style={styles.totalLabel}>SALDO:</Text>
                                                 <Text style={styles.totalValue}>${displayPending.toFixed(2)}</Text>
                                             </View>
-                                            
-                                            {hasCredit && (
+
+                                            {hasCredit ? (
                                                 <View style={styles.creditBlock}>
                                                     <Text style={styles.creditLabel}>Saldo a Favor</Text>
                                                     <Text style={styles.creditValue}>+${creditAmount.toFixed(2)}</Text>
                                                 </View>
-                                            )}
+                                            ) : null}
                                         </View>
 
                                         <Text style={styles.footer}>
