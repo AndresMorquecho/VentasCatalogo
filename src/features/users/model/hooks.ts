@@ -1,16 +1,19 @@
-
+import { useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { usersApi, rolesApi, auditApi } from '@/shared/auth/authApi';
 import { useAuth } from '@/shared/auth';
 import type { UserFormData, RoleFormData } from '@/shared/auth';
+import { useUsersStore } from './store';
 
-// ─── Roles ────────────────────────────────────────────────────────────────────
 export const useRoles = () => {
     const qc = useQueryClient();
     const { user } = useAuth();
     const actorId = user?.id ?? '';
     const actorName = user ? user.username : 'Sistema';
     const key = ['roles'];
+
+    const isModalOpen = useUsersStore(state => state.roleModalOpen);
+    const setModalOpen = useUsersStore(state => state.setRoleModalOpen);
 
     const { data: roles = [], isLoading } = useQuery({ queryKey: key, queryFn: rolesApi.getAll });
 
@@ -30,16 +33,20 @@ export const useRoles = () => {
         onSuccess: () => qc.invalidateQueries({ queryKey: key }),
     });
 
-    return { roles, isLoading, createRole, updateRole, deleteRole };
+    const openCreate = useCallback(() => setModalOpen(true), [setModalOpen]);
+
+    return { roles, isLoading, createRole, updateRole, deleteRole, isModalOpen, setModalOpen, openCreate };
 };
 
-// ─── Users ────────────────────────────────────────────────────────────────────
 export const useUsers = () => {
     const qc = useQueryClient();
     const { user } = useAuth();
     const actorId = user?.id ?? '';
     const actorName = user ? user.username : 'Sistema';
     const key = ['users'];
+
+    const isModalOpen = useUsersStore(state => state.userModalOpen);
+    const setModalOpen = useUsersStore(state => state.setUserModalOpen);
 
     const { data: users = [], isLoading } = useQuery({ queryKey: key, queryFn: usersApi.getAll });
 
@@ -70,15 +77,16 @@ export const useUsers = () => {
         onSuccess: () => qc.invalidateQueries({ queryKey: key }),
     });
 
-    return { users, isLoading, createUser, updateUser, changePassword, deactivateUser: toggleUserStatus, deleteUser, isCreating, isUpdating };
+    const openCreate = useCallback(() => setModalOpen(true), [setModalOpen]);
+
+    return { users, isLoading, createUser, updateUser, changePassword, deactivateUser: toggleUserStatus, deleteUser, isCreating, isUpdating, isModalOpen, setModalOpen, openCreate };
 };
 
-// ─── Audit Log — fetched from backend ──────────────────────────────────────
 export const useAuditLog = () => {
     const { data: entries = [], isLoading } = useQuery({
         queryKey: ['audit-logs'],
         queryFn: auditApi.getAll,
-        refetchInterval: 30000, // Poll every 30s
+        refetchInterval: 30000,
     });
 
     return { entries, isLoading };

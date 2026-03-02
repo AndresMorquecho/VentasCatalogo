@@ -15,11 +15,9 @@ import { Card, CardContent } from "@/shared/ui/card";
 import { Badge } from "@/shared/ui/badge";
 import { Avatar, AvatarFallback } from "@/shared/ui/avatar";
 
-// --- Helpers ---
 const fmt = (n: number) =>
     new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
 
-// --- Modern KPI Card Component ---
 function KpiCard({ title, value, subtext, trend, icon: Icon, colorClass, iconBgClass }: any) {
     const isPositive = trend === 'up';
     return (
@@ -70,7 +68,6 @@ export function DashboardPage() {
 
     const oldestOrders = data?.alerts.oldestOrders ?? [];
 
-    // Status metrics
     const totalOrders = Object.values(data?.operational.ordersByStatus || {}).reduce((a, b) => a + b, 0) || 1;
     const stats = {
         entregados: { count: data?.operational.ordersByStatus.entregado ?? 0, color: '#3b82f6' }, // Blue
@@ -78,7 +75,6 @@ export function DashboardPage() {
         porRecibir: { count: data?.operational.ordersByStatus.porRecibir ?? 0, color: '#94a3b8' } // Gray
     };
 
-    // Calculate percentages for donut
     const getPercent = (val: number) => Math.round((val / totalOrders) * 100);
 
     return (
@@ -131,7 +127,12 @@ export function DashboardPage() {
                     {/* Invoice Statistics (Donut Chart) */}
                     <Card className="lg:col-span-4 border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white overflow-hidden flex flex-col">
                         <div className="p-6 pb-0 flex justify-between items-center">
-                            <h4 className="font-black text-slate-800">Estadísticas de Pedidos</h4>
+                            <div className="flex items-center gap-3">
+                                <div className="h-6 w-1.5 rounded-full bg-monchito-purple" />
+                                <h4 className="text-lg font-black tracking-tight text-slate-800 uppercase text-[13px] tracking-widest font-monchito">
+                                    Estadísticas de Pedidos
+                                </h4>
+                            </div>
                             <MoreHorizontal className="h-5 w-5 text-slate-400 cursor-pointer" />
                         </div>
                         <CardContent className="flex-1 p-6 flex flex-col items-center justify-center">
@@ -191,10 +192,14 @@ export function DashboardPage() {
                         </CardContent>
                     </Card>
 
-                    {/* Sales Analytics (Line Chart) */}
                     <Card className="lg:col-span-8 border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white overflow-hidden flex flex-col">
                         <div className="p-6 pb-0 flex justify-between items-center">
-                            <h4 className="font-black text-slate-800">Analítica de Pedidos</h4>
+                            <div className="flex items-center gap-3">
+                                <div className="h-6 w-1.5 rounded-full bg-monchito-purple" />
+                                <h4 className="text-lg font-black tracking-tight text-slate-800 uppercase text-[13px] tracking-widest font-monchito">
+                                    Analítica de Pedidos
+                                </h4>
+                            </div>
                             <div className="flex bg-slate-100 p-1 rounded-lg">
                                 <button onClick={() => setTimeRange('daily')} className={`px-3 py-1 text-[10px] font-bold rounded-md uppercase tracking-widest transition-all ${timeRange === 'daily' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}>Diario</button>
                                 <button onClick={() => setTimeRange('weekly')} className={`px-3 py-1 text-[10px] font-bold rounded-md uppercase tracking-widest transition-all ${timeRange === 'weekly' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}>Semanal</button>
@@ -290,7 +295,12 @@ export function DashboardPage() {
                 {/* --- Recent Invoices / Orders Table --- */}
                 <Card className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white overflow-hidden">
                     <div className="p-6 flex justify-between items-center border-b border-slate-50">
-                        <h4 className="font-black text-slate-800">Facturas / Pedidos Recientes</h4>
+                        <div className="flex items-center gap-3">
+                            <div className="h-6 w-1.5 rounded-full bg-monchito-purple" />
+                            <h4 className="text-lg font-black tracking-tight text-slate-800 uppercase text-[13px] tracking-widest font-monchito">
+                                Facturas / Pedidos Recientes
+                            </h4>
+                        </div>
                         <div className="flex items-center gap-3">
                             <Badge variant="outline" className="flex items-center gap-2 py-1.5 px-4 border-2 font-bold cursor-pointer hover:bg-slate-50 rounded-lg">
                                 <Filter className="h-3.5 w-3.5 text-slate-500" />

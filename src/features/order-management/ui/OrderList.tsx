@@ -1,10 +1,9 @@
 import { useState } from "react"
-import { Skeleton } from "@/shared/ui/skeleton"
 import { Button } from "@/shared/ui/button"
-import { Plus } from "lucide-react"
+import { Input } from "@/shared/ui/input"
+import { Plus, ShoppingBag, Search, LayoutDashboard, Package, Clock, XCircle } from "lucide-react"
 import { useOrderList, useDeleteOrder } from "@/entities/order/model/hooks"
 import { useOrderFilters } from "../model/useOrderFilters"
-import { OrderFilters } from "./OrderFilters"
 import { OrderTable } from "./OrderTable"
 import { OrderDetailModal } from "./OrderDetailModal"
 import { OrderFormModal } from "./OrderFormModal"
@@ -13,10 +12,25 @@ import { useToast } from "@/shared/ui/use-toast"
 import { getPaidAmount } from "@/entities/order/model/model"
 import type { Order } from "@/entities/order/model/types"
 import { useAuth } from "@/shared/auth"
-import { orderApi } from "@/entities/order/model/api" // Added orderApi
-import { useQueryClient } from "@tanstack/react-query" // Added queryClient
+import { orderApi } from "@/entities/order/model/api"
+import { useQueryClient } from "@tanstack/react-query"
+import { PageHeader } from "@/shared/ui/PageHeader"
+import { MonchitoTabs, type MonchitoTabConfig } from "@/shared/ui/MonchitoTabs"
 
-export function OrderList() {
+const ORDER_TABS: MonchitoTabConfig[] = [
+    { id: 'ALL', label: 'Todos', icon: LayoutDashboard },
+    { id: 'POR_RECIBIR', label: 'Por Recibir', icon: Package },
+    { id: 'RECIBIDO', label: 'Recibido', icon: ShoppingBag },
+    { id: 'ATRASADO', label: 'Atrasado', icon: Clock },
+    { id: 'CANCELADO', label: 'Cancelado', icon: XCircle },
+]
+
+interface OrderListProps {
+    searchQuery: string
+    onSearchChange: (query: string) => void
+}
+
+export function OrderList({ searchQuery, onSearchChange }: OrderListProps) {
     const { data: orders = [], isLoading } = useOrderList()
     const deleteOrder = useDeleteOrder()
     const { showToast } = useToast()
@@ -24,10 +38,8 @@ export function OrderList() {
     const {
         statusFilter,
         setStatusFilter,
-        searchQuery,
-        setSearchQuery,
         filteredOrders
-    } = useOrderFilters(orders)
+    } = useOrderFilters(orders, searchQuery)
     const { hasPermission } = useAuth()
 
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
@@ -104,42 +116,57 @@ export function OrderList() {
     if (isLoading) {
         return (
             <div className="space-y-4">
-                <Skeleton className="h-10 w-full md:w-1/3" />
-                <Skeleton className="h-64 w-full" />
+                <div className="h-20 w-full bg-slate-100 animate-pulse rounded-xl" />
+                <div className="h-64 w-full bg-slate-100 animate-pulse rounded-xl" />
             </div>
         )
     }
 
     return (
-        <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
-                <h2 className="text-base font-medium text-muted-foreground tracking-tight">
-                    Listado de Pedidos
-                </h2>
-                <Button onClick={handleCreate} className="w-full sm:w-auto">
-                    <Plus className="mr-2 h-4 w-4" /> Nuevo Pedido
-                </Button>
-            </div>
-
-            <OrderFilters
-                statusFilter={statusFilter}
-                onStatusChange={setStatusFilter}
-                searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
+        <div className="space-y-4 min-w-0 max-w-full overflow-hidden">
+            <PageHeader
+                title="Pedidos"
+                description="Gestión centralizada de pedidos, estados de entrega y facturación."
+                icon={ShoppingBag}
+                actions={
+                    <Button onClick={handleCreate} className="bg-monchito-purple hover:bg-monchito-purple/90 shadow-md font-bold transition-all active:scale-95">
+                        <Plus className="mr-2 h-4 w-4" /> Nuevo Pedido
+                    </Button>
+                }
             />
 
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-2">
+                <MonchitoTabs
+                    tabs={ORDER_TABS}
+                    activeTab={statusFilter}
+                    onTabChange={(id) => setStatusFilter(id as any)}
+                />
+                <div className="relative w-full md:w-80">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                        placeholder="Buscar cliente, marca, recibo..."
+                        className="pl-9 bg-white border-slate-200 focus:ring-monchito-purple/20 transition-all shadow-sm rounded-xl h-10"
+                        value={searchQuery}
+                        onChange={(e) => onSearchChange(e.target.value)}
+                    />
+                </div>
+            </div>
+
             {filteredOrders.length === 0 ? (
-                <div className="text-center py-12 border rounded-lg bg-card text-muted-foreground">
-                    <p>No se encontraron pedidos con estos criterios.</p>
+                <div className="text-center py-16 border rounded-xl bg-white text-slate-400 shadow-sm">
+                    <ShoppingBag className="h-12 w-12 mx-auto mb-4 opacity-10" />
+                    <p className="font-medium">No se encontraron pedidos con estos criterios.</p>
                 </div>
             ) : (
-                <OrderTable
-                    orders={filteredOrders}
-                    onViewDetails={handleViewDetails}
-                    onEdit={handleEdit}
-                    onDelete={handleDeleteClick}
-                    onReverse={handleReverseClick}
-                />
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden overflow-x-auto">
+                    <OrderTable
+                        orders={filteredOrders}
+                        onViewDetails={handleViewDetails}
+                        onEdit={handleEdit}
+                        onDelete={handleDeleteClick}
+                        onReverse={handleReverseClick}
+                    />
+                </div>
             )}
 
             <OrderDetailModal

@@ -5,9 +5,8 @@ import { canDeleteClient } from "@/entities/client/model/model";
 import type { Client } from "@/entities/client/model/types";
 import { ClientTable } from "./ClientTable";
 import { ClientForm } from "./ClientForm";
-import { Input } from "@/shared/ui/input";
 import { Button } from "@/shared/ui/button";
-import { AlertCircle, Plus, RotateCw, Search } from "lucide-react";
+import { AlertCircle, Plus, RotateCw } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
 import {
     Dialog,
@@ -19,12 +18,6 @@ import {
 import { useAuth } from "@/shared/auth";
 import { useToast } from "@/shared/ui/use-toast";
 
-/**
- * Filters clients in memory by search query.
- * Matches against identificationNumber and firstName.
- * Case insensitive, partial match.
- * Does not modify the API or React Query cache.
- */
 function filterClients(clients: Client[], query: string): Client[] {
     if (!query.trim()) return clients;
     const lower = query.toLowerCase().trim();
@@ -35,7 +28,12 @@ function filterClients(clients: Client[], query: string): Client[] {
     );
 }
 
-export function ClientList() {
+interface ClientListProps {
+    searchQuery?: string;
+    onSearchChange?: (query: string) => void;
+}
+
+export function ClientList({ searchQuery = "" }: ClientListProps) {
     const { data: clients = [], isLoading, isError, refetch } = useClientList();
     const { data: orders = [] } = useOrderList();
     const deleteClientMutation = useDeleteClient();
@@ -44,11 +42,9 @@ export function ClientList() {
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState<Client | null>(null);
     const [deleteError, setDeleteError] = useState<string | null>(null);
-    const [searchQuery, setSearchQuery] = useState("");
     const { hasPermission } = useAuth();
     const { showToast } = useToast();
 
-    // In-memory filtering — no API call, no cache mutation
     const filteredClients = useMemo(
         () => filterClients(clients, searchQuery),
         [clients, searchQuery]
@@ -79,7 +75,6 @@ export function ClientList() {
         }
         setDeleteError(null);
 
-        // Check referential integrity: does any order reference this client?
         const orderClientIds = orders.map((o) => o.clientId);
         if (!canDeleteClient(client.id, orderClientIds)) {
             setDeleteError(
@@ -133,25 +128,10 @@ export function ClientList() {
 
     return (
         <div className="space-y-3 sm:space-y-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
-                <h2 className="text-base font-medium text-muted-foreground tracking-tight">
-                    Listado de Empresarias
-                </h2>
+            <div className="flex flex-col sm:flex-row justify-end items-center gap-3">
                 <Button onClick={handleCreate} className="w-full sm:w-auto">
                     <Plus className="mr-2 h-4 w-4" /> Nueva Empresaria
                 </Button>
-            </div>
-
-            {/* Search bar */}
-            <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                    id="client-search"
-                    placeholder="Buscar por cédula o nombre..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                />
             </div>
 
             {/* Error de eliminación por integridad referencial */}

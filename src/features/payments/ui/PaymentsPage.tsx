@@ -1,7 +1,6 @@
 import { useState, useMemo } from "react";
 import { usePaymentSearch, usePaymentOperations } from "../model/hooks";
-import { Input } from "@/shared/ui/input";
-import { Search, DollarSign, Wallet, FileText, Printer } from "lucide-react";
+import { DollarSign, Wallet, FileText, Printer, Clock, CheckCircle2, List } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import { PaymentsHistoryTable } from "./PaymentsHistoryTable";
 import { PaymentFormModal } from "./PaymentFormModal";
@@ -9,8 +8,10 @@ import { useToast } from "@/shared/ui/use-toast";
 import { Badge } from "@/shared/ui/badge";
 import { generatePaymentReceipt } from "@/features/payment-receipt/lib/generatePaymentReceipt";
 import { useAuth } from "@/shared/auth";
+import { PageHeader } from "@/shared/ui/PageHeader";
 
-import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/tabs";
+import { MonchitoTabs } from "@/shared/ui/MonchitoTabs";
+import type { MonchitoTabConfig } from "@/shared/ui/MonchitoTabs";
 
 export function PaymentsPage() {
     const { orders, searchOrders, loading } = usePaymentSearch();
@@ -22,6 +23,12 @@ export function PaymentsPage() {
     const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState("pending");
+
+    const TABS: MonchitoTabConfig[] = [
+        { id: 'pending', label: 'Pendientes', icon: Clock },
+        { id: 'completed', label: 'Pagados', icon: CheckCircle2 },
+        { id: 'all', label: 'Todos', icon: List },
+    ];
 
     // Filter Logic
     const filteredOrders = useMemo(() => {
@@ -70,39 +77,26 @@ export function PaymentsPage() {
     };
 
     return (
-        <div className="p-6 bg-white min-h-screen">
-            <div className="flex justify-between items-center mb-6">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                        <Wallet className="h-6 w-6 text-emerald-600" />
-                        Gestión de Abonos
-                    </h1>
-                    <p className="text-slate-500 text-sm">Registro de pagos, historial y estados de cuenta.</p>
-                </div>
-            </div>
+        <div className="flex flex-col h-[calc(100vh-120px)] space-y-4 overflow-hidden min-w-0">
+            <PageHeader
+                title="Gestión de Abonos"
+                description="Registro de pagos, historial y estados de cuenta bancarios."
+                icon={Wallet}
+                searchQuery={searchTerm}
+                onSearchChange={setSearchTerm}
+            />
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 overflow-hidden min-w-0">
                 {/* Orders List & Filters */}
-                <div className="lg:col-span-1 border-r pr-4 bg-white p-4 rounded-lg shadow-sm h-[calc(100vh-100px)] flex flex-col">
-                    {/* Search Bar */}
-                    <div className="relative mb-4">
-                        <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                        <Input
-                            placeholder="Buscar pedido..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-9 h-10"
-                        />
-                    </div>
-
+                <div className="lg:col-span-1 bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col overflow-hidden min-w-0">
                     {/* Tabs Filter */}
-                    <Tabs defaultValue="pending" value={activeTab} onValueChange={setActiveTab} className="w-full mb-4">
-                        <TabsList className="grid w-full grid-cols-3">
-                            <TabsTrigger value="pending">Pendientes</TabsTrigger>
-                            <TabsTrigger value="completed">Pagados</TabsTrigger>
-                            <TabsTrigger value="all">Todos</TabsTrigger>
-                        </TabsList>
-                    </Tabs>
+                    <MonchitoTabs
+                        tabs={TABS}
+                        activeTab={activeTab}
+                        onTabChange={setActiveTab}
+                        fullWidth
+                        className="mb-4 shrink-0"
+                    />
 
                     {/* List */}
                     <div className="space-y-3 overflow-y-auto flex-1 pr-2">
@@ -155,40 +149,39 @@ export function PaymentsPage() {
                     </div>
                 </div>
 
-                {/* Selected Order Details & History */}
-                <div className="lg:col-span-2">
+                <div className="lg:col-span-2 overflow-y-auto min-w-0 pr-1">
                     {selectedOrder ? (
-                        <div className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden sticky top-24 animate-in slide-in-from-right-4 duration-300">
+                        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-right-4 duration-300 h-fit">
                             {/* Header Panel */}
                             <div className="bg-slate-50 border-b p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                                 <div>
-                                    <h2 className="text-2xl font-bold text-slate-800">
+                                    <h2 className="text-2xl font-bold text-slate-900 leading-none">
                                         {selectedOrder.clientName}
                                     </h2>
-                                    <div className="flex items-center gap-2 text-slate-500 text-sm mt-1">
+                                    <div className="flex items-center gap-2 text-slate-500 text-sm mt-3 font-medium">
                                         <FileText className="h-4 w-4" />
                                         <span>Pedido: #{selectedOrder.receiptNumber}</span>
-                                        <span className="mx-2">•</span>
-                                        <span>{new Date(selectedOrder.createdAt).toLocaleDateString()}</span>
+                                        <span className="opacity-30 mx-1">|</span>
+                                        <span>{new Date(selectedOrder.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                                     </div>
                                 </div>
                                 <div className="flex gap-2">
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        className="gap-2"
+                                        className="gap-2 bg-white hover:bg-slate-50 border-slate-200 text-slate-600 shadow-sm"
                                         onClick={() => generatePaymentReceipt(selectedOrder, (selectedOrder.payments || []).map(p => ({
                                             ...p,
                                             date: p.createdAt,
-                                            method: p.method || 'EFECTIVO' // Fallback
+                                            method: p.method || 'EFECTIVO'
                                         })), user?.username || 'Sistema')}
                                     >
                                         <Printer className="h-4 w-4" />
-                                        <span>Estado Cuenta</span>
+                                        <span>Cerrar Cuenta</span>
                                     </Button>
                                     <Button
                                         size="default"
-                                        className="gap-2 bg-emerald-600 hover:bg-emerald-700 shadow-md transform hover:scale-105 transition-all"
+                                        className="gap-2 bg-monchito-purple hover:bg-monchito-purple/90 text-white shadow-md transform active:scale-95 transition-all font-bold"
                                         onClick={() => {
                                             if (!hasPermission('payments.create')) {
                                                 showToast("No tienes permiso para registrar abonos", "error");

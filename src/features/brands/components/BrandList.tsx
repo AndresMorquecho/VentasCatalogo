@@ -6,14 +6,14 @@ import { BrandTable } from "./BrandTable"
 import { BrandForm } from "./BrandForm"
 import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
-import { AlertCircle, Plus, RotateCw, Search } from "lucide-react"
-import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert"
+import { Plus, Search, Tag } from "lucide-react"
 import { ConfirmDialog } from "@/shared/ui/confirm-dialog"
 import { useAuth } from "@/shared/auth"
 import { useToast } from "@/shared/ui/use-toast"
+import { PageHeader } from "@/shared/ui/PageHeader"
 
 export function BrandList() {
-    const { data: brands = [], isLoading, isError, refetch } = useBrandList()
+    const { data: brands = [], isLoading, isError } = useBrandList()
     const deleteBrand = useDeleteBrand()
     const { hasPermission } = useAuth()
     const { showToast } = useToast()
@@ -70,48 +70,33 @@ export function BrandList() {
     }
 
     if (isError) {
-        return (
-            <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                    <h2 className="text-xl font-semibold tracking-tight">Listado de Marcas</h2>
-                </div>
-                <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Error</AlertTitle>
-                    <AlertDescription className="flex items-center justify-between">
-                        <span>Ocurrió un error al cargar las marcas.</span>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => refetch()}
-                            className="bg-background text-foreground hover:bg-accent border-destructive/50"
-                        >
-                            <RotateCw className="mr-2 h-3 w-3" />
-                            Reintentar
-                        </Button>
-                    </AlertDescription>
-                </Alert>
-            </div>
-        )
+        showToast("Error al cargar las marcas", "error")
     }
 
     return (
-        <div className="space-y-4">
-            <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold tracking-tight">Listado de Marcas</h2>
-                <Button onClick={handleCreate}>
-                    <Plus className="mr-2 h-4 w-4" /> Nueva Marca
-                </Button>
-            </div>
+        <div className="space-y-4 min-w-0 max-w-full overflow-hidden">
+            <PageHeader
+                title="Marcas"
+                description="Gestión y catálogo de marcas comerciales disponibles en el sistema."
+                icon={Tag}
+            />
 
-            <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                    placeholder="Buscar por nombre o descripción..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-9"
-                />
+            <div className="flex flex-col md:flex-row md:items-center justify-end gap-3 py-2">
+                <div className="relative w-full md:w-80">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                        placeholder="Buscar marca o descripción..."
+                        className="pl-9 bg-white border-slate-200 focus:ring-monchito-purple/20 transition-all shadow-sm rounded-xl h-10"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+                <Button
+                    onClick={handleCreate}
+                    className="gap-2 bg-monchito-purple hover:bg-monchito-purple-dark text-white h-10 px-4 rounded-xl text-sm font-semibold shadow-sm transition-all shrink-0 w-full md:w-auto"
+                >
+                    <Plus className="h-4 w-4" /> Nueva Marca
+                </Button>
             </div>
 
             <BrandTable

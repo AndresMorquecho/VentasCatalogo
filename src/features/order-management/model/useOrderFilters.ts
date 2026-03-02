@@ -3,9 +3,12 @@ import type { Order, OrderStatus } from '@/entities/order/model/types'
 
 export type OrderFilterType = OrderStatus | 'ALL'
 
-export function useOrderFilters(orders: Order[] = []) {
+export function useOrderFilters(orders: Order[] = [], externalSearchQuery?: string) {
     const [statusFilter, setStatusFilter] = useState<OrderFilterType>('ALL')
-    const [searchQuery, setSearchQuery] = useState('')
+    const [internalSearchQuery, setInternalSearchQuery] = useState('')
+
+    const searchQuery = externalSearchQuery !== undefined ? externalSearchQuery : internalSearchQuery
+    const setSearchQuery = externalSearchQuery !== undefined ? () => { } : setInternalSearchQuery
 
     const filteredOrders = useMemo(() => {
         return orders.filter(order => {
@@ -20,7 +23,7 @@ export function useOrderFilters(orders: Order[] = []) {
                 const matchesClient = order.clientName.toLowerCase().includes(query)
                 const matchesBrand = order.brandName.toLowerCase().includes(query)
                 const matchesReceipt = order.receiptNumber.toLowerCase().includes(query)
-                
+
                 if (!matchesClient && !matchesBrand && !matchesReceipt) {
                     return false
                 }

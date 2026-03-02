@@ -7,9 +7,9 @@ import { Badge } from '@/shared/ui/badge';
 import { Skeleton } from '@/shared/ui/skeleton';
 
 const STATUS_STYLES: Record<RedemptionStatus, string> = {
-    COMPLETADO: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-    PENDIENTE: 'bg-amber-100 text-amber-700 border-amber-200',
-    CANCELADO: 'bg-red-100 text-red-700 border-red-200',
+    COMPLETADO: 'bg-[#20a29a]/10 text-[#20a29a] border-[#20a29a]/20',
+    PENDIENTE: 'bg-[#f0cd23]/10 text-[#570d64] border-[#f0cd23]/20',
+    CANCELADO: 'bg-red-50 text-red-600 border-red-100',
 };
 
 export function LoyaltyRedemptions() {
@@ -57,7 +57,7 @@ export function LoyaltyRedemptions() {
                                         <p className="text-xs text-slate-400">{getClientIdentification(r.clientId)}</p>
                                     </TableCell>
                                     <TableCell className="text-slate-700">{r.prizeName}</TableCell>
-                                    <TableCell className="text-center font-bold text-amber-600">{r.pointsUsed} pts</TableCell>
+                                    <TableCell className="text-center font-bold text-[#f0cd23]">{r.pointsUsed} pts</TableCell>
                                     <TableCell className="text-slate-500 text-sm">
                                         {new Date(r.date).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
                                     </TableCell>

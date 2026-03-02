@@ -1,9 +1,10 @@
-
+import { useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { loyaltyRulesApi, loyaltyPrizesApi, loyaltyRedemptionsApi } from '../lib/loyaltyApi';
 import type { LoyaltyRuleFormData, LoyaltyPrizeFormData } from './types';
 import { logAction } from '@/shared/lib/auditService';
 import { useAuth } from '@/shared/auth';
+import { useLoyaltyStore } from './store';
 
 function useActor() {
     const { user } = useAuth();
@@ -18,6 +19,9 @@ export const useLoyaltyRules = () => {
     const qc = useQueryClient();
     const actor = useActor();
     const key = ['loyalty-rules'];
+
+    const isModalOpen = useLoyaltyStore(state => state.ruleModalOpen);
+    const setModalOpen = useLoyaltyStore(state => state.setRuleModalOpen);
 
     const { data: rules = [], isLoading } = useQuery({ queryKey: key, queryFn: loyaltyRulesApi.getAll });
 
@@ -56,7 +60,21 @@ export const useLoyaltyRules = () => {
         },
     });
 
-    return { rules, isLoading, createRule, updateRule, deleteRule, toggleRule, isCreating, isUpdating };
+    const openCreate = useCallback(() => setModalOpen(true), [setModalOpen]);
+
+    return {
+        rules,
+        isLoading,
+        createRule,
+        updateRule,
+        deleteRule,
+        toggleRule,
+        isCreating,
+        isUpdating,
+        isModalOpen,
+        setModalOpen,
+        openCreate
+    };
 };
 
 // ─── Prizes ───────────────────────────────────────────────────────────────────
@@ -64,6 +82,9 @@ export const useLoyaltyPrizes = () => {
     const qc = useQueryClient();
     const actor = useActor();
     const key = ['loyalty-prizes'];
+
+    const isModalOpen = useLoyaltyStore(state => state.prizeModalOpen);
+    const setModalOpen = useLoyaltyStore(state => state.setPrizeModalOpen);
 
     const { data: prizes = [], isLoading } = useQuery({ queryKey: key, queryFn: loyaltyPrizesApi.getAll });
 
@@ -102,7 +123,21 @@ export const useLoyaltyPrizes = () => {
         },
     });
 
-    return { prizes, isLoading, createPrize, updatePrize, deletePrize, togglePrize, isCreating, isUpdating };
+    const openCreate = useCallback(() => setModalOpen(true), [setModalOpen]);
+
+    return {
+        prizes,
+        isLoading,
+        createPrize,
+        updatePrize,
+        deletePrize,
+        togglePrize,
+        isCreating,
+        isUpdating,
+        isModalOpen,
+        setModalOpen,
+        openCreate
+    };
 };
 
 // ─── Redemptions ──────────────────────────────────────────────────────────────

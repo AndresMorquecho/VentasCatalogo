@@ -1,6 +1,5 @@
-
-import { useState } from 'react';
-import { Plus, Edit2, Trash2, Power, Gift, Star } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Edit2, Trash2, Power, Gift, Star } from 'lucide-react';
 import { useLoyaltyPrizes } from '../model/hooks';
 import type { LoyaltyPrize, LoyaltyPrizeFormData, PrizeType } from '../model/types';
 import { Button } from '@/shared/ui/button';
@@ -20,10 +19,10 @@ const PRIZE_TYPE_LABELS: Record<PrizeType, string> = {
 };
 
 const PRIZE_TYPE_COLORS: Record<PrizeType, string> = {
-    DESCUENTO_PORCENTAJE: 'bg-blue-100 text-blue-700',
-    ENVIO_GRATIS: 'bg-emerald-100 text-emerald-700',
-    DESCUENTO_FIJO: 'bg-amber-100 text-amber-700',
-    PEDIDO_ESPECIAL: 'bg-purple-100 text-purple-700',
+    DESCUENTO_PORCENTAJE: 'bg-[#570d64]/10 text-[#570d64]',
+    ENVIO_GRATIS: 'bg-[#20a29a]/10 text-[#20a29a]',
+    DESCUENTO_FIJO: 'bg-[#f0cd23]/10 text-[#570d64]',
+    PEDIDO_ESPECIAL: 'bg-[#570d64]/5 text-[#570d64]',
 };
 
 const EMPTY_FORM: LoyaltyPrizeFormData = {
@@ -35,23 +34,18 @@ const EMPTY_FORM: LoyaltyPrizeFormData = {
 };
 
 export function LoyaltyRewards() {
-    const { prizes, isLoading, createPrize, updatePrize, deletePrize, togglePrize, isCreating, isUpdating } = useLoyaltyPrizes();
+    const { prizes, isLoading, createPrize, updatePrize, deletePrize, togglePrize, isCreating, isUpdating, isModalOpen: modalOpen, setModalOpen } = useLoyaltyPrizes();
     const { hasPermission } = useAuth();
     const { showToast } = useToast();
-    const [modalOpen, setModalOpen] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState<LoyaltyPrize | null>(null);
     const [editTarget, setEditTarget] = useState<LoyaltyPrize | null>(null);
     const [form, setForm] = useState<LoyaltyPrizeFormData>(EMPTY_FORM);
 
-    const openCreate = () => {
-        if (!hasPermission('loyalty.manage_prizes')) {
-            showToast("No tienes permiso para crear premios", "error");
-            return;
+    useEffect(() => {
+        if (modalOpen && !editTarget) {
+            setForm(EMPTY_FORM);
         }
-        setEditTarget(null);
-        setForm(EMPTY_FORM);
-        setModalOpen(true);
-    };
+    }, [modalOpen, editTarget]);
 
     const openEdit = (prize: LoyaltyPrize) => {
         if (!hasPermission('loyalty.manage_prizes')) {
@@ -91,11 +85,8 @@ export function LoyaltyRewards() {
 
     return (
         <div className="space-y-4">
-            <div className="flex justify-between items-center">
+            <div className="flex items-center">
                 <p className="text-sm text-slate-500">Configura los premios canjeables por los clientes.</p>
-                <Button size="sm" onClick={openCreate} className="gap-2">
-                    <Plus className="h-4 w-4" /> Nuevo Premio
-                </Button>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -111,7 +102,7 @@ export function LoyaltyRewards() {
                                 </div>
                                 <Badge
                                     variant={prize.isActive ? "default" : "secondary"}
-                                    className={`text-[10px] uppercase font-bold tracking-wider ${prize.isActive ? 'bg-emerald-500 hover:bg-emerald-600' : 'text-slate-500 bg-slate-200'}`}
+                                    className={`text-[10px] uppercase font-bold tracking-wider ${prize.isActive ? 'bg-[#20a29a] hover:bg-[#1b8c85]' : 'text-slate-500 bg-slate-200'}`}
                                 >
                                     {prize.isActive ? 'Activo' : 'Inactivo'}
                                 </Badge>
@@ -124,10 +115,10 @@ export function LoyaltyRewards() {
                                     }
                                     togglePrize(prize.id);
                                 }}>
-                                    <Power className={`h-3.5 w-3.5 ${prize.isActive ? 'text-emerald-600' : 'text-slate-400'}`} />
+                                    <Power className={`h-3.5 w-3.5 ${prize.isActive ? 'text-[#20a29a]' : 'text-slate-400'}`} />
                                 </Button>
                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(prize)}>
-                                    <Edit2 className="h-3.5 w-3.5 text-blue-600" />
+                                    <Edit2 className="h-3.5 w-3.5 text-[#570d64]" />
                                 </Button>
                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
                                     if (!hasPermission('loyalty.manage_prizes')) {
@@ -148,7 +139,7 @@ export function LoyaltyRewards() {
                             <Badge variant="outline" className={`text-xs ${PRIZE_TYPE_COLORS[prize.type]}`}>
                                 {PRIZE_TYPE_LABELS[prize.type]}
                             </Badge>
-                            <span className="flex items-center gap-1 text-sm font-bold text-amber-600">
+                            <span className="flex items-center gap-1 text-sm font-bold text-[#f0cd23]">
                                 <Star className="h-3.5 w-3.5" />
                                 {prize.pointsRequired} pts
                             </span>
@@ -184,7 +175,7 @@ export function LoyaltyRewards() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
-                        <Button onClick={handleSave} disabled={!form.name || isCreating || isUpdating}>
+                        <Button onClick={handleSave} disabled={!form.name || isCreating || isUpdating} className="bg-[#570d64] hover:bg-[#4a0a55]">
                             {isCreating || isUpdating ? 'Guardando...' : 'Guardar'}
                         </Button>
                     </DialogFooter>

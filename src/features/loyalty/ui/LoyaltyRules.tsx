@@ -1,6 +1,5 @@
-
-import { useState } from 'react';
-import { Plus, Edit2, Power } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Edit2, Power } from 'lucide-react';
 import { useLoyaltyRules } from '../model/hooks';
 import type { LoyaltyRule, LoyaltyRuleFormData, RuleType } from '../model/types';
 import { Button } from '@/shared/ui/button';
@@ -20,27 +19,22 @@ const EMPTY_FORM: LoyaltyRuleFormData = {
     name: '',
     type: 'POR_MONTO',
     pointsValue: 1,
-    condition: '10', // Default condition as "10" (instead of empty)
+    condition: '10',
     isActive: true,
 };
 
 export function LoyaltyRules() {
-    const { rules, isLoading, createRule, updateRule, toggleRule, isCreating, isUpdating } = useLoyaltyRules();
+    const { rules, isLoading, createRule, updateRule, toggleRule, isCreating, isUpdating, isModalOpen: modalOpen, setModalOpen } = useLoyaltyRules();
     const { hasPermission } = useAuth();
     const { showToast } = useToast();
-    const [modalOpen, setModalOpen] = useState(false);
     const [editTarget, setEditTarget] = useState<LoyaltyRule | null>(null);
     const [form, setForm] = useState<LoyaltyRuleFormData>(EMPTY_FORM);
 
-    const openCreate = () => {
-        if (!hasPermission('loyalty.manage_rules')) {
-            showToast("No tienes permiso para crear reglas", "error");
-            return;
+    useEffect(() => {
+        if (modalOpen && !editTarget) {
+            setForm(EMPTY_FORM);
         }
-        setEditTarget(null);
-        setForm(EMPTY_FORM);
-        setModalOpen(true);
-    };
+    }, [modalOpen, editTarget]);
 
     const openEdit = (rule: LoyaltyRule) => {
         if (!hasPermission('loyalty.manage_rules')) {
@@ -69,13 +63,8 @@ export function LoyaltyRules() {
 
     return (
         <div className="space-y-4">
-            <div className="flex justify-between items-center">
+            <div className="flex items-center">
                 <p className="text-sm text-slate-500">Define cómo los clientes acumulan puntos.</p>
-                {rules.length === 0 && (
-                    <Button size="sm" onClick={openCreate} className="gap-2">
-                        <Plus className="h-4 w-4" /> Crear Regla Inicial
-                    </Button>
-                )}
             </div>
 
             <div className="divide-y rounded-xl border border-slate-200 bg-white overflow-hidden">
@@ -87,7 +76,7 @@ export function LoyaltyRules() {
                         <div className="flex items-center gap-4">
                             <Badge
                                 variant={rule.isActive ? "default" : "secondary"}
-                                className={`text-[10px] uppercase font-bold tracking-wider ${rule.isActive ? 'bg-emerald-500 hover:bg-emerald-600' : 'text-slate-500 bg-slate-200'}`}
+                                className={`text-[10px] uppercase font-bold tracking-wider ${rule.isActive ? 'bg-[#20a29a] hover:bg-[#1b8c85]' : 'text-slate-500 bg-slate-200'}`}
                             >
                                 {rule.isActive ? 'Activa' : 'Inactiva'}
                             </Badge>
@@ -108,10 +97,10 @@ export function LoyaltyRules() {
                                 }
                                 toggleRule(rule.id);
                             }} title={rule.isActive ? 'Desactivar' : 'Activar'}>
-                                <Power className={`h-4 w-4 ${rule.isActive ? 'text-emerald-600' : 'text-slate-400'}`} />
+                                <Power className={`h-4 w-4 ${rule.isActive ? 'text-[#20a29a]' : 'text-slate-400'}`} />
                             </Button>
                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(rule)}>
-                                <Edit2 className="h-4 w-4 text-blue-600" />
+                                <Edit2 className="h-4 w-4 text-[#570d64]" />
                             </Button>
                         </div>
                     </div>
@@ -145,13 +134,12 @@ export function LoyaltyRules() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
-                        <Button onClick={handleSave} disabled={!form.name || !form.condition || isCreating || isUpdating}>
+                        <Button onClick={handleSave} disabled={!form.name || !form.condition || isCreating || isUpdating} className="bg-[#570d64] hover:bg-[#4a0a55]">
                             {isCreating || isUpdating ? 'Guardando...' : 'Guardar'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-
         </div>
     );
 }

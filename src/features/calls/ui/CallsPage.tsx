@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { Label } from '@/shared/ui/label';
-import { Plus, Search } from 'lucide-react';
+import { Phone, Plus } from 'lucide-react';
 import { useCalls } from '../model/hooks';
 import { CallFormModal } from './CallFormModal';
 import { CallsTable } from './CallsTable';
+import { PageHeader } from '@/shared/ui/PageHeader';
 
 import {
     CALL_REASONS,
@@ -50,64 +51,50 @@ export function CallsPage() {
     }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     return (
-        <div className="space-y-6 container mx-auto p-4 md:p-8">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Registro de Llamadas</h1>
-                    <p className="text-muted-foreground">Gestiona y consulta el historial de llamadas a clientes.</p>
-                </div>
-                <Button onClick={handleCreate}>
-                    <Plus className="mr-2 h-4 w-4" /> Nueva Llamada
-                </Button>
-            </div>
+        <div className="space-y-4">
+            <PageHeader
+                title="Registro de Llamadas"
+                description="Gestiona y consulta el historial de llamadas a clientes de forma centralizada."
+                icon={Phone}
+                searchQuery={searchTerm}
+                onSearchChange={setSearchTerm}
+            />
 
-            <div className="bg-card rounded-lg border p-4 shadow-sm">
-                <div className="grid gap-4 md:grid-cols-4 items-end">
-                    <div className="grid gap-2">
-                        <Label htmlFor="search">Buscar Cliente</Label>
-                        <div className="relative">
-                            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                id="search"
-                                placeholder="Nombre o Cédula..."
-                                className="pl-8"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
-                        </div>
-                    </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="date">Fecha</Label>
+            <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+                    <div className="space-y-1.5">
+                        <Label htmlFor="date" className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Filtrar por Fecha</Label>
                         <Input
                             id="date"
                             type="date"
                             value={filterDate}
                             onChange={(e) => setFilterDate(e.target.value)}
+                            className="h-9"
                         />
                     </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="filter-reason">Motivo</Label>
+                    <div className="space-y-1.5">
+                        <Label htmlFor="filter-reason" className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Motivo de Llamada</Label>
                         <select
                             id="filter-reason"
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                             value={filterReason}
                             onChange={(e) => setFilterReason(e.target.value)}
                         >
-                            <option value="">Todos</option>
+                            <option value="">Todos los motivos</option>
                             {CALL_REASONS.map(r => (
                                 <option key={r} value={r}>{callReasonsMap[r] || r}</option>
                             ))}
                         </select>
                     </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="filter-result">Resultado</Label>
+                    <div className="space-y-1.5">
+                        <Label htmlFor="filter-result" className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Resultado / Estado</Label>
                         <select
                             id="filter-result"
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                             value={filterResult}
                             onChange={(e) => setFilterResult(e.target.value)}
                         >
-                            <option value="">Todos</option>
+                            <option value="">Todos los resultados</option>
                             {CALL_RESULTS.map(r => (
                                 <option key={r} value={r}>{callResultsMap[r] || r}</option>
                             ))}
@@ -117,9 +104,24 @@ export function CallsPage() {
             </div>
 
             {isLoading ? (
-                <div className="flex justify-center p-8">Cargando...</div>
+                <div className="flex justify-center p-12 text-slate-400 font-medium">Cargando llamadas...</div>
             ) : (
-                <CallsTable calls={filteredCalls} onEdit={handleEdit} />
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between pt-6 pb-2">
+                        <div className="flex items-center gap-3">
+                            <div className="h-6 w-1.5 rounded-full bg-monchito-purple" />
+                            <h2 className="text-lg font-black tracking-tight text-slate-800 uppercase text-[13px] tracking-widest font-monchito">
+                                Historial de Contacto
+                            </h2>
+                        </div>
+                        <Button onClick={handleCreate} className="bg-monchito-purple hover:bg-monchito-purple/90 shadow-md font-bold transition-all active:scale-95 h-10 px-6 rounded-xl">
+                            <Plus className="mr-2 h-4 w-4" /> Nueva Llamada
+                        </Button>
+                    </div>
+                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                        <CallsTable calls={filteredCalls} onEdit={handleEdit} />
+                    </div>
+                </div>
             )}
 
             <CallFormModal

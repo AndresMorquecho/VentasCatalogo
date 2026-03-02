@@ -9,27 +9,30 @@ interface Props {
     brandFilter: string;
     onBrandChange: (val: string) => void;
     brands: string[];
+    hideSearch?: boolean;
 }
 
 export function InventoryFilters({
     search, onSearchChange,
     statusFilter, onStatusChange,
     brandFilter, onBrandChange,
-    brands
+    brands, hideSearch = false
 }: Props) {
     return (
-        <div className="bg-white p-4 rounded-lg border shadow-sm space-y-4">
+        <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                 {/* Search */}
-                <div className="md:col-span-4 relative">
-                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                    <Input
-                        placeholder="Buscar Cliente, Pedido..."
-                        value={search}
-                        onChange={(e) => onSearchChange(e.target.value)}
-                        className="pl-9"
-                    />
-                </div>
+                {!hideSearch && (
+                    <div className="md:col-span-4 relative">
+                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                        <Input
+                            placeholder="Buscar Cliente, Pedido..."
+                            value={search}
+                            onChange={(e) => onSearchChange(e.target.value)}
+                            className="pl-9"
+                        />
+                    </div>
+                )}
 
                 {/* Status Filter */}
                 <div className="md:col-span-3 relative">

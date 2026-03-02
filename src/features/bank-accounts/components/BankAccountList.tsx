@@ -4,6 +4,7 @@ import type { BankAccount } from "@/entities/bank-account/model/types"
 import { BankAccountTable } from "./BankAccountTable"
 import { BankAccountForm } from "./BankAccountForm"
 import { Button } from "@/shared/ui/button"
+import { PageHeader } from "@/shared/ui/PageHeader"
 import { Plus, AlertCircle, RotateCw, Banknote, Landmark, Wallet } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert"
 import { useAuth } from "@/shared/auth"
@@ -74,49 +75,63 @@ export function BankAccountList() {
         new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(amount);
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
+            <PageHeader
+                title="Gestión Financiera"
+                description="Monitorea tus estados de cuenta, efectivos y saldos bancarios en tiempo real."
+                icon={Landmark}
+            />
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white px-5 py-4 rounded-xl border border-emerald-100 shadow-[0_2px_10px_-3px_rgba(16,185,129,0.2)] flex items-center gap-4">
-                    <div className="bg-emerald-50 p-3 rounded-xl text-emerald-600">
-                        <Banknote className="h-6 w-6" />
+                <div className="bg-white px-6 py-5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-5 transition-all hover:shadow-md hover:border-monchito-teal/30 group">
+                    <div className="bg-monchito-teal/5 p-4 rounded-xl text-monchito-teal shadow-inner border border-monchito-teal/10 group-hover:bg-monchito-teal/10 transition-colors">
+                        <Banknote className="h-7 w-7" />
                     </div>
                     <div>
-                        <p className="text-slate-500 text-xs font-semibold mb-1">Total Efectivo</p>
-                        <p className="text-2xl font-bold text-slate-800 tracking-tight leading-none">{formatCurrency(totalCash)}</p>
+                        <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1.5">Total Efectivo</p>
+                        <p className="text-3xl font-black text-slate-800 tracking-tight leading-none">{formatCurrency(totalCash)}</p>
                     </div>
                 </div>
-                <div className="bg-white px-5 py-4 rounded-xl border border-blue-100 shadow-[0_2px_10px_-3px_rgba(59,130,246,0.2)] flex items-center gap-4">
-                    <div className="bg-blue-50 p-3 rounded-xl text-blue-600">
-                        <Landmark className="h-6 w-6" />
+                <div className="bg-white px-6 py-5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-5 transition-all hover:shadow-md hover:border-monchito-purple/30 group">
+                    <div className="bg-monchito-purple/5 p-4 rounded-xl text-monchito-purple shadow-inner border border-monchito-purple/10 group-hover:bg-monchito-purple/10 transition-colors">
+                        <Landmark className="h-7 w-7" />
                     </div>
                     <div>
-                        <p className="text-slate-500 text-xs font-semibold mb-1">Total Banco</p>
-                        <p className="text-2xl font-bold text-slate-800 tracking-tight leading-none">{formatCurrency(totalBank)}</p>
+                        <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1.5">Total Banco</p>
+                        <p className="text-3xl font-black text-slate-800 tracking-tight leading-none">{formatCurrency(totalBank)}</p>
                     </div>
                 </div>
-                <div className="bg-white px-5 py-4 rounded-xl border border-slate-200 shadow-[0_2px_10px_-3px_rgba(148,163,184,0.2)] flex items-center gap-4 bg-gradient-to-br from-white to-slate-50">
-                    <div className="bg-slate-100 p-3 rounded-xl text-slate-600">
-                        <Wallet className="h-6 w-6" />
+                <div className="bg-white px-6 py-5 rounded-xl border border-monchito-gold/20 shadow-sm flex items-center gap-5 bg-gradient-to-br from-white to-monchito-gold/5 transition-all hover:shadow-md hover:border-monchito-gold/40 group">
+                    <div className="bg-monchito-gold/10 p-4 rounded-xl text-monchito-gold shadow-inner border border-monchito-gold/20 group-hover:bg-monchito-gold/20 transition-colors">
+                        <Wallet className="h-7 w-7" />
                     </div>
                     <div>
-                        <p className="text-slate-500 text-xs font-semibold mb-1">Total General</p>
-                        <p className="text-2xl font-black text-slate-900 tracking-tight leading-none">{formatCurrency(grandTotal)}</p>
+                        <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-1.5">Total General</p>
+                        <p className="text-3xl font-black text-slate-900 tracking-tight leading-none">{formatCurrency(grandTotal)}</p>
                     </div>
                 </div>
             </div>
 
-            <div className="flex justify-between items-center pt-2">
-                <h2 className="text-xl font-semibold tracking-tight">Detalle de Cuentas</h2>
-                <Button onClick={handleCreate}>
-                    <Plus className="mr-2 h-4 w-4" /> Nueva Cuenta
+            <div className="flex items-center justify-between pt-6 pb-2">
+                <div className="flex items-center gap-3">
+                    <div className="h-6 w-1.5 rounded-full bg-monchito-purple" />
+                    <h2 className="text-lg font-black tracking-tight text-slate-800 uppercase text-[13px] tracking-widest font-monchito">Detalle de Cuentas Financieras</h2>
+                </div>
+                <Button
+                    onClick={handleCreate}
+                    className="gap-2 bg-monchito-purple hover:bg-monchito-purple-dark text-white h-10 px-4 rounded-xl text-sm font-semibold shadow-sm transition-all shrink-0"
+                >
+                    <Plus className="h-4 w-4" /> Nueva Cuenta
                 </Button>
             </div>
 
-            <BankAccountTable
-                accounts={accounts}
-                isLoading={isLoading}
-                onEdit={handleEdit}
-            />
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <BankAccountTable
+                    accounts={accounts}
+                    isLoading={isLoading}
+                    onEdit={handleEdit}
+                />
+            </div>
 
             <BankAccountForm
                 account={selectedAccount}

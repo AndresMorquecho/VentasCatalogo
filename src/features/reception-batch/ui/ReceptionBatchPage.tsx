@@ -5,7 +5,7 @@ import { SelectedOrdersTable } from "./SelectedOrdersTable"
 import { ReceptionHistory } from "./ReceptionHistory"
 import { useToast } from "@/shared/ui/use-toast"
 import { generateOrderLabels } from "@/features/order-labels/lib/generateOrderLabels"
-import { Loader2, ArrowDown } from "lucide-react"
+import { Loader2, ArrowDown, Package, History } from "lucide-react"
 import {
     Dialog,
     DialogContent,
@@ -17,7 +17,9 @@ import {
 import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
 import { Label } from "@/shared/ui/label"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs"
+import { Tabs, TabsContent } from "@/shared/ui/tabs"
+import { MonchitoTabs } from "@/shared/ui/MonchitoTabs"
+import type { MonchitoTabConfig } from "@/shared/ui/MonchitoTabs"
 import { useBankAccountList } from "@/features/bank-accounts/api/hooks"
 import {
     Select,
@@ -27,6 +29,7 @@ import {
     SelectValue,
 } from "@/shared/ui/select"
 import { useAuth } from "@/shared/auth"
+import { PageHeader } from "@/shared/ui/PageHeader"
 
 export function ReceptionBatchPage() {
     const {
@@ -115,9 +118,16 @@ export function ReceptionBatchPage() {
         }
     }
 
+    const TABS: MonchitoTabConfig[] = [
+        { id: 'new', label: 'Nueva Recepción', icon: Package },
+        { id: 'history', label: 'Historial', icon: History },
+    ];
+
+    const [activeTab, setActiveTab] = useState('new');
+
     if (isLoading) {
         return (
-            <div className="flex h-full items-center justify-center p-8 bg-slate-50">
+            <div className="flex h-[80vh] items-center justify-center">
                 <Spinner label="Cargando pedidos..." />
             </div>
         )
@@ -130,36 +140,26 @@ export function ReceptionBatchPage() {
     const globalRemaining = Math.max(0, totalInvoices - totalPrevPaid - totalAbono);
 
     return (
-        <div className="h-[calc(100vh-70px)] w-full bg-slate-50 p-2 flex flex-col gap-2 overflow-hidden mx-auto">
-            <div className="px-1 shrink-0">
-                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-                    Recepción de Pedidos
-                </h1>
-            </div>
+        <div className="space-y-4">
+            <PageHeader
+                title="Recepción de Pedidos"
+                description="Control de entrada de mercadería y generación de etiquetas de envío."
+                icon={Package}
+                actions={
+                    <MonchitoTabs
+                        tabs={TABS}
+                        activeTab={activeTab}
+                        onTabChange={setActiveTab}
+                    />
+                }
+            />
 
-            <Tabs defaultValue="new" className="flex-1 flex flex-col min-h-0 -mt-1">
-                {/* Header Compacto */}
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 shrink-0 mb-2 px-1">
-                    <h2 className="text-base font-medium text-muted-foreground tracking-tight">
-                        Gestión de Entradas
+            <Tabs defaultValue="new" value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
+                <div className="flex items-center gap-3 pt-6 pb-2">
+                    <div className="h-6 w-1.5 rounded-full bg-monchito-purple" />
+                    <h2 className="text-lg font-black tracking-tight text-slate-800 uppercase text-[13px] tracking-widest font-monchito">
+                        Flujo de Gestión de Entradas
                     </h2>
-
-                    <div className="bg-white p-1 rounded-lg border shadow-sm">
-                        <TabsList className="flex gap-1 bg-transparent p-0 h-9">
-                            <TabsTrigger
-                                value="new"
-                                className="px-3 py-1.5 text-xs data-[state=active]:bg-emerald-50 data-[state=active]:text-emerald-700 data-[state=active]:font-bold rounded-md"
-                            >
-                                Nueva Recepción
-                            </TabsTrigger>
-                            <TabsTrigger
-                                value="history"
-                                className="px-3 py-1.5 text-xs data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:font-bold rounded-md"
-                            >
-                                Historial
-                            </TabsTrigger>
-                        </TabsList>
-                    </div>
                 </div>
 
                 {/* Content Area */}

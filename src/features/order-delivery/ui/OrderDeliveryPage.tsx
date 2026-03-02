@@ -7,9 +7,11 @@ import { DeliverOrderModal } from "./DeliverOrderModal"
 import type { Order } from "@/entities/order/model/types"
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
-import { Search, History } from "lucide-react"
+import { History, Truck } from "lucide-react"
 import { useAuth } from "@/shared/auth"
 import { useToast } from "@/shared/ui/use-toast"
+import { PageHeader } from "@/shared/ui/PageHeader"
+import { cn } from "@/shared/lib/utils"
 
 export function OrderDeliveryPage() {
     const [filters, setFilters] = useState<DeliveryFilters>({})
@@ -47,81 +49,83 @@ export function OrderDeliveryPage() {
     });
 
     return (
-        <div className="container mx-auto py-8">
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4 border-b pb-4 border-green-200">
-                <div className="space-y-1 sm:space-y-2 px-1">
-                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-                        Entrega al Cliente
-                    </h1>
-                    <h2 className="text-base font-medium text-muted-foreground tracking-tight">Gestión de entregas y cobro de saldos</h2>
-                </div>
-                <Button variant="outline" onClick={() => navigate('/orders/delivery/history')} className="gap-2">
-                    <History className="h-4 w-4" />
-                    Historial de Entregas
-                </Button>
-            </div>
+        <div className="space-y-4">
+            <PageHeader
+                title="Entrega al Cliente"
+                description="Gestión de entregas y cobro de saldos bancarios."
+                icon={Truck}
+                searchQuery={filters.searchText || ""}
+                onSearchChange={(val) => setFilters(prev => ({ ...prev, searchText: val }))}
+                actions={
+                    <Button variant="outline" onClick={() => navigate('/orders/delivery/history')} className="gap-2">
+                        <History className="h-4 w-4" />
+                        Historial de Entregas
+                    </Button>
+                }
+            />
 
-            {/* Filters Bar */}
-            <div className="bg-white p-4 rounded-lg border shadow-sm mb-6 flex flex-wrap gap-4 items-end">
-                <div className="w-full md:w-64">
-                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Buscar</label>
-                    <div className="relative">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Cliente, Recibo..."
-                            className="pl-9"
-                            onChange={(e) => setFilters(prev => ({ ...prev, searchText: e.target.value }))}
-                        />
-                    </div>
-                </div>
+            {/* Filters Bar (Dates) */}
+            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap gap-4 items-end">
                 <div className="w-full md:w-40">
-                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Desde (Recepción)</label>
+                    <label className="text-xs font-semibold text-slate-500 mb-1.5 block">Desde (Recepción)</label>
                     <Input
                         type="date"
+                        className="bg-slate-50 border-slate-200"
                         onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
                     />
                 </div>
                 <div className="w-full md:w-40">
-                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Hasta (Recepción)</label>
+                    <label className="text-xs font-semibold text-slate-500 mb-1.5 block">Hasta (Recepción)</label>
                     <Input
                         type="date"
+                        className="bg-slate-50 border-slate-200"
                         onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
                     />
                 </div>
             </div>
 
-            {/* Legend / Filters */}
-            <div className="flex flex-wrap gap-3 text-xs mb-4 px-1">
+            {/* Legend / Category Filters */}
+            <div className="flex flex-wrap gap-3 text-xs mb-2">
                 <button
-                    onClick={() => setDateCategoryFilter(prev => prev === 'ALL' ? 'ALL' : 'ALL')} // Just forcing ALL or toggle
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-colors ${dateCategoryFilter === 'ALL' ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
+                    onClick={() => setDateCategoryFilter('ALL')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all duration-200 font-bold ${dateCategoryFilter === 'ALL' ? 'bg-slate-800 text-white border-slate-800 shadow-md transform scale-105' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300'}`}
                 >
-                    <span className="font-medium">Todos</span>
+                    <span>Todos</span>
                 </button>
                 <button
                     onClick={() => setDateCategoryFilter(prev => prev === 'RECENT' ? 'ALL' : 'RECENT')}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-colors ${dateCategoryFilter === 'RECENT' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all duration-200 font-bold ${dateCategoryFilter === 'RECENT' ? 'bg-emerald-600 text-white border-emerald-600 shadow-md transform scale-105' : 'bg-white text-emerald-700 border-emerald-100 hover:bg-emerald-50'}`}
                 >
-                    <div className="w-3 h-3 bg-emerald-100 border border-emerald-300 rounded-full"></div>
-                    <span className="font-medium">Reciente (&lt; 5 días)</span>
+                    <div className={cn("w-2 h-2 rounded-full", dateCategoryFilter === 'RECENT' ? 'bg-white' : 'bg-emerald-500')}></div>
+                    <span>Reciente (&lt; 5 días)</span>
                 </button>
                 <button
                     onClick={() => setDateCategoryFilter(prev => prev === 'WARN' ? 'ALL' : 'WARN')}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-colors ${dateCategoryFilter === 'WARN' ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-amber-50 text-amber-700 hover:bg-amber-100'}`}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all duration-200 font-bold ${dateCategoryFilter === 'WARN' ? 'bg-amber-500 text-white border-amber-500 shadow-md transform scale-105' : 'bg-white text-amber-700 border-amber-100 hover:bg-amber-50'}`}
                 >
-                    <div className="w-3 h-3 bg-amber-400 border border-amber-500 rounded-full"></div>
-                    <span className="font-medium">En bodega &gt; 5 días</span>
+                    <div className={cn("w-2 h-2 rounded-full", dateCategoryFilter === 'WARN' ? 'bg-white' : 'bg-amber-500')}></div>
+                    <span>En bodega &gt; 5 días</span>
                 </button>
                 <button
                     onClick={() => setDateCategoryFilter(prev => prev === 'CRITICAL' ? 'ALL' : 'CRITICAL')}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-colors ${dateCategoryFilter === 'CRITICAL' ? 'bg-red-100 text-red-800 border-red-300' : 'bg-red-50 text-red-700 hover:bg-red-100'}`}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all duration-200 font-bold ${dateCategoryFilter === 'CRITICAL' ? 'bg-red-600 text-white border-red-600 shadow-md transform scale-105' : 'bg-white text-red-700 border-red-100 hover:bg-red-50'}`}
                 >
-                    <div className="w-3 h-3 bg-red-400 border border-red-500 rounded-full"></div>
-                    <span className="font-medium">Crítico &gt; 15 días</span>
+                    <div className={cn("w-2 h-2 rounded-full", dateCategoryFilter === 'CRITICAL' ? 'bg-white' : 'bg-red-500')}></div>
+                    <span>Crítico &gt; 15 días</span>
                 </button>
             </div>
 
-            <div className="bg-white rounded-lg p-1 border border-slate-200 shadow-sm">
+            <div className="flex items-center justify-between pt-6 pb-2">
+                <div className="flex items-center gap-3">
+                    <div className="h-6 w-1.5 rounded-full bg-monchito-purple" />
+                    <h2 className="text-lg font-black tracking-tight text-slate-800 uppercase text-[13px] tracking-widest font-monchito">
+                        Pedidos Listos para Entrega
+                    </h2>
+                </div>
+                <span className="text-xs font-medium text-slate-400">{displayedOrders.length} registros encontrados</span>
+            </div>
+
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                 <OrderDeliveryTable orders={displayedOrders} onDeliver={handleDeliver} />
             </div>
 
