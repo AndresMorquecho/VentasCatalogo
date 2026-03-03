@@ -13,6 +13,9 @@ import { Label } from "@/shared/ui/label"
 import { Switch } from "@/shared/ui/switch"
 import type { Brand } from "@/entities/brand/model/types"
 import { useCreateBrand, useUpdateBrand } from "@/features/brands/api/hooks"
+import { useAuth } from "@/shared/auth"
+import { logAction } from "@/shared/lib/auditService"
+import { useNotifications } from "@/shared/lib/notifications"
 
 interface BrandFormProps {
     brand?: Brand | null
@@ -29,6 +32,8 @@ const validationSchema = Yup.object({
 export function BrandForm({ brand, open, onOpenChange }: BrandFormProps) {
     const createBrand = useCreateBrand()
     const updateBrand = useUpdateBrand()
+    const { user } = useAuth()
+    const { notifySuccess, notifyError } = useNotifications()
     const isEditing = !!brand
 
     const formik = useFormik({
@@ -43,13 +48,33 @@ export function BrandForm({ brand, open, onOpenChange }: BrandFormProps) {
             try {
                 if (isEditing && brand) {
                     await updateBrand.mutateAsync({ id: brand.id, data: values })
+                    if (user) {
+                        logAction({
+                            userId: user.id,
+                            userName: user.username,
+                            action: 'UPDATE_BRAND',
+                            module: 'brands',
+                            detail: `Actualizó marca: ${values.name}`
+                        });
+                    }
+                    notifySuccess(`Marca "${values.name}" actualizada correctamente`)
                 } else {
                     await createBrand.mutateAsync(values)
+                    if (user) {
+                        logAction({
+                            userId: user.id,
+                            userName: user.username,
+                            action: 'CREATE_BRAND',
+                            module: 'brands',
+                            detail: `Creó marca: ${values.name}`
+                        });
+                    }
+                    notifySuccess(`Marca "${values.name}" creada correctamente`)
                 }
                 onOpenChange(false)
                 formik.resetForm()
             } catch (error) {
-                console.error("Error saving brand", error)
+                notifyError(error, "Error al guardar la marca")
             }
         }
     })

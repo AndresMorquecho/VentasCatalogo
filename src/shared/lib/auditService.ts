@@ -15,12 +15,11 @@ const CRITICAL_ACTIONS: AuditAction[] = [
     'DELETE_PAYMENT', 'CLOSE_CASH',
     'DELETE_LOYALTY_RULE', 'DELETE_LOYALTY_PRIZE',
     'CHANGE_PERMISSIONS', 'LOGIN_FAILED',
+    'DELETE_BRAND', 'DELETE_CLIENT',
 ];
 
 const WARNING_ACTIONS: AuditAction[] = [
-    'CHANGE_PASSWORD', 'UPDATE_ROLE', 'UPDATE_USER',
-    'UPDATE_LOYALTY_RULE', 'UPDATE_LOYALTY_PRIZE',
-    'LOYALTY_REDEMPTION',
+    // Se eliminan ediciones para reducir ruido en la bitácora
 ];
 
 function resolveSeverity(action: AuditAction, explicit?: AuditSeverity): AuditSeverity {
@@ -30,7 +29,9 @@ function resolveSeverity(action: AuditAction, explicit?: AuditSeverity): AuditSe
     return 'INFO';
 }
 
-const IMPORTANT_ACTIONS: AuditAction[] = ['LOGIN', 'LOGOUT'];
+const IMPORTANT_ACTIONS: AuditAction[] = [
+    // Se eliminan logins para no llenar la base de datos, solo se guardan acciones críticas (eliminaciones)
+];
 
 // ─── Persistence ─────────────────────────────────────────────────────────────
 const STORAGE_KEY = 'ventas_audit_logs';

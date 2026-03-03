@@ -15,6 +15,10 @@ import { Separator } from "@/shared/ui/separator";
 import type { Client } from "@/entities/client/model/types";
 import { useCreateClient, useUpdateClient } from "@/features/clients/api/hooks";
 
+import { useAuth } from "@/shared/auth";
+import { logAction } from "@/shared/lib/auditService";
+import { useNotifications } from "@/shared/lib/notifications";
+
 interface ClientFormProps {
     client?: Client | null;
     open: boolean;
@@ -51,6 +55,8 @@ const validationSchema = Yup.object({
 export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
     const createClient = useCreateClient();
     const updateClient = useUpdateClient();
+    const { user } = useAuth();
+    const { notifySuccess, notifyError } = useNotifications();
     const isEditing = !!client;
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -101,27 +107,46 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
             try {
                 if (isEditing && client) {
                     await updateClient.mutateAsync({ id: client.id, data: payload });
+                    if (user) {
+                        logAction({
+                            userId: user.id,
+                            userName: user.username,
+                            action: 'UPDATE_CLIENT',
+                            module: 'clients',
+                            detail: `Actualizó empresaria: ${values.firstName}`
+                        });
+                    }
+                    notifySuccess(`Empresaria "${values.firstName}" actualizada correctamente`);
                 } else {
                     await createClient.mutateAsync(payload);
+                    if (user) {
+                        logAction({
+                            userId: user.id,
+                            userName: user.username,
+                            action: 'CREATE_CLIENT',
+                            module: 'clients',
+                            detail: `Creó empresaria: ${values.firstName}`
+                        });
+                    }
+                    notifySuccess(`Empresaria "${values.firstName}" creada correctamente`);
                 }
                 onOpenChange(false);
                 formik.resetForm();
             } catch (error: any) {
                 console.error("Error saving client", error);
-                
-                // Handle specific error codes
+                let msg = error.message || 'Ocurrió un error al guardar. Intente de nuevo.';
+
                 if (error.code === 'UNIQUE_CONSTRAINT') {
                     const field = error.details?.target?.[0];
                     if (field === 'identification_number') {
-                        setSubmitError('Ya existe una empresaria con este número de cédula.');
+                        msg = 'Ya existe una empresaria con este número de cédula.';
                     } else if (field === 'email') {
-                        setSubmitError('Ya existe una empresaria con este correo electrónico.');
-                    } else {
-                        setSubmitError('Ya existe un registro con estos datos.');
+                        msg = 'Ya existe una empresaria con este correo electrónico.';
                     }
-                } else {
-                    setSubmitError(error.message || 'Ocurrió un error al guardar. Intente de nuevo.');
                 }
+
+                setSubmitError(msg);
+                notifyError(error, msg);
             } finally {
                 setIsSubmitting(false);
             }

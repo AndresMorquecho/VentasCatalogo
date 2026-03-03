@@ -1,7 +1,7 @@
 
 import type { Order } from '@/entities/order/model/types';
 import type { ClientReward } from '@/entities/client-reward/model/types';
-import { getPaidAmount, getEffectiveTotal } from '@/entities/order/model/model';
+import { getEffectiveTotal } from '@/entities/order/model/model';
 
 export const calculateRewardPoints = (order: Order): number => {
     let points = 0;
@@ -11,15 +11,6 @@ export const calculateRewardPoints = (order: Order): number => {
 
     // 1 punto por cada $10
     points += Math.floor(effectiveTotal / 10);
-
-    // +5 puntos extra por pedido
-    points += 5;
-
-    // Bonus si paga completo
-    const paidAmount = getPaidAmount(order);
-    if (paidAmount >= effectiveTotal) {
-        points += 10; // Bonus for full payment
-    }
 
     return points;
 };

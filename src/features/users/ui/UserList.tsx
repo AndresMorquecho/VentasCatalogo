@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
 import { Skeleton } from '@/shared/ui/skeleton';
 import { useAuth } from '@/shared/auth';
-import { useToast } from '@/shared/ui/use-toast';
+import { useNotifications } from '@/shared/lib/notifications';
 
 const EMPTY_FORM: UserFormData = { username: '', password: '', roleId: '', active: true };
 
@@ -21,7 +21,7 @@ export function UserList() {
     const { users, isLoading, createUser, updateUser, changePassword, deactivateUser, deleteUser, isCreating, isUpdating } = useUsers();
     const { roles } = useRoles();
     const { hasPermission } = useAuth();
-    const { showToast } = useToast();
+    const { notifySuccess, notifyError } = useNotifications();
     const [mode, setMode] = useState<ModalMode>(null);
     const [target, setTarget] = useState<AppUser | null>(null);
     const [form, setForm] = useState<UserFormData>(EMPTY_FORM);
@@ -32,7 +32,7 @@ export function UserList() {
 
     const openCreate = () => {
         if (!hasPermission('users.create')) {
-            showToast("No tienes permiso para crear usuarios", "error");
+            notifyError({ message: "No tienes permiso para crear usuarios" });
             return;
         }
         setTarget(null); setForm(EMPTY_FORM); setError(''); setMode('create');
@@ -40,7 +40,7 @@ export function UserList() {
 
     const openEdit = (u: AppUser) => {
         if (!hasPermission('users.edit')) {
-            showToast("No tienes permiso para editar usuarios", "error");
+            notifyError({ message: "No tienes permiso para editar usuarios" });
             return;
         }
         setTarget(u); setForm({ username: u.username, password: '', roleId: u.roleId, active: u.active }); setError(''); setMode('edit');
@@ -48,7 +48,7 @@ export function UserList() {
 
     const openPassword = (u: AppUser) => {
         if (!hasPermission('users.change_password')) {
-            showToast("No tienes permiso para cambiar contraseñas", "error");
+            notifyError({ message: "No tienes permiso para cambiar contraseñas" });
             return;
         }
         setTarget(u); setNewPw(''); setConfirmPw(''); setError(''); setMode('password');
@@ -61,7 +61,11 @@ export function UserList() {
             if (mode === 'create') await createUser(form);
             else if (mode === 'edit' && target) await updateUser({ id: target.id, data: { username: form.username, roleId: form.roleId, active: form.active } });
             closeModal();
-        } catch (e) { setError(e instanceof Error ? e.message : 'Error al guardar'); }
+            notifySuccess(`Usuario "${mode === 'create' ? form.username : target?.username}" guardado correctamente`);
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Error al guardar');
+            notifyError(e, 'No se pudo guardar el usuario');
+        }
     };
 
     const handlePassword = async () => {
@@ -70,35 +74,48 @@ export function UserList() {
         try {
             if (target) {
                 await changePassword({ userId: target.id, newPassword: newPw });
-                showToast('Contraseña cambiada exitosamente', 'success');
+                notifySuccess(`Contraseña de "${target.username}" cambiada exitosamente`);
             }
             closeModal();
-        } catch (e) { setError(e instanceof Error ? e.message : 'Error'); }
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Error');
+            notifyError(e, 'No se pudo cambiar la contraseña');
+        }
     };
 
     const handleToggleStatus = async () => {
         if (!hasPermission('users.edit')) {
-            showToast('No tienes permiso para cambiar el estado de usuarios', 'error');
-            return;
-        }
-        try {
-            if (target) await deactivateUser(target.id);
-            closeModal();
-        } catch (e) { setError(e instanceof Error ? e.message : 'Error al cambiar estado'); }
-    };
-
-    const handleHardDelete = async () => {
-        if (!hasPermission('users.delete')) {
-            showToast('No tienes permiso para eliminar usuarios', 'error');
+            notifyError({ message: 'No tienes permiso para cambiar el estado de usuarios' });
             return;
         }
         try {
             if (target) {
-                await deleteUser(target.id);
-                showToast('Usuario eliminado permanentemente.', 'success');
+                await deactivateUser(target.id);
+                notifySuccess(`Estado de usuario "${target.username}" actualizado`);
             }
             closeModal();
-        } catch (e) { setError(e instanceof Error ? e.message : 'Error al eliminar'); }
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Error al cambiar estado');
+            notifyError(e);
+        }
+    };
+
+    const handleHardDelete = async () => {
+        if (!hasPermission('users.delete')) {
+            notifyError({ message: 'No tienes permiso para eliminar usuarios' });
+            return;
+        }
+        try {
+            if (target) {
+                const name = target.username;
+                await deleteUser(target.id);
+                notifySuccess(`Usuario "${name}" eliminado permanentemente.`);
+            }
+            closeModal();
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Error al eliminar');
+            notifyError(e, 'No se pudo eliminar el usuario definitivamente');
+        }
     };
 
     const filtered = users.filter(u =>
@@ -173,7 +190,7 @@ export function UserList() {
                                                 className={`h-8 px-2 gap-1.5 text-xs font-bold transition-all ${u.active ? 'text-rose-500 hover:text-rose-600 hover:bg-rose-50' : 'text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50'}`}
                                                 onClick={() => {
                                                     if (!hasPermission('users.edit')) {
-                                                        showToast('No tienes permiso para cambiar el estado', 'error');
+                                                        notifyError({ message: 'No tienes permiso para cambiar el estado' });
                                                         return;
                                                     }
                                                     setTarget(u);
@@ -194,7 +211,7 @@ export function UserList() {
                                                 {u.roleId?.toUpperCase() !== 'ADMIN' && (
                                                     <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-red-50" onClick={() => {
                                                         if (!hasPermission('users.delete')) {
-                                                            showToast('No tienes permiso para eliminar usuarios', 'error');
+                                                            notifyError({ message: 'No tienes permiso para eliminar usuarios' });
                                                             return;
                                                         }
                                                         setTarget(u); setMode('delete'); setError('');

@@ -31,7 +31,7 @@ class HttpClient {
       return obj.map(item => this.toCamelCase(item));
     }
 
-    if (obj.constructor === Object) {
+    if (typeof obj === 'object' && obj !== null) {
       return Object.keys(obj).reduce((result, key) => {
         const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
         result[camelKey] = this.toCamelCase(obj[key]);
@@ -52,7 +52,7 @@ class HttpClient {
       return obj.map(item => this.toSnakeCase(item));
     }
 
-    if (obj.constructor === Object) {
+    if (typeof obj === 'object' && obj !== null) {
       return Object.keys(obj).reduce((result, key) => {
         const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
         result[snakeKey] = this.toSnakeCase(obj[key]);
@@ -153,23 +153,25 @@ class HttpClient {
       }
 
       try {
-        // If it's a 304/204, try to check if there is content before parsing
-        if (response.status === 204 || response.status === 304) {
-          // Attempt to parse but don't fail if empty
-          const text = await response.text();
-          if (!text) return undefined as any;
-          return this.toCamelCase(JSON.parse(text).data) as T;
+        const text = await response.text();
+        if (!text) return undefined as any;
+
+        const rawData = JSON.parse(text);
+
+        // Handle standard wrapper { success: true, data: ... }
+        if (rawData && typeof rawData === 'object' && 'success' in rawData) {
+          if (!rawData.success) {
+            const error: any = new Error(rawData.error?.message || 'Request failed');
+            error.code = rawData.error?.code;
+            throw error;
+          }
+          return this.toCamelCase(rawData.data) as T;
         }
 
-        const data: ApiResponse<T> = await response.json();
-        if (!data.success) {
-          const error: any = new Error(data.error?.message || 'Request failed');
-          error.code = data.error?.code;
-          throw error;
-        }
-        return this.toCamelCase(data.data) as T;
+        // Fallback: treat raw response as data
+        return this.toCamelCase(rawData) as T;
       } catch (error) {
-        if (response.status === 304) return undefined as any; // Ignore parse error on 304
+        if (response.status === 304) return undefined as any;
         throw error;
       }
 

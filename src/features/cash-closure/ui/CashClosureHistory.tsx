@@ -12,7 +12,7 @@ import { FileDown, Loader2, Trash2 } from "lucide-react"
 import { generateCashClosurePDF } from "../lib/generateCashClosurePDF"
 import { useToast } from "@/shared/ui/use-toast"
 import { useDeleteCashClosure } from "../api/hooks"
-import { authService } from "@/shared/services/authService"
+import { useAuth } from "@/shared/auth"
 import {
     Dialog,
     DialogContent,
@@ -25,18 +25,18 @@ import type { CashClosure } from "@/entities/cash-closure/model/types"
 
 interface CashClosureHistoryProps {
     closures: CashClosure[]
+    onDeleteSuccess?: () => void
 }
 
-export function CashClosureHistory({ closures }: CashClosureHistoryProps) {
+export function CashClosureHistory({ closures, onDeleteSuccess }: CashClosureHistoryProps) {
     const [downloadingId, setDownloadingId] = useState<string | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const { showToast } = useToast();
     const deleteClosure = useDeleteCashClosure();
+    const { hasPermission } = useAuth();
 
-    // Check if user is admin via real authService
-    const currentUser = authService.getUser();
-    const userIsAdmin = currentUser?.role === 'ADMIN';
+    const canDelete = hasPermission('cash_closure.delete');
 
     const handleDownloadPDF = async (closure: CashClosure) => {
         if (!closure.detailedReport) {
@@ -52,7 +52,13 @@ export function CashClosureHistory({ closures }: CashClosureHistoryProps) {
 
         setDownloadingId(closure.id);
         try {
-            await generateCashClosurePDF(closure.detailedReport);
+            await generateCashClosurePDF({
+                ...closure.detailedReport,
+                expectedAmount: closure.expectedAmount,
+                actualAmount: closure.actualAmount,
+                difference: closure.difference,
+                notes: closure.notes,
+            });
             showToast("PDF descargado exitosamente", "success");
         } catch (error) {
             console.error("Error downloading PDF", error);
@@ -75,6 +81,7 @@ export function CashClosureHistory({ closures }: CashClosureHistoryProps) {
             showToast("Cierre de caja eliminado exitosamente", "success");
             setShowDeleteDialog(false);
             setDeletingId(null);
+            if (onDeleteSuccess) onDeleteSuccess();
         } catch (error) {
             console.error("Error deleting closure", error);
             showToast("Error al eliminar el cierre de caja", "error");
@@ -94,11 +101,11 @@ export function CashClosureHistory({ closures }: CashClosureHistoryProps) {
                         <TableRow>
                             <TableHead>Fecha Cierre</TableHead>
                             <TableHead>Periodo</TableHead>
-                            <TableHead className="text-right">Esperado</TableHead>
-                            <TableHead className="text-right">Real (Contado)</TableHead>
-                            <TableHead className="text-right">Diferencia</TableHead>
-                            <TableHead className="text-right text-muted-foreground">Movs.</TableHead>
-                            <TableHead>Cerrado Por</TableHead>
+                            <TableHead className="text-right">Efec. Sistema</TableHead>
+                            <TableHead className="text-right">Efec. Físico</TableHead>
+                            <TableHead className="text-right">Estado (Cuadre)</TableHead>
+                            <TableHead>Justificación</TableHead>
+                            <TableHead>Resp.</TableHead>
                             <TableHead className="text-right">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -127,11 +134,18 @@ export function CashClosureHistory({ closures }: CashClosureHistoryProps) {
                                 <TableCell className="text-right font-bold text-sm">
                                     ${c.actualAmount.toFixed(2)}
                                 </TableCell>
-                                <TableCell className={`text-right font-black ${c.difference < 0 ? 'text-red-600' : c.difference > 0 ? 'text-orange-600' : 'text-green-600'}`}>
-                                    ${c.difference.toFixed(2)}
+                                <TableCell className="text-right">
+                                    <div className="flex flex-col items-end">
+                                        <span className={`font-black ${c.difference < -0.01 ? 'text-red-600' : c.difference > 0.01 ? 'text-orange-600' : 'text-green-600'}`}>
+                                            {c.difference < -0.01 ? 'FALTANTE' : c.difference > 0.01 ? 'SOBRANTE' : 'CUADRÓ'}
+                                        </span>
+                                        <span className={`text-xs ${c.difference < -0.01 ? 'text-red-600' : c.difference > 0.01 ? 'text-orange-600' : 'text-green-600'}`}>
+                                            ${Math.abs(c.difference).toFixed(2)}
+                                        </span>
+                                    </div>
                                 </TableCell>
-                                <TableCell className="text-right text-muted-foreground text-xs">
-                                    {c.movementCount}
+                                <TableCell className="text-xs text-muted-foreground max-w-[150px] truncate" title={c.notes || 'Ninguna'}>
+                                    {c.notes || '-'}
                                 </TableCell>
                                 <TableCell className="text-xs font-medium">
                                     {c.closedBy}
@@ -152,7 +166,7 @@ export function CashClosureHistory({ closures }: CashClosureHistoryProps) {
                                                 <FileDown className="h-3 w-3" />
                                             )}
                                         </Button>
-                                        {userIsAdmin && (
+                                        {canDelete && (
                                             <Button
                                                 size="sm"
                                                 variant="outline"

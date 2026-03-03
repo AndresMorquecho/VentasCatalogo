@@ -31,7 +31,7 @@ export const MODULE_ACTIONS: Record<ModuleKey, string[]> = {
     bank_accounts: ['view', 'create', 'edit', 'delete'],
     inventory: ['view', 'edit'],
     brands: ['view', 'create', 'edit', 'delete'],
-    cash_closure: ['view', 'close'],
+    cash_closure: ['view', 'close', 'delete'],
     calls: ['view', 'create'],
     loyalty: ['view', 'manage_rules', 'manage_prizes'],
     users: ['view', 'create', 'edit', 'delete', 'change_password', 'assign_roles'],

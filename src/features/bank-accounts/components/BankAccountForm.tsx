@@ -13,6 +13,9 @@ import { Label } from "@/shared/ui/label"
 import { Switch } from "@/shared/ui/switch"
 import type { BankAccount, BankAccountType } from "@/entities/bank-account/model/types"
 import { useCreateBankAccount, useUpdateBankAccount } from "@/features/bank-accounts/api/hooks"
+import { useNotifications } from "@/shared/lib/notifications"
+import { useAuth } from "@/shared/auth"
+import { logAction } from "@/shared/lib/auditService"
 
 interface BankAccountFormProps {
     account?: BankAccount | null
@@ -30,6 +33,8 @@ const validationSchema = Yup.object({
 export function BankAccountForm({ account, open, onOpenChange }: BankAccountFormProps) {
     const createAccount = useCreateBankAccount()
     const updateAccount = useUpdateBankAccount()
+    const { notifySuccess, notifyError } = useNotifications()
+    const { user } = useAuth()
     const isEditing = !!account
 
     const formik = useFormik({
@@ -45,13 +50,34 @@ export function BankAccountForm({ account, open, onOpenChange }: BankAccountForm
             try {
                 if (isEditing && account) {
                     await updateAccount.mutateAsync({ id: account.id, data: values })
+                    notifySuccess(`Cuenta "${values.name}" actualizada correctamente`)
+                    if (user) {
+                        logAction({
+                            userId: user.id,
+                            userName: user.username,
+                            action: 'UPDATE_USER', // Or a more specific action if we had one for bank accounts
+                            module: 'bank_accounts' as any,
+                            detail: `Editó cuenta bancaria: ${values.name}`
+                        });
+                    }
                 } else {
                     await createAccount.mutateAsync(values)
+                    notifySuccess(`Cuenta "${values.name}" creada correctamente`)
+                    if (user) {
+                        logAction({
+                            userId: user.id,
+                            userName: user.username,
+                            action: 'CREATE_USER',
+                            module: 'bank_accounts' as any,
+                            detail: `Creó cuenta bancaria: ${values.name}`
+                        });
+                    }
                 }
                 onOpenChange(false)
                 formik.resetForm()
             } catch (error) {
                 console.error("Error saving account", error)
+                notifyError(error, "Error al guardar la cuenta")
             }
         }
     })

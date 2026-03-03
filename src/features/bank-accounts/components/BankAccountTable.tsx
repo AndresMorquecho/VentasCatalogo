@@ -9,23 +9,25 @@ import {
 } from "@/shared/ui/table"
 import { Badge } from "@/shared/ui/badge"
 import { Button } from "@/shared/ui/button"
-import { Pencil } from "lucide-react"
+import { Pencil, Trash2 } from "lucide-react"
 import { Switch } from "@/shared/ui/switch"
 import type { BankAccount } from "@/entities/bank-account/model/types"
 import { useToggleBankAccountStatus } from "@/features/bank-accounts/api/hooks"
 import { useAuth } from "@/shared/auth"
-import { useToast } from "@/shared/ui/use-toast"
+import { useNotifications } from "@/shared/lib/notifications"
+import { logAction } from "@/shared/lib/auditService"
 
 interface BankAccountTableProps {
     accounts: BankAccount[]
     isLoading: boolean
     onEdit: (account: BankAccount) => void
+    onDelete: (account: BankAccount) => void
 }
 
-export function BankAccountTable({ accounts, isLoading, onEdit }: BankAccountTableProps) {
+export function BankAccountTable({ accounts, isLoading, onEdit, onDelete }: BankAccountTableProps) {
     const toggleStatus = useToggleBankAccountStatus()
-    const { hasPermission } = useAuth()
-    const { showToast } = useToast()
+    const { hasPermission, user } = useAuth()
+    const { notifySuccess, notifyError } = useNotifications()
 
     if (isLoading) {
         return (
@@ -76,12 +78,26 @@ export function BankAccountTable({ accounts, isLoading, onEdit }: BankAccountTab
                                 <div className="flex items-center space-x-2">
                                     <Switch
                                         checked={acc.isActive}
-                                        onCheckedChange={() => {
+                                        onCheckedChange={async () => {
                                             if (!hasPermission('bank_accounts.edit')) {
-                                                showToast('No tienes permiso para cambiar el estado de cuentas', 'error')
+                                                notifyError({ message: 'No tienes permiso para cambiar el estado de cuentas' })
                                                 return
                                             }
-                                            toggleStatus.mutate(acc.id)
+                                            try {
+                                                await toggleStatus.mutateAsync(acc.id)
+                                                notifySuccess(`Cuenta "${acc.name}" ${!acc.isActive ? 'activada' : 'desactivada'} correctamente`)
+                                                if (user) {
+                                                    logAction({
+                                                        userId: user.id,
+                                                        userName: user.username,
+                                                        action: 'UPDATE_USER',
+                                                        module: 'bank_accounts' as any,
+                                                        detail: `${!acc.isActive ? 'Activó' : 'Desactivó'} cuenta bancaria: ${acc.name}`
+                                                    });
+                                                }
+                                            } catch (error) {
+                                                notifyError(error, "Error al cambiar estado")
+                                            }
                                         }}
                                     />
                                     <span className={`text-xs ${acc.isActive ? "text-green-600" : "text-muted-foreground"}`}>
@@ -96,6 +112,14 @@ export function BankAccountTable({ accounts, isLoading, onEdit }: BankAccountTab
                                     onClick={() => onEdit(acc)}
                                 >
                                     <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                    onClick={() => onDelete(acc)}
+                                >
+                                    <Trash2 className="h-4 w-4" />
                                 </Button>
                             </TableCell>
                         </TableRow>

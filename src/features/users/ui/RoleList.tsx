@@ -12,14 +12,14 @@ import { Badge } from '@/shared/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/shared/ui/dialog';
 import { Skeleton } from '@/shared/ui/skeleton';
 import { useAuth } from '@/shared/auth';
-import { useToast } from '@/shared/ui/use-toast';
+import { useNotifications } from '@/shared/lib/notifications';
 
 const EMPTY_FORM: RoleFormData = { name: '' as any, description: '', permissions: [], active: true };
 
 export function RoleList() {
     const { roles, isLoading, createRole, updateRole, deleteRole } = useRoles();
     const { hasPermission } = useAuth();
-    const { showToast } = useToast();
+    const { notifySuccess, notifyError } = useNotifications();
     const [modalOpen, setModalOpen] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState<AppRole | null>(null);
     const [editTarget, setEditTarget] = useState<AppRole | null>(null);
@@ -56,14 +56,14 @@ export function RoleList() {
 
     const openCreate = () => {
         if (!hasPermission('users.assign_roles')) {
-            showToast("No tienes permiso para crear roles", "error");
+            notifyError({ message: "No tienes permiso para crear roles" });
             return;
         }
         setEditTarget(null); setForm(EMPTY_FORM); setError(''); setExpandedModules(new Set()); setModalOpen(true);
     };
     const openEdit = (role: AppRole) => {
         if (!hasPermission('users.assign_roles')) {
-            showToast("No tienes permiso para editar roles", "error");
+            notifyError({ message: "No tienes permiso para editar roles" });
             return;
         }
         setEditTarget(role);
@@ -76,14 +76,25 @@ export function RoleList() {
             if (editTarget) await updateRole({ id: editTarget.id, data: form });
             else await createRole(form);
             setModalOpen(false);
-        } catch (e) { setError(e instanceof Error ? e.message : 'Error'); }
+            notifySuccess(`Rol "${editTarget ? editTarget.name : form.name}" guardado correctamente`);
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Error');
+            notifyError(e, 'No se pudo guardar el rol');
+        }
     };
 
     const handleDelete = async () => {
         try {
-            if (deleteTarget) await deleteRole(deleteTarget.id);
+            if (deleteTarget) {
+                const name = deleteTarget.name;
+                await deleteRole(deleteTarget.id);
+                notifySuccess(`Rol "${name}" eliminado correctamente`);
+            }
             setDeleteTarget(null);
-        } catch (e) { setError(e instanceof Error ? e.message : 'Error al eliminar'); }
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Error al eliminar');
+            notifyError(e, 'No se pudo eliminar el rol');
+        }
     };
 
     if (isLoading) return <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-20" />)}</div>;
@@ -100,31 +111,37 @@ export function RoleList() {
             <div className="grid gap-4 md:grid-cols-2">
                 {roles.map(role => {
                     const permCount = role.permissions.length;
+                    const isSystemAdmin = ['ADMIN', 'ADMINISTRADOR'].includes(role.name.toUpperCase());
+
                     return (
                         <div key={role.id} className="rounded-xl border p-4 space-y-3 bg-white border-slate-200 shadow-sm hover:shadow-md transition-shadow">
                             <div className="flex justify-between items-start">
                                 <div>
                                     <div className="flex items-center gap-2">
-                                        <h3 className="font-bold text-slate-800">{role.name.toUpperCase() === 'ADMIN' ? 'Administrador' : role.name}</h3>
+                                        <h3 className="font-bold text-slate-800">
+                                            {isSystemAdmin ? 'Administrador' : role.name}
+                                        </h3>
                                         <Badge variant="outline" className="text-xs">{permCount} permisos</Badge>
                                     </div>
                                     <p className="text-xs text-slate-500 mt-0.5">{role.description}</p>
                                 </div>
                                 <div className="flex gap-1 shrink-0">
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(role)}>
-                                        <Edit2 className="h-3.5 w-3.5 text-blue-600" />
-                                    </Button>
-                                    {role.name.toUpperCase() !== 'ADMIN' && (
-                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
-                                            if (!hasPermission('users.assign_roles')) {
-                                                showToast("No tienes permiso para eliminar roles", "error");
-                                                return;
-                                            }
-                                            setError('');
-                                            setDeleteTarget(role);
-                                        }}>
-                                            <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                                        </Button>
+                                    {!isSystemAdmin && (
+                                        <>
+                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(role)}>
+                                                <Edit2 className="h-3.5 w-3.5 text-blue-600" />
+                                            </Button>
+                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
+                                                if (!hasPermission('users.assign_roles')) {
+                                                    notifyError({ message: "No tienes permiso para eliminar roles" });
+                                                    return;
+                                                }
+                                                setError('');
+                                                setDeleteTarget(role);
+                                            }}>
+                                                <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                                            </Button>
+                                        </>
                                     )}
                                 </div>
                             </div>
@@ -158,7 +175,7 @@ export function RoleList() {
                                     value={form.name}
                                     onChange={e => setForm(f => ({ ...f, name: e.target.value as any }))}
                                     placeholder="Ej: SUPERVISOR, SECRETARIA..."
-                                    disabled={editTarget?.name?.toUpperCase() === 'ADMIN'}
+                                    disabled={['ADMIN', 'ADMINISTRADOR'].includes(editTarget?.name?.toUpperCase() || '')}
                                 />
                             </div>
                             <div className="space-y-1">
@@ -167,7 +184,7 @@ export function RoleList() {
                                     value={form.description}
                                     onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                                     placeholder="Descripción del rol..."
-                                    disabled={editTarget?.name?.toUpperCase() === 'ADMIN'}
+                                    disabled={['ADMIN', 'ADMINISTRADOR'].includes(editTarget?.name?.toUpperCase() || '')}
                                 />
                             </div>
                         </div>
@@ -182,6 +199,7 @@ export function RoleList() {
                                     const selectedCount = perms.filter(p => form.permissions.includes(p)).length;
                                     const allSelected = selectedCount === perms.length;
                                     const expanded = expandedModules.has(mod);
+                                    const isAdminRole = ['ADMIN', 'ADMINISTRADOR'].includes(editTarget?.name?.toUpperCase() || '');
 
                                     return (
                                         <div key={mod}>
@@ -192,10 +210,11 @@ export function RoleList() {
                                                 {expanded ? <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" /> : <ChevronRight className="h-4 w-4 text-slate-400 shrink-0" />}
                                                 <input
                                                     type="checkbox"
-                                                    checked={allSelected}
+                                                    checked={allSelected || isAdminRole}
                                                     onChange={() => toggleModuleAll(mod)}
                                                     onClick={e => e.stopPropagation()}
                                                     className="h-4 w-4 rounded"
+                                                    disabled={isAdminRole}
                                                 />
                                                 <span className="font-medium text-sm text-slate-700">{MODULE_LABELS[mod]}</span>
                                                 <span className="ml-auto text-xs text-slate-400">{selectedCount}/{perms.length}</span>
@@ -208,10 +227,10 @@ export function RoleList() {
                                                             <label key={perm} className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
                                                                 <input
                                                                     type="checkbox"
-                                                                    checked={form.permissions.includes(perm) || editTarget?.name?.toUpperCase() === 'ADMIN'}
+                                                                    checked={form.permissions.includes(perm) || isAdminRole}
                                                                     onChange={() => togglePermission(perm)}
                                                                     className="h-4 w-4 rounded"
-                                                                    disabled={editTarget?.name?.toUpperCase() === 'ADMIN'}
+                                                                    disabled={isAdminRole}
                                                                 />
                                                                 {ACTION_LABELS[action] ?? action}
                                                             </label>
@@ -229,7 +248,12 @@ export function RoleList() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
-                        <Button onClick={handleSave} disabled={!form.description}>Guardar</Button>
+                        <Button
+                            onClick={handleSave}
+                            disabled={!form.description || ['ADMIN', 'ADMINISTRADOR'].includes(editTarget?.name?.toUpperCase() || '')}
+                        >
+                            Guardar
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

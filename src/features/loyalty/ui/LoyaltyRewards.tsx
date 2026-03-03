@@ -10,7 +10,8 @@ import { Badge } from '@/shared/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/shared/ui/dialog';
 import { Skeleton } from '@/shared/ui/skeleton';
 import { useAuth } from '@/shared/auth';
-import { useToast } from '@/shared/ui/use-toast';
+import { useNotifications } from '@/shared/lib/notifications';
+import { logAction } from '@/shared/lib/auditService';
 
 const PRIZE_TYPE_LABELS: Record<PrizeType, string> = {
     DESCUENTO_PORCENTAJE: 'Descuento %',
@@ -36,8 +37,8 @@ const EMPTY_FORM: LoyaltyPrizeFormData = {
 
 export function LoyaltyRewards() {
     const { prizes, isLoading, createPrize, updatePrize, deletePrize, togglePrize, isCreating, isUpdating } = useLoyaltyPrizes();
-    const { hasPermission } = useAuth();
-    const { showToast } = useToast();
+    const { hasPermission, user } = useAuth();
+    const { notifySuccess, notifyError } = useNotifications();
     const [modalOpen, setModalOpen] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState<LoyaltyPrize | null>(null);
     const [editTarget, setEditTarget] = useState<LoyaltyPrize | null>(null);
@@ -45,7 +46,7 @@ export function LoyaltyRewards() {
 
     const openCreate = () => {
         if (!hasPermission('loyalty.manage_prizes')) {
-            showToast("No tienes permiso para crear premios", "error");
+            notifyError({ message: "No tienes permiso para crear premios" });
             return;
         }
         setEditTarget(null);
@@ -55,7 +56,7 @@ export function LoyaltyRewards() {
 
     const openEdit = (prize: LoyaltyPrize) => {
         if (!hasPermission('loyalty.manage_prizes')) {
-            showToast("No tienes permiso para editar premios", "error");
+            notifyError({ message: "No tienes permiso para editar premios" });
             return;
         }
         setEditTarget(prize);
@@ -65,25 +66,64 @@ export function LoyaltyRewards() {
 
     const handleSave = async () => {
         if (!hasPermission('loyalty.manage_prizes')) {
-            showToast("No tienes permiso para guardar premios", "error");
+            notifyError({ message: "No tienes permiso para guardar premios" });
             return;
         }
-        if (editTarget) {
-            await updatePrize({ id: editTarget.id, data: form });
-        } else {
-            await createPrize(form);
+        try {
+            if (editTarget) {
+                await updatePrize({ id: editTarget.id, data: form });
+                notifySuccess(`Premio "${form.name}" actualizado correctamente`);
+                if (user) {
+                    logAction({
+                        userId: user.id,
+                        userName: user.username,
+                        action: 'UPDATE_LOYALTY_PRIZE',
+                        module: 'loyalty',
+                        detail: `Editó premio de fidelización: ${form.name}`
+                    });
+                }
+            } else {
+                await createPrize(form);
+                notifySuccess(`Premio "${form.name}" creado correctamente`);
+                if (user) {
+                    logAction({
+                        userId: user.id,
+                        userName: user.username,
+                        action: 'CREATE_LOYALTY_PRIZE',
+                        module: 'loyalty',
+                        detail: `Creó premio de fidelización: ${form.name}`
+                    });
+                }
+            }
+            setModalOpen(false);
+        } catch (error) {
+            notifyError(error, "Error al guardar el premio");
         }
-        setModalOpen(false);
     };
 
     const handleDelete = async () => {
         if (!hasPermission('loyalty.manage_prizes')) {
-            showToast("No tienes permiso para eliminar premios", "error");
+            notifyError({ message: "No tienes permiso para eliminar premios" });
             return;
         }
         if (deleteTarget) {
-            await deletePrize(deleteTarget.id);
-            setDeleteTarget(null);
+            try {
+                await deletePrize(deleteTarget.id);
+                notifySuccess(`Premio "${deleteTarget.name}" eliminado correctamente`);
+                if (user) {
+                    logAction({
+                        userId: user.id,
+                        userName: user.username,
+                        action: 'DELETE_LOYALTY_PRIZE',
+                        module: 'loyalty',
+                        detail: `Eliminó premio de fidelización: ${deleteTarget.name}`,
+                        severity: 'CRITICAL'
+                    });
+                }
+                setDeleteTarget(null);
+            } catch (error) {
+                notifyError(error, "Error al eliminar el premio");
+            }
         }
     };
 
@@ -117,12 +157,26 @@ export function LoyaltyRewards() {
                                 </Badge>
                             </div>
                             <div className="flex gap-1">
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={async () => {
                                     if (!hasPermission('loyalty.manage_prizes')) {
-                                        showToast("No tienes permiso para activar/desactivar premios", "error");
+                                        notifyError({ message: "No tienes permiso para activar/desactivar premios" });
                                         return;
                                     }
-                                    togglePrize(prize.id);
+                                    try {
+                                        await togglePrize(prize.id);
+                                        notifySuccess(`Premio "${prize.name}" ${!prize.isActive ? 'activado' : 'desactivado'} correctamente`);
+                                        if (user) {
+                                            logAction({
+                                                userId: user.id,
+                                                userName: user.username,
+                                                action: 'UPDATE_LOYALTY_PRIZE',
+                                                module: 'loyalty',
+                                                detail: `${!prize.isActive ? 'Activó' : 'Desactivó'} premio: ${prize.name}`
+                                            });
+                                        }
+                                    } catch (error) {
+                                        notifyError(error, "Error al cambiar estado");
+                                    }
                                 }}>
                                     <Power className={`h-3.5 w-3.5 ${prize.isActive ? 'text-emerald-600' : 'text-slate-400'}`} />
                                 </Button>
@@ -131,7 +185,7 @@ export function LoyaltyRewards() {
                                 </Button>
                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
                                     if (!hasPermission('loyalty.manage_prizes')) {
-                                        showToast("No tienes permiso para eliminar premios", "error");
+                                        notifyError({ message: "No tienes permiso para eliminar premios" });
                                         return;
                                     }
                                     setDeleteTarget(prize);

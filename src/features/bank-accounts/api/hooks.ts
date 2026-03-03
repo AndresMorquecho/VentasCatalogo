@@ -26,7 +26,7 @@ export function useCreateBankAccount() {
 export function useUpdateBankAccount() {
     const qc = useQueryClient()
     return useMutation({
-        mutationFn: ({ id, data }: { id: string; data: Partial<BankAccountPayload> }) => 
+        mutationFn: ({ id, data }: { id: string; data: Partial<BankAccountPayload> }) =>
             bankAccountApi.update(id, data),
         onSuccess: () => qc.invalidateQueries({ queryKey: KEYS.list() })
     })
@@ -36,6 +36,14 @@ export function useToggleBankAccountStatus() {
     const qc = useQueryClient()
     return useMutation({
         mutationFn: (id: string) => bankAccountApi.toggleStatus(id),
+        onSuccess: () => qc.invalidateQueries({ queryKey: KEYS.list() })
+    })
+}
+
+export function useDeleteBankAccount() {
+    const qc = useQueryClient()
+    return useMutation({
+        mutationFn: (id: string) => bankAccountApi.delete(id),
         onSuccess: () => qc.invalidateQueries({ queryKey: KEYS.list() })
     })
 }

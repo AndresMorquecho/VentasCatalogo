@@ -8,13 +8,21 @@ import {
 import { Button } from "@/shared/ui/button"
 import { OrderStatusBadge } from "./OrderStatusBadge"
 import type { Order } from "@/entities/order/model/types"
+import { getPaidAmount, getEffectiveTotal } from "@/entities/order/model/model"
 import { useBankAccountList } from "@/features/bank-accounts/api/hooks"
-import { getPaidAmount, getPendingAmount, getEffectiveTotal } from "@/entities/order/model/model"
 import { OrderPaymentList } from "@/features/order-payments"
-import { Printer } from "lucide-react"
+import { Printer, ShoppingCart, PackageOpen, Truck, Star, FileText, DollarSign, ListOrdered } from "lucide-react"
 import { generateOrderReceipt } from "@/features/order-receipt"
 import { useAuth } from "@/shared/auth/AuthProvider"
-import { useToast } from "@/shared/ui/use-toast" // Added useToast import
+import { useToast } from "@/shared/ui/use-toast"
+import { calculateRewardPoints } from "@/shared/lib/rewards"
+import { useClient } from "@/features/clients/api/hooks"
+import {
+    Accordion,
+    AccordionContent,
+    AccordionItem,
+    AccordionTrigger,
+} from "@/shared/ui/accordion"
 
 interface OrderDetailModalProps {
     order: Order | null
@@ -22,13 +30,12 @@ interface OrderDetailModalProps {
     onOpenChange: (open: boolean) => void
 }
 
-function formatDate(dateString: string): string {
+function formatDate(dateString: string | undefined): string {
     if (!dateString) return '-'
     return new Date(dateString).toLocaleDateString('es-EC', {
-        weekday: 'long',
+        day: '2-digit',
+        month: 'short',
         year: 'numeric',
-        month: 'long',
-        day: 'numeric',
     })
 }
 
@@ -39,7 +46,9 @@ function formatCurrency(amount: number): string {
 export function OrderDetailModal({ order, open, onOpenChange }: OrderDetailModalProps) {
     const { data: bankAccounts = [] } = useBankAccountList()
     const { user } = useAuth()
-    const { showToast } = useToast() // Initialized useToast
+    const { showToast } = useToast()
+
+    const { data: client } = useClient(order?.clientId || "")
 
     if (!order) return null
 
@@ -64,147 +73,212 @@ export function OrderDetailModal({ order, open, onOpenChange }: OrderDetailModal
         }
     };
 
+    const pointsEarned = calculateRewardPoints(order);
+    const paidAmount = getPaidAmount(order);
+    const effectiveTotal = getEffectiveTotal(order);
+    const rawPendingAmount = effectiveTotal - paidAmount;
+
+    // clamp it for regular view:
+    const pendingAmount = Math.max(0, rawPendingAmount);
+    const isPaidOut = rawPendingAmount <= 0;
+    const overpaidAmount = rawPendingAmount < 0 ? Math.abs(rawPendingAmount) : 0;
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col">
-                <DialogHeader className="mb-4 border-b pb-4">
-                    <div className="flex items-center justify-between">
-                        <DialogTitle className="text-xl">Detalle del Pedido</DialogTitle>
-                        <OrderStatusBadge status={order.status} />
+            <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto flex flex-col">
+                <DialogHeader className="mb-2 pb-2">
+                    <div className="flex items-center justify-between pr-8">
+                        <DialogTitle className="text-2xl font-black text-slate-800 tracking-tight">Detalle del Pedido</DialogTitle>
+                        <OrderStatusBadge status={order.status} className="scale-110 shadow-sm" />
                     </div>
-                    <DialogDescription className="text-base mt-1">
-                        Recibo N° <span className="font-mono font-bold text-foreground">{order.receiptNumber}</span>
-                    </DialogDescription>
+                    <DialogDescription className="sr-only">Detalle del pedido de {order.clientName}</DialogDescription>
                 </DialogHeader>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 flex-1">
-                    {/* Columna Izquierda: Cliente y Detalles Básicos */}
-                    <div className="space-y-6">
-                        <div>
-                            <h4 className="text-sm font-medium text-muted-foreground mb-2">Cliente</h4>
-                            <div className="bg-muted/30 p-3 rounded-md border text-sm">
-                                <p className="font-semibold text-base">{order.clientName}</p>
-                                <p className="text-muted-foreground">ID: {order.clientId}</p>
+                {/* Timeline */}
+                <div className="mb-8 pt-2">
+                    <div className="flex flex-col md:flex-row justify-between relative mt-2 items-center">
+                        {/* Connecting Line */}
+                        <div className="hidden md:block absolute top-[20px] left-[15%] right-[15%] h-[2px] bg-border z-0" />
+
+                        {/* Step 1: Created */}
+                        <div className="flex flex-col items-center relative z-10 w-full md:w-1/3 mb-6 md:mb-0">
+                            <div className="w-10 h-10 rounded-full bg-blue-100 border-2 border-white shadow-sm flex items-center justify-center text-blue-600 mb-2">
+                                <ShoppingCart className="w-5 h-5" />
                             </div>
+                            <p className="text-xs font-bold text-foreground">Pedido Creado</p>
+                            <p className="text-[11px] text-muted-foreground">{formatDate(order.createdAt)}</p>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                                <span className="text-muted-foreground block text-xs mb-1">Canal de Venta</span>
-                                <span className="font-medium px-2 py-1 bg-slate-100 rounded text-slate-700 block w-fit">
-                                    {order.salesChannel}
-                                </span>
+                        {/* Step 2: Received */}
+                        <div className="flex flex-col items-center relative z-10 w-full md:w-1/3 mb-6 md:mb-0">
+                            <div className={`w-10 h-10 rounded-full border-2 border-white shadow-sm flex items-center justify-center mb-2 transition-colors ${order.receptionDate ? 'bg-amber-100 text-amber-600' : 'bg-muted text-muted-foreground'}`}>
+                                <PackageOpen className="w-5 h-5" />
                             </div>
-                            <div>
-                                <span className="text-muted-foreground block text-xs mb-1">Tipo</span>
-                                <span className="font-medium capitalize block">{order.type.toLowerCase()}</span>
-                            </div>
+                            <p className="text-xs font-bold text-foreground">Recepción Bodega</p>
+                            <p className="text-[11px] text-muted-foreground mb-1">
+                                {order.receptionDate ? formatDate(order.receptionDate) : 'Pendiente'}
+                            </p>
+                            <span className={`text-[9px] px-2 py-0.5 rounded-full font-semibold border ${order.invoiceNumber ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-muted text-muted-foreground border-border'}`}>
+                                Fac: {order.invoiceNumber || 'Pendiente'}
+                            </span>
                         </div>
 
-                        <div className="space-y-2">
-                            <div>
-                                <span className="text-muted-foreground block text-xs mb-1">Fecha Posible Entrega</span>
-                                <span className="font-medium text-sm border px-3 py-1.5 rounded bg-blue-50/50 text-blue-700 block">
-                                    {formatDate(order.possibleDeliveryDate)}
-                                </span>
+                        {/* Step 3: Delivered */}
+                        <div className="flex flex-col items-center relative z-10 w-full md:w-1/3">
+                            <div className={`w-10 h-10 rounded-full border-2 border-white shadow-sm flex items-center justify-center mb-2 transition-colors ${order.deliveryDate ? 'bg-emerald-100 text-emerald-600' : 'bg-muted text-muted-foreground'}`}>
+                                <Truck className="w-5 h-5" />
                             </div>
-                            {order.receptionDate && (
-                                <div>
-                                    <span className="text-muted-foreground block text-xs mb-1">Fecha Recepción Bodega</span>
-                                    <span className="font-medium text-sm border px-3 py-1.5 rounded bg-amber-50/50 text-amber-700 block">
-                                        {formatDate(order.receptionDate)}
-                                    </span>
-                                </div>
-                            )}
-                            {order.deliveryDate && (
-                                <div>
-                                    <span className="text-muted-foreground block text-xs mb-1">Fecha Entrega Cliente</span>
-                                    <span className="font-medium text-sm border px-3 py-1.5 rounded bg-green-50/50 text-green-700 block">
-                                        {formatDate(order.deliveryDate)}
-                                    </span>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Columna Derecha: Producto y Financiero */}
-                    <div className="space-y-6">
-                        <div>
-                            <h4 className="text-sm font-medium text-muted-foreground mb-2">Producto</h4>
-                            <div className="bg-muted/30 p-3 rounded-md border text-sm space-y-2">
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Marca:</span>
-                                    <span className="font-bold">{order.brandName}</span>
-                                </div>
-                                {order.items?.[0] && (
-                                    <div className="flex justify-between">
-                                        <span className="text-muted-foreground">Cantidad:</span>
-                                        <span>{order.items[0].quantity} Unidades</span>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        <div>
-                            <h4 className="text-sm font-medium text-muted-foreground mb-2">Resumen Financiero</h4>
-                            <div className="space-y-3">
-                                <div className="flex justify-between items-center text-sm border-b pb-2">
-                                    <span className="flex items-center gap-2">
-                                        Valor Total
-                                        {order.realInvoiceTotal && (
-                                            <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded uppercase font-bold">Real</span>
-                                        )}
-                                        {!order.realInvoiceTotal && (
-                                            <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded uppercase font-bold">Estimado</span>
-                                        )}
-                                    </span>
-                                    <span className="font-bold text-lg">{formatCurrency(getEffectiveTotal(order))}</span>
-                                </div>
-                                <div className="flex justify-between items-center text-sm">
-                                    <span className="text-muted-foreground">Pagado</span>
-                                    <span className="text-green-600 font-medium">{formatCurrency(getPaidAmount(order))}</span>
-                                </div>
-                                {getPendingAmount(order) > 0 && (
-                                    <div className="flex justify-between items-center text-sm bg-red-50 p-2 rounded text-red-700 font-bold border border-red-100">
-                                        <span>Saldo Pendiente</span>
-                                        <span>{formatCurrency(Math.max(0, getPendingAmount(order)))}</span>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        <div>
-                            <h4 className="text-sm font-medium text-muted-foreground mb-2">Detalles de Pago Inicial</h4>
-                            <div className="text-sm bg-muted/30 p-3 rounded border">
-                                <div className="flex justify-between mb-1">
-                                    <span className="text-muted-foreground">Método:</span>
-                                    <span className="font-medium">{order.paymentMethod}</span>
-                                </div>
-
-                                {order.paymentMethod === 'TRANSFERENCIA' && bankAccount && (
-                                    <div className="mt-3 pt-2 border-t text-xs space-y-1">
-                                        <p className="font-semibold text-muted-foreground">Cuenta Bancaria:</p>
-                                        <p>Banco: {bankAccount.bankName}</p>
-                                        <p>Titular: {bankAccount.holderName}</p>
-                                        <p>Cuenta: {bankAccount.accountNumber}</p>
-                                        {order.transactionDate && (
-                                            <p className="text-muted-foreground pt-1">Fecha Transacción: {order.transactionDate}</p>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
+                            <p className="text-xs font-bold text-foreground">Entrega Cliente</p>
+                            <p className="text-[11px] text-muted-foreground">{order.deliveryDate ? formatDate(order.deliveryDate) : 'Pendiente'}</p>
                         </div>
                     </div>
                 </div>
 
-                <div className="mt-8 border-t pt-6">
-                    <OrderPaymentList order={order} readOnly />
-                </div>
+                <Accordion type="multiple" defaultValue={["info", "finances"]} className="w-full mt-4">
+                    {/* Sección 1: Información General */}
+                    <AccordionItem value="info" className="border-b-0 mb-4 bg-muted/20 border rounded-lg px-4">
+                        <AccordionTrigger className="hover:no-underline py-4">
+                            <div className="flex items-center gap-2">
+                                <FileText className="w-4 h-4 text-muted-foreground" />
+                                <h4 className="font-semibold text-sm text-foreground">Información General</h4>
+                            </div>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-2 pt-1">
+                                {/* Info Client & Order */}
+                                <div className="space-y-3">
+                                    <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Cliente y Pedido</h5>
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <p className="font-semibold text-base text-foreground flex items-center gap-2">
+                                                {order.clientName}
+                                            </p>
+                                            {client?.identificationNumber && (
+                                                <p className="text-xs text-muted-foreground mt-1">
+                                                    C.I. {client.identificationNumber}
+                                                </p>
+                                            )}
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="font-semibold text-sm text-foreground">{order.receiptNumber}</p>
+                                            <span className="inline-flex mt-1 items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-secondary text-secondary-foreground border">
+                                                {order.salesChannel}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                {/* Product Detail & Rewards */}
+                                <div className="space-y-3">
+                                    <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Producto y Recompensa</h5>
+                                    <div className="space-y-2 text-sm">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-muted-foreground">Producto:</span>
+                                            <span className="font-medium text-right max-w-[150px] truncate" title={order.items?.[0]?.productName || order.brandName}>{order.items?.[0]?.productName || 'N/A'}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-muted-foreground">Marca / Unidades:</span>
+                                            <span><span className="font-medium">{order.brandName}</span> ({order.items?.[0]?.quantity || 0} un.)</span>
+                                        </div>
+                                        <div className="flex justify-between items-center pt-2 border-t mt-1">
+                                            <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
+                                                <Star className="w-3.5 h-3.5" /> Puntos Fidelity:
+                                            </span>
+                                            <span className="font-bold text-foreground">
+                                                +{pointsEarned} <span className="text-xs font-normal text-muted-foreground">{isPaidOut ? '(Ganados)' : '(Estimados)'}</span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </AccordionContent>
+                    </AccordionItem>
 
-                <div className="border-t pt-4 mt-6 flex justify-end">
-                    <Button variant="outline" onClick={handleGenerateReceipt}>
+                    {/* Sección 2: Finanzas */}
+                    <AccordionItem value="finances" className="border-b-0 mb-4 bg-muted/20 border rounded-lg px-4">
+                        <AccordionTrigger className="hover:no-underline py-4">
+                            <div className="flex items-center gap-2">
+                                <DollarSign className="w-4 h-4 text-muted-foreground" />
+                                <h4 className="font-semibold text-sm text-foreground">Resumen Financiero</h4>
+                            </div>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-2 pt-1">
+                                {/* Financial Resumé */}
+                                <div className="space-y-3">
+                                    <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Balance Total</h5>
+                                    <div className="space-y-2 text-sm">
+                                        <div className="flex justify-between items-center pb-2 border-b">
+                                            <span className="flex items-center gap-2">
+                                                Valor Total
+                                                <span className="text-[9px] bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded uppercase font-semibold border">
+                                                    {order.realInvoiceTotal ? 'Fact. Real' : 'Estimado'}
+                                                </span>
+                                            </span>
+                                            <span className="font-bold text-lg">{formatCurrency(effectiveTotal)}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center text-muted-foreground pt-1">
+                                            <span>Pagado</span>
+                                            <span className="font-medium text-foreground">{formatCurrency(paidAmount)}</span>
+                                        </div>
+                                        {pendingAmount > 0 && (
+                                            <div className="flex justify-between items-center pt-1 text-muted-foreground">
+                                                <span className="font-medium">Saldo Pendiente</span>
+                                                <span className="font-bold text-foreground">{formatCurrency(pendingAmount)}</span>
+                                            </div>
+                                        )}
+                                        {overpaidAmount > 0 && (
+                                            <div className="flex justify-between items-center pt-1 text-muted-foreground">
+                                                <span className="font-bold text-emerald-600">Saldo a Favor del Cliente</span>
+                                                <span className="font-bold text-emerald-600">+ {formatCurrency(overpaidAmount)}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                {/* Initial Payment Method */}
+                                <div className="space-y-3">
+                                    <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pago Inicial</h5>
+                                    <div className="space-y-2 text-sm">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-muted-foreground">Método:</span>
+                                            <span className="font-medium">{order.paymentMethod}</span>
+                                        </div>
+                                        {order.paymentMethod === 'TRANSFERENCIA' && bankAccount && (
+                                            <div className="pt-2 border-t text-xs space-y-1 mt-2">
+                                                <p className="flex justify-between">
+                                                    <span className="text-muted-foreground">Banco:</span>
+                                                    <span className="font-medium text-right">{bankAccount.bankName}</span>
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </AccordionContent>
+                    </AccordionItem>
+
+                    {/* Sección 3: Abonos */}
+                    <AccordionItem value="payments" className="border-b-0 bg-muted/20 border rounded-lg px-4">
+                        <AccordionTrigger className="hover:no-underline py-4">
+                            <div className="flex items-center gap-2">
+                                <ListOrdered className="w-4 h-4 text-muted-foreground" />
+                                <h4 className="font-semibold text-sm text-foreground">Historial de Abonos</h4>
+                            </div>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                            <div className="pt-1">
+                                <OrderPaymentList order={order} readOnly />
+                            </div>
+                        </AccordionContent>
+                    </AccordionItem>
+                </Accordion>
+
+                <div className="border-t pt-4 mt-6 flex justify-end gap-3">
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>
+                        Cerrar
+                    </Button>
+                    <Button variant="default" onClick={handleGenerateReceipt}>
                         <Printer className="mr-2 h-4 w-4" />
-                        Imprimir Recibo
+                        Imprimir / Descargar Recibo
                     </Button>
                 </div>
             </DialogContent>

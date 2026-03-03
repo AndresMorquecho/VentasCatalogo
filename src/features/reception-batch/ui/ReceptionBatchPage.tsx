@@ -27,6 +27,7 @@ import {
     SelectValue,
 } from "@/shared/ui/select"
 import { useAuth } from "@/shared/auth"
+import { logAction } from "@/shared/lib/auditService"
 
 export function ReceptionBatchPage() {
     const {
@@ -100,6 +101,16 @@ export function ReceptionBatchPage() {
                 clients: clients,
                 user: { name: user?.username || 'Operador' }
             })
+
+            if (user) {
+                logAction({
+                    userId: user.id,
+                    userName: user.username,
+                    action: 'CONFIRM_RECEPTION',
+                    module: 'reception',
+                    detail: `Procesó recepción de ${updatedOrders.length} pedidos. Total abonos: $${totalAbono.toFixed(2)}`
+                });
+            }
 
             showToast(`Recepción de ${updatedOrders.length} pedidos procesada exitosamente. Etiquetas generadas.`, "success")
             setConfirmOpen(false)
@@ -276,7 +287,13 @@ export function ReceptionBatchPage() {
                                         </SelectTrigger>
                                         <SelectContent>
                                             {bankAccounts
-                                                .filter(b => b.isActive)
+                                                .filter(b => {
+                                                    if (!b.isActive) return false;
+                                                    if (paymentMethod === 'EFECTIVO') return b.type === 'CASH';
+                                                    if (['TRANSFERENCIA', 'DEPOSITO'].includes(paymentMethod)) return b.type === 'BANK';
+                                                    if (paymentMethod === 'CHEQUE') return true;
+                                                    return true;
+                                                })
                                                 .map(account => (
                                                     <SelectItem key={account.id} value={account.id}>
                                                         {account.name} ({account.type === 'CASH' ? 'Efectivo' : 'Banco'})

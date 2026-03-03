@@ -8,7 +8,7 @@ import { usePaymentOperations } from "../model/hooks";
 import type { PaymentPayload } from "@/shared/api/paymentApi";
 import { calculateCreditFromPayment, formatCurrency, calculatePendingBalance } from "@/entities/order/model/financialCalculator";
 import type { Order } from "@/entities/order/model/types";
-import { useToast } from "@/shared/ui/use-toast";
+import { useNotifications } from "@/shared/lib/notifications";
 import { useClientCredits } from "@/features/transactions/model/hooks";
 
 interface Props {
@@ -29,7 +29,7 @@ export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
     const [reference, setReference] = useState('');
     const [notes, setNotes] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const { showToast } = useToast();
+    const { notifySuccess, notifyError } = useNotifications();
 
     const totalCredit = credits.reduce((sum, c) => sum + Number(c.amount || 0), 0);
 
@@ -51,8 +51,10 @@ export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
             const cashAccount = bankAccounts.find(a => a.type === 'CASH');
             setBankAccountId(cashAccount?.id || '');
         } else {
-            const bankAccount = bankAccounts.find(a => a.type === 'BANK');
-            setBankAccountId(bankAccount?.id || '');
+            if (!bankAccountId) {
+                const bankAccount = bankAccounts.find(a => a.type === 'BANK');
+                setBankAccountId(bankAccount?.id || '');
+            }
         }
     }, [method, bankAccounts]);
 
@@ -60,12 +62,12 @@ export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
         e.preventDefault();
 
         if (amount <= 0 && creditToUse <= 0) {
-            showToast("Debes ingresar un monto manual o usar saldo a favor.", "error");
+            notifyError({ message: "Debes ingresar un monto manual o usar saldo a favor." });
             return;
         }
 
         if (amount > 0 && !bankAccountId) {
-            showToast("Debes seleccionar una cuenta para el abono manual.", "error");
+            notifyError({ message: "Debes seleccionar una cuenta para el abono manual." });
             return;
         }
 
@@ -77,7 +79,7 @@ export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
             } else {
                 setCreditToUse(0);
             }
-            showToast("No puedes usar saldo a favor si el monto supera el pendiente.", "error");
+            notifyError({ message: "No puedes usar saldo a favor si el monto supera el pendiente." });
             return;
         }
 
@@ -95,6 +97,7 @@ export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
             };
 
             await registerPayment.mutateAsync(payload);
+            notifySuccess(`Abono de $${(amount + creditToUse).toFixed(2)} registrado correctamente`);
             setAmount(0);
             setCreditToUse(0);
             setReference('');
@@ -103,7 +106,7 @@ export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
             onClose();
         } catch (error: any) {
             console.error("Error registering payment:", error);
-            showToast(error.message || "Error al registrar abono.", "error");
+            notifyError(error, "Error al registrar abono.");
         } finally {
             setIsSubmitting(false);
         }
@@ -199,7 +202,7 @@ export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
                     </div>
 
                     {/* Reference and Bank Account (Conditional) */}
-                    {amount > 0 && method !== 'EFECTIVO' && (
+                    {amount > 0 && (
                         <>
                             <div className="space-y-1 animate-in fade-in">
                                 <label className="text-sm font-medium text-blue-600">Cuenta Bancaria</label>
@@ -210,22 +213,31 @@ export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
                                     required={amount > 0}
                                 >
                                     <option value="">Seleccionar cuenta...</option>
-                                    {bankAccounts.filter(a => a.type !== 'CASH').map(account => (
-                                        <option key={account.id} value={account.id}>
-                                            {account.name} (Banco)
-                                        </option>
-                                    ))}
+                                    {bankAccounts
+                                        .filter(acc => {
+                                            if (method === 'TRANSFERENCIA' || method === 'DEPOSITO') return acc.type === 'BANK';
+                                            if (method === 'CHEQUE') return true;
+                                            if (method === 'EFECTIVO') return acc.type === 'CASH';
+                                            return true;
+                                        })
+                                        .map(account => (
+                                            <option key={account.id} value={account.id}>
+                                                {account.name} ({account.type === 'CASH' ? 'Efectivo' : 'Banco'})
+                                            </option>
+                                        ))}
                                 </select>
                             </div>
-                            <div className="space-y-1 animate-in fade-in">
-                                <label className="text-sm font-medium text-blue-600">Referencia / Comprobante</label>
-                                <Input
-                                    value={reference}
-                                    onChange={(e) => setReference(e.target.value)}
-                                    placeholder="Ref. bancaria obligatoria"
-                                    required
-                                />
-                            </div>
+                            {method !== 'EFECTIVO' && (
+                                <div className="space-y-1 animate-in fade-in">
+                                    <label className="text-sm font-medium text-blue-600">Referencia / Comprobante</label>
+                                    <Input
+                                        value={reference}
+                                        onChange={(e) => setReference(e.target.value)}
+                                        placeholder="Ref. bancaria obligatoria"
+                                        required
+                                    />
+                                </div>
+                            )}
                         </>
                     )}
 

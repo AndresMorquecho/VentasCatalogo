@@ -14,15 +14,14 @@ export interface TransactionFilters {
 export const useTransactions = (filters?: TransactionFilters) => {
     return useQuery({
         queryKey: ['transactions', filters],
-        queryFn: () => {
-            // Map to financial records API
+        queryFn: async () => {
             if (filters?.startDate && filters?.endDate) {
                 return financialRecordApi.getByDateRange(filters.startDate, filters.endDate);
-            }
-            if (filters?.clientId) {
+            } else if (filters?.clientId) {
                 return financialRecordApi.getByClient(filters.clientId);
+            } else {
+                return financialRecordApi.getAll();
             }
-            return financialRecordApi.getAll();
         }
     });
 };

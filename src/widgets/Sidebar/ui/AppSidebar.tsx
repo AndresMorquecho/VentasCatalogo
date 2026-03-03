@@ -158,7 +158,6 @@ const getAvatarColor = (name: string) => {
 
 export function AppSidebar() {
     const { user, logout, isAdmin } = useAuth();
-    const adminMode = isAdmin();
     const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
     const handleLogout = () => {
@@ -208,7 +207,7 @@ export function AppSidebar() {
                 </SidebarGroup>
 
                 {/* 3. Admin-only Config Section */}
-                {adminMode && (
+                {isAdmin() && (
                     <SidebarGroup>
                         <SidebarGroupLabel>Configuración</SidebarGroupLabel>
                         <SidebarGroupContent>

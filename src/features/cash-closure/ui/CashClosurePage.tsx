@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react';
-import { cashClosureApi } from '@/shared/api/cashClosureApi';
-import { useCreateCashClosure, useCashClosures } from '@/features/cash-closure/api/hooks';
+import { useState } from 'react';
+import { useCreateCashClosure, useCashClosures, useCashClosurePreview } from '@/features/cash-closure/api/hooks';
 import { CashClosureHistory } from './CashClosureHistory';
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Loader2, Info, HelpCircle, Wallet, CheckCircle2, FileText, AlertCircle, Calendar, Banknote } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
-import { useToast } from "@/shared/ui/use-toast";
+import { useNotifications } from "@/shared/lib/notifications";
+import { logAction } from "@/shared/lib/auditService";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/shared/ui/card";
 import { Badge } from "@/shared/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
@@ -19,46 +19,29 @@ export function CashClosurePage() {
     const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
     const [actualAmount, setActualAmount] = useState<number>(0);
     const [notes, setNotes] = useState<string>("");
-    const [previewData, setPreviewData] = useState<any>(null);
-    const [isCalculating, setIsCalculating] = useState(false);
 
     // 2. Hooks de Datos UI
     const { data: closures = [], refetch: refetchClosures } = useCashClosures();
 
     // 3. Mutación
     const createClosure = useCreateCashClosure();
-    const { showToast } = useToast();
-    const { hasPermission } = useAuth();
+    const { notifySuccess, notifyError } = useNotifications();
+    const { hasPermission, user } = useAuth();
 
-    // 4. Cargar Vista Previa Inicial
-    const fetchPreview = async () => {
-        setIsCalculating(true);
-        try {
-            // Correct way to get LOCAL end of day 23:59:59
-            const [year, month, day] = date.split('-').map(Number);
-            const endOfDay = new Date(year, month - 1, day, 23, 59, 59, 999);
+    // 4. Data Preview con Correct way to get LOCAL end of day 23:59:59
+    const [year, month, day] = date.split('-').map(Number);
+    const endOfDay = new Date(year, month - 1, day, 23, 59, 59, 999);
 
-            const result = await cashClosureApi.getPreview(endOfDay.toISOString());
-            // result is the data from the API already unwrapped by httpClient
-            setPreviewData(result);
-        } catch (error: any) {
-            console.error("Error fetching preview", error);
-            const msg = error.response?.data?.error?.message || error.message || "Error al conectar con el servidor";
-            showToast(msg, "error");
-            setPreviewData(null);
-        } finally {
-            setIsCalculating(false);
-        }
-    };
-
-    useEffect(() => {
-        if (date) fetchPreview();
-    }, [date]);
+    const {
+        data: previewData,
+        isLoading: isCalculating,
+        refetch: refetchPreview
+    } = useCashClosurePreview(endOfDay.toISOString());
 
     // 5. Handlers
     const handleConfirmClosure = async () => {
         if (!hasPermission('cash_closure.close')) {
-            showToast("No tienes permiso para realizar cierres de caja", "error");
+            notifyError({ message: "No tienes permiso para realizar cierres de caja" });
             return;
         }
         if (!previewData) return;
@@ -73,25 +56,41 @@ export function CashClosurePage() {
                 notes
             });
 
-            showToast("Cierre de caja confirmado exitosamente", "success");
+            notifySuccess("Cierre de caja confirmado exitosamente");
+            if (user) {
+                logAction({
+                    userId: user.id,
+                    userName: user.username,
+                    action: 'UPDATE_ROLE', // Using a generic critical action since Cierre is critical
+                    module: 'cash_closure' as any,
+                    detail: `Realizó cierre de caja por $${actualAmount.toFixed(2)}`,
+                    severity: 'CRITICAL'
+                });
+            }
 
             // Generate PDF immediately after success
             if (result.detailedReport) {
                 try {
-                    await generateCashClosurePDF(result.detailedReport);
+                    await generateCashClosurePDF({
+                        ...result.detailedReport,
+                        expectedAmount: result.expectedAmount,
+                        actualAmount: result.actualAmount,
+                        difference: result.difference,
+                        notes: result.notes,
+                    });
                 } catch (pdfError) {
                     console.error("Error generating PDF after closure:", pdfError);
-                    showToast("Cierre creado, pero hubo un error generando el PDF", "warning");
+                    notifyError({ message: "Cierre creado, pero hubo un error generando el PDF" });
                 }
             }
 
             setActualAmount(0);
             setNotes("");
             refetchClosures();
-            await fetchPreview(); // Force refresh the preview so it resets to 0
+            await refetchPreview(); // Force refresh the preview so it resets to 0
         } catch (error: any) {
             console.error("Error creating closure", error);
-            showToast(error.response?.data?.error?.message || "Error al crear el cierre de caja", "error");
+            notifyError(error, "Error al crear el cierre de caja");
         }
     };
 
@@ -396,7 +395,13 @@ export function CashClosurePage() {
 
                 <TabsContent value="history" className="flex-1 min-h-0 outline-none">
                     <div className="h-full bg-white rounded-lg shadow-sm border border-slate-200 p-2 overflow-hidden flex flex-col">
-                        <CashClosureHistory closures={closures} />
+                        <CashClosureHistory
+                            closures={closures}
+                            onDeleteSuccess={() => {
+                                refetchClosures();
+                                refetchPreview();
+                            }}
+                        />
                     </div>
                 </TabsContent>
             </Tabs>

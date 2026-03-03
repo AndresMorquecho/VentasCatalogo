@@ -17,7 +17,8 @@ import {
     DialogFooter,
 } from "@/shared/ui/dialog";
 import { useAuth } from "@/shared/auth";
-import { useToast } from "@/shared/ui/use-toast";
+import { logAction } from "@/shared/lib/auditService";
+import { useNotifications } from "@/shared/lib/notifications";
 
 /**
  * Filters clients in memory by search query.
@@ -45,8 +46,8 @@ export function ClientList() {
     const [deleteTarget, setDeleteTarget] = useState<Client | null>(null);
     const [deleteError, setDeleteError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
-    const { hasPermission } = useAuth();
-    const { showToast } = useToast();
+    const { hasPermission, user } = useAuth();
+    const { notifySuccess, notifyError } = useNotifications();
 
     // In-memory filtering — no API call, no cache mutation
     const filteredClients = useMemo(
@@ -56,7 +57,7 @@ export function ClientList() {
 
     const handleCreate = () => {
         if (!hasPermission('clients.create')) {
-            showToast('No tienes permiso para crear empresarias', 'error');
+            notifyError({ message: 'No tienes permiso para crear empresarias' });
             return;
         }
         setSelectedClient(null);
@@ -65,7 +66,7 @@ export function ClientList() {
 
     const handleEdit = (client: Client) => {
         if (!hasPermission('clients.edit')) {
-            showToast('No tienes permiso para editar empresarias', 'error');
+            notifyError({ message: 'No tienes permiso para editar empresarias' });
             return;
         }
         setSelectedClient(client);
@@ -74,7 +75,7 @@ export function ClientList() {
 
     const handleDeleteRequest = (client: Client) => {
         if (!hasPermission('clients.delete')) {
-            showToast('No tienes permiso para eliminar empresarias', 'error');
+            notifyError({ message: 'No tienes permiso para eliminar empresarias' });
             return;
         }
         setDeleteError(null);
@@ -96,10 +97,19 @@ export function ClientList() {
         if (!deleteTarget) return;
         try {
             await deleteClientMutation.mutateAsync(deleteTarget.id);
+            if (user) {
+                logAction({
+                    userId: user.id,
+                    userName: user.username,
+                    action: 'DELETE_CLIENT',
+                    module: 'clients',
+                    detail: `Eliminó empresaria: ${deleteTarget.firstName} (ID: ${deleteTarget.identificationNumber})`
+                });
+            }
+            notifySuccess(`Empresaria "${deleteTarget.firstName}" eliminada correctamente`);
             setDeleteTarget(null);
         } catch (error) {
-            console.error("Error deleting client", error);
-            setDeleteError("Ocurrió un error al eliminar. Intente de nuevo.");
+            notifyError(error, "Ocurrió un error al eliminar. Intente de nuevo.");
         }
     };
 

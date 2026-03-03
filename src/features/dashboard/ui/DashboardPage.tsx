@@ -6,8 +6,6 @@ import {
     Package,
     Clock,
     CheckCircle2,
-    MoreHorizontal,
-    Filter,
     DollarSign
 } from 'lucide-react';
 import { useDashboard } from '../model/hooks';
@@ -54,8 +52,8 @@ function KpiCard({ title, value, subtext, trend, icon: Icon, colorClass, iconBgC
 }
 
 export function DashboardPage() {
-    const { data, isLoading } = useDashboard();
-    const [timeRange, setTimeRange] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
+    const { data, isLoading, isError } = useDashboard();
+    const [timeRange, setTimeRange] = useState<'daily' | 'weekly' | 'monthly'>('daily');
 
     if (isLoading) {
         return (
@@ -68,10 +66,22 @@ export function DashboardPage() {
         );
     }
 
+    if (isError) {
+        return (
+            <div className="min-h-screen bg-white flex items-center justify-center p-12">
+                <div className="flex flex-col items-center gap-4 text-center">
+                    <div className="text-5xl">⚠️</div>
+                    <h3 className="text-lg font-black text-slate-800">Error al cargar el dashboard</h3>
+                    <p className="text-slate-500 text-sm font-medium">No se pudieron obtener los datos del servidor.<br />Por favor, recarga la página.</p>
+                </div>
+            </div>
+        );
+    }
+
     const oldestOrders = data?.alerts.oldestOrders ?? [];
 
     // Status metrics
-    const totalOrders = Object.values(data?.operational.ordersByStatus || {}).reduce((a, b) => a + b, 0) || 1;
+    const totalOrders = Object.values(data?.operational.ordersByStatus || {}).reduce((a: number, b: number) => a + b, 0) || 1;
     const stats = {
         entregados: { count: data?.operational.ordersByStatus.entregado ?? 0, color: '#3b82f6' }, // Blue
         pendientes: { count: data?.operational.ordersByStatus.recepcionado ?? 0, color: '#111827' }, // Dark
@@ -132,7 +142,6 @@ export function DashboardPage() {
                     <Card className="lg:col-span-4 border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white overflow-hidden flex flex-col">
                         <div className="p-6 pb-0 flex justify-between items-center">
                             <h4 className="font-black text-slate-800">Estadísticas de Pedidos</h4>
-                            <MoreHorizontal className="h-5 w-5 text-slate-400 cursor-pointer" />
                         </div>
                         <CardContent className="flex-1 p-6 flex flex-col items-center justify-center">
                             <div className="relative h-48 w-48 mb-8">
@@ -222,8 +231,8 @@ export function DashboardPage() {
                                     const maxVal = Math.max(...trendData.flatMap(d => [d.created, d.delivered, 5]));
                                     const ht = (val: number) => (val / maxVal) * 90 + 5; // offset lightly
 
-                                    const pathCreated = trendData.map((d, i) => `${i === 0 ? 'M' : 'L'} ${(i / (Math.max(1, trendData.length - 1))) * 100} ${100 - ht(d.created)}`).join(' ');
-                                    const pathDelivered = trendData.map((d, i) => `${i === 0 ? 'M' : 'L'} ${(i / (Math.max(1, trendData.length - 1))) * 100} ${100 - ht(d.delivered)}`).join(' ');
+                                    const pathCreated = trendData.map((d: any, i: number) => `${i === 0 ? 'M' : 'L'} ${(i / (Math.max(1, trendData.length - 1))) * 100} ${100 - ht(d.created)}`).join(' ');
+                                    const pathDelivered = trendData.map((d: any, i: number) => `${i === 0 ? 'M' : 'L'} ${(i / (Math.max(1, trendData.length - 1))) * 100} ${100 - ht(d.delivered)}`).join(' ');
 
                                     const filledCreated = `${pathCreated} L 100 100 L 0 100 Z`;
 
@@ -291,13 +300,6 @@ export function DashboardPage() {
                 <Card className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white overflow-hidden">
                     <div className="p-6 flex justify-between items-center border-b border-slate-50">
                         <h4 className="font-black text-slate-800">Facturas / Pedidos Recientes</h4>
-                        <div className="flex items-center gap-3">
-                            <Badge variant="outline" className="flex items-center gap-2 py-1.5 px-4 border-2 font-bold cursor-pointer hover:bg-slate-50 rounded-lg">
-                                <Filter className="h-3.5 w-3.5 text-slate-500" />
-                                <span className="text-slate-600">Filtrar</span>
-                            </Badge>
-                            <MoreHorizontal className="h-5 w-5 text-slate-400 cursor-pointer" />
-                        </div>
                     </div>
                     <CardContent className="p-0">
                         <div className="overflow-x-auto">
@@ -314,7 +316,7 @@ export function DashboardPage() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-50">
-                                    {oldestOrders.map((order, index) => (
+                                    {oldestOrders.map((order: any, index: number) => (
                                         <tr key={order.id} className="hover:bg-slate-50/80 transition-colors group cursor-pointer bg-white">
                                             <td className="px-6 py-4 text-sm font-bold text-slate-400">{index + 1}</td>
                                             <td className="px-6 py-4 text-sm font-black text-slate-500">#{order.id.slice(0, 6)}</td>

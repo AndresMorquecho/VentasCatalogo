@@ -2,7 +2,7 @@
 import { useState, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { useAuditLog } from '../model/hooks';
-import type { AuditSeverity } from '@/shared/auth/types';
+import type { AuditSeverity, AuditEntry } from '@/shared/auth/types';
 import { MODULES, MODULE_LABELS, type ModuleKey } from '@/shared/lib/permissions';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
 import { Input } from '@/shared/ui/input';
@@ -40,6 +40,12 @@ const ACTION_META: Record<string, { label: string; severity: AuditSeverity }> = 
     UPDATE_LOYALTY_PRIZE: { label: 'Editar premio fid.', severity: 'WARNING' },
     DELETE_LOYALTY_PRIZE: { label: 'Eliminar premio fid.', severity: 'CRITICAL' },
     LOYALTY_REDEMPTION: { label: 'Canje fidelización', severity: 'WARNING' },
+    CREATE_BRAND: { label: 'Crear marca', severity: 'INFO' },
+    UPDATE_BRAND: { label: 'Editar marca', severity: 'WARNING' },
+    DELETE_BRAND: { label: 'Eliminar marca', severity: 'CRITICAL' },
+    CREATE_CLIENT: { label: 'Crear empresaria', severity: 'INFO' },
+    UPDATE_CLIENT: { label: 'Editar empresaria', severity: 'WARNING' },
+    DELETE_CLIENT: { label: 'Eliminar empresaria', severity: 'CRITICAL' },
 };
 
 const SEVERITY_UI: Record<AuditSeverity, { label: string; cls: string; icon: ReactNode }> = {
@@ -51,7 +57,7 @@ const SEVERITY_UI: Record<AuditSeverity, { label: string; cls: string; icon: Rea
 // ─── Export to CSV ────────────────────────────────────────────────────────────
 function exportCSV(rows: ReturnType<typeof useAuditLog>['entries']) {
     const header = ['Fecha', 'Usuario', 'Acción', 'Módulo', 'Detalle', 'Severidad', 'Éxito'].join(',');
-    const body = rows.map(e => [
+    const body = (rows as AuditEntry[]).map((e: AuditEntry) => [
         new Date(e.timestamp).toLocaleString('es-CO'),
         `"${e.userName}"`,
         e.action,
@@ -72,7 +78,7 @@ function exportCSV(rows: ReturnType<typeof useAuditLog>['entries']) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export function AuditLog() {
-    const { entries } = useAuditLog();
+    const { entries, isLoading, isError } = useAuditLog();
 
     // Filters
     const [search, setSearch] = useState('');
@@ -84,7 +90,9 @@ export function AuditLog() {
     const [page, setPage] = useState(1);
 
     const filtered = useMemo(() => {
-        return entries.filter(e => {
+        if (!Array.isArray(entries)) return [];
+        return (entries as AuditEntry[]).filter((e: AuditEntry) => {
+            if (!e) return false;
             if (userFilter && e.userName !== userFilter) return false;
             if (moduleFilter && e.module !== moduleFilter) return false;
             if (severityFilter && e.severity !== severityFilter) return false;
@@ -96,15 +104,18 @@ export function AuditLog() {
             }
             if (search) {
                 const q = search.toLowerCase();
+                const userName = (e.userName || '').toLowerCase();
+                const detail = (e.detail || '').toLowerCase();
+                const action = (e.action || '').toLowerCase();
                 if (
-                    !e.userName.toLowerCase().includes(q) &&
-                    !e.detail.toLowerCase().includes(q) &&
-                    !e.action.toLowerCase().includes(q)
+                    !userName.includes(q) &&
+                    !detail.includes(q) &&
+                    !action.includes(q)
                 ) return false;
             }
             return true;
         });
-    }, [entries, search, moduleFilter, severityFilter, dateFrom, dateTo]);
+    }, [entries, search, userFilter, moduleFilter, severityFilter, dateFrom, dateTo]);
 
     const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
     const pageData = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -114,10 +125,24 @@ export function AuditLog() {
         setDateFrom(''); setDateTo(''); setPage(1);
     };
 
-    const todayCritical = entries.filter(e => {
+    const todayCritical = Array.isArray(entries) ? (entries as AuditEntry[]).filter(e => {
         const today = new Date().toDateString();
         return e.severity === 'CRITICAL' && new Date(e.timestamp).toDateString() === today;
-    }).length;
+    }).length : 0;
+
+    if (isLoading && entries.length === 0) {
+        return <div className="py-20 text-center text-slate-400">Cargando bitácora...</div>;
+    }
+
+    if (isError) {
+        return (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center text-red-700">
+                <AlertTriangle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p className="font-medium">Error al cargar la bitácora</p>
+                <p className="text-sm opacity-80">Por favor, intenta recargar la página.</p>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-4">
@@ -139,8 +164,8 @@ export function AuditLog() {
                     </div>
                     <select className="border rounded-md px-3 py-2 text-sm bg-white h-10 w-44" value={userFilter} onChange={e => { setUserFilter(e.target.value); setPage(1); }}>
                         <option value="">Todos los usuarios</option>
-                        {Array.from(new Set(entries.map(e => e.userName))).sort().map(u => (
-                            <option key={u} value={u}>{u}</option>
+                        {Array.from(new Set((entries as AuditEntry[]).map(e => e.userName))).sort().map(u => (
+                            <option key={String(u)} value={String(u)}>{String(u)}</option>
                         ))}
                     </select>
                     <select className="border rounded-md px-3 py-2 text-sm bg-white h-10" value={moduleFilter} onChange={e => { setModuleFilter(e.target.value); setPage(1); }}>
@@ -160,7 +185,7 @@ export function AuditLog() {
                         <input type="date" className="border rounded-md px-3 py-2 text-sm h-10" value={dateTo} onChange={e => { setDateTo(e.target.value); setPage(1); }} />
                     </div>
                     <Button variant="outline" size="sm" onClick={resetFilters}>Limpiar</Button>
-                    <Button size="sm" className="gap-2" onClick={() => exportCSV(filtered)}>
+                    <Button size="sm" className="gap-2" onClick={() => exportCSV(filtered as AuditEntry[])}>
                         <Download className="h-4 w-4" /> Exportar CSV
                     </Button>
                 </div>
@@ -184,15 +209,15 @@ export function AuditLog() {
                         {pageData.length === 0 && (
                             <TableRow>
                                 <TableCell colSpan={6} className="text-center py-12 text-slate-400 text-sm">
-                                    {entries.length === 0
+                                    {(entries as AuditEntry[]).length === 0
                                         ? 'No hay registros aún. Empieza a usar el sistema para ver la bitácora.'
                                         : 'No hay registros que coincidan con los filtros aplicados.'}
                                 </TableCell>
                             </TableRow>
                         )}
-                        {pageData.map(e => {
+                        {(pageData as AuditEntry[]).map(e => {
                             const meta = ACTION_META[e.action];
-                            const sev = SEVERITY_UI[e.severity] ?? SEVERITY_UI.INFO;
+                            const sev = SEVERITY_UI[e.severity as AuditSeverity] ?? SEVERITY_UI.INFO;
                             return (
                                 <TableRow key={e.id} className={`hover:bg-slate-50 transition-colors ${!e.success ? 'bg-red-50/40' : ''}`}>
                                     <TableCell className="text-xs text-slate-500 whitespace-nowrap">

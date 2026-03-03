@@ -2,6 +2,7 @@ import type { OrderStatus } from "@/entities/order/model/types"
 
 interface OrderStatusBadgeProps {
     status: OrderStatus
+    className?: string
 }
 
 const STATUS_CONFIG: Record<OrderStatus, { label: string; className: string }> = {
@@ -31,11 +32,11 @@ const STATUS_CONFIG: Record<OrderStatus, { label: string; className: string }> =
     },
 }
 
-export function OrderStatusBadge({ status }: OrderStatusBadgeProps) {
+export function OrderStatusBadge({ status, className = "" }: OrderStatusBadgeProps) {
     const config = STATUS_CONFIG[status] || { label: status, className: "bg-gray-50 text-gray-500" }
 
     return (
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.className}`}>
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.className} ${className}`}>
             {config.label}
         </span>
     )

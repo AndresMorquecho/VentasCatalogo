@@ -43,13 +43,16 @@ export interface CashClosureDetailedReport {
     closedByName?: string;
     closedAt: string;
     notes?: string;
-    
+    expectedAmount?: number;
+    actualAmount?: number;
+    difference?: number;
+
     // Summary
     totalIncome: number;
     totalExpense: number;
     netTotal: number;
     movementCount: number;
-    
+
     // Detailed Breakdowns
     incomeBySource: CashClosureIncomeBySource;
     incomeByMethod: CashClosureIncomeByMethod;
@@ -59,7 +62,7 @@ export interface CashClosureDetailedReport {
         balance: number;
     }>;
     movementsByUser: CashClosureMovementsByUser[];
-    
+
     // Full Movement List
     movements: CashClosureMovementDetail[];
 }

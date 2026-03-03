@@ -1,10 +1,10 @@
 // Financial Record API - HTTP calls to backend
 
 import { httpClient } from '@/shared/lib/httpClient';
-import type { 
-  FinancialRecord, 
+import type {
+  FinancialRecord,
   CreateFinancialRecordPayload,
-  UpdateFinancialRecordPayload 
+  UpdateFinancialRecordPayload
 } from './types';
 
 export const financialRecordApi = {
@@ -12,7 +12,8 @@ export const financialRecordApi = {
    * Get all financial records
    */
   getAll: async (): Promise<FinancialRecord[]> => {
-    return httpClient.get<FinancialRecord[]>('/financial-records');
+    const res = await httpClient.get<any>('/financial-records');
+    return Array.isArray(res) ? res : (res?.data || []);
   },
 
   /**
@@ -26,23 +27,26 @@ export const financialRecordApi = {
    * Get financial records by client
    */
   getByClient: async (clientId: string): Promise<FinancialRecord[]> => {
-    return httpClient.get<FinancialRecord[]>(`/financial-records?clientId=${clientId}`);
+    const res = await httpClient.get<any>(`/financial-records?clientId=${clientId}`);
+    return Array.isArray(res) ? res : (res?.data || []);
   },
 
   /**
    * Get financial records by order
    */
   getByOrder: async (orderId: string): Promise<FinancialRecord[]> => {
-    return httpClient.get<FinancialRecord[]>(`/financial-records?orderId=${orderId}`);
+    const res = await httpClient.get<any>(`/financial-records?orderId=${orderId}`);
+    return Array.isArray(res) ? res : (res?.data || []);
   },
 
   /**
    * Get financial records by date range
    */
   getByDateRange: async (startDate: string, endDate: string): Promise<FinancialRecord[]> => {
-    return httpClient.get<FinancialRecord[]>(
+    const res = await httpClient.get<any>(
       `/financial-records?startDate=${startDate}&endDate=${endDate}`
     );
+    return Array.isArray(res) ? res : (res?.data || []);
   },
 
   /**

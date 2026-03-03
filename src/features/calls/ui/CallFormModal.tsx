@@ -16,6 +16,9 @@ import {
 import { useClients } from '@/entities/client/model/hooks';
 import type { Client } from '@/entities/client/model/types';
 import { useUpdateCall, useCreateCall } from '@/entities/call/model/hooks';
+import { useNotifications } from '@/shared/lib/notifications';
+import { useAuth } from '@/shared/auth';
+import { logAction } from '@/shared/lib/auditService';
 
 interface CallFormModalProps {
     open: boolean;
@@ -28,6 +31,8 @@ export function CallFormModal({ open, onOpenChange, onSuccess, call }: CallFormM
     const { mutateAsync: createCall } = useCreateCall();
     const { mutateAsync: updateCall } = useUpdateCall();
     const { data: clients } = useClients();
+    const { notifySuccess, notifyError } = useNotifications();
+    const { user } = useAuth();
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const [clientId, setClientId] = useState('');
@@ -83,8 +88,28 @@ export function CallFormModal({ open, onOpenChange, onSuccess, call }: CallFormM
 
             if (call) {
                 await updateCall({ id: call.id, data: payload });
+                notifySuccess("Llamada actualizada correctamente");
+                if (user) {
+                    logAction({
+                        userId: user.id,
+                        userName: user.username,
+                        action: 'UPDATE_USER', // Placeholder
+                        module: 'calls' as any,
+                        detail: `Editó registro de llamada para cliente: ${searchTerm}`
+                    });
+                }
             } else {
                 await createCall(payload);
+                notifySuccess("Llamada registrada correctamente");
+                if (user) {
+                    logAction({
+                        userId: user.id,
+                        userName: user.username,
+                        action: 'CREATE_USER',
+                        module: 'calls' as any,
+                        detail: `Registró nueva llamada para cliente: ${searchTerm}`
+                    });
+                }
             }
 
             onOpenChange(false);
@@ -94,6 +119,7 @@ export function CallFormModal({ open, onOpenChange, onSuccess, call }: CallFormM
             setNotes('');
         } catch (error) {
             console.error("Error saving call", error);
+            notifyError(error, "Error al registrar la llamada");
         } finally {
             setIsSubmitting(false);
         }

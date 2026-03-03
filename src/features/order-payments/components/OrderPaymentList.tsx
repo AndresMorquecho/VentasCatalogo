@@ -36,6 +36,11 @@ export function OrderPaymentList({ order, readOnly = false }: OrderPaymentListPr
     const paidAmount = getPaidAmount(order)
     const pendingAmount = getPendingAmount(order)
 
+    // Si hay sobrepago, 'pendingAmount' será negativo. Lo normalizamos para mostrar el saldo a favor.
+    const isOverpaid = pendingAmount < 0;
+    const overpaidAmount = isOverpaid ? Math.abs(pendingAmount) : 0;
+    const normalizedPendingAmount = Math.max(0, pendingAmount);
+
     const handleCreate = () => {
         setSelectedPayment(undefined)
         setIsFormOpen(true)
@@ -79,10 +84,18 @@ export function OrderPaymentList({ order, readOnly = false }: OrderPaymentListPr
                             <p className="text-xs text-muted-foreground">Pagado</p>
                             <p className="text-lg font-bold text-green-600">{format(paidAmount)}</p>
                         </div>
-                        <div>
-                            <p className="text-xs text-muted-foreground">Pendiente</p>
-                            <p className="text-lg font-bold text-red-600">{format(pendingAmount)}</p>
-                        </div>
+
+                        {isOverpaid ? (
+                            <div>
+                                <p className="text-xs font-semibold text-emerald-600">Saldo a Favor</p>
+                                <p className="text-lg font-bold text-emerald-600">{format(overpaidAmount)}</p>
+                            </div>
+                        ) : (
+                            <div>
+                                <p className="text-xs text-muted-foreground">Pendiente</p>
+                                <p className="text-lg font-bold text-red-600">{format(normalizedPendingAmount)}</p>
+                            </div>
+                        )}
                     </div>
                 </div>
                 <div>
@@ -117,7 +130,7 @@ export function OrderPaymentList({ order, readOnly = false }: OrderPaymentListPr
                                 return (
                                     <TableRow key={payment.id}>
                                         <TableCell>{new Date(payment.createdAt).toLocaleDateString()}</TableCell>
-                                        <TableCell>{account?.name || "Desconocida"}</TableCell>
+                                        <TableCell>{account?.name || account?.bankName || payment.method || "Desconocida"}</TableCell>
                                         <TableCell className="text-right font-medium">{format(payment.amount)}</TableCell>
                                         {!readOnly && (
                                             <TableCell className="text-right">

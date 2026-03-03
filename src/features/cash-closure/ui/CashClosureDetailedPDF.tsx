@@ -5,7 +5,7 @@ const styles = StyleSheet.create({
     page: {
         padding: 30,
         fontFamily: 'Helvetica',
-        fontSize: 10,
+        fontSize: 9,
         backgroundColor: '#FFFFFF',
     },
     // Header
@@ -13,169 +13,173 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 20,
-        borderBottomWidth: 2,
-        borderBottomColor: '#059669',
-        paddingBottom: 10,
+        marginBottom: 25,
+        borderBottomWidth: 1,
+        borderBottomColor: '#E2E8F0',
+        paddingBottom: 15,
     },
     logo: {
-        width: 80,
-        height: 40,
+        width: 100,
+        height: 50,
         objectFit: 'contain',
     },
-    headerTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#064E3B',
+    headerInfo: {
         textAlign: 'right',
+    },
+    headerTitle: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#1E293B',
+        marginBottom: 4,
     },
     headerSubtitle: {
-        fontSize: 10,
-        color: '#059669',
-        textAlign: 'right',
-        marginTop: 2,
+        fontSize: 8,
+        color: '#64748B',
     },
-    // Info Section
-    infoSection: {
-        backgroundColor: '#F0FDF4',
-        padding: 10,
-        borderRadius: 4,
-        marginBottom: 15,
+    // Main Stats Bar
+    statsBar: {
+        flexDirection: 'row',
+        backgroundColor: '#F8FAFC',
+        borderRadius: 8,
+        padding: 15,
+        marginBottom: 20,
         borderWidth: 1,
-        borderColor: '#BBF7D0',
+        borderColor: '#F1F5F9',
+    },
+    statItem: {
+        flex: 1,
+        alignItems: 'center',
+    },
+    statDivider: {
+        width: 1,
+        height: '100%',
+        backgroundColor: '#E2E8F0',
+    },
+    statLabel: {
+        fontSize: 7,
+        color: '#64748B',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        marginBottom: 4,
+    },
+    statValue: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        color: '#0F172A',
+    },
+    // Info Grid
+    infoGrid: {
+        flexDirection: 'row',
+        gap: 20,
+        marginBottom: 20,
+    },
+    infoBlock: {
+        flex: 1,
     },
     infoRow: {
         flexDirection: 'row',
-        marginBottom: 3,
+        justifyContent: 'space-between',
+        paddingVertical: 4,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F1F5F9',
     },
     infoLabel: {
-        fontSize: 9,
-        fontWeight: 'bold',
-        width: 100,
-        color: '#065F46',
+        fontSize: 8,
+        color: '#64748B',
     },
     infoValue: {
-        fontSize: 9,
-        color: '#1F2937',
-    },
-    // Section Title
-    sectionTitle: {
-        fontSize: 12,
-        fontWeight: 'bold',
-        color: '#1F2937',
-        marginTop: 15,
-        marginBottom: 8,
-        paddingBottom: 4,
-        borderBottomWidth: 1,
-        borderBottomColor: '#E5E7EB',
-    },
-    // Summary Cards
-    summaryGrid: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 15,
-    },
-    summaryCard: {
-        width: '23%',
-        padding: 8,
-        borderRadius: 4,
-        borderWidth: 1,
-    },
-    summaryLabel: {
         fontSize: 8,
-        marginBottom: 4,
+        fontWeight: 'medium',
+        color: '#334155',
     },
-    summaryValue: {
-        fontSize: 14,
-        fontWeight: 'bold',
-    },
-    // Breakdown Items
-    breakdownItem: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
+    // Section Header
+    sectionHeader: {
+        backgroundColor: '#F1F5F9',
         padding: 6,
-        marginBottom: 4,
-        backgroundColor: '#F9FAFB',
-        borderRadius: 3,
+        paddingLeft: 10,
+        borderRadius: 4,
+        marginTop: 15,
+        marginBottom: 10,
     },
-    breakdownLabel: {
-        fontSize: 9,
-        color: '#374151',
-    },
-    breakdownValue: {
+    sectionTitle: {
         fontSize: 9,
         fontWeight: 'bold',
-        color: '#1F2937',
+        color: '#334155',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
     },
-    breakdownPercent: {
-        fontSize: 7,
-        color: '#6B7280',
-        marginLeft: 5,
-    },
-    // Table
+    // Table Simple
     table: {
-        marginTop: 10,
-        marginBottom: 15,
+        width: '100%',
     },
     tableHeader: {
         flexDirection: 'row',
-        backgroundColor: '#F3F4F6',
-        padding: 6,
-        borderBottomWidth: 1,
-        borderBottomColor: '#D1D5DB',
+        borderBottomWidth: 1.5,
+        borderBottomColor: '#334155',
+        paddingVertical: 5,
+        paddingHorizontal: 2,
     },
     tableRow: {
         flexDirection: 'row',
-        padding: 5,
-        borderBottomWidth: 0.5,
-        borderBottomColor: '#E5E7EB',
+        borderBottomWidth: 1,
+        borderBottomColor: '#F1F5F9',
+        paddingVertical: 5,
+        paddingHorizontal: 2,
+        alignItems: 'center',
     },
     tableCell: {
         fontSize: 8,
-        color: '#374151',
+        color: '#475569',
     },
-    tableCellHeader: {
+    tableCellBold: {
         fontSize: 8,
         fontWeight: 'bold',
-        color: '#111827',
+        color: '#1E293B',
     },
-    // Signatures
-    signatures: {
+    tableHeaderText: {
+        fontSize: 8,
+        fontWeight: 'bold',
+        color: '#1E293B',
+        textTransform: 'uppercase',
+    },
+    // Signature
+    signatureContainer: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginTop: 30,
-        paddingTop: 20,
-        borderTopWidth: 1,
-        borderTopColor: '#E5E7EB',
+        justifyContent: 'space-around',
+        marginTop: 50,
     },
-    signatureBlock: {
-        width: '45%',
+    signatureBox: {
+        width: 180,
+        alignItems: 'center',
     },
     signatureLine: {
+        width: '100%',
         borderTopWidth: 1,
-        borderTopColor: '#9CA3AF',
-        marginBottom: 5,
-        paddingTop: 5,
+        borderTopColor: '#CBD5E1',
+        marginBottom: 6,
     },
     signatureLabel: {
         fontSize: 8,
-        color: '#6B7280',
-        marginBottom: 2,
+        color: '#64748B',
     },
-    signatureValue: {
+    signatureName: {
         fontSize: 9,
         fontWeight: 'bold',
-        color: '#1F2937',
+        color: '#1E293B',
+        marginTop: 2,
     },
     // Footer
     footer: {
         position: 'absolute',
-        bottom: 20,
+        bottom: 30,
         left: 30,
         right: 30,
         textAlign: 'center',
         fontSize: 7,
-        color: '#9CA3AF',
+        color: '#94A3B8',
+        borderTopWidth: 1,
+        borderTopColor: '#F1F5F9',
+        paddingTop: 10,
     },
 });
 
@@ -187,24 +191,21 @@ export function CashClosureDetailedPDF({ report }: Props) {
     const {
         fromDate,
         toDate,
-        closedBy,
         closedByName,
         closedAt,
         totalIncome,
-        totalExpense,
-        netTotal,
         movementCount,
         incomeBySource,
         incomeByMethod,
         balanceByBank,
-        movementsByUser,
         movements,
+        expectedAmount,
+        actualAmount,
+        difference,
+        notes
     } = report;
 
-    const formatCurrency = (amount: number) => `$${amount.toFixed(2)}`;
-    const formatPercent = (amount: number, total: number) =>
-        total > 0 ? `(${((amount / total) * 100).toFixed(1)}%)` : '(0%)';
-    const formatDate = (date: string) => new Date(date).toLocaleDateString('es-EC');
+    const formatCurrency = (amount: number) => `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     const formatDateTime = (date: string) => new Date(date).toLocaleString('es-EC', {
         day: '2-digit',
         month: '2-digit',
@@ -212,252 +213,223 @@ export function CashClosureDetailedPDF({ report }: Props) {
         hour: '2-digit',
         minute: '2-digit'
     });
+    const formatDate = (date: string) => new Date(date).toLocaleDateString('es-EC', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+    });
 
     const logoUrl = '/images/mochitopng.png';
 
+    // Group movements to avoid layout shifts or too many pages if many movements
+    // Actually the request was for harmony and vertical orientation
+
     return (
-        <Document>
-            {/* Page 1: Summary and Breakdowns */}
+        <Document title={`Cierre de Caja - ${formatDate(closedAt)}`}>
             <Page size="A4" style={styles.page}>
                 {/* Header */}
                 <View style={styles.header}>
                     <Image src={logoUrl} style={styles.logo} />
-                    <View>
-                        <Text style={styles.headerTitle}>CIERRE DE CAJA DETALLADO</Text>
-                        <Text style={styles.headerSubtitle}>
-                            Período: {formatDate(fromDate)} - {formatDate(toDate)}
-                        </Text>
+                    <View style={styles.headerInfo}>
+                        <Text style={styles.headerTitle}>REPORTE DE CIERRE DE CAJA</Text>
+                        <Text style={styles.headerSubtitle}>Generado el: {formatDateTime(closedAt)}</Text>
                     </View>
                 </View>
 
-                {/* Info Section */}
-                <View style={styles.infoSection}>
-                    <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>Cerrado por:</Text>
-                        <Text style={styles.infoValue}>{closedByName || closedBy}</Text>
+                {/* Main Stats Bar */}
+                <View style={styles.statsBar}>
+                    <View style={styles.statItem}>
+                        <Text style={styles.statLabel}>Total Recaudado</Text>
+                        <Text style={styles.statValue}>{formatCurrency(totalIncome)}</Text>
                     </View>
-                    <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>Fecha de cierre:</Text>
-                        <Text style={styles.infoValue}>{formatDateTime(closedAt)}</Text>
+                    <View style={styles.statDivider} />
+                    <View style={styles.statItem}>
+                        <Text style={styles.statLabel}>Movimientos</Text>
+                        <Text style={styles.statValue}>{movementCount}</Text>
                     </View>
-                    <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>Total movimientos:</Text>
-                        <Text style={styles.infoValue}>{movementCount}</Text>
-                    </View>
-                </View>
-
-                {/* Summary Cards */}
-                <Text style={styles.sectionTitle}>RESUMEN EJECUTIVO</Text>
-                <View style={styles.summaryGrid}>
-                    <View style={[styles.summaryCard, { backgroundColor: '#D1FAE5', borderColor: '#10B981' }]}>
-                        <Text style={[styles.summaryLabel, { color: '#065F46' }]}>Total Ingresos</Text>
-                        <Text style={[styles.summaryValue, { color: '#047857' }]}>{formatCurrency(totalIncome)}</Text>
-                    </View>
-                    <View style={[styles.summaryCard, { backgroundColor: '#FEE2E2', borderColor: '#EF4444' }]}>
-                        <Text style={[styles.summaryLabel, { color: '#7F1D1D' }]}>Total Egresos</Text>
-                        <Text style={[styles.summaryValue, { color: '#DC2626' }]}>{formatCurrency(totalExpense)}</Text>
-                    </View>
-                    <View style={[styles.summaryCard, { backgroundColor: '#DBEAFE', borderColor: '#3B82F6' }]}>
-                        <Text style={[styles.summaryLabel, { color: '#1E3A8A' }]}>Balance Neto</Text>
-                        <Text style={[styles.summaryValue, { color: netTotal >= 0 ? '#2563EB' : '#DC2626' }]}>
-                            {formatCurrency(netTotal)}
-                        </Text>
-                    </View>
-                    <View style={[styles.summaryCard, { backgroundColor: '#F1F5F9', borderColor: '#94A3B8' }]}>
-                        <Text style={[styles.summaryLabel, { color: '#475569' }]}>Movimientos</Text>
-                        <Text style={[styles.summaryValue, { color: '#1E293B' }]}>{movementCount}</Text>
+                    <View style={styles.statDivider} />
+                    <View style={styles.statItem}>
+                        <Text style={styles.statLabel}>Periodo</Text>
+                        <Text style={[styles.statValue, { fontSize: 8 }]}>{formatDate(fromDate)} - {formatDate(toDate)}</Text>
                     </View>
                 </View>
 
-                {/* Income by Source */}
-                <Text style={styles.sectionTitle}>DESGLOSE POR ORIGEN</Text>
-                <View style={styles.breakdownItem}>
-                    <Text style={styles.breakdownLabel}>Abonos Iniciales (Pedidos)</Text>
-                    <View style={{ flexDirection: 'row' }}>
-                        <Text style={styles.breakdownValue}>{formatCurrency(incomeBySource.orderPayments)}</Text>
-                        <Text style={styles.breakdownPercent}>{formatPercent(incomeBySource.orderPayments, totalIncome)}</Text>
+                {/* Audit Info and Breakdown Side by Side */}
+                <View style={styles.infoGrid}>
+                    <View style={styles.infoBlock}>
+                        <View style={styles.sectionHeader}>
+                            <Text style={styles.sectionTitle}>Datos del Cierre</Text>
+                        </View>
+                        <View style={styles.infoRow}>
+                            <Text style={styles.infoLabel}>Responsable:</Text>
+                            <Text style={styles.infoValue}>{closedByName || 'Sistema'}</Text>
+                        </View>
+                        <View style={styles.infoRow}>
+                            <Text style={styles.infoLabel}>Desde:</Text>
+                            <Text style={styles.infoValue}>{formatDateTime(fromDate)}</Text>
+                        </View>
+                        <View style={styles.infoRow}>
+                            <Text style={styles.infoLabel}>Hasta:</Text>
+                            <Text style={styles.infoValue}>{formatDateTime(toDate)}</Text>
+                        </View>
                     </View>
-                </View>
-                <View style={styles.breakdownItem}>
-                    <Text style={styles.breakdownLabel}>Abonos Posteriores</Text>
-                    <View style={{ flexDirection: 'row' }}>
-                        <Text style={styles.breakdownValue}>{formatCurrency(incomeBySource.additionalPayments)}</Text>
-                        <Text style={styles.breakdownPercent}>{formatPercent(incomeBySource.additionalPayments, totalIncome)}</Text>
-                    </View>
-                </View>
-                <View style={styles.breakdownItem}>
-                    <Text style={styles.breakdownLabel}>Ajustes</Text>
-                    <View style={{ flexDirection: 'row' }}>
-                        <Text style={styles.breakdownValue}>{formatCurrency(incomeBySource.adjustments)}</Text>
-                        <Text style={styles.breakdownPercent}>{formatPercent(incomeBySource.adjustments, totalIncome)}</Text>
-                    </View>
-                </View>
-                <View style={styles.breakdownItem}>
-                    <Text style={styles.breakdownLabel}>Movimientos Manuales</Text>
-                    <View style={{ flexDirection: 'row' }}>
-                        <Text style={styles.breakdownValue}>{formatCurrency(incomeBySource.manual)}</Text>
-                        <Text style={styles.breakdownPercent}>{formatPercent(incomeBySource.manual, totalIncome)}</Text>
+
+                    <View style={styles.infoBlock}>
+                        <View style={styles.sectionHeader}>
+                            <Text style={styles.sectionTitle}>Resumen por Origen</Text>
+                        </View>
+                        <View style={styles.infoRow}>
+                            <Text style={styles.infoLabel}>Ingresos por Ventas/Pedidos:</Text>
+                            <Text style={styles.infoValue}>{formatCurrency(incomeBySource.orderPayments + incomeBySource.additionalPayments)}</Text>
+                        </View>
+                        {incomeBySource.manual > 0 && (
+                            <View style={styles.infoRow}>
+                                <Text style={styles.infoLabel}>Mov. Manuales:</Text>
+                                <Text style={styles.infoValue}>{formatCurrency(incomeBySource.manual)}</Text>
+                            </View>
+                        )}
+                        {incomeBySource.adjustments > 0 && (
+                            <View style={styles.infoRow}>
+                                <Text style={styles.infoLabel}>Ajustes:</Text>
+                                <Text style={styles.infoValue}>{formatCurrency(incomeBySource.adjustments)}</Text>
+                            </View>
+                        )}
                     </View>
                 </View>
 
-                {/* Income by Method */}
-                <Text style={styles.sectionTitle}>DESGLOSE POR MÉTODO DE PAGO</Text>
-                <View style={styles.breakdownItem}>
-                    <Text style={styles.breakdownLabel}>Efectivo</Text>
-                    <View style={{ flexDirection: 'row' }}>
-                        <Text style={styles.breakdownValue}>{formatCurrency(incomeByMethod.EFECTIVO)}</Text>
-                        <Text style={styles.breakdownPercent}>{formatPercent(incomeByMethod.EFECTIVO, totalIncome)}</Text>
+                {/* Additional Quadre Box if we have physical diff data */}
+                {expectedAmount !== undefined && actualAmount !== undefined && (
+                    <View style={[styles.statsBar, { backgroundColor: difference && difference !== 0 ? '#FEF2F2' : '#F0FDF4', borderColor: difference && difference !== 0 ? '#FECACA' : '#BBF7D0' }]}>
+                        <View style={styles.statItem}>
+                            <Text style={styles.statLabel}>Efectivo Sistema (Esperado)</Text>
+                            <Text style={styles.statValue}>{formatCurrency(expectedAmount)}</Text>
+                        </View>
+                        <View style={styles.statDivider} />
+                        <View style={styles.statItem}>
+                            <Text style={styles.statLabel}>Efectivo Contado (Real)</Text>
+                            <Text style={styles.statValue}>{formatCurrency(actualAmount)}</Text>
+                        </View>
+                        <View style={styles.statDivider} />
+                        <View style={styles.statItem}>
+                            <Text style={[styles.statLabel, { color: difference && difference !== 0 ? '#EF4444' : '#16A34A' }]}>Estado del Cuadre</Text>
+                            <Text style={[styles.statValue, { color: difference && difference !== 0 ? '#EF4444' : '#16A34A', fontSize: difference && difference !== 0 ? 10 : 12 }]}>
+                                {difference === undefined || Math.abs(difference) < 0.01 ? 'CUADRÓ EXACTO' : (difference < 0 ? `FALTANTE: ${formatCurrency(Math.abs(difference))}` : `SOBRANTE: ${formatCurrency(difference)}`)}
+                            </Text>
+                        </View>
                     </View>
+                )}
+
+                {/* Observaciones */}
+                {notes && notes.trim().length > 0 && (
+                    <View style={[styles.infoGrid, { marginBottom: 15 }]}>
+                        <View style={[styles.infoBlock, { backgroundColor: '#F8FAFC', padding: 10, borderRadius: 4 }]}>
+                            <Text style={[styles.infoLabel, { marginBottom: 4, fontWeight: 'bold' }]}>Justificación / Observaciones:</Text>
+                            <Text style={styles.infoValue}>{notes}</Text>
+                        </View>
+                    </View>
+                )}
+
+                {/* Methods Breakdown */}
+                <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>Distribución por Métodos de Pago</Text>
                 </View>
-                <View style={styles.breakdownItem}>
-                    <Text style={styles.breakdownLabel}>Transferencia</Text>
-                    <View style={{ flexDirection: 'row' }}>
-                        <Text style={styles.breakdownValue}>{formatCurrency(incomeByMethod.TRANSFERENCIA)}</Text>
-                        <Text style={styles.breakdownPercent}>{formatPercent(incomeByMethod.TRANSFERENCIA, totalIncome)}</Text>
+                <View style={[styles.table, { marginBottom: 20 }]}>
+                    <View style={styles.tableHeader}>
+                        <Text style={[styles.tableHeaderText, { width: '40%' }]}>Método</Text>
+                        <Text style={[styles.tableHeaderText, { width: '30%', textAlign: 'right' }]}>Monto</Text>
+                        <Text style={[styles.tableHeaderText, { width: '30%', textAlign: 'right' }]}>Participación</Text>
                     </View>
-                </View>
-                <View style={styles.breakdownItem}>
-                    <Text style={styles.breakdownLabel}>Depósito</Text>
-                    <View style={{ flexDirection: 'row' }}>
-                        <Text style={styles.breakdownValue}>{formatCurrency(incomeByMethod.DEPOSITO)}</Text>
-                        <Text style={styles.breakdownPercent}>{formatPercent(incomeByMethod.DEPOSITO, totalIncome)}</Text>
-                    </View>
-                </View>
-                <View style={styles.breakdownItem}>
-                    <Text style={styles.breakdownLabel}>Cheque</Text>
-                    <View style={{ flexDirection: 'row' }}>
-                        <Text style={styles.breakdownValue}>{formatCurrency(incomeByMethod.CHEQUE)}</Text>
-                        <Text style={styles.breakdownPercent}>{formatPercent(incomeByMethod.CHEQUE, totalIncome)}</Text>
-                    </View>
+                    {Object.entries(incomeByMethod)
+                        .filter(([_, value]) => value > 0)
+                        .map(([method, value], i) => (
+                            <View key={i} style={styles.tableRow}>
+                                <Text style={[styles.tableCell, { width: '40%' }]}>{method}</Text>
+                                <Text style={[styles.tableCellBold, { width: '30%', textAlign: 'right' }]}>{formatCurrency(value)}</Text>
+                                <Text style={[styles.tableCell, { width: '30%', textAlign: 'right' }]}>{((value / (totalIncome || 1)) * 100).toFixed(1)}%</Text>
+                            </View>
+                        ))}
                 </View>
 
-                {/* Footer */}
-                <Text style={styles.footer}>
-                    Página 1 de 2 - Generado el {formatDateTime(closedAt)}
-                </Text>
-            </Page>
-
-            {/* Page 2: Tables and Details */}
-            <Page size="A4" style={styles.page}>
-                {/* Balance by Bank */}
-                <Text style={styles.sectionTitle}>DESGLOSE POR CUENTA BANCARIA</Text>
+                {/* Bank Accounts Breakdown */}
+                <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>Saldos en Cuentas y Cajas</Text>
+                </View>
                 <View style={styles.table}>
                     <View style={styles.tableHeader}>
-                        <Text style={[styles.tableCellHeader, { width: '70%' }]}>Cuenta</Text>
-                        <Text style={[styles.tableCellHeader, { width: '30%', textAlign: 'right' }]}>Balance</Text>
+                        <Text style={[styles.tableHeaderText, { width: '70%' }]}>Cuenta / Caja</Text>
+                        <Text style={[styles.tableHeaderText, { width: '30%', textAlign: 'right' }]}>Monto Final</Text>
                     </View>
-                    {balanceByBank.map((item, index) => (
-                        <View key={index} style={styles.tableRow}>
-                            <Text style={[styles.tableCell, { width: '70%' }]}>{item.bankAccountName}</Text>
-                            <Text style={[styles.tableCell, { width: '30%', textAlign: 'right', fontWeight: 'bold' }]}>
-                                {formatCurrency(item.balance)}
-                            </Text>
+                    {balanceByBank.filter(b => b.balance !== 0).map((bank, i) => (
+                        <View key={i} style={styles.tableRow}>
+                            <Text style={[styles.tableCell, { width: '70%' }]}>{bank.bankAccountName}</Text>
+                            <Text style={[styles.tableCellBold, { width: '30%', textAlign: 'right' }]}>{formatCurrency(bank.balance)}</Text>
                         </View>
                     ))}
                 </View>
 
-                {/* Movements by User */}
-                <Text style={styles.sectionTitle}>DESGLOSE POR USUARIO</Text>
-                <View style={styles.table}>
-                    <View style={styles.tableHeader}>
-                        <Text style={[styles.tableCellHeader, { width: '40%' }]}>Usuario</Text>
-                        <Text style={[styles.tableCellHeader, { width: '20%', textAlign: 'right' }]}>Ingresos</Text>
-                        <Text style={[styles.tableCellHeader, { width: '20%', textAlign: 'right' }]}>Egresos</Text>
-                        <Text style={[styles.tableCellHeader, { width: '20%', textAlign: 'right' }]}>Movimientos</Text>
-                    </View>
-                    {movementsByUser.map((user, index) => (
-                        <View key={index} style={styles.tableRow}>
-                            <Text style={[styles.tableCell, { width: '40%' }]}>{user.userName}</Text>
-                            <Text style={[styles.tableCell, { width: '20%', textAlign: 'right' }]}>
-                                {formatCurrency(user.totalIncome)}
-                            </Text>
-                            <Text style={[styles.tableCell, { width: '20%', textAlign: 'right' }]}>
-                                {formatCurrency(user.totalExpense)}
-                            </Text>
-                            <Text style={[styles.tableCell, { width: '20%', textAlign: 'right' }]}>
-                                {user.movementCount}
-                            </Text>
-                        </View>
-                    ))}
-                </View>
-
-                {/* Signatures */}
-                <View style={styles.signatures}>
-                    <View style={styles.signatureBlock}>
+                {/* Signatures at the bottom of first page */}
+                <View style={styles.signatureContainer}>
+                    <View style={styles.signatureBox}>
                         <View style={styles.signatureLine} />
-                        <Text style={styles.signatureLabel}>Cerrado por:</Text>
-                        <Text style={styles.signatureValue}>{closedByName || closedBy}</Text>
-                        <Text style={styles.signatureLabel}>Fecha: {formatDateTime(closedAt)}</Text>
+                        <Text style={styles.signatureLabel}>Responsable de Caja</Text>
+                        <Text style={styles.signatureName}>{closedByName || 'Administrador'}</Text>
                     </View>
-                    <View style={styles.signatureBlock}>
+                    <View style={styles.signatureBox}>
                         <View style={styles.signatureLine} />
-                        <Text style={styles.signatureLabel}>Revisado por:</Text>
-                        <Text style={styles.signatureValue}>_______________________</Text>
-                        <Text style={styles.signatureLabel}>Fecha: _______________________</Text>
+                        <Text style={styles.signatureLabel}>Revisado / Aprobado</Text>
+                        <Text style={styles.signatureName}>Gerencia / Auditoría</Text>
                     </View>
                 </View>
 
-                {/* Footer */}
-                <Text style={styles.footer}>
-                    Página 2 de 2 - Generado el {formatDateTime(closedAt)}
-                </Text>
+                {/* Page Numbering */}
+                <Text style={styles.footer} render={({ pageNumber, totalPages }) => (
+                    `Página ${pageNumber} de ${totalPages} | Sistema de Gestión Mochito`
+                )} fixed />
             </Page>
 
-            {/* Page 3+: Detailed Movements (if many movements, split into multiple pages) */}
+            {/* Detailed Movements Page (Always Vertical) */}
             {movements.length > 0 && (
-                <Page size="A4" orientation="landscape" style={styles.page}>
-                    <Text style={styles.sectionTitle}>DETALLE COMPLETO DE MOVIMIENTOS</Text>
+                <Page size="A4" style={styles.page}>
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>Anexo: Detalle de Movimientos</Text>
+                    </View>
                     <View style={styles.table}>
                         <View style={styles.tableHeader}>
-                            <Text style={[styles.tableCellHeader, { width: '10%' }]}>Fecha/Hora</Text>
-                            <Text style={[styles.tableCellHeader, { width: '6%' }]}>Tipo</Text>
-                            <Text style={[styles.tableCellHeader, { width: '10%' }]}>Origen</Text>
-                            <Text style={[styles.tableCellHeader, { width: '15%' }]}>Cliente</Text>
-                            <Text style={[styles.tableCellHeader, { width: '10%' }]}>Método</Text>
-                            <Text style={[styles.tableCellHeader, { width: '15%' }]}>Cuenta</Text>
-                            <Text style={[styles.tableCellHeader, { width: '10%', textAlign: 'right' }]}>Monto</Text>
-                            <Text style={[styles.tableCellHeader, { width: '12%' }]}>Usuario</Text>
-                            <Text style={[styles.tableCellHeader, { width: '12%' }]}>Descripción</Text>
+                            <Text style={[styles.tableHeaderText, { width: '15%' }]}>Fecha</Text>
+                            <Text style={[styles.tableHeaderText, { width: '30%' }]}>Concepto / Cliente</Text>
+                            <Text style={[styles.tableHeaderText, { width: '20%' }]}>Método / Banco</Text>
+                            <Text style={[styles.tableHeaderText, { width: '20%', textAlign: 'right' }]}>Monto</Text>
+                            <Text style={[styles.tableHeaderText, { width: '15%', textAlign: 'right' }]}>Ref.</Text>
                         </View>
-                        {movements.slice(0, 30).map((mov, index) => (
-                            <View key={index} style={styles.tableRow}>
-                                <Text style={[styles.tableCell, { width: '10%', fontSize: 7 }]}>
-                                    {new Date(mov.date).toLocaleString('es-EC', {
-                                        day: '2-digit',
-                                        month: '2-digit',
-                                        hour: '2-digit',
-                                        minute: '2-digit'
-                                    })}
-                                </Text>
-                                <Text style={[styles.tableCell, { width: '6%', fontSize: 7 }]}>
-                                    {mov.type === 'INCOME' ? 'ING' : 'EGR'}
-                                </Text>
-                                <Text style={[styles.tableCell, { width: '10%', fontSize: 7 }]}>{mov.source}</Text>
-                                <Text style={[styles.tableCell, { width: '15%', fontSize: 7 }]}>{mov.clientName || '-'}</Text>
-                                <Text style={[styles.tableCell, { width: '10%', fontSize: 7 }]}>{mov.paymentMethod || '-'}</Text>
-                                <Text style={[styles.tableCell, { width: '15%', fontSize: 7 }]}>{mov.bankAccountName}</Text>
-                                <Text style={[styles.tableCell, { width: '10%', textAlign: 'right', fontSize: 7, fontWeight: 'bold' }]}>
+                        {movements.map((mov, i) => (
+                            <View key={i} style={styles.tableRow}>
+                                <View style={{ width: '15%' }}>
+                                    <Text style={[styles.tableCell, { fontSize: 7 }]}>{formatDate(mov.date)}</Text>
+                                    <Text style={[styles.tableCell, { fontSize: 6, color: '#94A3B8' }]}>
+                                        {new Date(mov.date).toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
+                                    </Text>
+                                </View>
+                                <View style={{ width: '30%' }}>
+                                    <Text style={styles.tableCellBold}>{mov.clientName || 'Mov. Manual'}</Text>
+                                    <Text style={[styles.tableCell, { fontSize: 6 }]}>{mov.description || mov.source}</Text>
+                                </View>
+                                <View style={{ width: '20%' }}>
+                                    <Text style={styles.tableCell}>{mov.paymentMethod || 'N/A'}</Text>
+                                    <Text style={[styles.tableCell, { fontSize: 6, color: '#94A3B8' }]}>{mov.bankAccountName}</Text>
+                                </View>
+                                <Text style={[styles.tableCellBold, { width: '20%', textAlign: 'right' }]}>
                                     {formatCurrency(mov.amount)}
                                 </Text>
-                                <Text style={[styles.tableCell, { width: '12%', fontSize: 7 }]}>
-                                    {mov.createdByName || mov.createdBy}
-                                </Text>
-                                <Text style={[styles.tableCell, { width: '12%', fontSize: 6 }]}>
-                                    {mov.description?.substring(0, 20) || '-'}
+                                <Text style={[styles.tableCell, { width: '15%', textAlign: 'right', fontSize: 7 }]}>
+                                    {mov.id.substring(0, 6)}
                                 </Text>
                             </View>
                         ))}
                     </View>
 
-                    {movements.length > 30 && (
-                        <Text style={{ fontSize: 8, color: '#6B7280', marginTop: 10, textAlign: 'center' }}>
-                            Mostrando primeros 30 movimientos de {movements.length} totales
-                        </Text>
-                    )}
-
-                    <Text style={styles.footer}>
-                        Página 3 - Detalle de Movimientos - Generado el {formatDateTime(closedAt)}
-                    </Text>
+                    <Text style={styles.footer} render={({ pageNumber, totalPages }) => (
+                        `Página ${pageNumber} de ${totalPages} | Documento de Control Interno`
+                    )} fixed />
                 </Page>
             )}
         </Document>

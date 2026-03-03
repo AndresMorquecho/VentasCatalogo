@@ -34,19 +34,26 @@ export function getEffectiveTotal(order: Order): number {
 }
 
 /**
- * Calculates pending amount.
- * Can be negative if client has credit (saldo a favor).
+ * Calculates raw pending amount (can be negative for credit check).
  */
-export function getPendingAmount(order: Order): number {
+function getRawPendingAmount(order: Order): number {
     return getEffectiveTotal(order) - getPaidAmount(order);
 }
 
 /**
+ * Calculates pending amount.
+ * Never negative. Returns 0 if fully paid or has credit.
+ */
+export function getPendingAmount(order: Order): number {
+    return Math.max(0, getRawPendingAmount(order));
+}
+
+/**
  * Check if order has client credit (saldo a favor).
- * Returns true if pending is negative.
+ * Returns true if raw pending is negative.
  */
 export function hasClientCredit(order: Order): boolean {
-    return getPendingAmount(order) < -0.01;
+    return getRawPendingAmount(order) < -0.01;
 }
 
 /**
@@ -54,7 +61,7 @@ export function hasClientCredit(order: Order): boolean {
  * Returns 0 if no credit.
  */
 export function getClientCreditAmount(order: Order): number {
-    const pending = getPendingAmount(order);
+    const pending = getRawPendingAmount(order);
     return pending < -0.01 ? Math.abs(pending) : 0;
 }
 

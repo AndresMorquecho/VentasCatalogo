@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useBankAccountList } from "@/features/bank-accounts/api/hooks"
+import { useBankAccountList, useDeleteBankAccount } from "@/features/bank-accounts/api/hooks"
 import type { BankAccount } from "@/entities/bank-account/model/types"
 import { BankAccountTable } from "./BankAccountTable"
 import { BankAccountForm } from "./BankAccountForm"
@@ -7,18 +7,27 @@ import { Button } from "@/shared/ui/button"
 import { Plus, AlertCircle, RotateCw, Banknote, Landmark, Wallet } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert"
 import { useAuth } from "@/shared/auth"
-import { useToast } from "@/shared/ui/use-toast"
+import { useNotifications } from "@/shared/lib/notifications"
+import { ConfirmDialog } from "@/shared/ui/confirm-dialog"
+import { logAction } from "@/shared/lib/auditService"
 
 export function BankAccountList() {
     const { data: accounts = [], isLoading, isError, refetch } = useBankAccountList()
-    const { hasPermission } = useAuth()
-    const { showToast } = useToast()
+    const deleteAccount = useDeleteBankAccount()
+    const { hasPermission, user } = useAuth()
+    const { notifySuccess, notifyError } = useNotifications()
     const [selectedAccount, setSelectedAccount] = useState<BankAccount | null>(null)
     const [isFormOpen, setIsFormOpen] = useState(false)
+    const [accountToDelete, setAccountToDelete] = useState<BankAccount | null>(null)
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
     const handleCreate = () => {
+        if (!hasPermission('bank_accounts.view')) { // Standard view check
+            notifyError({ message: 'No tienes permiso para ver cuentas bancarias' })
+            return
+        }
         if (!hasPermission('bank_accounts.create')) {
-            showToast('No tienes permiso para crear cuentas bancarias', 'error')
+            notifyError({ message: 'No tienes permiso para crear cuentas bancarias' })
             return
         }
         setSelectedAccount(null)
@@ -27,11 +36,41 @@ export function BankAccountList() {
 
     const handleEdit = (account: BankAccount) => {
         if (!hasPermission('bank_accounts.edit')) {
-            showToast('No tienes permiso para editar cuentas bancarias', 'error')
+            notifyError({ message: 'No tienes permiso para editar cuentas bancarias' })
             return
         }
         setSelectedAccount(account)
         setIsFormOpen(true)
+    }
+
+    const handleDeleteClick = (account: BankAccount) => {
+        if (!hasPermission('bank_accounts.delete')) {
+            notifyError({ message: 'No tienes permiso para eliminar cuentas bancarias' })
+            return
+        }
+        setAccountToDelete(account)
+        setIsDeleteDialogOpen(true)
+    }
+
+    const handleConfirmDelete = async () => {
+        if (!accountToDelete) return
+        try {
+            await deleteAccount.mutateAsync(accountToDelete.id)
+            notifySuccess(`Cuenta "${accountToDelete.name}" eliminada correctamente`)
+            if (user) {
+                logAction({
+                    userId: user.id,
+                    userName: user.username,
+                    action: 'DELETE_ROLE', // Using a high level delete action
+                    module: 'bank_accounts' as any,
+                    detail: `Eliminó cuenta bancaria: ${accountToDelete.name}`,
+                    severity: 'CRITICAL'
+                });
+            }
+            setIsDeleteDialogOpen(false)
+        } catch (error) {
+            notifyError(error, "Error al eliminar la cuenta")
+        }
     }
 
     if (isError) {
@@ -116,12 +155,23 @@ export function BankAccountList() {
                 accounts={accounts}
                 isLoading={isLoading}
                 onEdit={handleEdit}
+                onDelete={handleDeleteClick}
             />
 
             <BankAccountForm
                 account={selectedAccount}
                 open={isFormOpen}
                 onOpenChange={setIsFormOpen}
+            />
+
+            <ConfirmDialog
+                open={isDeleteDialogOpen}
+                onOpenChange={setIsDeleteDialogOpen}
+                onConfirm={handleConfirmDelete}
+                title="Eliminar Cuenta"
+                description={`¿Estás seguro de que deseas eliminar la cuenta "${accountToDelete?.name}"? Esta acción no se puede deshacer.`}
+                confirmText="Eliminar"
+                variant="destructive"
             />
         </div>
     )

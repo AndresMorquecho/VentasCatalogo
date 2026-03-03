@@ -18,9 +18,10 @@ import { orderApi } from "@/entities/order/model/api"
 import { getPendingAmount, getPaidAmount } from "@/entities/order/model/model"
 import { useBankAccountList } from "@/features/bank-accounts/api/hooks"
 import { useClientCredit } from "@/features/client-credits/model/hooks"
-import { useToast } from "@/shared/ui/use-toast"
 import { generateDeliveryReceipt } from "../lib/generateDeliveryReceipt"
 import { useAuth } from "@/shared/auth/AuthProvider"
+import { useNotifications } from "@/shared/lib/notifications"
+import { logAction } from "@/shared/lib/auditService"
 
 interface DeliverOrderModalProps {
     order: Order | null
@@ -38,7 +39,7 @@ export function DeliverOrderModal({ order, open, onOpenChange }: DeliverOrderMod
     const qc = useQueryClient()
     const { data: bankAccounts = [] } = useBankAccountList()
     const { data: creditData } = useClientCredit(order?.clientId || '')
-    const { showToast } = useToast()
+    const { notifySuccess, notifyError } = useNotifications()
     const { user, hasPermission } = useAuth()
 
     if (!order) return null
@@ -57,7 +58,7 @@ export function DeliverOrderModal({ order, open, onOpenChange }: DeliverOrderMod
 
     const handleSubmit = async () => {
         if (!hasPermission('delivery.confirm')) {
-            showToast('No tienes permiso para realizar entregas', 'error')
+            notifyError({ message: 'No tienes permiso para realizar entregas' })
             return
         }
         // Prevent multiple simultaneous submissions
@@ -73,14 +74,14 @@ export function DeliverOrderModal({ order, open, onOpenChange }: DeliverOrderMod
             if (amountToCharge > 0.01) {
                 // Validation
                 if (paymentMethod !== 'EFECTIVO' && !referenceNumber) {
-                    showToast("Debe ingresar el número de referencia", "error")
+                    notifyError({ message: "Debe ingresar el número de referencia" })
                     setIsSubmitting(false)
                     isProcessingRef.current = false;
                     return
                 }
 
                 if (!selectedBankId && paymentMethod !== 'EFECTIVO') {
-                    showToast("Seleccione una cuenta bancaria", "error")
+                    notifyError({ message: "Seleccione una cuenta bancaria" })
                     setIsSubmitting(false)
                     isProcessingRef.current = false;
                     return
@@ -88,7 +89,7 @@ export function DeliverOrderModal({ order, open, onOpenChange }: DeliverOrderMod
             }
 
             let finalBankAccountId = selectedBankId || undefined;
-            if (amountToCharge > 0.01 && paymentMethod === 'EFECTIVO') {
+            if (amountToCharge > 0.01 && !finalBankAccountId && paymentMethod === 'EFECTIVO') {
                 const cashAccount = bankAccounts.find(a => a.type === 'CASH');
                 if (cashAccount) finalBankAccountId = cashAccount.id;
             }
@@ -113,7 +114,7 @@ export function DeliverOrderModal({ order, open, onOpenChange }: DeliverOrderMod
                 })
             } catch (pdfError) {
                 console.error("Error PDF", pdfError)
-                showToast("Entrega guardada, pero error al generar PDF", "warning")
+                notifyError(pdfError, "Entrega guardada, pero error al generar PDF")
             }
 
             // 4. Invalidate queries and Show Toast
@@ -124,15 +125,25 @@ export function DeliverOrderModal({ order, open, onOpenChange }: DeliverOrderMod
             qc.invalidateQueries({ queryKey: ['client-rewards'] })
 
             if (hasCurrentCredit) {
-                showToast(`Entrega registrada. El cliente aún cuenta con un saldo a favor de $${currentCreditAmount.toFixed(2)}`, "success")
+                notifySuccess(`Entrega registrada. El cliente aún cuenta con un saldo a favor de $${currentCreditAmount.toFixed(2)}`)
             } else {
-                showToast("Entrega registrada correctamente", "success")
+                notifySuccess("Entrega registrada correctamente")
+            }
+
+            if (user) {
+                logAction({
+                    userId: user.id,
+                    userName: user.username,
+                    action: 'UPDATE_ORDER',
+                    module: 'orders',
+                    detail: `Entregó pedido ${order.receiptNumber} a empresaria ${order.clientName}. Cobro realizado: $${amountToCharge.toFixed(2)}`
+                });
             }
 
             onOpenChange(false)
         } catch (error) {
             console.error("Error processing delivery:", error)
-            showToast("Ocurrió un error al procesar la entrega.", "error")
+            notifyError(error, "Ocurrió un error al procesar la entrega.")
         } finally {
             setIsSubmitting(false)
             isProcessingRef.current = false;
@@ -227,35 +238,40 @@ export function DeliverOrderModal({ order, open, onOpenChange }: DeliverOrderMod
                                     </select>
                                 </div>
 
+                                <div className="space-y-1">
+                                    <Label className="text-xs font-medium text-amber-800">Cuenta de Destino</Label>
+                                    <select
+                                        value={selectedBankId}
+                                        onChange={(e) => setSelectedBankId(e.target.value)}
+                                        className="flex h-9 w-full rounded-md border border-amber-200 bg-white px-3 py-1 text-sm"
+                                    >
+                                        <option value="">Seleccione cuenta...</option>
+                                        {bankAccounts
+                                            .filter(acc => {
+                                                if (paymentMethod === 'EFECTIVO') return acc.type === 'CASH';
+                                                if (paymentMethod === 'TRANSFERENCIA' || paymentMethod === 'DEPOSITO') return acc.type === 'BANK';
+                                                if (paymentMethod === 'CHEQUE') return true; // Both BANK and CASH
+                                                return true;
+                                            })
+                                            .map((account) => (
+                                                <option key={account.id} value={account.id}>
+                                                    {account.name} ({account.type === 'CASH' ? 'Efectivo' : 'Banco'})
+                                                </option>
+                                            ))}
+                                    </select>
+                                </div>
                                 {paymentMethod !== 'EFECTIVO' && (
-                                    <>
-                                        <div className="space-y-1">
-                                            <Label className="text-xs font-medium text-amber-800">Cuenta de Destino</Label>
-                                            <select
-                                                value={selectedBankId}
-                                                onChange={(e) => setSelectedBankId(e.target.value)}
-                                                className="flex h-9 w-full rounded-md border border-amber-200 bg-white px-3 py-1 text-sm"
-                                            >
-                                                <option value="">Seleccione cuenta...</option>
-                                                {bankAccounts.map((account) => (
-                                                    <option key={account.id} value={account.id}>
-                                                        {account.bankName} - {account.holderName}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                        <div className="space-y-1">
-                                            <Label className="text-xs font-medium text-amber-800">
-                                                {paymentMethod === 'CHEQUE' ? 'N° Cheque' : 'Referencia / Comprobante'}
-                                            </Label>
-                                            <Input
-                                                value={referenceNumber}
-                                                onChange={(e) => setReferenceNumber(e.target.value)}
-                                                placeholder="últimos dígitos..."
-                                                className="h-9 bg-white border-amber-200"
-                                            />
-                                        </div>
-                                    </>
+                                    <div className="space-y-1">
+                                        <Label className="text-xs font-medium text-amber-800">
+                                            {paymentMethod === 'CHEQUE' ? 'N° Cheque' : 'Referencia / Comprobante'}
+                                        </Label>
+                                        <Input
+                                            value={referenceNumber}
+                                            onChange={(e) => setReferenceNumber(e.target.value)}
+                                            placeholder="últimos dígitos..."
+                                            className="h-9 bg-white border-amber-200"
+                                        />
+                                    </div>
                                 )}
                             </div>
                         </div>

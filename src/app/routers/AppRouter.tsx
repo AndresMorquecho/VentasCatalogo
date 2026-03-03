@@ -1,26 +1,40 @@
+import { Suspense, lazy } from 'react'
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom'
 import { MainLayout } from '@/widgets/Layout'
-import OrdersPage from '@/pages/orders-page/OrdersPage'
-import { BrandsPage } from '@/pages/brands-page'
-import { BankAccountsPage } from '@/pages/bank-accounts-page'
-import { ClientsPage } from '@/pages/clients-page'
-import { FinancialDashboardPage } from '@/features/financial-dashboard'
-import { FinancialAuditPage } from '@/features/financial-audit'
-import { OrderReceptionHistoryPage } from '@/features/order-reception'
-import { InventoryPage } from "@/features/inventory/ui/InventoryPage"
-import { ReceptionBatchPage } from '@/features/reception-batch'
-import { OrderDeliveryPage, OrderDeliveryHistoryPage } from '@/features/order-delivery'
-import { CashClosurePage } from '@/features/cash-closure/ui/CashClosurePage'
-import { TransactionsPage } from '@/features/transactions'
-import { PaymentsPage } from '@/features/payments/ui/PaymentsPage'
-import { ClientCreditsPage } from '@/features/client-credits/ui/ClientCreditsPage'
-import { CallsPage } from '@/features/calls'
-import { LoyaltyPage } from '@/features/loyalty'
-import { AdminUsersPage } from '@/features/users'
-import { LoginPage } from '@/features/auth/ui/LoginPage'
-import { DashboardPage } from '@/features/dashboard/ui/DashboardPage'
 import { ProtectedRoute } from '@/shared/auth'
 import { ToastProvider } from '@/shared/ui/use-toast'
+
+// Lazy loaded components
+const DashboardPage = lazy(() => import('@/features/dashboard/ui/DashboardPage').then(m => ({ default: m.DashboardPage })));
+const OrdersPage = lazy(() => import('@/pages/orders-page/OrdersPage'));
+const BrandsPage = lazy(() => import('@/pages/brands-page').then(m => ({ default: m.BrandsPage })));
+const BankAccountsPage = lazy(() => import('@/pages/bank-accounts-page').then(m => ({ default: m.BankAccountsPage })));
+const ClientsPage = lazy(() => import('@/pages/clients-page').then(m => ({ default: m.ClientsPage })));
+const FinancialDashboardPage = lazy(() => import('@/features/financial-dashboard').then(m => ({ default: m.FinancialDashboardPage })));
+const FinancialAuditPage = lazy(() => import('@/features/financial-audit').then(m => ({ default: m.FinancialAuditPage })));
+const OrderReceptionHistoryPage = lazy(() => import('@/features/order-reception').then(m => ({ default: m.OrderReceptionHistoryPage })));
+const InventoryPage = lazy(() => import("@/features/inventory/ui/InventoryPage").then(m => ({ default: m.InventoryPage })));
+const ReceptionBatchPage = lazy(() => import('@/features/reception-batch').then(m => ({ default: m.ReceptionBatchPage })));
+const OrderDeliveryPage = lazy(() => import('@/features/order-delivery').then(m => ({ default: m.OrderDeliveryPage })));
+const OrderDeliveryHistoryPage = lazy(() => import('@/features/order-delivery').then(m => ({ default: m.OrderDeliveryHistoryPage })));
+const CashClosurePage = lazy(() => import('@/features/cash-closure/ui/CashClosurePage').then(m => ({ default: m.CashClosurePage })));
+const TransactionsPage = lazy(() => import('@/features/transactions').then(m => ({ default: m.TransactionsPage })));
+const PaymentsPage = lazy(() => import('@/features/payments/ui/PaymentsPage').then(m => ({ default: m.PaymentsPage })));
+const ClientCreditsPage = lazy(() => import('@/features/client-credits/ui/ClientCreditsPage').then(m => ({ default: m.ClientCreditsPage })));
+const CallsPage = lazy(() => import('@/features/calls').then(m => ({ default: m.CallsPage })));
+const LoyaltyPage = lazy(() => import('@/features/loyalty').then(m => ({ default: m.LoyaltyPage })));
+const AdminUsersPage = lazy(() => import('@/features/users').then(m => ({ default: m.AdminUsersPage })));
+const LoginPage = lazy(() => import('@/features/auth/ui/LoginPage').then(m => ({ default: m.LoginPage })));
+
+// Loading Component
+const PageLoader = () => (
+    <div className="min-h-screen bg-white flex items-center justify-center p-12">
+        <div className="flex flex-col items-center gap-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-indigo-500 border-r-2" />
+            <p className="text-slate-500 font-bold animate-pulse">Cargando...</p>
+        </div>
+    </div>
+);
 
 const protectedChildren = [
     { index: true, element: <DashboardPage /> },
@@ -48,13 +62,10 @@ const protectedChildren = [
 ];
 
 const router = createBrowserRouter([
-    // ── Public routes ────────────────────────────────────────────────────────
     {
         path: '/login',
         element: <LoginPage />,
     },
-
-    // ── Protected app shell ──────────────────────────────────────────────────
     {
         path: '/',
         element: (
@@ -64,8 +75,6 @@ const router = createBrowserRouter([
         ),
         children: protectedChildren,
     },
-
-    // ── Catch-all ────────────────────────────────────────────────────────────
     {
         path: '*',
         element: <Navigate to="/" replace />,
@@ -75,7 +84,9 @@ const router = createBrowserRouter([
 export function AppRouter() {
     return (
         <ToastProvider>
-            <RouterProvider router={router} />
+            <Suspense fallback={<PageLoader />}>
+                <RouterProvider router={router} />
+            </Suspense>
         </ToastProvider>
     )
 }

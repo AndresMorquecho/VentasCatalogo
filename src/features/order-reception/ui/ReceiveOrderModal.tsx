@@ -23,6 +23,9 @@ import type { Order } from "@/entities/order/model/types"
 import { orderApi } from "@/entities/order/model/api"
 import { bankAccountApi } from "@/shared/api/bankAccountApi"
 import { Separator } from "@/shared/ui/separator"
+import { useNotifications } from "@/shared/lib/notifications"
+import { useAuth } from "@/shared/auth"
+import { logAction } from "@/shared/lib/auditService"
 
 interface ReceiveOrderModalProps {
     order: Order | null
@@ -37,6 +40,8 @@ export function ReceiveOrderModal({ order, open, onOpenChange }: ReceiveOrderMod
     const [bankAccountId, setBankAccountId] = useState<string>('')
     const [paymentMethod, setPaymentMethod] = useState<string>('EFECTIVO')
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const { notifySuccess, notifyError } = useNotifications()
+    const { user } = useAuth()
     const qc = useQueryClient()
 
     // Fetch bank accounts
@@ -70,15 +75,15 @@ export function ReceiveOrderModal({ order, open, onOpenChange }: ReceiveOrderMod
         const abono = abonoRecepcion ? parseFloat(abonoRecepcion) : 0
         if (abono > 0) {
             if (!paymentMethod) {
-                alert('Debe seleccionar un método de pago')
+                notifyError({ message: 'Debe seleccionar un método de pago' })
                 return
             }
-            if (paymentMethod === 'EFECTIVO') {
+            if (paymentMethod === 'EFECTIVO' && !finalBankAccountId) {
                 const cashAccount = bankAccounts.find(a => a.type === 'CASH')
                 if (cashAccount) finalBankAccountId = cashAccount.id
             }
             if (!finalBankAccountId) {
-                alert('Debe seleccionar una cuenta bancaria para el abono')
+                notifyError({ message: 'Debe seleccionar una cuenta bancaria para el abono' })
                 return
             }
         }
@@ -94,11 +99,23 @@ export function ReceiveOrderModal({ order, open, onOpenChange }: ReceiveOrderMod
                 paymentMethod: abono > 0 ? paymentMethod : undefined
             })
 
-            // Invalidate strictly necessary queries
             await qc.invalidateQueries({ queryKey: ['orders'] })
+            notifySuccess(`Pedido #${order.receiptNumber} recibido correctamente.`)
+
+            if (user) {
+                logAction({
+                    userId: user.id,
+                    userName: user.username,
+                    action: 'UPDATE_ORDER',
+                    module: 'orders',
+                    detail: `Recibió pedido ${order.receiptNumber} de la empresaria ${order.clientName}. Nuevo total: $${total.toFixed(2)}`
+                });
+            }
+
             onOpenChange(false)
         } catch (error) {
             console.error(error)
+            notifyError(error, 'Error al recibir el pedido')
         } finally {
             setIsSubmitting(false)
         }
@@ -184,7 +201,7 @@ export function ReceiveOrderModal({ order, open, onOpenChange }: ReceiveOrderMod
                                         </Select>
                                     </div>
 
-                                    {paymentMethod !== 'EFECTIVO' && (
+                                    {true && (
                                         <div className="grid gap-2">
                                             <Label htmlFor="bank-account" className="text-xs">Cuenta Bancaria</Label>
                                             <Select value={bankAccountId} onValueChange={setBankAccountId}>
@@ -193,10 +210,16 @@ export function ReceiveOrderModal({ order, open, onOpenChange }: ReceiveOrderMod
                                                 </SelectTrigger>
                                                 <SelectContent>
                                                     {bankAccounts
-                                                        .filter(acc => acc.isActive && acc.type !== 'CASH')
+                                                        .filter(acc => {
+                                                            if (!acc.isActive) return false;
+                                                            if (paymentMethod === 'TRANSFERENCIA' || paymentMethod === 'DEPOSITO') return acc.type === 'BANK';
+                                                            if (paymentMethod === 'CHEQUE') return true;
+                                                            if (paymentMethod === 'EFECTIVO') return acc.type === 'CASH';
+                                                            return true;
+                                                        })
                                                         .map(account => (
                                                             <SelectItem key={account.id} value={account.id}>
-                                                                {account.name} (Banco)
+                                                                {account.name} ({account.type === 'CASH' ? 'Efectivo' : 'Banco'})
                                                             </SelectItem>
                                                         ))}
                                                 </SelectContent>

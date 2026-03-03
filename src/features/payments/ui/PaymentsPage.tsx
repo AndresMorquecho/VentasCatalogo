@@ -115,7 +115,7 @@ export function PaymentsPage() {
                         ) : (
                             filteredOrders.map(order => {
                                 const paid = (order.payments || []).reduce((acc, p) => acc + p.amount, 0);
-                                const pending = (order.realInvoiceTotal || order.total) - paid;
+                                const pending = Math.max(0, (order.realInvoiceTotal || order.total) - paid);
                                 const isPaid = pending <= 0.01;
 
                                 return (
@@ -143,7 +143,7 @@ export function PaymentsPage() {
                                             </div>
                                             <div className="text-right">
                                                 <span className="block text-[10px] text-slate-400 uppercase font-bold">Saldo Pendiente</span>
-                                                <span className={`text-xl font-bold ${pending > 0 ? "text-red-500" : "text-emerald-500"}`}>
+                                                <span className={`text-xl font-bold ${pending > 0.01 ? "text-red-500" : "text-emerald-500"}`}>
                                                     ${pending.toFixed(2)}
                                                 </span>
                                             </div>
@@ -220,7 +220,7 @@ export function PaymentsPage() {
                                 <div className="bg-white p-4 rounded-lg border shadow-sm ring-1 ring-red-100">
                                     <span className="text-xs font-bold text-red-500 uppercase">Por Pagar</span>
                                     <div className="text-2xl font-bold text-red-600">
-                                        ${((selectedOrder.realInvoiceTotal || selectedOrder.total) - ((selectedOrder.payments || []).reduce((acc, p) => acc + p.amount, 0))).toFixed(2)}
+                                        ${Math.max(0, (selectedOrder.realInvoiceTotal || selectedOrder.total) - ((selectedOrder.payments || []).reduce((acc, p) => acc + p.amount, 0))).toFixed(2)}
                                     </div>
                                 </div>
                             </div>

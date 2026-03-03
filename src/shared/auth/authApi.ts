@@ -137,7 +137,7 @@ export const usersApi = {
                 userName: user.username,
                 action: 'LOGIN',
                 module: 'auth',
-                detail: 'Inició sesión exitosamente backend'
+                detail: 'Inicio de sesión exitoso'
             });
 
             return { ...user, role, token };

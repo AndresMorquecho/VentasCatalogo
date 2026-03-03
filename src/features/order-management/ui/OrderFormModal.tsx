@@ -22,7 +22,7 @@ import { orderApi } from "@/entities/order/model/api"
 import { useClientList } from "@/features/clients/api/hooks"
 import { useBrandList } from "@/features/brands/api/hooks"
 import { getActiveBrands } from "@/entities/brand/model/model"
-import { useToast } from "@/shared/ui/use-toast"
+import { useNotifications } from "@/shared/lib/notifications"
 import { pdf } from "@react-pdf/renderer"
 import { OrderReceiptDocument } from "@/features/order-receipt/ui/OrderReceiptDocument"
 import { validateTransaction } from "@/features/transactions/lib/validateTransaction"
@@ -179,7 +179,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
     const { data: brands = [] } = useBrandList()
     const createOrder = useCreateOrder()
     const updateOrder = useUpdateOrder()
-    const { showToast } = useToast()
+    const { notifySuccess, notifyError } = useNotifications()
     const { user } = useAuth()
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isLoadingReceiptNumber, setIsLoadingReceiptNumber] = useState(false)
@@ -200,7 +200,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
             formik.setFieldValue('receiptNumber', receiptNumber);
         } catch (error) {
             console.error('Error generating receipt number:', error);
-            showToast('Error al generar número de recibo', 'error');
+            notifyError(error, 'Error al generar número de recibo');
         } finally {
             setIsLoadingReceiptNumber(false);
         }
@@ -262,7 +262,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                 const isFinancial = ['TRANSFERENCIA', 'DEPOSITO', 'CHEQUE'].includes(values.paymentMethod);
 
                 let finalBankAccountId = values.bankAccountId;
-                if (values.paymentMethod === 'EFECTIVO') {
+                if (values.paymentMethod === 'EFECTIVO' && !finalBankAccountId) {
                     const cashAccount = bankAccounts.find(a => a.type === 'CASH');
                     if (cashAccount) {
                         finalBankAccountId = cashAccount.id;
@@ -286,7 +286,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                             paymentMethod: values.paymentMethod as 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE'
                         });
                     } catch (e: any) {
-                        showToast(e.message, "error");
+                        notifyError(e);
                         setIsSubmitting(false);
                         return; // Stop submission
                     }
@@ -311,18 +311,16 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
 
                 if (isEditing && order) {
                     await updateOrder.mutateAsync({ id: order.id, data: payload })
-                    showToast(`Pedido de ${clientName} actualizado correctamente.`, "success")
+                    notifySuccess(`Pedido de ${clientName} actualizado correctamente.`);
                 } else {
                     // 1. Create the base order
                     let newOrder = await createOrder.mutateAsync(payload)
 
-                    // Initial deposit logic is now handled ATOMICALLY by the backend's CreateOrderUseCase
                     if (depositAmount > 0) {
-                        // Just an informative log
-                        console.log(`Initial deposit of $${depositAmount} was processed natively by the backend.`);
+                        // Initial deposit logic is now handled ATOMICALLY by the backend's CreateOrderUseCase
                     }
 
-                    showToast(`Pedido de ${clientName} creado correctamente.`, "success")
+                    notifySuccess(`Pedido de ${clientName} creado correctamente.`);
 
                     // 3. Generate PDF with the FINAL order state (including payments)
                     try {
@@ -351,14 +349,14 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                         URL.revokeObjectURL(url)
                     } catch (pdfError) {
                         console.error("Error generating PDF", pdfError)
-                        showToast(`Error al generar PDF.`, "error")
+                        notifyError(pdfError, "Error al generar PDF.");
                     }
                 }
                 onOpenChange(false)
                 formik.resetForm()
             } catch (error: any) {
                 console.error("Error saving order", error)
-                showToast(error.message || "Error al guardar el pedido.", "error")
+                notifyError(error, "Error al guardar el pedido.");
             } finally {
                 setIsSubmitting(false);
             }
@@ -371,7 +369,19 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
     const inputClass = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
 
     const clientOptions = clients.map(c => ({ id: c.id, label: c.firstName, subLabel: c.identificationNumber }))
-    const bankOptions = bankAccounts.map(b => ({ id: b.id, label: b.holderName || b.name, subLabel: `${b.bankName || ""} - ${b.accountNumber || ""}` }))
+    const filteredBankAccounts = bankAccounts.filter(acc => {
+        const method = formik.values.paymentMethod;
+        if (method === 'EFECTIVO') return acc.type === 'CASH';
+        if (['TRANSFERENCIA', 'DEPOSITO'].includes(method)) return acc.type === 'BANK';
+        if (method === 'CHEQUE') return true;
+        return true;
+    });
+
+    const bankOptions = filteredBankAccounts.map(b => ({
+        id: b.id,
+        label: b.name,
+        subLabel: b.type === 'CASH' ? '(Efectivo)' : `${b.bankName || ""} ${b.accountNumber || ""}`
+    }));
     const brandOptions = getActiveBrands(brands).map(b => ({ id: b.id, label: b.name, subLabel: "" }))
 
     return (
@@ -589,7 +599,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                                 </select>
                             </div>
 
-                            {Number(formik.values.deposit) > 0 && formik.values.paymentMethod !== 'EFECTIVO' && (
+                            {Number(formik.values.deposit) > 0 && (
                                 <>
                                     <div className="space-y-2">
                                         <Label htmlFor="bankAccountId">Cuenta de Destino</Label>
@@ -603,26 +613,30 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                                             <p className="text-red-500 text-xs">{formik.errors.bankAccountId}</p>
                                         )}
                                     </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="transactionDate">Fecha Transacción</Label>
-                                        <Input type="date" id="transactionDate" {...formik.getFieldProps('transactionDate')} />
-                                        {formik.touched.transactionDate && formik.errors.transactionDate && (
-                                            <p className="text-red-500 text-xs">{formik.errors.transactionDate}</p>
-                                        )}
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="transactionReference">
-                                            {formik.values.paymentMethod === 'CHEQUE' ? 'N° Cheque' : 'Referencia / Comprobante'}
-                                        </Label>
-                                        <Input
-                                            id="transactionReference"
-                                            {...formik.getFieldProps('transactionReference')}
-                                            placeholder="Ingresa los dígitos de referencia..."
-                                        />
-                                        {formik.touched.transactionReference && formik.errors.transactionReference && (
-                                            <p className="text-red-500 text-xs">{formik.errors.transactionReference}</p>
-                                        )}
-                                    </div>
+                                    {formik.values.paymentMethod !== 'EFECTIVO' && (
+                                        <>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="transactionDate">Fecha Transacción</Label>
+                                                <Input type="date" id="transactionDate" {...formik.getFieldProps('transactionDate')} />
+                                                {formik.touched.transactionDate && formik.errors.transactionDate && (
+                                                    <p className="text-red-500 text-xs">{formik.errors.transactionDate}</p>
+                                                )}
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="transactionReference">
+                                                    {formik.values.paymentMethod === 'CHEQUE' ? 'N° Cheque' : 'Referencia / Comprobante'}
+                                                </Label>
+                                                <Input
+                                                    id="transactionReference"
+                                                    {...formik.getFieldProps('transactionReference')}
+                                                    placeholder="Ingresa los dígitos de referencia..."
+                                                />
+                                                {formik.touched.transactionReference && formik.errors.transactionReference && (
+                                                    <p className="text-red-500 text-xs">{formik.errors.transactionReference}</p>
+                                                )}
+                                            </div>
+                                        </>
+                                    )}
                                 </>
                             )}
                         </div>

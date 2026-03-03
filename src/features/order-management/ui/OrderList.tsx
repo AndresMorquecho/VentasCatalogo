@@ -9,7 +9,8 @@ import { OrderTable } from "./OrderTable"
 import { OrderDetailModal } from "./OrderDetailModal"
 import { OrderFormModal } from "./OrderFormModal"
 import { ConfirmDialog } from "@/shared/ui/confirm-dialog"
-import { useToast } from "@/shared/ui/use-toast"
+import { logAction } from "@/shared/lib/auditService"
+import { useNotifications } from "@/shared/lib/notifications"
 import { getPaidAmount } from "@/entities/order/model/model"
 import type { Order } from "@/entities/order/model/types"
 import { useAuth } from "@/shared/auth"
@@ -19,7 +20,7 @@ import { useQueryClient } from "@tanstack/react-query" // Added queryClient
 export function OrderList() {
     const { data: orders = [], isLoading } = useOrderList()
     const deleteOrder = useDeleteOrder()
-    const { showToast } = useToast()
+    const { notifySuccess, notifyError } = useNotifications()
     const qc = useQueryClient()
     const {
         statusFilter,
@@ -28,7 +29,7 @@ export function OrderList() {
         setSearchQuery,
         filteredOrders
     } = useOrderFilters(orders)
-    const { hasPermission } = useAuth()
+    const { hasPermission, user } = useAuth()
 
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
     const [modalMode, setModalMode] = useState<'none' | 'detail' | 'create' | 'edit' | 'delete' | 'reverse'>('none')
@@ -40,7 +41,7 @@ export function OrderList() {
 
     const handleEdit = (order: Order) => {
         if (!hasPermission('orders.edit')) {
-            showToast('No tienes permiso para editar pedidos', 'error')
+            notifyError({ message: 'No tienes permiso para editar pedidos' })
             return
         }
         setSelectedOrder(order)
@@ -56,18 +57,18 @@ export function OrderList() {
         if (!selectedOrder) return
         try {
             await orderApi.reverseReception(selectedOrder.id)
-            showToast("La recepción ha sido revertida correctamente.", "success")
+            notifySuccess("La recepción ha sido revertida correctamente.")
             await qc.invalidateQueries({ queryKey: ['orders'] })
             setModalMode('none')
             setSelectedOrder(null)
         } catch (error) {
-            showToast(error instanceof Error ? error.message : "Error al revertir recepción", "error")
+            notifyError(error, "Error al revertir recepción")
         }
     }
 
     const handleDeleteClick = (order: Order) => {
         if (!hasPermission('orders.delete')) {
-            showToast('No tienes permiso para eliminar pedidos', 'error')
+            notifyError({ message: 'No tienes permiso para eliminar pedidos' })
             return
         }
         setSelectedOrder(order)
@@ -79,17 +80,26 @@ export function OrderList() {
 
         try {
             await deleteOrder.mutateAsync(selectedOrder.id)
-            showToast(`Pedido ${selectedOrder.receiptNumber} eliminado físicamente y saldos revertidos`, 'success')
+            if (user) {
+                logAction({
+                    userId: user.id,
+                    userName: user.username,
+                    action: 'DELETE_ORDER',
+                    module: 'orders',
+                    detail: `Eliminó pedido ${selectedOrder.receiptNumber} de la empresaria: ${selectedOrder.clientName}. Monto revertido de saldos.`
+                });
+            }
+            notifySuccess(`Pedido ${selectedOrder.receiptNumber} eliminado físicamente y saldos revertidos`)
             setModalMode('none')
             setSelectedOrder(null)
         } catch (error) {
-            showToast(error instanceof Error ? error.message : 'Error al eliminar el pedido', 'error')
+            notifyError(error, 'Error al eliminar el pedido')
         }
     }
 
     const handleCreate = () => {
         if (!hasPermission('orders.create')) {
-            showToast('No tienes permiso para crear pedidos', 'error')
+            notifyError({ message: 'No tienes permiso para crear pedidos' })
             return
         }
         setSelectedOrder(null)

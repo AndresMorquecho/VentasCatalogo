@@ -75,11 +75,13 @@ export const useUsers = () => {
 
 // ─── Audit Log — fetched from backend ──────────────────────────────────────
 export const useAuditLog = () => {
-    const { data: entries = [], isLoading } = useQuery({
+    const { data, isLoading, isError } = useQuery({
         queryKey: ['audit-logs'],
         queryFn: auditApi.getAll,
-        refetchInterval: 30000, // Poll every 30s
+        refetchInterval: 30000,
     });
 
-    return { entries, isLoading };
+    const entries = Array.isArray(data) ? data : (data as any)?.data || [];
+
+    return { entries, isLoading, isError };
 };
