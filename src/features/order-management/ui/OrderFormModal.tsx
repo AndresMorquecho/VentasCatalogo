@@ -77,8 +77,10 @@ const validationSchema = Yup.object({
         then: (schema) => schema.required("Referencia / N° cheque requerido"),
         otherwise: (schema) => schema.notRequired()
     }),
+    createdAt: Yup.string().required("Fecha de registro requerida"),
     possibleDeliveryDate: Yup.string().required("Fecha de entrega requerida"),
 })
+
 
 /* --- Simple Searchable Select Component --- */
 interface Option {
@@ -238,9 +240,11 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
             bankAccountId: order?.bankAccountId || "",
             transactionDate: order?.transactionDate || new Date().toISOString().split('T')[0],
             transactionReference: "", // New field
+            createdAt: order?.createdAt ? new Date(order.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
             possibleDeliveryDate: order?.possibleDeliveryDate ? new Date(order.possibleDeliveryDate).toISOString().split('T')[0] : "",
             status: order?.status || "POR_RECIBIR" as OrderStatus,
         },
+
         validationSchema,
         enableReinitialize: true,
         onSubmit: async (values) => {
@@ -393,8 +397,8 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
 
                 <form onSubmit={formik.handleSubmit} className="space-y-4 sm:space-y-6 py-2 sm:py-4">
                     {/* Fila 1: Cliente y Recibo */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                        <div className="space-y-2">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+                        <div className="space-y-2 md:col-span-1">
                             <Label htmlFor="clientId">Cliente (Nombre / Cédula)</Label>
                             <SearchableSelect
                                 options={clientOptions}
@@ -438,13 +442,21 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                             {formik.touched.receiptNumber && formik.errors.receiptNumber && (
                                 <p className="text-red-500 text-xs">{formik.errors.receiptNumber}</p>
                             )}
-                            {!isEditing && (
-                                <p className="text-xs text-muted-foreground">
-                                    Editable - El sistema valida que no exista
-                                </p>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="createdAt">Fecha Registro</Label>
+                            <Input
+                                type="date"
+                                id="createdAt"
+                                {...formik.getFieldProps('createdAt')}
+                            />
+                            {formik.touched.createdAt && formik.errors.createdAt && (
+                                <p className="text-red-500 text-xs">{formik.errors.createdAt}</p>
                             )}
                         </div>
                     </div>
+
 
                     <Separator />
 

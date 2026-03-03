@@ -77,7 +77,9 @@ export interface OrderPayload {
     items: OrderItem[];
     notes?: string;
     receiptNumber: string;
+    createdAt?: string; // Manual registration date (ISO string/date string)
     // Financials update
     payments?: OrderPayment[];
     // REMOVED: paidAmount - Calculated from payments[] array
 }
+
