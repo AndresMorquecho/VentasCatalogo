@@ -13,6 +13,14 @@ export const clientCreditApi = {
   },
 
   /**
+   * Get summary of credits for all clients
+   * @endpoint GET /api/client-credits/summary
+   */
+  getSummary: async (): Promise<any[]> => {
+    return httpClient.get<any[]>('/client-credits/summary');
+  },
+
+  /**
    * Get available credits by client
    * @endpoint GET /api/client-credits?clientId=:clientId&status=AVAILABLE
    */

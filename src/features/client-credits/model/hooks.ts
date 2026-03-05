@@ -1,45 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { clientCreditApi } from '@/shared/api/clientCreditApi';
-import { clientApi } from '@/shared/api/clientApi';
 import type { ClientCreditSummary } from './types';
 
 export function useClientCredits() {
     return useQuery({
         queryKey: ['client-credits-summary'],
         queryFn: async (): Promise<ClientCreditSummary[]> => {
-            const clients = await clientApi.getAll();
-            const summaries: ClientCreditSummary[] = [];
-
-            for (const client of clients) {
-                const credits = await clientCreditApi.getAvailableByClient(client.id);
-
-                if (credits.length > 0) {
-                    const totalCredit = credits.reduce((sum, c) => sum + Number(c.remainingAmount), 0);
-                    const totalGenerated = credits.reduce((sum, c) => sum + Number(c.amount), 0);
-                    const totalUsed = totalGenerated - totalCredit;
-
-                    if (totalCredit > 0.01) {
-                        summaries.push({
-                            clientId: client.id,
-                            clientName: client.firstName,
-                            clientIdentification: client.identificationNumber,
-                            clientPhone: client.phone1,
-                            totalCredit: totalCredit,
-                            totalGenerated: totalGenerated,
-                            totalUsed: totalUsed,
-                            lastUpdated: credits[credits.length - 1].createdAt,
-                            credits: credits.map(c => ({
-                                id: c.id,
-                                amount: c.remainingAmount, // use remaining conceptually mapping to 'amount' in UI for this view
-                                originTransactionId: c.originTransactionId,
-                                createdAt: c.createdAt
-                            }))
-                        });
-                    }
-                }
-            }
-
-            return summaries.sort((a, b) => b.totalCredit - a.totalCredit);
+            return clientCreditApi.getSummary();
         },
         staleTime: 30000,
     });
