@@ -1,25 +1,48 @@
-import { Eye, Pencil, Trash2, RotateCcw } from "lucide-react" // Added RotateCcw
+import { useMemo } from "react"
+import { Eye, Pencil, Trash2, RotateCcw, AlertCircle } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import type { Order, OrderStatus } from "@/entities/order/model/types"
 import { getPaidAmount, getPendingAmount } from "@/entities/order/model/model"
 import { OrderStatusBadge } from "./OrderStatusBadge"
 import { useAuth } from "@/shared/auth"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/shared/ui/tooltip"
 
 interface OrderTableProps {
     orders: Order[]
     onViewDetails: (order: Order) => void
     onEdit: (order: Order) => void
     onDelete: (order: Order) => void
-    onReverse?: (order: Order) => void // Added onReverse
+    onReverse?: (order: Order) => void
 }
 
 const ROW_STATUS_CLASSES: Record<OrderStatus, string> = {
-    RECIBIDO: "bg-emerald-50/40 hover:bg-emerald-50/70",
-    POR_RECIBIR: "bg-amber-50/40 hover:bg-amber-50/70",
-    ATRASADO: "bg-red-50/40 hover:bg-red-50/70",
-    CANCELADO: "bg-gray-50/40 hover:bg-gray-50/70",
-    RECIBIDO_EN_BODEGA: "bg-blue-50/40 hover:bg-blue-50/70",
-    ENTREGADO: "bg-slate-50/40 hover:bg-slate-50/70",
+    RECIBIDO: "bg-emerald-50/20 hover:bg-emerald-50/40",
+    POR_RECIBIR: "bg-amber-50/20 hover:bg-amber-50/40",
+    ATRASADO: "bg-red-50/20 hover:bg-red-50/40",
+    CANCELADO: "bg-gray-50/20 hover:bg-gray-50/40",
+    RECIBIDO_EN_BODEGA: "bg-blue-50/20 hover:bg-blue-50/40",
+    ENTREGADO: "bg-slate-50/20 hover:bg-slate-50/40",
+}
+
+// Professional color palette for group accents
+const ACCENT_COLORS = [
+    "bg-indigo-600",
+    "bg-emerald-600",
+    "bg-rose-600",
+    "bg-amber-600",
+    "bg-violet-600",
+    "bg-cyan-600",
+    "bg-orange-600",
+    "bg-fuchsia-600"
+];
+
+function getAccentColor(receiptNumber: string) {
+    let hash = 0;
+    for (let i = 0; i < receiptNumber.length; i++) {
+        hash = receiptNumber.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % ACCENT_COLORS.length;
+    return ACCENT_COLORS[index];
 }
 
 function formatDate(dateString: string): string {
@@ -37,119 +60,199 @@ function formatCurrency(amount: number): string {
 export function OrderTable({ orders, onViewDetails, onEdit, onDelete, onReverse }: OrderTableProps) {
     const { hasPermission } = useAuth()
 
+    const processedOrders = useMemo(() => {
+        const groups: Record<string, Order[]> = {};
+        const sequence: string[] = [];
+
+        orders.forEach(order => {
+            const rn = order.receiptNumber;
+            if (!groups[rn]) {
+                groups[rn] = [];
+                sequence.push(rn);
+            }
+            groups[rn].push(order);
+        });
+
+        return sequence.flatMap(rn => groups[rn]);
+    }, [orders]);
+
     return (
-        <div className="rounded-lg border bg-card overflow-hidden">
-            <div className="overflow-x-auto">
-                <table className="w-full text-sm min-w-[1200px]">
-                    <thead>
-                        <tr className="border-b bg-muted/50">
-                            <th className="text-left font-medium text-muted-foreground px-2 sm:px-3 md:px-4 py-2 sm:py-3 text-xs sm:text-sm whitespace-nowrap">Pedido por</th>
-                            <th className="text-left font-medium text-muted-foreground px-2 sm:px-3 md:px-4 py-2 sm:py-3 text-xs sm:text-sm whitespace-nowrap">N° Pedido</th>
-                            <th className="text-left font-medium text-muted-foreground px-2 sm:px-3 md:px-4 py-2 sm:py-3 text-xs sm:text-sm whitespace-nowrap">Tipo</th>
-                            <th className="text-left font-medium text-muted-foreground px-2 sm:px-3 md:px-4 py-2 sm:py-3 text-xs sm:text-sm whitespace-nowrap">Cliente</th>
-                            <th className="text-left font-medium text-muted-foreground px-2 sm:px-3 md:px-4 py-2 sm:py-3 text-xs sm:text-sm whitespace-nowrap">Marca</th>
-                            <th className="text-right font-medium text-muted-foreground px-2 sm:px-3 md:px-4 py-2 sm:py-3 text-xs sm:text-sm whitespace-nowrap">Valor del pedido</th>
-                            <th className="text-right font-medium text-muted-foreground px-2 sm:px-3 md:px-4 py-2 sm:py-3 text-xs sm:text-sm whitespace-nowrap">Abono</th>
-                            <th className="text-right font-medium text-muted-foreground px-2 sm:px-3 md:px-4 py-2 sm:py-3 text-xs sm:text-sm whitespace-nowrap">Saldo pendiente</th>
-                            <th className="text-left font-medium text-muted-foreground px-2 sm:px-3 md:px-4 py-2 sm:py-3 text-xs sm:text-sm whitespace-nowrap">Posible entrega</th>
-                            <th className="text-left font-medium text-muted-foreground px-2 sm:px-3 md:px-4 py-2 sm:py-3 text-xs sm:text-sm whitespace-nowrap">Estado</th>
-                            <th className="text-center font-medium text-muted-foreground px-2 sm:px-3 md:px-4 py-2 sm:py-3 w-[100px] text-xs sm:text-sm whitespace-nowrap">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {orders.map((order) => {
-                            // Logic to determine if showing Reverse instead of Edit
-                            const showReverse = order.status === 'RECIBIDO_EN_BODEGA' && !order.deliveryDate;
+        <TooltipProvider>
+            <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm min-w-[1200px] border-collapse">
+                        <thead>
+                            <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
+                                <th className="px-5 py-4 text-left w-[140px]">Origen</th>
+                                <th className="px-5 py-4 text-left w-[180px]">Número Recibo</th>
+                                <th className="px-5 py-4 text-left w-[130px]">N° Pedido</th>
+                                <th className="px-5 py-4 text-left w-[130px]">Tipo</th>
+                                <th className="px-5 py-4 text-left">Cliente</th>
+                                <th className="px-5 py-4 text-left">Marca</th>
+                                <th className="px-5 py-4 text-right w-[110px]">Total</th>
+                                <th className="px-5 py-4 text-right w-[100px]">Abono</th>
+                                <th className="px-5 py-4 text-right w-[110px]">Saldo</th>
+                                <th className="px-5 py-4 text-left w-[130px]">F. Entrega</th>
+                                <th className="px-5 py-4 text-left w-[150px]">Estado</th>
+                                <th className="px-5 py-4 text-center w-[130px]">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {processedOrders.map((order, idx) => {
+                                const showReverse = order.status === 'RECIBIDO_EN_BODEGA' && !order.deliveryDate;
 
-                            return (
-                                <tr
-                                    key={order.id}
-                                    className={`border-b last:border-b-0 transition-colors ${ROW_STATUS_CLASSES[order.status] || ""}`}
-                                >
-                                    <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-3">
-                                        <span className={`inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs font-medium whitespace-nowrap ${order.salesChannel === 'WHATSAPP'
-                                            ? 'bg-green-100 text-green-800'
-                                            : order.salesChannel === 'DOMICILIO'
-                                                ? 'bg-blue-100 text-blue-800'
-                                                : 'bg-slate-100 text-slate-800'
-                                            }`}>
-                                            {order.salesChannel}
-                                        </span>
-                                    </td>
-                                    <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-3 font-medium text-xs sm:text-sm whitespace-nowrap">{order.receiptNumber}</td>
-                                    <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-3 text-muted-foreground capitalize text-xs sm:text-sm whitespace-nowrap">{order.type.toLowerCase()}</td>
-                                    <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-3 font-medium text-xs sm:text-sm">{order.clientName}</td>
-                                    <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-3 text-xs sm:text-sm">{order.brandName}</td>
-                                    <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-3 text-right font-medium text-xs sm:text-sm whitespace-nowrap">{formatCurrency(order.total)}</td>
-                                    <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-3 text-right text-muted-foreground text-xs sm:text-sm whitespace-nowrap">{formatCurrency(getPaidAmount(order))}</td>
-                                    <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-3 text-right font-medium text-red-600 text-xs sm:text-sm whitespace-nowrap">
-                                        {formatCurrency(Math.max(0, getPendingAmount(order)))}
-                                    </td>
-                                    <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-3 text-muted-foreground text-xs sm:text-sm whitespace-nowrap">
-                                        {formatDate(order.possibleDeliveryDate)}
-                                    </td>
-                                    <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-3">
-                                        <OrderStatusBadge status={order.status} />
-                                    </td>
-                                    <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-3 text-center">
-                                        <div className="flex justify-center gap-0.5 sm:gap-1">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                                                onClick={() => onViewDetails(order)}
-                                                title="Ver detalle"
-                                            >
-                                                <Eye className="h-4 w-4" />
-                                                <span className="sr-only">Ver</span>
-                                            </Button>
+                                // Grouping state
+                                const isFirstInGroup = idx === 0 || processedOrders[idx - 1].receiptNumber !== order.receiptNumber;
+                                const isGrouped = !isFirstInGroup;
+                                const hasNextInGroup = idx < processedOrders.length - 1 && processedOrders[idx + 1].receiptNumber === order.receiptNumber;
 
-                                            {showReverse ? (
+                                const accentColor = getAccentColor(order.receiptNumber);
+
+                                // BUSINESS RULE: Cannot edit if any movement happened (status != POR_RECIBIR)
+                                // Movemet means it was received, delivered or canceled.
+                                const hasMovement = order.status !== 'POR_RECIBIR';
+                                const canEdit = !hasMovement;
+
+                                return (
+                                    <tr
+                                        key={order.id}
+                                        className={`transition-all duration-200 ${ROW_STATUS_CLASSES[order.status as OrderStatus] || "hover:bg-slate-50"} relative group`}
+                                    >
+                                        <td className="px-5 py-3 relative">
+                                            {/* Advanced Multi-Color Border Accent */}
+                                            {(isFirstInGroup || isGrouped || hasNextInGroup) && (
+                                                <div
+                                                    className={`absolute left-0 ${isFirstInGroup ? 'top-1.5' : 'top-0'} ${hasNextInGroup ? 'bottom-0' : 'bottom-1.5'} w-1.5 ${accentColor} opacity-90 transition-all group-hover:w-2 group-hover:opacity-100 rounded-r-sm`}
+                                                />
+                                            )}
+                                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-tight shadow-sm ${order.salesChannel === 'WHATSAPP' ? 'bg-green-100 text-green-700' :
+                                                order.salesChannel === 'DOMICILIO' ? 'bg-blue-100 text-blue-700' :
+                                                    'bg-slate-100 text-slate-600'
+                                                }`}>
+                                                {order.salesChannel}
+                                            </span>
+                                        </td>
+
+                                        <td className="px-5 py-3">
+                                            <div className="flex items-center gap-3">
+                                                {isFirstInGroup && (
+                                                    <div className={`w-2 h-2 rounded-full ${accentColor} shadow-sm`} />
+                                                )}
+                                                <span className={`text-sm tracking-tight ${isGrouped ? 'text-slate-400 font-medium pl-5 italic' : 'text-slate-900 font-extrabold'}`}>
+                                                    {order.receiptNumber}
+                                                </span>
+                                            </div>
+                                        </td>
+
+                                        <td className="px-5 py-3 text-xs font-mono font-medium text-slate-500 bg-slate-50/30">
+                                            {order.orderNumber || '---'}
+                                        </td>
+
+                                        <td className="px-5 py-3">
+                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${order.type === 'REPROGRAMACION' ? 'bg-purple-50 text-purple-700 border-purple-100' :
+                                                'bg-slate-50 text-slate-500 border-slate-100'
+                                                }`}>
+                                                {order.type}
+                                            </span>
+                                        </td>
+
+                                        <td className="px-5 py-3 font-semibold text-slate-700 truncate max-w-[200px]">{order.clientName}</td>
+
+                                        <td className="px-5 py-3">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-slate-600 font-medium">{order.brandName}</span>
+                                            </div>
+                                        </td>
+
+                                        <td className="px-5 py-3 text-right font-bold text-slate-900">{formatCurrency(Number(order.total))}</td>
+                                        <td className="px-5 py-3 text-right text-emerald-600 font-semibold">{formatCurrency(getPaidAmount(order))}</td>
+                                        <td className="px-5 py-3 text-right font-black text-rose-600">{formatCurrency(getPendingAmount(order))}</td>
+
+                                        <td className="px-5 py-3 text-xs text-slate-500 font-medium">
+                                            {order.possibleDeliveryDate ? formatDate(order.possibleDeliveryDate) : '---'}
+                                        </td>
+
+                                        <td className="px-5 py-3">
+                                            <OrderStatusBadge status={order.status as OrderStatus} />
+                                        </td>
+
+                                        <td className="px-5 py-3">
+                                            <div className="flex justify-center items-center gap-1.5">
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
-                                                    className="h-8 w-8 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
-                                                    onClick={() => onReverse?.(order)}
-                                                    title="Regresar Recepción"
+                                                    className="h-8 w-8 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                                                    onClick={() => onViewDetails(order)}
+                                                    title="Ver detalles"
                                                 >
-                                                    <RotateCcw className="h-4 w-4" />
-                                                    <span className="sr-only">Regresar</span>
+                                                    <Eye className="h-4 w-4" />
                                                 </Button>
-                                            ) : (
-                                                hasPermission('orders.edit') && (
+
+                                                {showReverse ? (
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        className="h-8 w-8 text-muted-foreground hover:text-blue-600"
-                                                        onClick={() => onEdit(order)}
-                                                        title="Editar pedido"
+                                                        className="h-8 w-8 text-amber-600 hover:bg-amber-50"
+                                                        onClick={() => onReverse?.(order)}
+                                                        title="Regresar recepción"
                                                     >
-                                                        <Pencil className="h-4 w-4" />
-                                                        <span className="sr-only">Editar</span>
+                                                        <RotateCcw className="h-4 w-4" />
                                                     </Button>
-                                                )
-                                            )}
+                                                ) : (
+                                                    hasPermission('orders.edit') && (
+                                                        canEdit ? (
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-8 w-8 text-slate-900 hover:bg-slate-100 font-bold"
+                                                                onClick={() => onEdit(order)}
+                                                                title="Editar recibo completo"
+                                                            >
+                                                                <Pencil className="h-4 w-4" />
+                                                            </Button>
+                                                        ) : (
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <div className="cursor-not-allowed opacity-30">
+                                                                        <Button variant="ghost" size="icon" className="h-8 w-8" disabled>
+                                                                            <Pencil className="h-4 w-4 text-slate-400" />
+                                                                        </Button>
+                                                                    </div>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent side="top" className="bg-slate-900 text-white border-none text-[10px]">
+                                                                    No se puede editar: Pedido ya {order.status === 'ENTREGADO' ? 'entregado' : 'procesado'}
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        )
+                                                    )
+                                                )}
 
-                                            {hasPermission('orders.delete') && (
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8 text-muted-foreground hover:text-red-600"
-                                                    onClick={() => onDelete(order)}
-                                                    title="Eliminar pedido"
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                    <span className="sr-only">Eliminar</span>
-                                                </Button>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            )
-                        })}
-                    </tbody>
-                </table>
+                                                {hasPermission('orders.delete') && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-slate-300 hover:text-red-600 hover:bg-red-50 transition-colors"
+                                                        onClick={() => onDelete(order)}
+                                                        title="Eliminar registro"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                )}
+
+                                                {!canEdit && (
+                                                    <div title="Este pedido ya tiene movimientos y no puede ser modificado">
+                                                        <AlertCircle className="h-3.5 w-3.5 text-amber-400 opacity-50 ml-1" />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )
+                            })}
+                        </tbody>
+                    </table>
+                </div>
             </div>
-        </div>
+        </TooltipProvider>
     )
 }

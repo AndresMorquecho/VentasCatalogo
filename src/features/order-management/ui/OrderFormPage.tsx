@@ -182,6 +182,8 @@ export function OrderFormPage() {
 
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isLoadingReceiptNumber, setIsLoadingReceiptNumber] = useState(false)
+    const [originalOrderIds, setOriginalOrderIds] = useState<string[]>([])
+    const [isLoadingRelated, setIsLoadingRelated] = useState(false)
 
     // State for the item being added
     const [currentItem, setCurrentItem] = useState({
@@ -233,28 +235,66 @@ export function OrderFormPage() {
                 const creditAmount = Number(values.creditToUse) || 0;
 
                 if (isEditing && order) {
-                    const item = values.brandItems[0];
-                    const unitPrice = item.quantity > 0 ? item.total / item.quantity : 0;
-                    const payload = {
-                        ...values,
-                        type: item.type as OrderType,
-                        brandId: item.brandId,
-                        brandName: item.brandName,
-                        total: item.total,
-                        possibleDeliveryDate: item.possibleDeliveryDate,
-                        clientName,
-                        notes: values.notes,
-                        items: [{
-                            id: order.items?.[0]?.id || String(Date.now()),
-                            productName: item.brandName,
-                            quantity: item.quantity,
-                            unitPrice: unitPrice,
+                    // 1. Identification of changes
+                    const currentItemIds = values.brandItems.map(i => i.id).filter(Boolean);
+                    const toDelete = originalOrderIds.filter(id => !currentItemIds.includes(id));
+
+                    // 2. Perform updates and creations
+                    let parentId: string | null = null;
+                    const resultOrders: any[] = [];
+
+                    for (let i = 0; i < values.brandItems.length; i++) {
+                        const item = values.brandItems[i];
+                        const unitPrice = item.quantity > 0 ? item.total / item.quantity : 0;
+
+                        const payload = {
+                            clientId: values.clientId,
+                            clientName,
+                            receiptNumber: values.receiptNumber,
+                            salesChannel: item.salesChannel || values.salesChannel,
+                            type: item.type,
                             brandId: item.brandId,
-                            brandName: item.brandName
-                        }]
-                    };
-                    await updateOrder.mutateAsync({ id: order.id, data: payload as any });
-                    notifySuccess(`Pedido de ${clientName} actualizado.`);
+                            brandName: item.brandName,
+                            total: item.total,
+                            possibleDeliveryDate: item.possibleDeliveryDate,
+                            notes: values.notes,
+                            createdAt: values.createdAt,
+                            items: [{
+                                productName: item.brandName,
+                                quantity: item.quantity,
+                                unitPrice: unitPrice,
+                                brandId: item.brandId,
+                                brandName: item.brandName
+                            }],
+                            deposit: Number(item.deposit || 0),
+                            creditToUse: i === 0 ? creditAmount : 0,
+                            paymentMethod: values.paymentMethod,
+                            bankAccountId: values.bankAccountId,
+                            transactionDate: values.transactionDate,
+                            transactionReference: values.transactionReference,
+                            parentOrderId: parentId || undefined,
+                            orderNumber: item.orderNumber || undefined
+                        };
+
+                        let res;
+                        if (item.id) {
+                            // Update existing
+                            res = await updateOrder.mutateAsync({ id: item.id, data: payload as any });
+                        } else {
+                            // Create new (added during edit)
+                            res = await createOrder.mutateAsync(payload as any);
+                        }
+
+                        resultOrders.push(res);
+                        if (i === 0) parentId = res.id;
+                    }
+
+                    // 3. Delete removed items
+                    for (const idToDelete of toDelete) {
+                        await orderApi.delete(idToDelete);
+                    }
+
+                    notifySuccess(`Recibo ${values.receiptNumber} actualizado.`);
                     navigate('/orders');
                 } else {
                     let parentId: string | null = null;
@@ -386,38 +426,56 @@ export function OrderFormPage() {
         }
     }, [currentItem.type, formik.values.brandItems.length]);
 
-    // Update formik when order data is loaded for editing
+    // Update formik when order data is loaded for editing - Load all associated items
     useEffect(() => {
-        if (order && isEditing) {
-            formik.setValues({
-                clientId: order.clientId || "",
-                receiptNumber: order.receiptNumber || "",
-                salesChannel: (order.salesChannel as SalesChannel) || "OFICINA",
-                brandItems: [
-                    {
-                        brandId: order.brandId,
-                        brandName: order.brandName,
-                        quantity: order.items?.[0]?.quantity || 1,
-                        total: order.total || 0,
-                        type: order.type || "NORMAL",
-                        possibleDeliveryDate: order.possibleDeliveryDate ? new Date(order.possibleDeliveryDate).toISOString().split('T')[0] : "",
-                        salesChannel: order.salesChannel || "OFICINA",
-                        orderNumber: order.orderNumber || "",
-                        deposit: order.payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0
-                    }
-                ],
-                deposit: order.payments?.find(p => p.method !== 'CREDITO_CLIENTE')?.amount || 0,
-                creditToUse: 0,
-                paymentMethod: (order.paymentMethod === 'CREDITO_CLIENTE' ? 'EFECTIVO' : order.paymentMethod) as PaymentMethod || "EFECTIVO",
-                bankAccountId: order.bankAccountId || "",
-                transactionDate: order.transactionDate || new Date().toISOString().split('T')[0],
-                transactionReference: "",
-                createdAt: order.createdAt ? new Date(order.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-                notes: order.notes || "",
-            });
-        } else if (!isEditing) {
-            generateNextReceiptNumber();
-        }
+        const loadAllItems = async () => {
+            if (order && isEditing) {
+                setIsLoadingRelated(true);
+                try {
+                    // Fetch all orders sharing the same receipt number
+                    const related = await orderApi.getAll({ search: order.receiptNumber, limit: 100 });
+                    const allItems = related.data || [order];
+
+                    setOriginalOrderIds(allItems.map((o: any) => o.id));
+
+                    formik.setValues({
+                        clientId: order.clientId || "",
+                        receiptNumber: order.receiptNumber || "",
+                        salesChannel: (order.salesChannel as SalesChannel) || "OFICINA",
+                        brandItems: allItems.map((o: any) => ({
+                            id: o.id,
+                            brandId: o.brandId,
+                            brandName: o.brandName,
+                            quantity: o.items?.[0]?.quantity || 1,
+                            total: Number(o.total) || 0,
+                            type: o.type || "NORMAL",
+                            possibleDeliveryDate: o.possibleDeliveryDate ? new Date(o.possibleDeliveryDate).toISOString().split('T')[0] : "",
+                            salesChannel: o.salesChannel || "OFICINA",
+                            orderNumber: o.orderNumber || "",
+                            deposit: Number(o.payments?.reduce((sum: number, p: any) => sum + Number(p.amount), 0) || 0)
+                        })),
+                        deposit: 0, // Calculated from row sums
+                        creditToUse: 0,
+                        paymentMethod: (order.paymentMethod === 'CREDITO_CLIENTE' ? 'EFECTIVO' : order.paymentMethod) as PaymentMethod || "EFECTIVO",
+                        bankAccountId: order.bankAccountId || "",
+                        transactionDate: order.transactionDate ? new Date(order.transactionDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+                        transactionReference: "",
+                        createdAt: order.createdAt ? new Date(order.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+                        notes: order.notes || "",
+                    });
+                } catch (err) {
+                    console.error("Error loading related orders", err);
+                    notifyError(null, "No se pudieron cargar todos los pedidos del recibo.");
+                } finally {
+                    setIsLoadingRelated(false);
+                }
+            } else if (!isEditing) {
+                generateNextReceiptNumber();
+                setOriginalOrderIds([]);
+            }
+        };
+
+        loadAllItems();
     }, [order, isEditing]);
 
     const { data: creditsResponse } = useClientCredits(formik.values.clientId)
@@ -488,20 +546,21 @@ export function OrderFormPage() {
         formik.setFieldValue("brandItems", items);
     }
 
-    if (isEditing && isLoadingOrder) {
+    if ((isEditing && isLoadingOrder) || isLoadingRelated) {
         return (
-            <div className="flex h-[60vh] items-center justify-center">
-                <RefreshCw className="h-8 w-8 animate-spin text-indigo-600" />
+            <div className="flex h-[60vh] flex-col items-center justify-center gap-4">
+                <RefreshCw className="h-10 w-10 animate-spin text-slate-800" />
+                <p className="text-slate-500 font-medium animate-pulse">Cargando todos los pedidos del recibo...</p>
             </div>
         )
     }
 
     return (
-        <div className="max-w-7xl mx-auto space-y-3 pb-8 px-4">
+        <form onSubmit={formik.handleSubmit} className="max-w-7xl mx-auto space-y-4 pb-12 px-4">
             {/* Header Toolbar */}
             <div className="flex items-center justify-between bg-white px-4 py-3 rounded-lg border shadow-sm">
                 <div className="flex items-center gap-3">
-                    <Button variant="ghost" size="icon" onClick={() => navigate('/orders')} className="h-8 w-8">
+                    <Button type="button" variant="ghost" size="icon" onClick={() => navigate('/orders')} className="h-8 w-8">
                         <ArrowLeft className="h-4 w-4" />
                     </Button>
                     <h1 className="text-lg font-bold text-slate-800">
@@ -672,10 +731,9 @@ export function OrderFormPage() {
                         <Button
                             type="button"
                             onClick={handleAddItem}
-                            disabled={isEditing}
-                            className="h-8 w-full bg-slate-800 hover:bg-slate-900 px-2 text-xs"
+                            className="h-8 w-full bg-slate-900 hover:bg-black px-2 text-xs font-bold transition-all"
                         >
-                            Agregar
+                            <Plus className="h-3 w-3 mr-1" /> Agregar
                         </Button>
                     </div>
                 </div>
@@ -705,6 +763,7 @@ export function OrderFormPage() {
                                     // Visual distribution balance
                                     const distributedAbono = Number(item.deposit || 0);
                                     const rowSaldo = Number(item.total) - distributedAbono;
+                                    const itemHasMovement = item.id && order?.status !== 'POR_RECIBIR';
 
                                     return (
                                         <tr key={idx} className="hover:bg-indigo-50/20 transition-colors">
@@ -747,6 +806,7 @@ export function OrderFormPage() {
                                                             items[idx].deposit = Number(e.target.value);
                                                             formik.setFieldValue("brandItems", items);
                                                         }}
+                                                        disabled={itemHasMovement} // Movement check per item too if needed, though we disabled edit at table level
                                                     />
                                                 </div>
                                             </td>
@@ -842,8 +902,8 @@ export function OrderFormPage() {
                     </CardContent>
                     <div className="p-2 border-t bg-slate-50 flex gap-2">
                         <AsyncButton
+                            type="submit"
                             className="w-full bg-slate-800"
-                            onClick={() => formik.handleSubmit()}
                             isLoading={isSubmitting}
                         >
                             <Plus className="h-4 w-4 mr-2" /> Guardar Recibo
@@ -851,6 +911,6 @@ export function OrderFormPage() {
                     </div>
                 </Card>
             </div>
-        </div>
+        </form>
     )
 }

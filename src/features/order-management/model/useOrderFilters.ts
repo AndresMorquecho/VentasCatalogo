@@ -17,10 +17,10 @@ export function useOrderFilters(orders: Order[] = []) {
             // 2. Filter by search query (client, brand, receipt)
             if (searchQuery.trim()) {
                 const query = searchQuery.toLowerCase().trim()
-                const matchesClient = order.clientName.toLowerCase().includes(query)
-                const matchesBrand = order.brandName.toLowerCase().includes(query)
-                const matchesReceipt = order.receiptNumber.toLowerCase().includes(query)
-                
+                const matchesClient = (order.clientName || '').toLowerCase().includes(query)
+                const matchesBrand = (order.brandName || '').toLowerCase().includes(query)
+                const matchesReceipt = (order.receiptNumber || '').toLowerCase().includes(query)
+
                 if (!matchesClient && !matchesBrand && !matchesReceipt) {
                     return false
                 }
