@@ -40,21 +40,19 @@ const validationSchema = Yup.object({
     clientId: Yup.string().required("El cliente es requerido"),
     receiptNumber: Yup.string().required("El N° de recibo es requerido"),
     salesChannel: Yup.string().required("El canal es requerido"),
-    type: Yup.string().required("El tipo es requerido"),
-    brandId: Yup.string().required("La marca es requerida"),
-    brandName: Yup.string().required("La marca es requerida"),
-    quantity: Yup.number().min(1, "Mínimo 1").required("Requerido"),
-    total: Yup.number().min(0, "No negativo").required("Requerido"),
-    creditToUse: Yup.number().min(0, "No negativo").notRequired(),
+    brandItems: Yup.array().of(
+        Yup.object({
+            brandId: Yup.string().required("Requerido"),
+            brandName: Yup.string().required("Requerido"),
+            quantity: Yup.number().min(1, "Mínimo 1").required("Requerido"),
+            total: Yup.number().min(0, "No negativo").required("Requerido"),
+            type: Yup.string().required("Requerido"),
+            possibleDeliveryDate: Yup.string().required("Requerido"),
+        })
+    ).min(1, "Al menos una marca es requerida"),
     deposit: Yup.number()
         .min(0, "No negativo")
-        .required("Requerido")
-        .test('min-deposit', 'El abono debe ser al menos el 50% del total', function (value) {
-            const { total, creditToUse } = this.parent;
-            const totalDeposit = (value || 0) + (creditToUse || 0);
-            if (!totalDeposit || !total) return true;
-            return totalDeposit >= (total * 0.5);
-        }),
+        .required("Requerido"),
     paymentMethod: Yup.string().required("La forma de pago es requerida"),
     bankAccountId: Yup.string().test(
         'is-bank-required',
@@ -78,7 +76,6 @@ const validationSchema = Yup.object({
         otherwise: (schema) => schema.notRequired()
     }),
     createdAt: Yup.string().required("Fecha de registro requerida"),
-    possibleDeliveryDate: Yup.string().required("Fecha de entrega requerida"),
 })
 
 
@@ -176,9 +173,13 @@ function SearchableSelect({
 
 
 export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProps) {
-    const { data: clients = [] } = useClientList()
-    const { data: bankAccounts = [] } = useBankAccountList()
-    const { data: brands = [] } = useBrandList()
+    const { data: clientsResponse } = useClientList({ limit: 500 })
+    const { data: bankAccountsResponse } = useBankAccountList({ limit: 500 })
+    const { data: brandsResponse } = useBrandList({ limit: 500 })
+
+    const clients = clientsResponse?.data || []
+    const bankAccounts = bankAccountsResponse?.data || []
+    const brands = brandsResponse?.data || []
     const createOrder = useCreateOrder()
     const updateOrder = useUpdateOrder()
     const { notifySuccess, notifyError } = useNotifications()
@@ -229,20 +230,32 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
             clientId: order?.clientId || "",
             receiptNumber: order?.receiptNumber || "",
             salesChannel: order?.salesChannel || "OFICINA" as SalesChannel,
-            type: order?.type || "NORMAL" as OrderType,
-            brandId: order?.brandId || (order?.brandName ? brands.find(b => b.name === order.brandName)?.id : "") || "",
-            brandName: order?.brandName || "",
-            quantity: order?.items?.[0]?.quantity || 1,
-            total: order?.total || 0,
+            brandItems: order ? [
+                {
+                    brandId: order.brandId,
+                    brandName: order.brandName,
+                    quantity: order.items?.[0]?.quantity || 1,
+                    total: order.total || 0,
+                    type: order.type || "NORMAL",
+                    possibleDeliveryDate: order.possibleDeliveryDate ? new Date(order.possibleDeliveryDate).toISOString().split('T')[0] : "",
+                }
+            ] : [
+                {
+                    brandId: "",
+                    brandName: "",
+                    quantity: 1,
+                    total: 0,
+                    type: "NORMAL" as OrderType,
+                    possibleDeliveryDate: "",
+                }
+            ],
             deposit: order?.payments?.find(p => p.method !== 'CREDITO_CLIENTE')?.amount || 0,
             creditToUse: 0,
             paymentMethod: (order?.paymentMethod === 'CREDITO_CLIENTE' ? 'EFECTIVO' : order?.paymentMethod) || "EFECTIVO" as PaymentMethod,
             bankAccountId: order?.bankAccountId || "",
             transactionDate: order?.transactionDate || new Date().toISOString().split('T')[0],
-            transactionReference: "", // New field
+            transactionReference: "",
             createdAt: order?.createdAt ? new Date(order.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-            possibleDeliveryDate: order?.possibleDeliveryDate ? new Date(order.possibleDeliveryDate).toISOString().split('T')[0] : "",
-            status: order?.status || "POR_RECIBIR" as OrderStatus,
         },
 
         validationSchema,
@@ -259,78 +272,82 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                     }
                 }
 
-                const client = clients.find(c => c.id === values.clientId)
-                const clientName = client ? client.firstName : "Desconocido"
-                const unitPrice = values.quantity > 0 ? values.total / values.quantity : 0
-                const depositAmount = Number(values.deposit) || 0
-                const isFinancial = ['TRANSFERENCIA', 'DEPOSITO', 'CHEQUE'].includes(values.paymentMethod);
-
-                let finalBankAccountId = values.bankAccountId;
-                if (values.paymentMethod === 'EFECTIVO' && !finalBankAccountId) {
-                    const cashAccount = bankAccounts.find(a => a.type === 'CASH');
-                    if (cashAccount) {
-                        finalBankAccountId = cashAccount.id;
-                    }
-                }
-
-                // Pre-validation for financial transactions
-                if (!isEditing && isFinancial && depositAmount > 0) {
-                    try {
-                        await validateTransaction({
-                            type: 'PAYMENT', // Always PAYMENT for order deposits
-                            source: 'ORDER_PAYMENT',
-                            movementType: 'INCOME',
-                            referenceNumber: values.transactionReference,
-                            amount: depositAmount,
-                            date: values.transactionDate,
-                            clientId: values.clientId,
-                            clientName,
-                            createdBy: user?.username || 'Vendedor',
-                            bankAccountId: finalBankAccountId || 'default',
-                            paymentMethod: values.paymentMethod as 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE'
-                        });
-                    } catch (e: any) {
-                        notifyError(e);
-                        setIsSubmitting(false);
-                        return; // Stop submission
-                    }
-                }
-
-                const payload = {
-                    ...values,
-                    bankAccountId: finalBankAccountId,
-                    clientName,
-                    unitPrice,
-                    // The order is created with 0 paidAmount initially. 
-                    // The deposit is processed as a separate transaction immediately after.
-                    items: [{
-                        id: order?.items?.[0]?.id || String(Date.now()),
-                        productName: values.brandName,
-                        quantity: values.quantity,
-                        unitPrice: unitPrice,
-                        brandId: values.brandId, // CRITICAL: Include brandId in items
-                        brandName: values.brandName
-                    }]
-                };
+                const client = clients.find(c => c.id === values.clientId);
+                const clientName = client ? client.firstName : "Desconocido";
+                const depositAmount = Number(values.deposit) || 0;
+                const creditAmount = Number(values.creditToUse) || 0;
 
                 if (isEditing && order) {
-                    await updateOrder.mutateAsync({ id: order.id, data: payload })
-                    notifySuccess(`Pedido de ${clientName} actualizado correctamente.`);
+                    const item = values.brandItems[0];
+                    const unitPrice = item.quantity > 0 ? item.total / item.quantity : 0;
+                    const payload = {
+                        ...values,
+                        type: item.type as OrderType,
+                        brandId: item.brandId,
+                        brandName: item.brandName,
+                        total: item.total,
+                        possibleDeliveryDate: item.possibleDeliveryDate,
+                        clientName,
+                        items: [{
+                            id: order.items?.[0]?.id || String(Date.now()),
+                            productName: item.brandName,
+                            quantity: item.quantity,
+                            unitPrice: unitPrice,
+                            brandId: item.brandId,
+                            brandName: item.brandName
+                        }]
+                    };
+                    await updateOrder.mutateAsync({ id: order.id, data: payload as any });
+                    notifySuccess(`Pedido de ${clientName} actualizado.`);
                 } else {
-                    // 1. Create the base order
-                    let newOrder = await createOrder.mutateAsync(payload)
+                    // Crear múltiples órdenes (Recibo Madre)
+                    let parentId: string | null = null;
+                    let createdOrders: any[] = [];
 
-                    if (depositAmount > 0) {
-                        // Initial deposit logic is now handled ATOMICALLY by the backend's CreateOrderUseCase
+                    for (let i = 0; i < values.brandItems.length; i++) {
+                        const item = values.brandItems[i];
+                        const unitPrice = item.quantity > 0 ? item.total / item.quantity : 0;
+
+                        const orderPayload = {
+                            clientId: values.clientId,
+                            clientName,
+                            receiptNumber: values.receiptNumber,
+                            salesChannel: values.salesChannel,
+                            type: item.type,
+                            brandId: item.brandId,
+                            brandName: item.brandName,
+                            total: item.total,
+                            createdAt: values.createdAt,
+                            possibleDeliveryDate: item.possibleDeliveryDate,
+                            items: [{
+                                productName: item.brandName,
+                                quantity: item.quantity,
+                                unitPrice: unitPrice,
+                                brandId: item.brandId,
+                                brandName: item.brandName
+                            }],
+                            deposit: i === 0 ? depositAmount : 0,
+                            creditToUse: i === 0 ? creditAmount : 0,
+                            paymentMethod: values.paymentMethod,
+                            bankAccountId: values.bankAccountId,
+                            transactionDate: values.transactionDate,
+                            transactionReference: values.transactionReference,
+                            parentOrderId: parentId || undefined
+                        };
+
+                        const newOrderResult = await createOrder.mutateAsync(orderPayload as any);
+                        createdOrders.push(newOrderResult);
+                        if (i === 0) {
+                            parentId = newOrderResult.id;
+                        }
                     }
-
-                    notifySuccess(`Pedido de ${clientName} creado correctamente.`);
 
                     // 3. Generate PDF with the FINAL order state (including payments)
                     try {
                         const blob = await pdf(
                             <OrderReceiptDocument
-                                order={newOrder}
+                                order={createdOrders[0]}
+                                childOrders={createdOrders.slice(1)}
                                 client={client}
                                 user={{
                                     id: user?.id || '1',
@@ -346,7 +363,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                         const url = URL.createObjectURL(blob)
                         const link = document.createElement('a')
                         link.href = url
-                        link.download = `Recibo_${newOrder.receiptNumber}.pdf`
+                        link.download = `Recibo_${createdOrders[0].receiptNumber}.pdf`
                         document.body.appendChild(link)
                         link.click()
                         document.body.removeChild(link)
@@ -369,6 +386,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
 
     const { data: credits = [] } = useClientCredits(formik.values.clientId)
     const totalCredit = credits.reduce((sum, c) => sum + Number(c.remainingAmount || 0), 0)
+    const totalOrderValue = formik.values.brandItems.reduce((sum, item) => sum + Number(item.total), 0);
 
     const inputClass = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
 
@@ -460,72 +478,109 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
 
                     <Separator />
 
-                    {/* Fila 2: Detalles del Pedido */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
-                        <div className="space-y-2">
-                            <Label htmlFor="salesChannel">Pedido Por</Label>
-                            <select id="salesChannel" {...formik.getFieldProps('salesChannel')} className={inputClass}>
-                                <option value="OFICINA">Oficina</option>
-                                <option value="WHATSAPP">WhatsApp</option>
-                                <option value="DOMICILIO">Domicilio</option>
-                            </select>
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="type">Tipo</Label>
-                            <select id="type" {...formik.getFieldProps('type')} className={inputClass}>
-                                <option value="NORMAL">Normal</option>
-                                <option value="PREVENTA">Preventa</option>
-                                <option value="REPROGRAMACION">Reprogramación</option>
-                            </select>
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="possibleDeliveryDate">Posible Entrega</Label>
-                            <Input type="date" id="possibleDeliveryDate" {...formik.getFieldProps('possibleDeliveryDate')} />
-                            {formik.touched.possibleDeliveryDate && formik.errors.possibleDeliveryDate && (
-                                <p className="text-red-500 text-xs">{formik.errors.possibleDeliveryDate}</p>
+                    {/* Listado de Marcas (Items) */}
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <h4 className="text-xs sm:text-sm font-medium text-muted-foreground">Marcas en este Recibo</h4>
+                            {!isEditing && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                        const items = [...formik.values.brandItems];
+                                        items.push({
+                                            brandId: "",
+                                            brandName: "",
+                                            quantity: 1,
+                                            total: 0,
+                                            type: "NORMAL",
+                                            possibleDeliveryDate: "",
+                                        });
+                                        formik.setFieldValue("brandItems", items);
+                                    }}
+                                >
+                                    + Agregar Marca
+                                </Button>
                             )}
                         </div>
-                    </div>
 
-                    {/* Fila 3: Marca y Valores */}
-                    <div className="bg-muted/10 p-3 sm:p-4 rounded-lg border">
-                        <h4 className="text-xs sm:text-sm font-medium mb-3 sm:mb-4 text-muted-foreground">Detalle Financiero</h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 items-end">
-                            <div className="space-y-2 sm:col-span-2">
-                                <Label htmlFor="brandId">Marca</Label>
-                                <SearchableSelect
-                                    options={brandOptions}
-                                    value={formik.values.brandId || ""}
-                                    onChange={(val) => {
-                                        const selectedBrand = brands.find(b => b.id === val)
-                                        formik.setFieldValue('brandId', val)
-                                        formik.setFieldValue('brandName', selectedBrand ? selectedBrand.name : "")
-                                    }}
-                                    placeholder="Buscar marca..."
-                                />
-                                {formik.touched.brandName && formik.errors.brandName && (
-                                    <p className="text-red-500 text-xs">{formik.errors.brandName}</p>
+                        {formik.values.brandItems.map((item, index) => (
+                            <div key={index} className="bg-muted/10 p-3 sm:p-4 rounded-lg border relative">
+                                {!isEditing && formik.values.brandItems.length > 1 && (
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="absolute top-2 right-2 h-6 w-6 text-destructive"
+                                        onClick={() => {
+                                            const items = formik.values.brandItems.filter((_, i) => i !== index);
+                                            formik.setFieldValue("brandItems", items);
+                                        }}
+                                    >
+                                        ✕
+                                    </Button>
                                 )}
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="quantity">Cantidad</Label>
-                                <Input type="number" id="quantity" {...formik.getFieldProps('quantity')} min="1" />
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="total">Valor Pedido Total</Label>
-                                <div className="relative">
-                                    <span className="absolute left-2 top-2.5 text-muted-foreground">$</span>
-                                    <Input type="number" id="total" {...formik.getFieldProps('total')} className="pl-6" min="0" step="0.01" />
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
+                                    <div className="lg:col-span-2 space-y-2">
+                                        <Label>Marca</Label>
+                                        <SearchableSelect
+                                            options={brandOptions}
+                                            value={item.brandId}
+                                            onChange={(val) => {
+                                                const b = brands.find(x => x.id === val);
+                                                formik.setFieldValue(`brandItems.${index}.brandId`, val);
+                                                formik.setFieldValue(`brandItems.${index}.brandName`, b ? b.name : "");
+                                            }}
+                                            placeholder="Seleccione marca..."
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Cantidad</Label>
+                                        <Input
+                                            type="number"
+                                            value={item.quantity}
+                                            onChange={(e) => formik.setFieldValue(`brandItems.${index}.quantity`, Number(e.target.value))}
+                                            min="1"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Valor Pedido</Label>
+                                        <div className="relative">
+                                            <span className="absolute left-2 top-2.5 text-muted-foreground">$</span>
+                                            <Input
+                                                type="number"
+                                                value={item.total}
+                                                onChange={(e) => formik.setFieldValue(`brandItems.${index}.total`, Number(e.target.value))}
+                                                className="pl-6"
+                                                min="0"
+                                                step="0.01"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Tipo</Label>
+                                        <select
+                                            value={item.type}
+                                            onChange={(e) => formik.setFieldValue(`brandItems.${index}.type`, e.target.value)}
+                                            className={inputClass}
+                                        >
+                                            <option value="NORMAL">Normal</option>
+                                            <option value="PREVENTA">Preventa</option>
+                                            <option value="REPROGRAMACION">Reprogramación</option>
+                                        </select>
+                                    </div>
+                                    <div className="lg:col-span-2 space-y-2">
+                                        <Label>Fecha Posible Entrega</Label>
+                                        <Input
+                                            type="date"
+                                            value={item.possibleDeliveryDate}
+                                            onChange={(e) => formik.setFieldValue(`brandItems.${index}.possibleDeliveryDate`, e.target.value)}
+                                        />
+                                    </div>
                                 </div>
-                                {formik.touched.total && formik.errors.total && (
-                                    <p className="text-red-500 text-xs">{formik.errors.total}</p>
-                                )}
                             </div>
-                        </div>
+                        ))}
                     </div>
 
                     {/* Fila 4: Pagos */}
@@ -536,7 +591,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                                 <div className="flex items-center justify-between">
                                     <Label htmlFor="deposit">Abono</Label>
                                     <span className="text-xs text-muted-foreground">
-                                        Mínimo: ${(formik.values.total * 0.5).toFixed(2)} (50%)
+                                        Mínimo: ${(totalOrderValue * 0.5).toFixed(2)} (50%)
                                     </span>
                                 </div>
                                 <div className="relative">
@@ -560,7 +615,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                                                 placeholder="Monto a usar"
                                                 {...formik.getFieldProps('creditToUse')}
                                                 onChange={(e) => {
-                                                    const val = Math.min(Number(e.target.value), totalCredit, formik.values.total - Number(formik.values.deposit));
+                                                    const val = Math.min(Number(e.target.value), totalCredit, totalOrderValue - Number(formik.values.deposit));
                                                     formik.setFieldValue('creditToUse', val > 0 ? val : 0);
                                                 }}
                                             />
@@ -582,7 +637,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                                                 size="sm"
                                                 className="h-8 text-emerald-600 border-emerald-300 hover:bg-emerald-50"
                                                 onClick={() => {
-                                                    const maxPossible = Math.min(totalCredit, formik.values.total - Number(formik.values.deposit));
+                                                    const maxPossible = Math.min(totalCredit, totalOrderValue - Number(formik.values.deposit));
                                                     formik.setFieldValue('creditToUse', maxPossible);
                                                 }}
                                             >
@@ -597,7 +652,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                             <div className="space-y-2">
                                 <Label>Saldo Pendiente</Label>
                                 <div className="flex h-9 w-full items-center rounded-md border border-input bg-red-50 px-3 text-sm font-bold text-red-600">
-                                    ${(formik.values.total - Number(formik.values.deposit) - Number(formik.values.creditToUse)).toFixed(2)}
+                                    ${(totalOrderValue - Number(formik.values.deposit) - Number(formik.values.creditToUse)).toFixed(2)}
                                 </div>
                             </div>
 

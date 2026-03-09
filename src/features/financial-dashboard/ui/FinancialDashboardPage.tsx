@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useFinancialDashboard } from '../model/useFinancialDashboard';
 import { useBankAccountList } from '@/features/bank-accounts/api/hooks';
 import { useFinancialRecords } from '@/entities/financial-record/model/queries';
+import type { FinancialRecord } from '@/entities/financial-record/model/types';
 import { useClients } from '@/entities/client/model/hooks';
 import {
     TrendingUp,
@@ -28,9 +29,13 @@ function formatCurrency(amount: number): string {
 
 export function FinancialDashboardPage() {
     const { summary, loading: summaryLoading, error: summaryError } = useFinancialDashboard();
-    const { data: bankAccounts = [] } = useBankAccountList();
-    const { data: records = [], isLoading: recordsLoading } = useFinancialRecords();
-    const { data: clients = [], isLoading: clientsLoading } = useClients();
+    const { data: bankAccountsResponse } = useBankAccountList();
+    const { data: recordsResponse, isLoading: recordsLoading } = useFinancialRecords();
+    const { data: clientsResponse, isLoading: clientsLoading } = useClients();
+
+    const clients = clientsResponse?.data || [];
+    const records = recordsResponse?.data || [];
+    const bankAccounts = bankAccountsResponse?.data || [];
 
     const loading = summaryLoading || recordsLoading || clientsLoading;
 
@@ -307,7 +312,7 @@ export function FinancialDashboardPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-50">
-                                {recentRecords.map((record, index) => (
+                                {recentRecords.map((record: FinancialRecord, index: number) => (
                                     <tr key={record.id} className="hover:bg-slate-50/80 transition-colors group cursor-pointer">
                                         <td className="px-6 py-4 text-sm font-bold text-slate-400">{index + 1}</td>
                                         <td className="px-6 py-4 text-sm font-black text-slate-900">{record.referenceNumber.split('-')[0]}...</td>

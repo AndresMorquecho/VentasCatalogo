@@ -30,7 +30,8 @@ interface CallFormModalProps {
 export function CallFormModal({ open, onOpenChange, onSuccess, call }: CallFormModalProps) {
     const { mutateAsync: createCall } = useCreateCall();
     const { mutateAsync: updateCall } = useUpdateCall();
-    const { data: clients } = useClients();
+    const { data: clientsResponse } = useClients();
+    const clients = clientsResponse ? (clientsResponse as any).data || [] : [];
     const { notifySuccess, notifyError } = useNotifications();
     const { user } = useAuth();
     const [isSubmitting, setIsSubmitting] = useState(false);

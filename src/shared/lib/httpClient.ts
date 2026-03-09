@@ -165,6 +165,13 @@ class HttpClient {
             error.code = rawData.error?.code;
             throw error;
           }
+
+          // CRITICAL FIX: If it's a paginated response, return the full object 
+          // so the frontend can access .data and .pagination
+          if ('pagination' in rawData) {
+            return this.toCamelCase(rawData) as T;
+          }
+
           return this.toCamelCase(rawData.data) as T;
         }
 

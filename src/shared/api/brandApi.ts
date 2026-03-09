@@ -1,9 +1,17 @@
 import type { Brand, CreateBrandPayload, UpdateBrandPayload } from '@/entities/brand/model/types';
 import { httpClient } from '../lib/httpClient';
+import type { PaginatedResponse } from '@/entities/order/model/types';
 
 export const brandApi = {
-    getAll: async (): Promise<Brand[]> => {
-        return httpClient.get<Brand[]>('/brands?include_inactive=true');
+    getAll: async (params?: { page?: number; limit?: number; includeInactive?: boolean; search?: string }): Promise<PaginatedResponse<Brand>> => {
+        const queryParams = new URLSearchParams();
+        if (params?.page) queryParams.append('page', params.page.toString());
+        if (params?.limit) queryParams.append('limit', params.limit.toString());
+        if (params?.search) queryParams.append('search', params.search);
+        if (params?.includeInactive !== undefined) queryParams.append('include_inactive', params.includeInactive.toString());
+        else queryParams.append('include_inactive', 'true');
+
+        return httpClient.get<PaginatedResponse<Brand>>(`/brands?${queryParams.toString()}`);
     },
 
     getById: async (id: string): Promise<Brand | undefined> => {

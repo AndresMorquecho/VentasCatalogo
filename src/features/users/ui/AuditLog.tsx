@@ -1,16 +1,16 @@
-
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import { useAuditLog } from '../model/hooks';
+import { useAuditLog, useUsers } from '../model/hooks';
 import type { AuditSeverity, AuditEntry } from '@/shared/auth/types';
 import { MODULES, MODULE_LABELS, type ModuleKey } from '@/shared/lib/permissions';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
 import { Input } from '@/shared/ui/input';
 import { Button } from '@/shared/ui/button';
 import { Download, AlertTriangle, Info, ShieldAlert } from 'lucide-react';
+import { useDebounce } from '@/shared/lib/hooks';
+import { Pagination } from '@/shared/ui/pagination';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const PAGE_SIZE = 20;
 
 const ACTION_META: Record<string, { label: string; severity: AuditSeverity }> = {
     LOGIN: { label: 'Login', severity: 'INFO' },
@@ -55,9 +55,9 @@ const SEVERITY_UI: Record<AuditSeverity, { label: string; cls: string; icon: Rea
 };
 
 // ─── Export to CSV ────────────────────────────────────────────────────────────
-function exportCSV(rows: ReturnType<typeof useAuditLog>['entries']) {
+function exportCSV(rows: AuditEntry[]) {
     const header = ['Fecha', 'Usuario', 'Acción', 'Módulo', 'Detalle', 'Severidad', 'Éxito'].join(',');
-    const body = (rows as AuditEntry[]).map((e: AuditEntry) => [
+    const body = rows.map((e: AuditEntry) => [
         new Date(e.timestamp).toLocaleString('es-CO'),
         `"${e.userName}"`,
         e.action,
@@ -78,61 +78,54 @@ function exportCSV(rows: ReturnType<typeof useAuditLog>['entries']) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export function AuditLog() {
-    const { entries, isLoading, isError } = useAuditLog();
+    const [page, setPage] = useState(1);
+    const [limit] = useState(100);
 
     // Filters
     const [search, setSearch] = useState('');
+    const debouncedSearch = useDebounce(search, 1000);
+
     const [userFilter, setUserFilter] = useState<string>('');
     const [moduleFilter, setModuleFilter] = useState<string>('');
     const [severityFilter, setSeverityFilter] = useState<AuditSeverity | ''>('');
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
-    const [page, setPage] = useState(1);
 
-    const filtered = useMemo(() => {
-        if (!Array.isArray(entries)) return [];
-        return (entries as AuditEntry[]).filter((e: AuditEntry) => {
-            if (!e) return false;
-            if (userFilter && e.userName !== userFilter) return false;
-            if (moduleFilter && e.module !== moduleFilter) return false;
-            if (severityFilter && e.severity !== severityFilter) return false;
-            if (dateFrom && new Date(e.timestamp) < new Date(dateFrom)) return false;
-            if (dateTo) {
-                const to = new Date(dateTo);
-                to.setHours(23, 59, 59, 999);
-                if (new Date(e.timestamp) > to) return false;
-            }
-            if (search) {
-                const q = search.toLowerCase();
-                const userName = (e.userName || '').toLowerCase();
-                const detail = (e.detail || '').toLowerCase();
-                const action = (e.action || '').toLowerCase();
-                if (
-                    !userName.includes(q) &&
-                    !detail.includes(q) &&
-                    !action.includes(q)
-                ) return false;
-            }
-            return true;
-        });
-    }, [entries, search, userFilter, moduleFilter, severityFilter, dateFrom, dateTo]);
+    const { response, isLoading, isError } = useAuditLog({
+        page,
+        limit,
+        search: debouncedSearch.length >= 3 ? debouncedSearch : undefined,
+        userName: userFilter || undefined,
+        module: moduleFilter || undefined,
+        severity: severityFilter || undefined,
+        startDate: dateFrom || undefined,
+        endDate: dateTo || undefined
+    });
 
-    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-    const pageData = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+    const { users } = useUsers();
+
+    const entries = response?.data || [];
+    const pagination = response?.pagination;
+
+    // Reset page on filter changes
+    useEffect(() => {
+        setPage(1);
+    }, [debouncedSearch, userFilter, moduleFilter, severityFilter, dateFrom, dateTo]);
 
     const resetFilters = () => {
         setSearch(''); setUserFilter(''); setModuleFilter(''); setSeverityFilter('');
         setDateFrom(''); setDateTo(''); setPage(1);
     };
 
-    const todayCritical = Array.isArray(entries) ? (entries as AuditEntry[]).filter(e => {
+    const todayCritical = entries.filter(e => {
         const today = new Date().toDateString();
         return e.severity === 'CRITICAL' && new Date(e.timestamp).toDateString() === today;
-    }).length : 0;
+    }).length;
 
     if (isLoading && entries.length === 0) {
         return <div className="py-20 text-center text-slate-400">Cargando bitácora...</div>;
     }
+
 
     if (isError) {
         return (
@@ -164,8 +157,8 @@ export function AuditLog() {
                     </div>
                     <select className="border rounded-md px-3 py-2 text-sm bg-white h-10 w-44" value={userFilter} onChange={e => { setUserFilter(e.target.value); setPage(1); }}>
                         <option value="">Todos los usuarios</option>
-                        {Array.from(new Set((entries as AuditEntry[]).map(e => e.userName))).sort().map(u => (
-                            <option key={String(u)} value={String(u)}>{String(u)}</option>
+                        {users.map(u => (
+                            <option key={u.id} value={u.username}>{u.username}</option>
                         ))}
                     </select>
                     <select className="border rounded-md px-3 py-2 text-sm bg-white h-10" value={moduleFilter} onChange={e => { setModuleFilter(e.target.value); setPage(1); }}>
@@ -185,11 +178,11 @@ export function AuditLog() {
                         <input type="date" className="border rounded-md px-3 py-2 text-sm h-10" value={dateTo} onChange={e => { setDateTo(e.target.value); setPage(1); }} />
                     </div>
                     <Button variant="outline" size="sm" onClick={resetFilters}>Limpiar</Button>
-                    <Button size="sm" className="gap-2" onClick={() => exportCSV(filtered as AuditEntry[])}>
+                    <Button size="sm" className="gap-2" onClick={() => exportCSV(entries)}>
                         <Download className="h-4 w-4" /> Exportar CSV
                     </Button>
                 </div>
-                <p className="text-xs text-slate-400">{filtered.length} registro{filtered.length !== 1 ? 's' : ''} encontrado{filtered.length !== 1 ? 's' : ''}.</p>
+                <p className="text-xs text-slate-400">{pagination?.total ?? 0} registro{pagination?.total !== 1 ? 's' : ''} encontrado{pagination?.total !== 1 ? 's' : ''}.</p>
             </div>
 
             {/* Table */}
@@ -206,16 +199,14 @@ export function AuditLog() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {pageData.length === 0 && (
+                        {entries.length === 0 && (
                             <TableRow>
                                 <TableCell colSpan={6} className="text-center py-12 text-slate-400 text-sm">
-                                    {(entries as AuditEntry[]).length === 0
-                                        ? 'No hay registros aún. Empieza a usar el sistema para ver la bitácora.'
-                                        : 'No hay registros que coincidan con los filtros aplicados.'}
+                                    {isLoading ? 'Cargando...' : 'No hay registros que coincidan con los filtros aplicados.'}
                                 </TableCell>
                             </TableRow>
                         )}
-                        {(pageData as AuditEntry[]).map(e => {
+                        {entries.map(e => {
                             const meta = ACTION_META[e.action];
                             const sev = SEVERITY_UI[e.severity as AuditSeverity] ?? SEVERITY_UI.INFO;
                             return (
@@ -258,35 +249,16 @@ export function AuditLog() {
             </div>
 
             {/* Pagination */}
-            {totalPages > 1 && (
-                <div className="flex items-center justify-between px-1">
-                    <p className="text-sm text-slate-500">
-                        Página {page} de {totalPages}
-                    </p>
-                    <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-                            ← Anterior
-                        </Button>
-                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                            const p = Math.max(1, Math.min(totalPages - 4, page - 2)) + i;
-                            return (
-                                <Button
-                                    key={p}
-                                    variant={page === p ? 'default' : 'outline'}
-                                    size="sm"
-                                    className="w-9"
-                                    onClick={() => setPage(p)}
-                                >
-                                    {p}
-                                </Button>
-                            );
-                        })}
-                        <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}>
-                            Siguiente →
-                        </Button>
-                    </div>
-                </div>
+            {pagination && (
+                <Pagination
+                    currentPage={page}
+                    totalPages={pagination.pages}
+                    onPageChange={setPage}
+                    totalItems={pagination.total}
+                    itemsPerPage={limit}
+                />
             )}
         </div>
     );
 }
+

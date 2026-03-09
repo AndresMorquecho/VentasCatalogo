@@ -103,7 +103,7 @@ const groupedItems = [
         items: [
             { title: "Empresarias", url: "/clients", icon: Users },
             { title: "Pedidos", url: "/orders", icon: Inbox },
-            { title: "Recepción", url: "/orders/reception", icon: PackageCheck },
+            { title: "Packing", url: "/orders/reception", icon: PackageCheck },
             { title: "Entregas", url: "/orders/delivery", icon: Truck },
         ]
     },

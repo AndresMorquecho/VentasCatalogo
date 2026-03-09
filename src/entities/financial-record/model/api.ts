@@ -1,6 +1,5 @@
-// Financial Record API - HTTP calls to backend
-
 import { httpClient } from '@/shared/lib/httpClient';
+import type { PaginatedResponse } from '@/entities/order/model/types';
 import type {
   FinancialRecord,
   CreateFinancialRecordPayload,
@@ -9,11 +8,17 @@ import type {
 
 export const financialRecordApi = {
   /**
-   * Get all financial records
+   * Get all financial records with pagination and filters
    */
-  getAll: async (): Promise<FinancialRecord[]> => {
-    const res = await httpClient.get<any>('/financial-records');
-    return Array.isArray(res) ? res : (res?.data || []);
+  getAll: async (params?: { page?: number; limit?: number; startDate?: string; endDate?: string; clientId?: string }): Promise<PaginatedResponse<FinancialRecord>> => {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) queryParams.append(key, value.toString());
+      });
+    }
+    const url = `/financial-records${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return httpClient.get<PaginatedResponse<FinancialRecord>>(url);
   },
 
   /**

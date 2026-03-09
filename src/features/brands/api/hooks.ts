@@ -8,10 +8,11 @@ export const BRAND_QUERY_KEYS = {
     detail: (id: string) => [...BRAND_QUERY_KEYS.all, 'detail', id] as const,
 };
 
-export function useBrandList() {
+export function useBrandList(params?: { page?: number; limit?: number; includeInactive?: boolean; search?: string }) {
     return useQuery({
-        queryKey: BRAND_QUERY_KEYS.list(),
-        queryFn: brandApi.getAll,
+        queryKey: [...BRAND_QUERY_KEYS.list(), params],
+        queryFn: () => brandApi.getAll(params),
+        placeholderData: (prev) => prev
     });
 }
 

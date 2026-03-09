@@ -1,9 +1,11 @@
 import { httpClient } from '@/shared/lib/httpClient';
 import type { LoyaltyRule, LoyaltyRuleFormData, LoyaltyPrize, LoyaltyPrizeFormData, LoyaltyRedemption } from '../model/types';
+import type { PaginatedResponse } from '@/entities/order/model/types';
 
 export const loyaltyRulesApi = {
-    getAll: async (): Promise<LoyaltyRule[]> => {
-        return httpClient.get<LoyaltyRule[]>('/loyalty/rules');
+    getAll: async (params?: { page?: number; limit?: number }): Promise<PaginatedResponse<LoyaltyRule>> => {
+        const query = params ? `?page=${params.page}&limit=${params.limit}` : '';
+        return httpClient.get<PaginatedResponse<LoyaltyRule>>(`/loyalty/rules${query}`);
     },
     create: async (data: LoyaltyRuleFormData): Promise<LoyaltyRule> => {
         return httpClient.post<LoyaltyRule>('/loyalty/rules', data);
@@ -20,8 +22,9 @@ export const loyaltyRulesApi = {
 };
 
 export const loyaltyPrizesApi = {
-    getAll: async (): Promise<LoyaltyPrize[]> => {
-        return httpClient.get<LoyaltyPrize[]>('/loyalty/prizes');
+    getAll: async (params?: { page?: number; limit?: number }): Promise<PaginatedResponse<LoyaltyPrize>> => {
+        const query = params ? `?page=${params.page}&limit=${params.limit}` : '';
+        return httpClient.get<PaginatedResponse<LoyaltyPrize>>(`/loyalty/prizes${query}`);
     },
     create: async (data: LoyaltyPrizeFormData): Promise<LoyaltyPrize> => {
         return httpClient.post<LoyaltyPrize>('/loyalty/prizes', data);
@@ -38,13 +41,16 @@ export const loyaltyPrizesApi = {
 };
 
 export const loyaltyRedemptionsApi = {
-    getAll: async (): Promise<LoyaltyRedemption[]> => {
-        return httpClient.get<LoyaltyRedemption[]>('/loyalty/redemptions');
+    getAll: async (params?: { page?: number; limit?: number }): Promise<PaginatedResponse<LoyaltyRedemption>> => {
+        const query = params ? `?page=${params.page}&limit=${params.limit}` : '';
+        return httpClient.get<PaginatedResponse<LoyaltyRedemption>>(`/loyalty/redemptions${query}`);
     },
     redeem: async (data: { clientId: string, prizeId: string }): Promise<LoyaltyRedemption> => {
         return httpClient.post<LoyaltyRedemption>('/loyalty/redeem', data);
     },
-    getHistory: async (clientId: string): Promise<any[]> => {
-        return httpClient.get<any[]>(`/loyalty/history/${clientId}`);
+    getHistory: async (clientId: string, params?: { page?: number; limit?: number }): Promise<PaginatedResponse<any>> => {
+        const query = params ? `?page=${params.page}&limit=${params.limit}` : '';
+        return httpClient.get<PaginatedResponse<any>>(`/loyalty/history/${clientId}${query}`);
     }
 };
+

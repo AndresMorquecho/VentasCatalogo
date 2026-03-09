@@ -14,4 +14,7 @@ export type InventoryMovement = {
         deliveredTo?: string;
         deliveryDate?: string;
     };
+    client?: { firstName: string; lastName?: string };
+    order?: { receiptNumber: string; brandName: string };
+    brand?: { name: string };
 };

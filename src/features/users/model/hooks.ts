@@ -34,14 +34,23 @@ export const useRoles = () => {
 };
 
 // ─── Users ────────────────────────────────────────────────────────────────────
-export const useUsers = () => {
+export const useUsers = (params?: { page?: number; limit?: number; search?: string }) => {
     const qc = useQueryClient();
     const { user } = useAuth();
     const actorId = user?.id ?? '';
     const actorName = user ? user.username : 'Sistema';
-    const key = ['users'];
+    const key = ['users', params];
 
-    const { data: users = [], isLoading } = useQuery({ queryKey: key, queryFn: usersApi.getAll });
+    const { data: response, isLoading } = useQuery({
+        queryKey: key,
+        queryFn: () => usersApi.getAll(params?.page, params?.limit, params?.search),
+        placeholderData: (prev) => prev
+    });
+
+
+    const users = response?.data || [];
+    const pagination = response?.pagination;
+
 
     const { mutateAsync: createUser, isPending: isCreating } = useMutation({
         mutationFn: (data: UserFormData) => usersApi.create(data, actorId, actorName),
@@ -70,18 +79,27 @@ export const useUsers = () => {
         onSuccess: () => qc.invalidateQueries({ queryKey: key }),
     });
 
-    return { users, isLoading, createUser, updateUser, changePassword, deactivateUser: toggleUserStatus, deleteUser, isCreating, isUpdating };
+    return { users, pagination, isLoading, createUser, updateUser, changePassword, deactivateUser: toggleUserStatus, deleteUser, isCreating, isUpdating };
+
 };
 
 // ─── Audit Log — fetched from backend ──────────────────────────────────────
-export const useAuditLog = () => {
-    const { data, isLoading, isError } = useQuery({
-        queryKey: ['audit-logs'],
-        queryFn: auditApi.getAll,
+export const useAuditLog = (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    userName?: string;
+    module?: string;
+    severity?: string;
+    startDate?: string;
+    endDate?: string;
+}) => {
+    const { data: response, isLoading, isError } = useQuery({
+        queryKey: ['audit-logs', params],
+        queryFn: () => auditApi.getAll(params),
         refetchInterval: 30000,
+        placeholderData: (prev) => prev
     });
 
-    const entries = Array.isArray(data) ? data : (data as any)?.data || [];
-
-    return { entries, isLoading, isError };
+    return { response, isLoading, isError };
 };

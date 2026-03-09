@@ -11,8 +11,14 @@ interface LoyaltyPointHistoryModalProps {
     clientName: string;
 }
 
+import { useState } from 'react';
+import { Pagination } from '@/shared/ui/pagination';
+
 export function LoyaltyPointHistoryModal({ open, onOpenChange, clientId, clientName }: LoyaltyPointHistoryModalProps) {
-    const { data: history = [], isLoading } = useLoyaltyHistory(clientId);
+    const [page, setPage] = useState(1);
+    const [limit] = useState(10);
+    const { history, pagination, isLoading } = useLoyaltyHistory(clientId, { page, limit });
+
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -36,53 +42,66 @@ export function LoyaltyPointHistoryModal({ open, onOpenChange, clientId, clientN
                             <p className="text-sm">No se registran acumulaciones de puntos aún.</p>
                         </div>
                     ) : (
-                        <div className="rounded-xl border border-slate-200 overflow-hidden">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow className="bg-slate-50">
-                                        <TableHead>Fecha</TableHead>
-                                        <TableHead>N° Pedido</TableHead>
-                                        <TableHead className="text-right">Monto Pedido</TableHead>
-                                        <TableHead className="text-right">Puntos Ganados</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {history.map((item: any) => (
-                                        <TableRow key={item.id}>
-                                            <TableCell className="text-sm text-slate-600">
-                                                <div className="flex items-center gap-2">
-                                                    <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                                                    {new Date(item.appliedAt).toLocaleDateString()}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="font-medium text-slate-800">
-                                                <div className="flex flex-col">
-                                                    <div className="flex items-center gap-2">
-                                                        <ShoppingBag className="h-3.5 w-3.5 text-blue-500" />
-                                                        {item.order?.receiptNumber || `ID: ${item.order?.id?.substring(0, 8)}`}
-                                                    </div>
-                                                    {!item.order?.receiptNumber && item.order?.invoiceNumber && (
-                                                        <span className="text-[10px] text-slate-400 ml-5">Factura: {item.order.invoiceNumber}</span>
-                                                    )}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="text-right text-slate-700 font-semibold">
-                                                ${Number(item.order?.total || 0).toLocaleString()}
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                <span className="inline-flex items-center gap-1 font-bold text-emerald-600">
-                                                    <TrendingUp className="h-3.5 w-3.5" />
-                                                    +{item.pointsEarned} pts
-                                                </span>
-                                            </TableCell>
+                        <>
+                            <div className="rounded-xl border border-slate-200 overflow-hidden">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow className="bg-slate-50">
+                                            <TableHead>Fecha</TableHead>
+                                            <TableHead>N° Pedido</TableHead>
+                                            <TableHead className="text-right">Monto Pedido</TableHead>
+                                            <TableHead className="text-right">Puntos Ganados</TableHead>
                                         </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {history.map((item: any) => (
+                                            <TableRow key={item.id}>
+                                                <TableCell className="text-sm text-slate-600">
+                                                    <div className="flex items-center gap-2">
+                                                        <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                                                        {new Date(item.appliedAt).toLocaleDateString()}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="font-medium text-slate-800">
+                                                    <div className="flex flex-col">
+                                                        <div className="flex items-center gap-2">
+                                                            <ShoppingBag className="h-3.5 w-3.5 text-blue-500" />
+                                                            {item.order?.receiptNumber || `ID: ${item.order?.id?.substring(0, 8)}`}
+                                                        </div>
+                                                        {!item.order?.receiptNumber && item.order?.invoiceNumber && (
+                                                            <span className="text-[10px] text-slate-400 ml-5">Factura: {item.order.invoiceNumber}</span>
+                                                        )}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="text-right text-slate-700 font-semibold">
+                                                    ${Number(item.order?.total || 0).toLocaleString()}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <span className="inline-flex items-center gap-1 font-bold text-emerald-600">
+                                                        <TrendingUp className="h-3.5 w-3.5" />
+                                                        +{item.pointsEarned} pts
+                                                    </span>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+
+                            {pagination && (
+                                <Pagination
+                                    currentPage={page}
+                                    totalPages={pagination.pages}
+                                    onPageChange={setPage}
+                                    totalItems={pagination.total}
+                                    itemsPerPage={limit}
+                                />
+                            )}
+                        </>
                     )}
                 </div>
             </DialogContent>
         </Dialog>
+
     );
 }

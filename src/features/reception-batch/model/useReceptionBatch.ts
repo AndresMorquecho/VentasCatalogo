@@ -14,8 +14,11 @@ export type SelectedOrderState = {
 }
 
 export function useReceptionBatch() {
-    const { data: allOrders = [], isLoading } = useOrderList();
-    const { data: clients = [] } = useClientList();
+    const { data: ordersResponse, isLoading } = useOrderList({ limit: 500 });
+    const { data: clientsResponse } = useClientList({ limit: 500 });
+
+    const allOrders = ordersResponse?.data || [];
+    const clients = clientsResponse?.data || [];
     const qc = useQueryClient();
 
     // Map OrderID -> { abono, total, invoiceNumber }

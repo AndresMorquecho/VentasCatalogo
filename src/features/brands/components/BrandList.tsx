@@ -1,6 +1,5 @@
-import { useState, useMemo } from "react"
+import { useState, useEffect } from "react"
 import { useBrandList, useDeleteBrand } from "@/features/brands/api/hooks"
-import { searchBrands } from "@/entities/brand/model/queries"
 import type { Brand } from "@/entities/brand/model/types"
 import { BrandTable } from "./BrandTable"
 import { BrandForm } from "./BrandForm"
@@ -12,22 +11,37 @@ import { ConfirmDialog } from "@/shared/ui/confirm-dialog"
 import { useAuth } from "@/shared/auth"
 import { logAction } from "@/shared/lib/auditService"
 import { useNotifications } from "@/shared/lib/notifications"
+import { useDebounce } from "@/shared/lib/hooks"
+import { Pagination } from "@/shared/ui/pagination"
 
 export function BrandList() {
-    const { data: brands = [], isLoading, isError, refetch } = useBrandList()
+    const [page, setPage] = useState(1)
+    const [limit] = useState(25)
+    const [searchTerm, setSearchTerm] = useState("")
+    const debouncedSearch = useDebounce(searchTerm, 1000)
+
+    const { data: response, isLoading, isError, refetch } = useBrandList({
+        page,
+        limit,
+        search: debouncedSearch.length >= 3 ? debouncedSearch : undefined,
+    })
+
+    const brands = response?.data || []
+    const pagination = response?.pagination
+
     const deleteBrand = useDeleteBrand()
     const { hasPermission, user } = useAuth()
     const { notifySuccess, notifyError } = useNotifications()
     const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null)
     const [isFormOpen, setIsFormOpen] = useState(false)
-    const [searchTerm, setSearchTerm] = useState("")
     const [brandToDelete, setBrandToDelete] = useState<Brand | null>(null)
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
-    const filteredBrands = useMemo(
-        () => searchBrands(brands, searchTerm),
-        [brands, searchTerm]
-    )
+    // Reset page on filter change
+    useEffect(() => {
+        setPage(1)
+    }, [debouncedSearch])
+
 
     const handleCreate = () => {
         if (!hasPermission('brands.create')) {
@@ -127,7 +141,7 @@ export function BrandList() {
             </div>
 
             <BrandTable
-                brands={filteredBrands}
+                brands={brands}
                 isLoading={isLoading}
                 onEdit={handleEdit}
                 onDelete={handleDeleteClick}
@@ -138,6 +152,16 @@ export function BrandList() {
                 open={isFormOpen}
                 onOpenChange={setIsFormOpen}
             />
+
+            {pagination && (
+                <Pagination
+                    currentPage={page}
+                    totalPages={pagination.pages}
+                    onPageChange={setPage}
+                    totalItems={pagination.total}
+                    itemsPerPage={limit}
+                />
+            )}
 
             <ConfirmDialog
                 open={isDeleteDialogOpen}
@@ -151,3 +175,4 @@ export function BrandList() {
         </div>
     )
 }
+

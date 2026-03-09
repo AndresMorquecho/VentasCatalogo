@@ -45,14 +45,30 @@ export const rolesApi = {
 
 // ─── Users API ────────────────────────────────────────────────────────────────
 export const usersApi = {
-    getAll: async (): Promise<AppUser[]> => {
-        const users = await httpClient.get<any[]>('/users');
-        return users.map(u => ({
-            ...u,
-            roleId: u.role || 'USER', // Use raw role from DB
-            active: u.isActive
-        }));
+    getAll: async (page?: number, limit?: number, search?: string): Promise<PaginatedResponse<AppUser>> => {
+        const params = new URLSearchParams();
+        if (page) params.append('page', page.toString());
+        if (limit) params.append('limit', limit.toString());
+        if (search) params.append('search', search);
+        const url = `/users${params.toString() ? `?${params.toString()}` : ''}`;
+
+
+        const response = await httpClient.get<any>(url);
+        const data = Array.isArray(response) ? response : response.data || [];
+        const pagination = response.pagination || { page: 1, limit: data.length, total: data.length, pages: 1 };
+
+        return {
+            success: true,
+            data: data.map((u: any) => ({
+                ...u,
+                roleId: u.role || 'USER',
+                active: u.isActive
+            })),
+            pagination
+        };
+
     },
+
     create: async (data: UserFormData, actorId: string, actorName: string): Promise<AppUser> => {
         const payload = {
             username: data.username,
@@ -155,9 +171,18 @@ export const usersApi = {
     },
 };
 
+import type { PaginatedResponse } from '@/entities/order/model/types';
+
 // auditApi 
 export const auditApi = {
-    getAll: async (): Promise<AuditEntry[]> => {
-        return httpClient.get<AuditEntry[]>('/audit');
+    getAll: async (params?: { page?: number; limit?: number }): Promise<PaginatedResponse<AuditEntry>> => {
+        const queryParams = new URLSearchParams();
+        if (params) {
+            Object.entries(params).forEach(([key, value]) => {
+                if (value !== undefined) queryParams.append(key, value.toString());
+            });
+        }
+        const url = `/audit${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+        return httpClient.get<PaginatedResponse<AuditEntry>>(url);
     },
 };

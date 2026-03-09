@@ -1,4 +1,5 @@
-import { useState } from "react"
+import { useState, useMemo, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 import { Skeleton } from "@/shared/ui/skeleton"
 import { Button } from "@/shared/ui/button"
 import { Plus } from "lucide-react"
@@ -7,7 +8,6 @@ import { useOrderFilters } from "../model/useOrderFilters"
 import { OrderFilters } from "./OrderFilters"
 import { OrderTable } from "./OrderTable"
 import { OrderDetailModal } from "./OrderDetailModal"
-import { OrderFormModal } from "./OrderFormModal"
 import { ConfirmDialog } from "@/shared/ui/confirm-dialog"
 import { logAction } from "@/shared/lib/auditService"
 import { useNotifications } from "@/shared/lib/notifications"
@@ -17,19 +17,56 @@ import { useAuth } from "@/shared/auth"
 import { orderApi } from "@/entities/order/model/api" // Added orderApi
 import { useQueryClient } from "@tanstack/react-query" // Added queryClient
 
+import { useDebounce } from "@/shared/lib/hooks"
+import { Pagination } from "@/shared/ui/pagination"
+
 export function OrderList() {
-    const { data: orders = [], isLoading } = useOrderList()
-    const deleteOrder = useDeleteOrder()
-    const { notifySuccess, notifyError } = useNotifications()
-    const qc = useQueryClient()
+    const [page, setPage] = useState(1)
+    const [limit] = useState(25)
+
+    // We keep the internal search query for the input, but debounce it for the API/filtering
+    const [searchQuery, setSearchQuery] = useState('')
+    const debouncedSearch = useDebounce(searchQuery, 1000)
+
     const {
         statusFilter,
         setStatusFilter,
-        searchQuery,
-        setSearchQuery,
-        filteredOrders
-    } = useOrderFilters(orders)
+    } = useOrderFilters([]) // We'll manage filtering differently now with pagination
+
+    const { data: response, isLoading } = useOrderList({
+        page,
+        limit,
+        status: statusFilter === 'ALL' ? undefined : statusFilter,
+        search: debouncedSearch.length >= 3 ? debouncedSearch : undefined
+    })
+
+    const orders = response?.data || []
+    const pagination = response?.pagination
+
+    const deleteOrder = useDeleteOrder()
+    const { notifySuccess, notifyError } = useNotifications()
+    const qc = useQueryClient()
     const { hasPermission, user } = useAuth()
+    const navigate = useNavigate()
+
+    // Reset to page 1 when filtering
+    useEffect(() => {
+        setPage(1)
+    }, [statusFilter, debouncedSearch])
+
+    // Local filtering for quick results while typing < 3 chars or as a second layer
+    const filteredOrders = useMemo(() => {
+        if (!orders) return []
+        if (debouncedSearch.length > 0 && debouncedSearch.length < 3) {
+            const query = debouncedSearch.toLowerCase()
+            return orders.filter(o =>
+                o.clientName.toLowerCase().includes(query) ||
+                o.receiptNumber.toLowerCase().includes(query) ||
+                o.brandName.toLowerCase().includes(query)
+            )
+        }
+        return orders
+    }, [orders, debouncedSearch])
 
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
     const [modalMode, setModalMode] = useState<'none' | 'detail' | 'create' | 'edit' | 'delete' | 'reverse'>('none')
@@ -44,8 +81,7 @@ export function OrderList() {
             notifyError({ message: 'No tienes permiso para editar pedidos' })
             return
         }
-        setSelectedOrder(order)
-        setModalMode('edit')
+        navigate(`/orders/edit/${order.id}`)
     }
 
     const handleReverseClick = (order: Order) => {
@@ -102,8 +138,7 @@ export function OrderList() {
             notifyError({ message: 'No tienes permiso para crear pedidos' })
             return
         }
-        setSelectedOrder(null)
-        setModalMode('create')
+        navigate('/orders/new')
     }
 
     const handleClose = () => {
@@ -152,15 +187,19 @@ export function OrderList() {
                 />
             )}
 
+            {pagination && (
+                <Pagination
+                    currentPage={page}
+                    totalPages={pagination.pages}
+                    onPageChange={setPage}
+                    totalItems={pagination.total}
+                    itemsPerPage={limit}
+                />
+            )}
+
             <OrderDetailModal
                 order={selectedOrder}
                 open={modalMode === 'detail'}
-                onOpenChange={(open) => !open && handleClose()}
-            />
-
-            <OrderFormModal
-                order={modalMode === 'edit' ? selectedOrder : null}
-                open={modalMode === 'create' || modalMode === 'edit'}
                 onOpenChange={(open) => !open && handleClose()}
             />
 

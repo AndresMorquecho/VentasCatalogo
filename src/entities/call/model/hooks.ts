@@ -1,17 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { callApi } from './api';
+import { callApi, type CallQueryParams } from './api';
 import type { CallPayload } from './types';
 
 const KEYS = {
     all: ['calls'] as const,
-    list: (clientId?: string) => [...KEYS.all, 'list', { clientId }] as const,
+    list: (params?: CallQueryParams) => [...KEYS.all, 'list', params] as const,
     detail: (id: string) => [...KEYS.all, 'detail', id] as const
 };
 
-export function useCalls(clientId?: string) {
+export function useCalls(params?: CallQueryParams) {
     return useQuery({
-        queryKey: KEYS.list(clientId),
-        queryFn: () => callApi.getAll(clientId)
+        queryKey: KEYS.list(params),
+        queryFn: () => callApi.getAll(params),
+        placeholderData: (prev) => prev
     });
 }
 

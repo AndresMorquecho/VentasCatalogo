@@ -12,13 +12,20 @@ const STATUS_STYLES: Record<RedemptionStatus, string> = {
     CANCELADO: 'bg-red-100 text-red-700 border-red-200',
 };
 
+import { useState } from 'react';
+import { Pagination } from '@/shared/ui/pagination';
+
 export function LoyaltyRedemptions() {
-    const { redemptions, isLoading } = useLoyaltyRedemptions();
-    const { data: clients = [] } = useClients();
+    const [page, setPage] = useState(1);
+    const [limit] = useState(10);
+    const { redemptions, pagination, isLoading } = useLoyaltyRedemptions({ page, limit });
+    const { data: clientsResponse, isLoading: clientsLoading } = useClients();
+    const clients = clientsResponse?.data || [];
+
 
     // Helper to get client identification
     const getClientIdentification = (clientId: string) => {
-        const client = clients.find(c => c.id === clientId);
+        const client = clients.find((c: any) => c.id === clientId);
         return client?.identificationNumber || clientId;
     };
 
@@ -75,6 +82,16 @@ export function LoyaltyRedemptions() {
                     </TableBody>
                 </Table>
             </div>
+
+            {pagination && (
+                <Pagination
+                    currentPage={page}
+                    totalPages={pagination.pages}
+                    onPageChange={setPage}
+                    totalItems={pagination.total}
+                    itemsPerPage={limit}
+                />
+            )}
         </div>
     );
 }

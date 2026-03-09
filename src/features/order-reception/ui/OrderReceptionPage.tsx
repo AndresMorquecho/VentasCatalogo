@@ -50,7 +50,7 @@ export function OrderReceptionPage() {
             <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4 border-b pb-4 border-amber-200">
                 <div className="space-y-1 sm:space-y-2 px-1">
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-                        Recepción en Bodega
+                        Packing (Bodega)
                     </h1>
                     <h2 className="text-base font-medium text-muted-foreground tracking-tight">Gestión de llegada de pedidos y ajuste de facturación</h2>
                 </div>

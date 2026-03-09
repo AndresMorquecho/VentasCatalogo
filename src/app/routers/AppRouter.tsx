@@ -25,6 +25,7 @@ const CallsPage = lazy(() => import('@/features/calls').then(m => ({ default: m.
 const LoyaltyPage = lazy(() => import('@/features/loyalty').then(m => ({ default: m.LoyaltyPage })));
 const AdminUsersPage = lazy(() => import('@/features/users').then(m => ({ default: m.AdminUsersPage })));
 const LoginPage = lazy(() => import('@/features/auth/ui/LoginPage').then(m => ({ default: m.LoginPage })));
+const OrderFormPage = lazy(() => import('@/features/order-management/ui/OrderFormPage').then(m => ({ default: m.OrderFormPage })));
 
 // Loading Component
 const PageLoader = () => (
@@ -40,6 +41,8 @@ const protectedChildren = [
     { index: true, element: <DashboardPage /> },
     { path: 'transactions', element: <ProtectedRoute permission="transactions.view"><TransactionsPage /></ProtectedRoute> },
     { path: 'orders', element: <ProtectedRoute permission="orders.view"><OrdersPage /></ProtectedRoute> },
+    { path: 'orders/new', element: <ProtectedRoute permission="orders.create"><OrderFormPage /></ProtectedRoute> },
+    { path: 'orders/edit/:id', element: <ProtectedRoute permission="orders.edit"><OrderFormPage /></ProtectedRoute> },
     { path: 'orders/reception', element: <ProtectedRoute permission="reception.view"><ReceptionBatchPage /></ProtectedRoute> },
     { path: 'orders/reception/history', element: <ProtectedRoute permission="reception.view"><OrderReceptionHistoryPage /></ProtectedRoute> },
     { path: 'orders/delivery', element: <ProtectedRoute permission="delivery.view"><OrderDeliveryPage /></ProtectedRoute> },

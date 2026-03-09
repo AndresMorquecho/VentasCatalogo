@@ -25,9 +25,24 @@ const EMPTY_FORM: LoyaltyRuleFormData = {
     isActive: true,
 };
 
+import { Pagination } from '@/shared/ui/pagination';
+
 export function LoyaltyRules() {
-    const { rules, isLoading, createRule, updateRule, toggleRule, isCreating, isUpdating } = useLoyaltyRules();
+    const [page, setPage] = useState(1);
+    const [limit] = useState(10);
+    const {
+        rules,
+        pagination,
+        isLoading,
+        createRule,
+        updateRule,
+        toggleRule,
+        isCreating,
+        isUpdating
+    } = useLoyaltyRules({ page, limit });
+
     const { hasPermission, user } = useAuth();
+
     const { notifySuccess, notifyError } = useNotifications();
     const [modalOpen, setModalOpen] = useState(false);
     const [editTarget, setEditTarget] = useState<LoyaltyRule | null>(null);
@@ -157,7 +172,18 @@ export function LoyaltyRules() {
                 ))}
             </div>
 
+            {pagination && (
+                <Pagination
+                    currentPage={page}
+                    totalPages={pagination.pages}
+                    onPageChange={setPage}
+                    totalItems={pagination.total}
+                    itemsPerPage={limit}
+                />
+            )}
+
             {/* Create/Edit Modal */}
+
             <Dialog open={modalOpen} onOpenChange={setModalOpen}>
                 <DialogContent>
                     <DialogHeader>

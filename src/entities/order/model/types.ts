@@ -11,6 +11,8 @@ export interface OrderItem {
     brandId?: string;
     brandName?: string;
     link?: string;
+    status?: OrderStatus;
+    possibleDeliveryDate?: string;
 }
 
 export type OrderPayment = {
@@ -48,6 +50,15 @@ export interface Order {
     receptionDate?: string; // Date received in warehouse
     deliveryDate?: string; // Date delivered to client
     invoiceNumber?: string; // Official Invoice Number (optional)
+    orderNumber?: string; // Catalog Order Number (optional)
+
+    // Nuevos campos FASE 3
+    parentOrderId?: string;
+    trackingGuide?: string;
+    changeStatus?: 'OFICINA' | 'EMPRESA' | 'RECIBIDO';
+
+    parentOrder?: Order;
+    childOrders?: Order[];
 
     status: OrderStatus;
 
@@ -81,5 +92,22 @@ export interface OrderPayload {
     // Financials update
     payments?: OrderPayment[];
     // REMOVED: paidAmount - Calculated from payments[] array
+
+    // Nuevos campos FASE 3
+    parentOrderId?: string | null;
+    trackingGuide?: string;
+    changeStatus?: 'OFICINA' | 'EMPRESA' | 'RECIBIDO';
+    orderNumber?: string;
+}
+
+export interface PaginatedResponse<T> {
+    success: boolean;
+    data: T[];
+    pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        pages: number;
+    };
 }
 

@@ -8,12 +8,13 @@ export const CASH_CLOSURE_QUERY_KEYS = {
     detail: (id: string) => [...CASH_CLOSURE_QUERY_KEYS.all, 'detail', id] as const,
 };
 
-export function useCashClosures() {
+export function useCashClosures(params?: { page?: number; limit?: number }) {
     return useQuery({
-        queryKey: CASH_CLOSURE_QUERY_KEYS.list(),
-        queryFn: cashClosureApi.getAll,
+        queryKey: [...CASH_CLOSURE_QUERY_KEYS.list(), params],
+        queryFn: () => cashClosureApi.getAll(params?.page, params?.limit),
     });
 }
+
 
 export function useCashClosure(id: string) {
     return useQuery({

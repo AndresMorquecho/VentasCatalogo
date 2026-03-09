@@ -1,15 +1,19 @@
-// Bank Account API - HTTP calls to backend
-
 import { httpClient } from '@/shared/lib/httpClient';
 import type { BankAccount, BankAccountPayload } from '@/entities/bank-account/model/types';
+import type { PaginatedResponse } from '@/entities/order/model/types';
 
 export const bankAccountApi = {
   /**
    * Get all bank accounts
    * @endpoint GET /api/bank-accounts
    */
-  getAll: async (): Promise<BankAccount[]> => {
-    return httpClient.get<BankAccount[]>('/bank-accounts');
+  getAll: async (params?: { page?: number; limit?: number }): Promise<PaginatedResponse<BankAccount>> => {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+
+    const queryString = queryParams.toString();
+    return httpClient.get<PaginatedResponse<BankAccount>>(`/bank-accounts${queryString ? `?${queryString}` : ''}`);
   },
 
   /**

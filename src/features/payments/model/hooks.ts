@@ -4,20 +4,23 @@ import { useClients } from "@/entities/client/model/hooks";
 import { paymentApi } from "@/shared/api/paymentApi";
 
 export const usePaymentSearch = () => {
-    // 1️⃣ Fetch Orders (Ideally with filters)
-    const { data: orders = [], isLoading: loadingOrders } = useQuery({
-        queryKey: ["orders", "list"], // Matches order hooks
-        queryFn: orderApi.getAll,
+    // 1️⃣ Fetch Orders
+    const { data: ordersResponse, isLoading: loadingOrders } = useQuery({
+        queryKey: ["orders", "list"],
+        queryFn: () => orderApi.getAll(),
     });
-    
-    // 2️⃣ Fetch Clients (For display)
-    const { data: clients = [], isLoading: loadingClients } = useClients();
+
+    // 2️⃣ Fetch Clients
+    const { data: clientsResponse, isLoading: loadingClients } = useClients();
+
+    const orders = ordersResponse?.data || [];
+    const clients = clientsResponse?.data || [];
 
     const searchOrders = (term: string) => {
         if (!term) return orders;
         const lowerTerm = term.toLowerCase();
-        return orders.filter(o => 
-            o.clientName.toLowerCase().includes(lowerTerm) || 
+        return orders.filter(o =>
+            o.clientName.toLowerCase().includes(lowerTerm) ||
             o.receiptNumber.toLowerCase().includes(lowerTerm) ||
             clients.find(c => c.id === o.clientId)?.identificationNumber?.includes(lowerTerm)
         );
@@ -44,7 +47,7 @@ export const usePaymentOperations = () => {
 
     // 2️⃣ Delete Payment Mutation
     const revertPayment = useMutation({
-        mutationFn: ({ orderId, paymentId }: { orderId: string; paymentId: string }) => 
+        mutationFn: ({ orderId, paymentId }: { orderId: string; paymentId: string }) =>
             paymentApi.revertPayment(orderId, paymentId),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["orders"] });

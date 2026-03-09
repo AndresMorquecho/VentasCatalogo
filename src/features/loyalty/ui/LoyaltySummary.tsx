@@ -10,6 +10,7 @@ import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { RewardDetailsModal } from './RewardDetailsModal';
 import { LoyaltyPointHistoryModal } from './LoyaltyPointHistoryModal';
+import type { Client } from '@/entities/client/model/types';
 
 const LEVEL_STYLES: Record<string, string> = {
     PLATINO: 'bg-purple-100 text-purple-700 border-purple-200',
@@ -23,7 +24,8 @@ export function LoyaltySummary() {
     const { redemptions, isLoading: redemptionsLoading } = useLoyaltyRedemptions();
     const { prizes, isLoading: prizesLoading } = useLoyaltyPrizes();
     const { rules, isLoading: rulesLoading } = useLoyaltyRules();
-    const { data: clients = [], isLoading: clientsLoading } = useClients();
+    const { data: clientsResponse, isLoading: clientsLoading } = useClients();
+    const clients = clientsResponse?.data || [];
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
     const [historyClientId, setHistoryClientId] = useState<string | null>(null);
@@ -35,7 +37,7 @@ export function LoyaltySummary() {
     const activeRules = rules.filter(r => r.isActive).length;
     const activePrizes = prizes.filter(p => p.isActive).length;
 
-    const filteredClients = clients?.filter(client =>
+    const filteredClients = clients?.filter((client: Client) =>
         client.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         client.identificationNumber.includes(searchTerm)
     ) || [];
@@ -46,7 +48,7 @@ export function LoyaltySummary() {
         return Number(rewardB?.totalRewardPoints || 0) - Number(rewardA?.totalRewardPoints || 0);
     });
 
-    const getClientName = (id: string) => clients.find(c => c.id === id)?.firstName || '';
+    const getClientName = (id: string) => (clients as Client[]).find((c: Client) => c.id === id)?.firstName || '';
 
     if (isLoading) {
         return (

@@ -12,8 +12,18 @@ import { Input } from "@/shared/ui/input";
 import { AsyncButton } from "@/shared/ui/async-button";
 import { Label } from "@/shared/ui/label";
 import { Separator } from "@/shared/ui/separator";
-import type { Client } from "@/entities/client/model/types";
-import { useCreateClient, useUpdateClient } from "@/features/clients/api/hooks";
+import { Badge } from "@/shared/ui/badge";
+import type { Client, IdentificationType } from "@/entities/client/model/types";
+import { useCreateClient, useUpdateClient, useClientList } from "@/features/clients/api/hooks";
+import { Switch } from "@/shared/ui/switch";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/shared/ui/select";
+import { differenceInYears } from "date-fns";
 
 import { useAuth } from "@/shared/auth";
 import { logAction } from "@/shared/lib/auditService";
@@ -26,10 +36,27 @@ interface ClientFormProps {
 }
 
 const OPERATORS = ["Claro", "Movistar", "CNT", "Tuenti", "Otro"];
+const ID_TYPES = [
+    { label: "N° Cedula", value: "CEDULA" },
+    { label: "Cedula extranjera", value: "CEDULA_EXTRANJERA" },
+    { label: "RUC", value: "RUC" }
+];
+const PAYMENT_PREFERENCES = [
+    { label: "Normal", value: "NORMAL" },
+    { label: "Solo Contado", value: "SOLO_CONTADO" }
+];
 
 const validationSchema = Yup.object({
+    identificationType: Yup.string().required("Requerido"),
     identificationNumber: Yup.string()
-        .matches(/^\d{10,13}$/, "Debe tener entre 10 y 13 dígitos")
+        .when('identificationType', {
+            is: (val: string) => val === 'CEDULA',
+            then: (schema) => schema.matches(/^\d{10}$/, "Cédula debe tener 10 dígitos"),
+        })
+        .when('identificationType', {
+            is: (val: string) => val === 'RUC',
+            then: (schema) => schema.matches(/^\d{13}$/, "RUC debe tener 13 dígitos"),
+        })
         .required("Requerido"),
     firstName: Yup.string().required("El nombre es requerido"),
     country: Yup.string().required("Requerido"),
@@ -50,11 +77,18 @@ const validationSchema = Yup.object({
         .nullable()
         .transform((value) => (value === "" ? undefined : value)),
     operator2: Yup.string().optional(),
+    birthDate: Yup.date().optional().nullable(),
+    isWhatsApp: Yup.boolean().optional(),
+    referredById: Yup.string().optional().nullable(),
+    paymentPreference: Yup.string().optional(),
 });
 
 export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
     const createClient = useCreateClient();
     const updateClient = useUpdateClient();
+    const { data: clientsResponse } = useClientList({ limit: 1000 }); // Para el selector de referidos
+    const allClients = clientsResponse?.data || [];
+
     const { user } = useAuth();
     const { notifySuccess, notifyError } = useNotifications();
     const isEditing = !!client;
@@ -66,6 +100,7 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
 
     const formik = useFormik({
         initialValues: {
+            identificationType: client?.identificationType || "CEDULA" as IdentificationType,
             identificationNumber: client?.identificationNumber || "",
             firstName: client?.firstName || "",
             country: client?.country || "Ecuador",
@@ -80,6 +115,10 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
             operator1: client?.operator1 || "Claro",
             phone2: client?.phone2 || "",
             operator2: client?.operator2 || "",
+            birthDate: client?.birthDate ? client.birthDate.split('T')[0] : "",
+            isWhatsApp: client?.isWhatsApp || false,
+            referredById: client?.referredById || "",
+            paymentPreference: client?.paymentPreference || "NORMAL",
         },
         validationSchema,
         enableReinitialize: true,
@@ -87,7 +126,7 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
             setSubmitError(null);
             setIsSubmitting(true);
             const payload = {
-                identificationType: "CEDULA" as const,
+                identificationType: values.identificationType as IdentificationType,
                 identificationNumber: values.identificationNumber,
                 firstName: values.firstName,
                 country: values.country,
@@ -102,6 +141,10 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
                 operator1: values.operator1,
                 phone2: values.phone2 || undefined,
                 operator2: values.operator2 || undefined,
+                birthDate: values.birthDate || null,
+                isWhatsApp: values.isWhatsApp,
+                referredById: values.referredById || null,
+                paymentPreference: values.paymentPreference,
             };
 
             try {
@@ -170,7 +213,25 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
                         </h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="identificationNumber">Nº Cédula</Label>
+                                <Label htmlFor="identificationType">Tipo Documento</Label>
+                                <Select
+                                    value={formik.values.identificationType}
+                                    onValueChange={(val) => formik.setFieldValue("identificationType", val)}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Seleccione tipo" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {ID_TYPES.map(type => (
+                                            <SelectItem key={type.value} value={type.value}>
+                                                {type.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="identificationNumber">Nº Documento</Label>
                                 <Input
                                     id="identificationNumber"
                                     {...formik.getFieldProps("identificationNumber")}
@@ -195,6 +256,63 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
                                         {formik.errors.firstName}
                                     </p>
                                 )}
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="paymentPreference">Preferencia de Pago</Label>
+                                <Select
+                                    value={formik.values.paymentPreference}
+                                    onValueChange={(val) => formik.setFieldValue("paymentPreference", val)}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Preferencia" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {PAYMENT_PREFERENCES.map(pref => (
+                                            <SelectItem key={pref.value} value={pref.value}>
+                                                {pref.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mt-3 sm:mt-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="birthDate">Fecha de Nacimiento</Label>
+                                <div className="flex gap-2 items-center">
+                                    <Input
+                                        id="birthDate"
+                                        type="date"
+                                        {...formik.getFieldProps("birthDate")}
+                                    />
+                                    {formik.values.birthDate && (
+                                        <Badge variant="outline" className="h-9 px-2 whitespace-nowrap">
+                                            {differenceInYears(new Date(), new Date(formik.values.birthDate))} años
+                                        </Badge>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="referredById">Referido por</Label>
+                                <Select
+                                    value={formik.values.referredById || "none"}
+                                    onValueChange={(val) => formik.setFieldValue("referredById", val === "none" ? "" : val)}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Buscar cliente..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">-- Sin referido --</SelectItem>
+                                        {allClients
+                                            .filter(c => c.id !== client?.id)
+                                            .map(c => (
+                                                <SelectItem key={c.id} value={c.id}>
+                                                    {c.firstName} ({c.identificationNumber})
+                                                </SelectItem>
+                                            ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </div>
                     </div>
@@ -314,13 +432,28 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="phone1">Teléfono Principal</Label>
-                                <Input
-                                    id="phone1"
-                                    {...formik.getFieldProps("phone1")}
-                                    placeholder="0998765432"
-                                />
+                                <div className="space-y-2">
+                                    <Input
+                                        id="phone1"
+                                        {...formik.getFieldProps("phone1")}
+                                        placeholder="0998765432"
+                                    />
+                                    <div className="flex items-center space-x-2">
+                                        <Switch
+                                            id="isWhatsApp"
+                                            checked={formik.values.isWhatsApp}
+                                            onCheckedChange={(checked: boolean) => formik.setFieldValue("isWhatsApp", checked)}
+                                        />
+                                        <label
+                                            htmlFor="isWhatsApp"
+                                            className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                        >
+                                            Es WhatsApp
+                                        </label>
+                                    </div>
+                                </div>
                                 {formik.touched.phone1 && formik.errors.phone1 && (
-                                    <p className="text-red-500 text-xs">
+                                    <p className="text-red-500 text-xs text-xs">
                                         {formik.errors.phone1}
                                     </p>
                                 )}

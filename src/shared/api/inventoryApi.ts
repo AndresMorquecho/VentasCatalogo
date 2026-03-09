@@ -2,6 +2,7 @@
 
 import { httpClient } from '@/shared/lib/httpClient';
 import type { InventoryMovement } from "@/entities/inventory-movement/model/types";
+import type { PaginatedResponse } from "@/entities/order/model/types";
 
 export const inventoryApi = {
   /**
@@ -13,11 +14,18 @@ export const inventoryApi = {
   },
 
   /**
-   * Get all inventory movements
+   * Get all inventory movements with pagination
    * @endpoint GET /api/inventory/movements
    */
-  getAll: async (): Promise<InventoryMovement[]> => {
-    return httpClient.get<InventoryMovement[]>('/inventory/movements');
+  getAll: async (params?: { page?: number; limit?: number; type?: string; brandId?: string; orderId?: string }): Promise<PaginatedResponse<InventoryMovement>> => {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) queryParams.append(key, value.toString());
+      });
+    }
+    const url = `/inventory/movements${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return httpClient.get<PaginatedResponse<InventoryMovement>>(url);
   },
 
   /**

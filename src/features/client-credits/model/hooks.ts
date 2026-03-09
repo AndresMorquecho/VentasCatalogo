@@ -1,16 +1,24 @@
 import { useQuery } from '@tanstack/react-query';
 import { clientCreditApi } from '@/shared/api/clientCreditApi';
-import type { ClientCreditSummary } from './types';
 
-export function useClientCredits() {
-    return useQuery({
-        queryKey: ['client-credits-summary'],
-        queryFn: async (): Promise<ClientCreditSummary[]> => {
-            return clientCreditApi.getSummary();
+
+export function useClientCredits(params?: { page?: number; limit?: number; search?: string }) {
+    const { data: response, isLoading } = useQuery({
+        queryKey: ['client-credits-summary', params],
+        queryFn: async () => {
+            return clientCreditApi.getSummary(params?.page, params?.limit, params?.search);
         },
         staleTime: 30000,
+        placeholderData: (prev) => prev
     });
+
+    return {
+        summaries: response?.data || [],
+        pagination: response?.pagination,
+        isLoading
+    };
 }
+
 
 export function useClientCredit(clientId: string) {
     return useQuery({

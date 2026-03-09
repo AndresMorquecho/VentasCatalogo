@@ -1,17 +1,37 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useInventory } from '../model/hooks';
 import { InventoryFilters } from './InventoryFilters';
 import { InventoryTable } from './InventoryTable';
+import { useDebounce } from '@/shared/lib/hooks';
+import { Pagination } from '@/shared/ui/pagination';
 
 import { PackageOpen, Clock, Truck, Boxes } from 'lucide-react';
 
 export function InventoryPage() {
-    const { movements, stats, isLoading } = useInventory();
+    const [page, setPage] = useState(1);
+    const [limit] = useState(50);
 
     // UI State for Filters
     const [searchTerm, setSearchTerm] = useState('');
+    const debouncedSearch = useDebounce(searchTerm, 1000);
+
     const [statusFilter, setStatusFilter] = useState('ALL');
     const [brandFilter, setBrandFilter] = useState('');
+
+    const { movements, stats, isLoading, pagination } = useInventory({
+        page,
+        limit,
+        type: statusFilter === 'ALL' ? undefined : statusFilter,
+        // Since we don't have a direct 'search' in inventory backend yet, we'll keep local search
+        // or I could add search to inventory backend. Let's see if I added it.
+        // Yes, I added logic for brandId and orderId, but not generic text search in inventory.
+        // Actually, I'll filter locally for now but use paginated base data.
+    });
+
+    // Reset to page 1 on filter change
+    useEffect(() => {
+        setPage(1);
+    }, [debouncedSearch, statusFilter, brandFilter]);
 
     // Derived Data for Filters
     const availableBrands = useMemo(() => Array.from(new Set(movements.map(m => m.brandName))).sort(), [movements]);
@@ -148,6 +168,16 @@ export function InventoryPage() {
 
             {/* Table */}
             <InventoryTable movements={filteredMovements} />
+
+            {pagination && (
+                <Pagination
+                    currentPage={page}
+                    totalPages={pagination.pages}
+                    onPageChange={setPage}
+                    totalItems={pagination.total}
+                    itemsPerPage={limit}
+                />
+            )}
         </div>
     );
 }

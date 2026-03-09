@@ -1,13 +1,31 @@
 import { httpClient } from '@/shared/lib/httpClient';
-import type { Order, OrderPayload } from './types';
+import type { Order, OrderPayload, PaginatedResponse } from './types';
+
+export interface OrderQueryParams {
+    page?: number;
+    limit?: number;
+    status?: string;
+    clientId?: string;
+    brandId?: string;
+    search?: string;
+}
 
 export const orderApi = {
     /**
-     * Get all orders
+     * Get orders with filters and pagination
      * @endpoint GET /api/orders
      */
-    getAll: async (): Promise<Order[]> => {
-        return httpClient.get<Order[]>('/orders');
+    getAll: async (params?: OrderQueryParams): Promise<PaginatedResponse<Order>> => {
+        const queryParams = new URLSearchParams();
+        if (params) {
+            Object.entries(params).forEach(([key, value]) => {
+                if (value !== undefined) {
+                    queryParams.append(key, value.toString());
+                }
+            });
+        }
+        const url = `/orders${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+        return httpClient.get<PaginatedResponse<Order>>(url);
     },
 
     /**
@@ -123,6 +141,7 @@ export const orderApi = {
             abonoRecepcion?: number;
             bankAccountId?: string;
             paymentMethod?: string;
+            reprogrammedItemIds?: string[];
         }
     ): Promise<Order> => {
         return httpClient.post<Order>(`/orders/${orderId}/receive`, data);

@@ -9,22 +9,18 @@ export interface TransactionFilters {
     endDate?: string;
     referenceNumber?: string;
     clientId?: string;
+    page?: number;
+    limit?: number;
 }
 
 export const useTransactions = (filters?: TransactionFilters) => {
     return useQuery({
         queryKey: ['transactions', filters],
-        queryFn: async () => {
-            if (filters?.startDate && filters?.endDate) {
-                return financialRecordApi.getByDateRange(filters.startDate, filters.endDate);
-            } else if (filters?.clientId) {
-                return financialRecordApi.getByClient(filters.clientId);
-            } else {
-                return financialRecordApi.getAll();
-            }
-        }
+        queryFn: () => financialRecordApi.getAll(filters),
+        placeholderData: (prev) => prev
     });
 };
+
 
 export const useCreateTransaction = () => {
     const queryClient = useQueryClient();

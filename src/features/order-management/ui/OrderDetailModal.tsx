@@ -44,7 +44,8 @@ function formatCurrency(amount: number): string {
 }
 
 export function OrderDetailModal({ order, open, onOpenChange }: OrderDetailModalProps) {
-    const { data: bankAccounts = [] } = useBankAccountList()
+    const { data: response } = useBankAccountList()
+    const bankAccounts = response?.data || []
     const { user } = useAuth()
     const { showToast } = useToast()
 
@@ -53,7 +54,7 @@ export function OrderDetailModal({ order, open, onOpenChange }: OrderDetailModal
     if (!order) return null
 
     const bankAccount = order.bankAccountId
-        ? bankAccounts.find(b => b.id === order.bankAccountId)
+        ? bankAccounts.find((b: any) => b.id === order.bankAccountId)
         : null
 
     const handleGenerateReceipt = async () => {

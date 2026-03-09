@@ -14,18 +14,24 @@ function useActor() {
 }
 
 // ─── Rules ────────────────────────────────────────────────────────────────────
-export const useLoyaltyRules = () => {
+export const useLoyaltyRules = (params?: { page?: number; limit?: number }) => {
     const qc = useQueryClient();
     const actor = useActor();
-    const key = ['loyalty-rules'];
+    const key = ['loyalty-rules', params];
 
-    const { data: rules = [], isLoading } = useQuery({ queryKey: key, queryFn: loyaltyRulesApi.getAll });
+    const { data: response, isLoading } = useQuery({
+        queryKey: key,
+        queryFn: () => loyaltyRulesApi.getAll(params),
+        placeholderData: (prev) => prev
+    });
+    const rules = response?.data || [];
+    const pagination = response?.pagination;
 
     const { mutateAsync: createRule, isPending: isCreating } = useMutation({
         mutationFn: (data: LoyaltyRuleFormData) => loyaltyRulesApi.create(data),
         onSuccess: (rule) => {
             logAction({ ...actor, action: 'CREATE_LOYALTY_RULE', module: 'loyalty', detail: `Creó regla: "${rule.name}"` });
-            qc.invalidateQueries({ queryKey: key });
+            qc.invalidateQueries({ queryKey: ['loyalty-rules'] });
         },
     });
 
@@ -34,7 +40,7 @@ export const useLoyaltyRules = () => {
             loyaltyRulesApi.update(id, data),
         onSuccess: (rule) => {
             logAction({ ...actor, action: 'UPDATE_LOYALTY_RULE', module: 'loyalty', detail: `Actualizó regla: "${rule.name}"` });
-            qc.invalidateQueries({ queryKey: key });
+            qc.invalidateQueries({ queryKey: ['loyalty-rules'] });
         },
     });
 
@@ -42,7 +48,7 @@ export const useLoyaltyRules = () => {
         mutationFn: (id: string) => loyaltyRulesApi.remove(id),
         onSuccess: (_, id) => {
             logAction({ ...actor, action: 'DELETE_LOYALTY_RULE', module: 'loyalty', detail: `Eliminó regla ID: ${id}` });
-            qc.invalidateQueries({ queryKey: key });
+            qc.invalidateQueries({ queryKey: ['loyalty-rules'] });
         },
     });
 
@@ -52,26 +58,32 @@ export const useLoyaltyRules = () => {
             if (rule) {
                 logAction({ ...actor, action: 'UPDATE_LOYALTY_RULE', module: 'loyalty', detail: `${rule.isActive ? 'Activó' : 'Desactivó'} regla: "${rule.name}"` });
             }
-            qc.invalidateQueries({ queryKey: key });
+            qc.invalidateQueries({ queryKey: ['loyalty-rules'] });
         },
     });
 
-    return { rules, isLoading, createRule, updateRule, deleteRule, toggleRule, isCreating, isUpdating };
+    return { rules, pagination, isLoading, createRule, updateRule, deleteRule, toggleRule, isCreating, isUpdating };
 };
 
 // ─── Prizes ───────────────────────────────────────────────────────────────────
-export const useLoyaltyPrizes = () => {
+export const useLoyaltyPrizes = (params?: { page?: number; limit?: number }) => {
     const qc = useQueryClient();
     const actor = useActor();
-    const key = ['loyalty-prizes'];
+    const key = ['loyalty-prizes', params];
 
-    const { data: prizes = [], isLoading } = useQuery({ queryKey: key, queryFn: loyaltyPrizesApi.getAll });
+    const { data: response, isLoading } = useQuery({
+        queryKey: key,
+        queryFn: () => loyaltyPrizesApi.getAll(params),
+        placeholderData: (prev) => prev
+    });
+    const prizes = response?.data || [];
+    const pagination = response?.pagination;
 
     const { mutateAsync: createPrize, isPending: isCreating } = useMutation({
         mutationFn: (data: LoyaltyPrizeFormData) => loyaltyPrizesApi.create(data),
         onSuccess: (prize) => {
             logAction({ ...actor, action: 'CREATE_LOYALTY_PRIZE', module: 'loyalty', detail: `Creó premio: "${prize.name}"` });
-            qc.invalidateQueries({ queryKey: key });
+            qc.invalidateQueries({ queryKey: ['loyalty-prizes'] });
         },
     });
 
@@ -80,7 +92,7 @@ export const useLoyaltyPrizes = () => {
             loyaltyPrizesApi.update(id, data),
         onSuccess: (prize) => {
             logAction({ ...actor, action: 'UPDATE_LOYALTY_PRIZE', module: 'loyalty', detail: `Actualizó premio: "${prize.name}"` });
-            qc.invalidateQueries({ queryKey: key });
+            qc.invalidateQueries({ queryKey: ['loyalty-prizes'] });
         },
     });
 
@@ -88,7 +100,7 @@ export const useLoyaltyPrizes = () => {
         mutationFn: (id: string) => loyaltyPrizesApi.remove(id),
         onSuccess: (_, id) => {
             logAction({ ...actor, action: 'DELETE_LOYALTY_PRIZE', module: 'loyalty', detail: `Eliminó premio ID: ${id}` });
-            qc.invalidateQueries({ queryKey: key });
+            qc.invalidateQueries({ queryKey: ['loyalty-prizes'] });
         },
     });
 
@@ -98,22 +110,26 @@ export const useLoyaltyPrizes = () => {
             if (prize) {
                 logAction({ ...actor, action: 'UPDATE_LOYALTY_PRIZE', module: 'loyalty', detail: `${prize.isActive ? 'Activó' : 'Desactivó'} premio: "${prize.name}"` });
             }
-            qc.invalidateQueries({ queryKey: key });
+            qc.invalidateQueries({ queryKey: ['loyalty-prizes'] });
         },
     });
 
-    return { prizes, isLoading, createPrize, updatePrize, deletePrize, togglePrize, isCreating, isUpdating };
+    return { prizes, pagination, isLoading, createPrize, updatePrize, deletePrize, togglePrize, isCreating, isUpdating };
 };
 
 // ─── Redemptions ──────────────────────────────────────────────────────────────
-export const useLoyaltyRedemptions = () => {
+export const useLoyaltyRedemptions = (params?: { page?: number; limit?: number }) => {
     const qc = useQueryClient();
     const actor = useActor();
+    const key = ['loyalty-redemptions', params];
 
-    const { data: redemptions = [], isLoading, refetch } = useQuery({
-        queryKey: ['loyalty-redemptions'],
-        queryFn: loyaltyRedemptionsApi.getAll,
+    const { data: response, isLoading, refetch } = useQuery({
+        queryKey: key,
+        queryFn: () => loyaltyRedemptionsApi.getAll(params),
+        placeholderData: (prev) => prev
     });
+    const redemptions = response?.data || [];
+    const pagination = response?.pagination;
 
     const { mutateAsync: redeemPrize, isPending: isRedeeming } = useMutation({
         mutationFn: (data: { clientId: string, prizeId: string }) => loyaltyRedemptionsApi.redeem(data),
@@ -125,13 +141,21 @@ export const useLoyaltyRedemptions = () => {
         },
     });
 
-    return { redemptions, isLoading, refetch, redeemPrize, isRedeeming };
+    return { redemptions, pagination, isLoading, refetch, redeemPrize, isRedeeming };
 };
 
-export const useLoyaltyHistory = (clientId: string | null) => {
-    return useQuery({
-        queryKey: ['loyalty-history', clientId],
-        queryFn: () => loyaltyRedemptionsApi.getHistory(clientId!),
+export const useLoyaltyHistory = (clientId: string | null, params?: { page?: number; limit?: number }) => {
+    const key = ['loyalty-history', clientId, params];
+    const { data: response, isLoading } = useQuery({
+        queryKey: key,
+        queryFn: () => loyaltyRedemptionsApi.getHistory(clientId!, params),
         enabled: !!clientId,
+        placeholderData: (prev) => prev
     });
+    return {
+        history: response?.data || [],
+        pagination: response?.pagination,
+        isLoading
+    };
 };
+

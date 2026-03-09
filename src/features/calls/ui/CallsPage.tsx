@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { Label } from '@/shared/ui/label';
@@ -6,6 +6,8 @@ import { Plus, Search } from 'lucide-react';
 import { useCalls } from '../model/hooks';
 import { CallFormModal } from './CallFormModal';
 import { CallsTable } from './CallsTable';
+import { useDebounce } from '@/shared/lib/hooks';
+import { Pagination } from '@/shared/ui/pagination';
 
 import {
     CALL_REASONS,
@@ -14,17 +16,38 @@ import {
     callResultsMap,
     type Call
 } from '@/entities/call';
-import { useClients } from '@/entities/client/model/hooks';
 
 export function CallsPage() {
-    const { calls, isLoading, refetch } = useCalls();
-    const { data: clients } = useClients();
+    const [page, setPage] = useState(1);
+    const [limit] = useState(25);
     const [searchTerm, setSearchTerm] = useState('');
+    const debouncedSearch = useDebounce(searchTerm, 1000);
+
     const [filterReason, setFilterReason] = useState<string>('');
     const [filterResult, setFilterResult] = useState<string>('');
     const [filterDate, setFilterDate] = useState('');
+
+    const { data: response, isLoading, refetch } = useCalls({
+        page,
+        limit,
+        search: debouncedSearch.length >= 3 ? debouncedSearch : undefined,
+        reason: filterReason || undefined,
+        result: filterResult || undefined,
+        // startDate: ... (need to parse filterDate)
+    });
+
+    // Reset to page 1 on filter changes
+    useEffect(() => {
+        setPage(1);
+    }, [debouncedSearch, filterReason, filterResult, filterDate]);
+
+    const calls = response?.data || [];
+    const pagination = response?.pagination;
+
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedCall, setSelectedCall] = useState<Call | undefined>(undefined);
+
+
 
     const handleCreate = () => {
         setSelectedCall(undefined);
@@ -35,19 +58,6 @@ export function CallsPage() {
         setSelectedCall(call);
         setIsModalOpen(true);
     };
-
-    const filteredCalls = calls.filter(call => {
-        const client = clients?.find(c => c.id === call.clientId);
-        const clientNameMatch = client ?
-            (client.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                client.identificationNumber.includes(searchTerm)) : false;
-
-        const dateMatch = filterDate ? call.createdAt.startsWith(filterDate) : true;
-        const reasonMatch = filterReason ? call.reason === filterReason : true;
-        const resultMatch = filterResult ? call.result === filterResult : true;
-
-        return (searchTerm === '' || clientNameMatch) && dateMatch && reasonMatch && resultMatch;
-    }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     return (
         <div className="space-y-6 container mx-auto p-4 md:p-8">
@@ -119,7 +129,18 @@ export function CallsPage() {
             {isLoading ? (
                 <div className="flex justify-center p-8">Cargando...</div>
             ) : (
-                <CallsTable calls={filteredCalls} onEdit={handleEdit} />
+                <>
+                    <CallsTable calls={calls} onEdit={handleEdit} />
+                    {pagination && (
+                        <Pagination
+                            currentPage={page}
+                            totalPages={pagination.pages}
+                            onPageChange={setPage}
+                            totalItems={pagination.total}
+                            itemsPerPage={limit}
+                        />
+                    )}
+                </>
             )}
 
             <CallFormModal
@@ -131,3 +152,4 @@ export function CallsPage() {
         </div>
     );
 }
+

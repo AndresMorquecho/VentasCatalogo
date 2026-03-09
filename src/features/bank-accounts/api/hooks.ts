@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { bankAccountApi } from '@/shared/api/bankAccountApi'
-import type { BankAccountPayload } from '@/entities/bank-account/model/types'
+import type { BankAccount, BankAccountPayload } from '@/entities/bank-account/model/types'
+import type { PaginatedResponse } from '@/entities/order/model/types'
 
 const KEYS = {
     all: ['bank-accounts'] as const,
@@ -8,10 +9,11 @@ const KEYS = {
     detail: (id: string) => [...KEYS.all, 'detail', id] as const,
 }
 
-export function useBankAccountList() {
-    return useQuery({
-        queryKey: KEYS.list(),
-        queryFn: bankAccountApi.getAll
+export function useBankAccountList(params?: { page?: number; limit?: number }) {
+    return useQuery<PaginatedResponse<BankAccount>>({
+        queryKey: [...KEYS.list(), params],
+        queryFn: () => bankAccountApi.getAll(params),
+        placeholderData: (prev) => prev
     })
 }
 

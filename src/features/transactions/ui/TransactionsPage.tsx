@@ -1,26 +1,42 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { useTransactions } from "../model/hooks"
 import { TransactionsTable } from "./TransactionsTable"
 import { TransactionDetailsModal } from "./TransactionDetailsModal"
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
 import { Search, Loader2, X } from "lucide-react"
+import { useDebounce } from "@/shared/lib/hooks"
+import { Pagination } from "@/shared/ui/pagination"
 import type { FinancialRecord } from "@/entities/financial-record/model/types"
 
 export function TransactionsPage() {
+    const [page, setPage] = useState(1)
+    const [limit] = useState(50)
     const [searchTerm, setSearchTerm] = useState("")
+    const debouncedSearch = useDebounce(searchTerm, 1000)
+
     const [startDate, setStartDate] = useState("")
     const [endDate, setEndDate] = useState("")
     const [viewTx, setViewTx] = useState<FinancialRecord | null>(null)
 
     // Memoize filters to prevent infinite re-render loops from TanStack Query key changes
     const filters = useMemo(() => ({
-        referenceNumber: searchTerm,
+        referenceNumber: debouncedSearch.length >= 3 ? debouncedSearch : undefined,
         startDate: startDate || undefined,
-        endDate: endDate || undefined
-    }), [searchTerm, startDate, endDate]);
+        endDate: endDate || undefined,
+        page,
+        limit
+    }), [debouncedSearch, startDate, endDate, page, limit]);
 
-    const { data: transactions = [], isLoading } = useTransactions(filters)
+    // Reset page to 1 on filter changes
+    useEffect(() => {
+        setPage(1)
+    }, [debouncedSearch, startDate, endDate]);
+
+    const { data: response, isLoading } = useTransactions(filters)
+    const transactions = response?.data || []
+    const pagination = response?.pagination
+
 
     const handleClear = () => {
         setSearchTerm("")
@@ -78,7 +94,18 @@ export function TransactionsPage() {
                     <Loader2 className="animate-spin h-8 w-8 text-slate-400" />
                 </div>
             ) : (
-                <TransactionsTable transactions={transactions} onView={setViewTx} />
+                <>
+                    <TransactionsTable transactions={transactions} onView={setViewTx} />
+                    {pagination && (
+                        <Pagination
+                            currentPage={page}
+                            totalPages={pagination.pages}
+                            onPageChange={setPage}
+                            totalItems={pagination.total}
+                            itemsPerPage={limit}
+                        />
+                    )}
+                </>
             )}
 
             <TransactionDetailsModal

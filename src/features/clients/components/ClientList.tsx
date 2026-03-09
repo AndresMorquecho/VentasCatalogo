@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useClientList, useDeleteClient } from "@/features/clients/api/hooks";
 import { useOrderList } from "@/entities/order/model/hooks";
 import { canDeleteClient } from "@/entities/client/model/model";
@@ -19,41 +19,40 @@ import {
 import { useAuth } from "@/shared/auth";
 import { logAction } from "@/shared/lib/auditService";
 import { useNotifications } from "@/shared/lib/notifications";
-
-/**
- * Filters clients in memory by search query.
- * Matches against identificationNumber and firstName.
- * Case insensitive, partial match.
- * Does not modify the API or React Query cache.
- */
-function filterClients(clients: Client[], query: string): Client[] {
-    if (!query.trim()) return clients;
-    const lower = query.toLowerCase().trim();
-    return clients.filter(
-        (c) =>
-            c.identificationNumber.toLowerCase().includes(lower) ||
-            c.firstName.toLowerCase().includes(lower)
-    );
-}
+import { useDebounce } from "@/shared/lib/hooks";
+import { Pagination } from "@/shared/ui/pagination";
 
 export function ClientList() {
-    const { data: clients = [], isLoading, isError, refetch } = useClientList();
-    const { data: orders = [] } = useOrderList();
+    const [page, setPage] = useState(1);
+    const [limit] = useState(25);
+    const [searchQuery, setSearchQuery] = useState("");
+    const debouncedSearch = useDebounce(searchQuery, 1000);
+
+    const { data: response, isLoading, isError, refetch } = useClientList({
+        page,
+        limit,
+        search: debouncedSearch.length >= 3 ? debouncedSearch : undefined,
+    });
+
+    const clients = response?.data || [];
+    const pagination = response?.pagination;
+
+    const { data: ordersResponse } = useOrderList({ limit: 500 }); // Large limit for integrity check
+    const orders = ordersResponse?.data || [];
     const deleteClientMutation = useDeleteClient();
 
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState<Client | null>(null);
     const [deleteError, setDeleteError] = useState<string | null>(null);
-    const [searchQuery, setSearchQuery] = useState("");
+
     const { hasPermission, user } = useAuth();
     const { notifySuccess, notifyError } = useNotifications();
 
-    // In-memory filtering — no API call, no cache mutation
-    const filteredClients = useMemo(
-        () => filterClients(clients, searchQuery),
-        [clients, searchQuery]
-    );
+    // Reset page on search
+    useEffect(() => {
+        setPage(1);
+    }, [debouncedSearch]);
 
     const handleCreate = () => {
         if (!hasPermission('clients.create')) {
@@ -184,7 +183,7 @@ export function ClientList() {
             )}
 
             <ClientTable
-                clients={filteredClients}
+                clients={clients}
                 isLoading={isLoading}
                 onEdit={handleEdit}
                 onDelete={handleDeleteRequest}
@@ -195,6 +194,16 @@ export function ClientList() {
                 open={isFormOpen}
                 onOpenChange={setIsFormOpen}
             />
+
+            {pagination && (
+                <Pagination
+                    currentPage={page}
+                    totalPages={pagination.pages}
+                    onPageChange={setPage}
+                    totalItems={pagination.total}
+                    itemsPerPage={limit}
+                />
+            )}
 
             {/* Delete Confirmation Dialog */}
             <Dialog

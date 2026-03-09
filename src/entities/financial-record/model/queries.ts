@@ -2,7 +2,8 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { financialRecordApi } from './api';
-import type { CreateFinancialRecordPayload, UpdateFinancialRecordPayload } from './types';
+import type { FinancialRecord, CreateFinancialRecordPayload, UpdateFinancialRecordPayload } from './types';
+import type { PaginatedResponse } from '@/entities/order/model/types';
 
 // Query Keys
 export const financialRecordKeys = {
@@ -10,17 +11,17 @@ export const financialRecordKeys = {
   detail: (id: string) => ['financial-records', id] as const,
   byClient: (clientId: string) => ['financial-records', 'client', clientId] as const,
   byOrder: (orderId: string) => ['financial-records', 'order', orderId] as const,
-  byDateRange: (startDate: string, endDate: string) => 
+  byDateRange: (startDate: string, endDate: string) =>
     ['financial-records', 'date-range', startDate, endDate] as const
 };
 
 /**
  * Get all financial records
  */
-export const useFinancialRecords = () => {
-  return useQuery({
-    queryKey: financialRecordKeys.all,
-    queryFn: financialRecordApi.getAll
+export const useFinancialRecords = (params?: { page?: number; limit?: number; startDate?: string; endDate?: string; clientId?: string }) => {
+  return useQuery<PaginatedResponse<FinancialRecord>>({
+    queryKey: [...financialRecordKeys.all, params],
+    queryFn: () => financialRecordApi.getAll(params)
   });
 };
 
@@ -73,20 +74,20 @@ export const useFinancialRecordsByDateRange = (startDate: string, endDate: strin
  */
 export const useCreateFinancialRecord = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: (payload: CreateFinancialRecordPayload) => 
+    mutationFn: (payload: CreateFinancialRecordPayload) =>
       financialRecordApi.create(payload),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: financialRecordKeys.all });
       if (data.clientId) {
-        queryClient.invalidateQueries({ 
-          queryKey: financialRecordKeys.byClient(data.clientId) 
+        queryClient.invalidateQueries({
+          queryKey: financialRecordKeys.byClient(data.clientId)
         });
       }
       if (data.orderId) {
-        queryClient.invalidateQueries({ 
-          queryKey: financialRecordKeys.byOrder(data.orderId) 
+        queryClient.invalidateQueries({
+          queryKey: financialRecordKeys.byOrder(data.orderId)
         });
       }
     }
@@ -98,7 +99,7 @@ export const useCreateFinancialRecord = () => {
  */
 export const useUpdateFinancialRecord = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: UpdateFinancialRecordPayload }) =>
       financialRecordApi.update(id, payload),
@@ -106,8 +107,8 @@ export const useUpdateFinancialRecord = () => {
       queryClient.invalidateQueries({ queryKey: financialRecordKeys.all });
       queryClient.invalidateQueries({ queryKey: financialRecordKeys.detail(data.id) });
       if (data.clientId) {
-        queryClient.invalidateQueries({ 
-          queryKey: financialRecordKeys.byClient(data.clientId) 
+        queryClient.invalidateQueries({
+          queryKey: financialRecordKeys.byClient(data.clientId)
         });
       }
     }
@@ -119,7 +120,7 @@ export const useUpdateFinancialRecord = () => {
  */
 export const useDeleteFinancialRecord = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: (id: string) => financialRecordApi.delete(id),
     onSuccess: () => {

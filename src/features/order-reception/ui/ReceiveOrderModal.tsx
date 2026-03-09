@@ -39,17 +39,19 @@ export function ReceiveOrderModal({ order, open, onOpenChange }: ReceiveOrderMod
     const [abonoRecepcion, setAbonoRecepcion] = useState<string>('')
     const [bankAccountId, setBankAccountId] = useState<string>('')
     const [paymentMethod, setPaymentMethod] = useState<string>('EFECTIVO')
+    const [reprogrammedItems, setReprogrammedItems] = useState<Record<string, boolean>>({})
     const [isSubmitting, setIsSubmitting] = useState(false)
     const { notifySuccess, notifyError } = useNotifications()
     const { user } = useAuth()
     const qc = useQueryClient()
 
     // Fetch bank accounts
-    const { data: bankAccounts = [] } = useQuery({
+    const { data: bankAccountsResponse } = useQuery({
         queryKey: ['bankAccounts'],
-        queryFn: bankAccountApi.getAll,
+        queryFn: () => bankAccountApi.getAll({ limit: 100 }),
         staleTime: 5 * 60 * 1000
     })
+    const bankAccounts = bankAccountsResponse?.data || []
 
     // Reset form when order changes
     useEffect(() => {
@@ -59,13 +61,17 @@ export function ReceiveOrderModal({ order, open, onOpenChange }: ReceiveOrderMod
             setAbonoRecepcion('')
             setBankAccountId('')
             setPaymentMethod('EFECTIVO')
+            setReprogrammedItems({})
         }
     }, [order])
 
     if (!order) return null
 
     const handleSubmit = async () => {
-        if (!invoiceTotal) return
+        if (!invoiceTotal || !invoiceNumber) {
+            notifyError({ message: 'El total de factura y el número de factura son obligatorios para el Packing.' })
+            return
+        }
         const total = parseFloat(invoiceTotal)
         if (isNaN(total) || total <= 0) return
 
@@ -96,7 +102,8 @@ export function ReceiveOrderModal({ order, open, onOpenChange }: ReceiveOrderMod
                 invoiceNumber: invoiceNumber || undefined,
                 abonoRecepcion: abono > 0 ? abono : undefined,
                 bankAccountId: abono > 0 ? finalBankAccountId : undefined,
-                paymentMethod: abono > 0 ? paymentMethod : undefined
+                paymentMethod: abono > 0 ? paymentMethod : undefined,
+                reprogrammedItemIds: Object.keys(reprogrammedItems).filter(id => reprogrammedItems[id])
             })
 
             await qc.invalidateQueries({ queryKey: ['orders'] })
@@ -129,7 +136,7 @@ export function ReceiveOrderModal({ order, open, onOpenChange }: ReceiveOrderMod
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-amber-900">
                         <PackageCheck className="h-5 w-5" />
-                        Recepción en Bodega
+                        Confirmación de Packing
                     </DialogTitle>
                     <DialogDescription>
                         Pedido #{order.receiptNumber} - {order.clientName}
@@ -146,7 +153,7 @@ export function ReceiveOrderModal({ order, open, onOpenChange }: ReceiveOrderMod
                             onChange={(e) => setInvoiceTotal(e.target.value)}
                             placeholder="0.00"
                             step="0.01"
-                            className="font-bold text-lg"
+                            className={`font-bold text-lg ${parseFloat(invoiceTotal) !== order.total ? 'bg-orange-50 border-orange-300 text-orange-900' : 'bg-green-50 border-green-300 text-green-900'}`}
                         />
                         <p className="text-xs text-muted-foreground">
                             Valor estimado original: {formatCurrency(order.total)}
@@ -154,13 +161,43 @@ export function ReceiveOrderModal({ order, open, onOpenChange }: ReceiveOrderMod
                     </div>
 
                     <div className="grid gap-2">
-                        <Label htmlFor="invoice-number">Número de Factura (Opcional)</Label>
+                        <Label htmlFor="invoice-number" className="after:content-['*'] after:ml-0.5 after:text-red-500">Número de Factura</Label>
                         <Input
                             id="invoice-number"
                             value={invoiceNumber}
                             onChange={(e) => setInvoiceNumber(e.target.value)}
                             placeholder="Ej: 001-002-123456"
+                            className={!invoiceNumber ? 'border-red-200' : ''}
                         />
+                    </div>
+
+                    <Separator className="my-2" />
+
+                    <div className="grid gap-2">
+                        <Label className="text-sm font-semibold">Ítems del Pedido</Label>
+                        <div className="max-h-[150px] overflow-y-auto border rounded-md p-2 space-y-2 bg-slate-50">
+                            {order.items.map((item: any) => (
+                                <div key={item.id} className="flex items-center justify-between text-xs p-1 border-b last:border-0">
+                                    <div className="flex-1">
+                                        <p className="font-medium">{item.productName}</p>
+                                        <p className="text-muted-foreground">{item.quantity} und. x ${Number(item.unitPrice).toFixed(2)}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Label htmlFor={`reprog-${item.id}`} className="text-[10px] text-orange-600 font-bold">REPROGRAMAR</Label>
+                                        <input
+                                            id={`reprog-${item.id}`}
+                                            type="checkbox"
+                                            checked={reprogrammedItems[item.id] || false}
+                                            onChange={(e) => setReprogrammedItems({
+                                                ...reprogrammedItems,
+                                                [item.id]: e.target.checked
+                                            })}
+                                            className="h-4 w-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+                                        />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
 
                     <Separator className="my-2" />

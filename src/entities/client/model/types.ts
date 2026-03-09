@@ -1,4 +1,4 @@
-export type IdentificationType = 'CEDULA';
+export type IdentificationType = 'CEDULA' | 'CEDULA_EXTRANJERA' | 'RUC';
 
 export interface Client {
     id: string;
@@ -17,6 +17,16 @@ export interface Client {
     operator1: string;
     phone2?: string;
     operator2?: string;
+
+    // Nuevos campos FASE 1 & 2
+    birthDate?: string;
+    isWhatsApp: boolean;
+    referredById?: string;
+    lastDataUpdate?: string;
+    lastOrderDate?: string;
+    isBlocked: boolean;
+    paymentPreference: string;
+
     createdAt: string;
 }
 
@@ -36,4 +46,10 @@ export interface ClientPayload {
     operator1: string;
     phone2?: string;
     operator2?: string;
+
+    // Nuevos campos FASE 1 & 2
+    birthDate?: string | null;
+    isWhatsApp?: boolean;
+    referredById?: string | null;
+    paymentPreference?: string;
 }

@@ -1,28 +1,41 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useClientCredits } from "../model/hooks";
 import { ClientCreditsTable } from "./ClientCreditsTable";
 import { Input } from "@/shared/ui/input";
 import { Search, Gift, DollarSign } from "lucide-react";
+import { useDebounce } from "@/shared/lib/hooks";
+
+import { Pagination } from "@/shared/ui/pagination";
 
 export function ClientCreditsPage() {
     const [searchText, setSearchText] = useState("");
-    const { data: credits = [], isLoading, isError } = useClientCredits();
+    const debouncedSearch = useDebounce(searchText, 1000);
+    const [page, setPage] = useState(1);
+    const [limit] = useState(10);
 
-    // Filter by client name or ID
-    const filteredCredits = credits.filter(credit => {
-        if (!searchText) return true;
-        const search = searchText.toLowerCase();
-        return (
-            credit.clientName?.toLowerCase().includes(search) ||
-            credit.clientId.toLowerCase().includes(search)
-        );
+    // Reset page when search changes
+    useEffect(() => { setPage(1); }, [debouncedSearch]);
+
+    const { summaries: credits, pagination, isLoading } = useClientCredits({
+        page,
+        limit,
+        search: debouncedSearch.length >= 3 ? debouncedSearch : undefined
+    });
+
+    // Local filter for short search terms (<3 chars)
+    const filteredCredits = credits.filter((credit: any) => {
+        if (debouncedSearch.length > 0 && debouncedSearch.length < 3) {
+            const s = debouncedSearch.toLowerCase();
+            return credit.clientName?.toLowerCase().includes(s) || credit.clientId.toLowerCase().includes(s);
+        }
+        return true;
     });
 
     // Calculate total credits
-    const totalCredits = filteredCredits.reduce((sum, c) => sum + Number(c.totalCredit), 0);
+    const totalCredits = filteredCredits.reduce((sum: number, c: any) => sum + Number(c.totalCredit), 0);
 
     if (isLoading) return <div className="p-8">Cargando saldos a favor...</div>;
-    if (isError) return <div className="p-8 text-red-500">Error al cargar saldos a favor.</div>;
+
 
     return (
         <div className="container mx-auto py-8">
@@ -69,6 +82,17 @@ export function ClientCreditsPage() {
             <div className="bg-white rounded-lg p-1 border border-slate-200 shadow-sm">
                 <ClientCreditsTable credits={filteredCredits} />
             </div>
+
+            {pagination && (
+                <Pagination
+                    currentPage={page}
+                    totalPages={pagination.pages}
+                    onPageChange={setPage}
+                    totalItems={pagination.total}
+                    itemsPerPage={limit}
+                />
+            )}
+
         </div>
     );
 }

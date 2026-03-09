@@ -1,16 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { orderApi } from './api'
-import type { OrderPayload } from './types'
+import { orderApi, type OrderQueryParams } from './api'
+import type { OrderPayload, Order, PaginatedResponse } from './types'
 
 const KEYS = {
     all: ['orders'] as const,
-    list: () => [...KEYS.all, 'list'] as const,
+    list: (params?: OrderQueryParams) => [...KEYS.all, 'list', params] as const,
     detail: (id: string) => [...KEYS.all, 'detail', id] as const,
     byClient: (clientId: string) => [...KEYS.all, 'client', clientId] as const,
 }
 
-export function useOrderList() {
-    return useQuery({ queryKey: KEYS.list(), queryFn: orderApi.getAll })
+export function useOrderList(params?: OrderQueryParams) {
+    return useQuery({
+        queryKey: KEYS.list(params),
+        queryFn: () => orderApi.getAll(params),
+        placeholderData: (previousData: PaginatedResponse<Order> | undefined) => previousData
+    })
 }
 
 export function useOrder(id: string) {

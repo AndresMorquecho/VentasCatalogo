@@ -10,9 +10,16 @@ import { useAuth } from "@/shared/auth"
 import { useNotifications } from "@/shared/lib/notifications"
 import { ConfirmDialog } from "@/shared/ui/confirm-dialog"
 import { logAction } from "@/shared/lib/auditService"
+import { Pagination } from "@/shared/ui/pagination"
 
 export function BankAccountList() {
-    const { data: accounts = [], isLoading, isError, refetch } = useBankAccountList()
+    const [page, setPage] = useState(1)
+    const [limit] = useState(25)
+    const { data: response, isLoading, isError, refetch } = useBankAccountList({ page, limit })
+
+    const accounts = response?.data || []
+    const pagination = response?.pagination
+
     const deleteAccount = useDeleteBankAccount()
     const { hasPermission, user } = useAuth()
     const { notifySuccess, notifyError } = useNotifications()
@@ -164,6 +171,16 @@ export function BankAccountList() {
                 onOpenChange={setIsFormOpen}
             />
 
+            {pagination && (
+                <Pagination
+                    currentPage={page}
+                    totalPages={pagination.pages}
+                    onPageChange={setPage}
+                    totalItems={pagination.total}
+                    itemsPerPage={limit}
+                />
+            )}
+
             <ConfirmDialog
                 open={isDeleteDialogOpen}
                 onOpenChange={setIsDeleteDialogOpen}
@@ -176,3 +193,4 @@ export function BankAccountList() {
         </div>
     )
 }
+

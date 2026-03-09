@@ -35,9 +35,26 @@ const EMPTY_FORM: LoyaltyPrizeFormData = {
     isActive: true,
 };
 
+import { Pagination } from '@/shared/ui/pagination';
+
 export function LoyaltyRewards() {
-    const { prizes, isLoading, createPrize, updatePrize, deletePrize, togglePrize, isCreating, isUpdating } = useLoyaltyPrizes();
+    const [page, setPage] = useState(1);
+    const [limit] = useState(12);
+
+    const {
+        prizes,
+        pagination,
+        isLoading,
+        createPrize,
+        updatePrize,
+        deletePrize,
+        togglePrize,
+        isCreating,
+        isUpdating
+    } = useLoyaltyPrizes({ page, limit });
+
     const { hasPermission, user } = useAuth();
+
     const { notifySuccess, notifyError } = useNotifications();
     const [modalOpen, setModalOpen] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState<LoyaltyPrize | null>(null);
@@ -211,7 +228,18 @@ export function LoyaltyRewards() {
                 ))}
             </div>
 
+            {pagination && (
+                <Pagination
+                    currentPage={page}
+                    totalPages={pagination.pages}
+                    onPageChange={setPage}
+                    totalItems={pagination.total}
+                    itemsPerPage={limit}
+                />
+            )}
+
             {/* Create/Edit Modal */}
+
             <Dialog open={modalOpen} onOpenChange={setModalOpen}>
                 <DialogContent>
                     <DialogHeader>

@@ -13,15 +13,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/ui/dialog";
 import { generateCashClosurePDF } from '../lib/generateCashClosurePDF';
 import { useAuth } from '@/shared/auth';
+import { Pagination } from '@/shared/ui/pagination';
 
 export function CashClosurePage() {
     // 1. Estados Locales
     const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
     const [actualAmount, setActualAmount] = useState<number>(0);
     const [notes, setNotes] = useState<string>("");
+    const [page, setPage] = useState(1);
+    const [limit] = useState(25);
 
     // 2. Hooks de Datos UI
-    const { data: closures = [], refetch: refetchClosures } = useCashClosures();
+    const { data: response, refetch: refetchClosures } = useCashClosures({ page, limit });
+    const closures = response?.data || [];
+    const pagination = response?.pagination;
+
 
     // 3. Mutación
     const createClosure = useCreateCashClosure();
@@ -394,7 +400,7 @@ export function CashClosurePage() {
                 </TabsContent>
 
                 <TabsContent value="history" className="flex-1 min-h-0 outline-none">
-                    <div className="h-full bg-white rounded-lg shadow-sm border border-slate-200 p-2 overflow-hidden flex flex-col">
+                    <div className="h-full bg-white rounded-lg shadow-sm border border-slate-200 p-2 overflow-y-auto flex flex-col">
                         <CashClosureHistory
                             closures={closures}
                             onDeleteSuccess={() => {
@@ -402,8 +408,20 @@ export function CashClosurePage() {
                                 refetchPreview();
                             }}
                         />
+                        {pagination && (
+                            <div className="mt-4 pb-4">
+                                <Pagination
+                                    currentPage={page}
+                                    totalPages={pagination.pages}
+                                    onPageChange={setPage}
+                                    totalItems={pagination.total}
+                                    itemsPerPage={limit}
+                                />
+                            </div>
+                        )}
                     </div>
                 </TabsContent>
+
             </Tabs>
         </div >
     )

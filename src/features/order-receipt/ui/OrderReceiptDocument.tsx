@@ -241,11 +241,17 @@ const styles = StyleSheet.create({
 
 interface OrderReceiptProps {
     order: Order;
+    childOrders?: Order[]; // Nuevas órdenes hijas para el Recibo Madre
     user?: User; // Optional logged user
     client?: Client; // Extended client details
 }
 
-export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({ order, user, client }) => {
+export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({ order, childOrders = [], user, client }) => {
+    const allOrders = [order, ...childOrders];
+    const totalConsolidated = allOrders.reduce((sum, o) => sum + Number(o.total), 0);
+    const totalPaidConsolidated = allOrders.reduce((sum, o) => sum + Number(getPaidAmount(o)), 0);
+    const totalPendingConsolidated = Math.max(0, totalConsolidated - totalPaidConsolidated);
+
     const currentDate = new Date().toLocaleString('es-EC', { dateStyle: 'long', timeStyle: 'short' });
     const logoUrl = '/images/mochitopng.png'; // Assuming public folder structure
 
@@ -311,33 +317,35 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({ order, user,
                         <Text style={[styles.tableHeaderCell, styles.colPending]}>Pendiente</Text>
                     </View>
 
-                    <View style={styles.tableRow}>
-                        <Text style={[styles.tableCell, styles.colType]}>{order.type}</Text>
-                        <Text style={[styles.tableCell, styles.colBrand]}>{order.brandName}</Text>
-                        <Text style={[styles.tableCell, styles.colQty]}>{order.items?.[0]?.quantity || 1}</Text>
-                        <Text style={[styles.tableCell, styles.colDate]}>
-                            {order.possibleDeliveryDate ? new Date(order.possibleDeliveryDate).toLocaleDateString() : 'N/A'}
-                        </Text>
-                        <Text style={[styles.tableCell, styles.colPrice]}>${Number(order.total).toFixed(2)}</Text>
-                        <Text style={[styles.tableCell, styles.colPaid]}>${Number(getPaidAmount(order)).toFixed(2)}</Text>
-                        <Text style={[styles.tableCell, styles.colPending]}>${Number(Math.max(0, getPendingAmount(order))).toFixed(2)}</Text>
-                    </View>
+                    {allOrders.map((o, idx) => (
+                        <View key={idx} style={styles.tableRow}>
+                            <Text style={[styles.tableCell, styles.colType]}>{o.type}</Text>
+                            <Text style={[styles.tableCell, styles.colBrand]}>{o.brandName}</Text>
+                            <Text style={[styles.tableCell, styles.colQty]}>{o.items?.[0]?.quantity || 1}</Text>
+                            <Text style={[styles.tableCell, styles.colDate]}>
+                                {o.possibleDeliveryDate ? new Date(o.possibleDeliveryDate).toLocaleDateString() : 'N/A'}
+                            </Text>
+                            <Text style={[styles.tableCell, styles.colPrice]}>${Number(o.total).toFixed(2)}</Text>
+                            <Text style={[styles.tableCell, styles.colPaid]}>${Number(getPaidAmount(o)).toFixed(2)}</Text>
+                            <Text style={[styles.tableCell, styles.colPending]}>${Number(Math.max(0, getPendingAmount(o))).toFixed(2)}</Text>
+                        </View>
+                    ))}
                 </View>
 
                 {/* SUMMARY & TOTALS */}
                 <View style={styles.summarySection}>
                     <View style={styles.summaryBlock}>
                         <View style={styles.summaryRow}>
-                            <Text style={styles.summaryLabel}>Subtotal:</Text>
-                            <Text style={styles.summaryValue}>${Number(order.total).toFixed(2)}</Text>
+                            <Text style={styles.summaryLabel}>Subtotal Consolidado:</Text>
+                            <Text style={styles.summaryValue}>${totalConsolidated.toFixed(2)}</Text>
                         </View>
                         <View style={styles.summaryRow}>
-                            <Text style={styles.summaryLabel}>Abono Inicial:</Text>
-                            <Text style={styles.summaryValue}>- ${Number(getPaidAmount(order)).toFixed(2)}</Text>
+                            <Text style={styles.summaryLabel}>Abono(s) Registrado(s):</Text>
+                            <Text style={styles.summaryValue}>- ${totalPaidConsolidated.toFixed(2)}</Text>
                         </View>
                         <View style={styles.summaryTotalRow}>
-                            <Text style={styles.totalLabel}>Monto Pendiente:</Text>
-                            <Text style={styles.totalValue}>${Number(Math.max(0, getPendingAmount(order))).toFixed(2)}</Text>
+                            <Text style={styles.totalLabel}>Total Pendiente:</Text>
+                            <Text style={styles.totalValue}>${totalPendingConsolidated.toFixed(2)}</Text>
                         </View>
                     </View>
                 </View>

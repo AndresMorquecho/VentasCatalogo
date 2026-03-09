@@ -17,7 +17,8 @@ interface CallsTableProps {
 }
 
 export function CallsTable({ calls, onEdit }: CallsTableProps) {
-    const { data: clients } = useClients();
+    const { data: clientsResponse } = useClients();
+    const clients = clientsResponse?.data || [];
     const { mutateAsync: deleteCall } = useDeleteCall();
     const { hasPermission } = useAuth();
     const { showToast } = useToast();

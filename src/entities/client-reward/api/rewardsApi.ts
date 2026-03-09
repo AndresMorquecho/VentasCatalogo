@@ -10,18 +10,22 @@ export interface RewardApi {
 
 export const rewardsApi: RewardApi = {
     getClientReward: async (clientId: string): Promise<ClientReward> => {
-        return httpClient.get<ClientReward>(`/rewards/${clientId}`);
+        const res = await httpClient.get<any>(`/rewards/${clientId}`);
+        return res?.data || res;
     },
 
     redeemPoints: async (clientId: string, points: number, type: RewardType): Promise<RewardRedemption> => {
-        return httpClient.post<RewardRedemption>(`/rewards/${clientId}/redeem`, { points, type });
+        const res = await httpClient.post<any>(`/rewards/${clientId}/redeem`, { points, type });
+        return res?.data || res;
     },
 
     getHistory: async (clientId: string): Promise<RewardRedemption[]> => {
-        return httpClient.get<RewardRedemption[]>(`/rewards/${clientId}/history`);
+        const res = await httpClient.get<any>(`/rewards/${clientId}/history`);
+        return Array.isArray(res) ? res : (res?.data || []);
     },
 
     getAll: async (): Promise<ClientReward[]> => {
-        return httpClient.get<ClientReward[]>('/rewards');
+        const res = await httpClient.get<any>('/rewards');
+        return Array.isArray(res) ? res : (res?.data || []);
     }
 };

@@ -12,13 +12,26 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Skeleton } from '@/shared/ui/skeleton';
 import { useAuth } from '@/shared/auth';
 import { useNotifications } from '@/shared/lib/notifications';
+import { useDebounce } from '@/shared/lib/hooks';
 
 const EMPTY_FORM: UserFormData = { username: '', password: '', roleId: '', active: true };
 
 type ModalMode = 'create' | 'edit' | 'password' | 'toggle' | 'delete' | null;
 
+import { Pagination } from '@/shared/ui/pagination';
+
 export function UserList() {
-    const { users, isLoading, createUser, updateUser, changePassword, deactivateUser, deleteUser, isCreating, isUpdating } = useUsers();
+    const [page, setPage] = useState(1);
+    const [limit] = useState(20);
+    const [search, setSearch] = useState('');
+    const debouncedSearch = useDebounce(search, 1000);
+
+    const { users, pagination, isLoading, createUser, updateUser, changePassword, deactivateUser, deleteUser, isCreating, isUpdating } = useUsers({
+        page,
+        limit,
+        search: debouncedSearch.length >= 3 ? debouncedSearch : undefined
+    });
+
     const { roles } = useRoles();
     const { hasPermission } = useAuth();
     const { notifySuccess, notifyError } = useNotifications();
@@ -28,7 +41,7 @@ export function UserList() {
     const [newPw, setNewPw] = useState('');
     const [confirmPw, setConfirmPw] = useState('');
     const [error, setError] = useState('');
-    const [search, setSearch] = useState('');
+
 
     const openCreate = () => {
         if (!hasPermission('users.create')) {
@@ -118,9 +131,13 @@ export function UserList() {
         }
     };
 
-    const filtered = users.filter(u =>
-        u.username.toLowerCase().includes(search.toLowerCase())
-    );
+    const filtered = users.filter(u => {
+        if (debouncedSearch.length > 0 && debouncedSearch.length < 3) {
+            return u.username.toLowerCase().includes(debouncedSearch.toLowerCase());
+        }
+        return true; // If length >= 3, backend already filtered. If 0, no filter.
+    });
+
 
     if (isLoading) return <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-14" />)}</div>;
 
@@ -229,7 +246,18 @@ export function UserList() {
                 </Table>
             </div>
 
+            {pagination && (
+                <Pagination
+                    currentPage={page}
+                    totalPages={pagination.pages}
+                    onPageChange={setPage}
+                    totalItems={pagination.total}
+                    itemsPerPage={limit}
+                />
+            )}
+
             {/* Create / Edit Modal */}
+
             <Dialog open={mode === 'create' || mode === 'edit'} onOpenChange={closeModal}>
                 <DialogContent>
                     <DialogHeader>

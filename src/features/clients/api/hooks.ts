@@ -8,10 +8,11 @@ export const CLIENT_QUERY_KEYS = {
     detail: (id: string) => [...CLIENT_QUERY_KEYS.all, 'detail', id] as const,
 };
 
-export function useClientList() {
+export function useClientList(params?: { page?: number; limit?: number; search?: string; active?: boolean }) {
     return useQuery({
-        queryKey: CLIENT_QUERY_KEYS.list(),
-        queryFn: clientApi.getAll,
+        queryKey: [...CLIENT_QUERY_KEYS.list(), params],
+        queryFn: () => clientApi.getAll(params),
+        placeholderData: (prev) => prev
     });
 }
 
