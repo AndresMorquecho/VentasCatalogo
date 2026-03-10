@@ -114,7 +114,7 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, onReverse 
 
                                         <td className="px-5 py-3 text-sm font-mono font-bold text-slate-600 bg-slate-50/30">
                                             {order.childOrdersCount && order.childOrdersCount > 0
-                                                ? <span className="text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100 italic">{order.childOrdersCount} pedidos</span>
+                                                ? <span className="text-monchito-purple bg-purple-50 px-2 py-1 rounded-md border border-purple-100 italic">{order.childOrdersCount} pedidos</span>
                                                 : (order.orderNumber || '---')}
                                         </td>
 
@@ -142,7 +142,7 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, onReverse 
                                                         <div className="flex flex-col">
                                                             <span className="text-slate-600 font-medium">{brandsArray[0]}</span>
                                                             {brandsArray.length > 1 && (
-                                                                <span className="text-[10px] text-indigo-500 font-bold">
+                                                                <span className="text-[10px] text-monchito-purple font-bold">
                                                                     + {brandsArray.length - 1} marca{brandsArray.length > 2 ? 's' : ''} adicional{brandsArray.length > 2 ? 'es' : ''}
                                                                 </span>
                                                             )}

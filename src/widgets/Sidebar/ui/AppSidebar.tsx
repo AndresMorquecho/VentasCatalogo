@@ -51,7 +51,7 @@ function CollapsibleHeader() {
             >
                 {/* Banner ocupa todo el espacio disponible */}
                 <img
-                    src="/images/BannerHeader.jpg"
+                    src="/images/BannerHeader.png"
                     alt="TEMU Manager"
                     style={{
                         flex: 1,
@@ -103,7 +103,7 @@ const groupedItems = [
         items: [
             { title: "Empresarias", url: "/clients", icon: Users },
             { title: "Pedidos", url: "/orders", icon: Inbox },
-            { title: "Packing", url: "/orders/reception", icon: PackageCheck },
+            { title: "Recepción", url: "/orders/reception", icon: PackageCheck },
             { title: "Entregas", url: "/orders/delivery", icon: Truck },
         ]
     },
@@ -158,6 +158,7 @@ const getAvatarColor = (name: string) => {
 
 export function AppSidebar() {
     const { user, logout, isAdmin } = useAuth();
+    const adminMode = isAdmin();
     const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
     const handleLogout = () => {
@@ -207,7 +208,7 @@ export function AppSidebar() {
                 </SidebarGroup>
 
                 {/* 3. Admin-only Config Section */}
-                {isAdmin() && (
+                {adminMode && (
                     <SidebarGroup>
                         <SidebarGroupLabel>Configuración</SidebarGroupLabel>
                         <SidebarGroupContent>

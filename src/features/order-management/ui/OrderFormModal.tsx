@@ -16,7 +16,7 @@ import { Label } from "@/shared/ui/label"
 import { Separator } from "@/shared/ui/separator"
 
 import { useBankAccountList } from "@/features/bank-accounts/api/hooks"
-import { useCreateOrder, useUpdateOrder } from "@/entities/order/model/hooks"
+import { useCreateOrder, useUpdateOrder, useBatchCreateOrder } from "@/entities/order/model/hooks"
 import type { Order, SalesChannel, OrderType, PaymentMethod, OrderStatus } from "@/entities/order/model/types"
 import { orderApi } from "@/entities/order/model/api"
 import { useClientList } from "@/features/clients/api/hooks"
@@ -181,6 +181,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
     const bankAccounts = bankAccountsResponse?.data || []
     const brands = brandsResponse?.data || []
     const createOrder = useCreateOrder()
+    const batchCreate = useBatchCreateOrder()
     const updateOrder = useUpdateOrder()
     const { notifySuccess, notifyError } = useNotifications()
     const { user } = useAuth()
@@ -300,47 +301,32 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                     await updateOrder.mutateAsync({ id: order.id, data: payload as any });
                     notifySuccess(`Pedido de ${clientName} actualizado.`);
                 } else {
-                    // Crear múltiples órdenes (Recibo Madre)
-                    let parentId: string | null = null;
-                    let createdOrders: any[] = [];
-
-                    for (let i = 0; i < values.brandItems.length; i++) {
-                        const item = values.brandItems[i];
-                        const unitPrice = item.quantity > 0 ? item.total / item.quantity : 0;
-
-                        const orderPayload = {
-                            clientId: values.clientId,
-                            clientName,
-                            receiptNumber: values.receiptNumber,
-                            salesChannel: values.salesChannel,
-                            type: item.type,
-                            brandId: item.brandId,
-                            brandName: item.brandName,
+                    // Optimized: Create all orders in a single request
+                    const payload = {
+                        receipt_number: values.receiptNumber,
+                        client_id: values.clientId,
+                        sales_channel: values.salesChannel,
+                        payment_method: values.paymentMethod,
+                        bank_account_id: values.bankAccountId,
+                        transaction_date: values.transactionDate,
+                        deposit: depositAmount,
+                        credit_to_use: creditAmount,
+                        created_at: values.createdAt,
+                        orders: values.brandItems.map(item => ({
+                            brand_id: item.brandId,
+                            brand_name: item.brandName,
                             total: item.total,
-                            createdAt: values.createdAt,
-                            possibleDeliveryDate: item.possibleDeliveryDate,
+                            type: item.type,
+                            possible_delivery_date: item.possibleDeliveryDate,
                             items: [{
-                                productName: item.brandName,
+                                product_name: item.brandName,
                                 quantity: item.quantity,
-                                unitPrice: unitPrice,
-                                brandId: item.brandId,
-                                brandName: item.brandName
-                            }],
-                            deposit: i === 0 ? depositAmount : 0,
-                            creditToUse: i === 0 ? creditAmount : 0,
-                            paymentMethod: values.paymentMethod,
-                            bankAccountId: values.bankAccountId,
-                            transactionDate: values.transactionDate,
-                            transactionReference: values.transactionReference,
-                            parentOrderId: parentId || undefined
-                        };
+                                unit_price: item.quantity > 0 ? item.total / item.quantity : 0
+                            }]
+                        }))
+                    };
 
-                        const newOrderResult = await createOrder.mutateAsync(orderPayload as any);
-                        createdOrders.push(newOrderResult);
-                        if (i === 0) {
-                            parentId = newOrderResult.id;
-                        }
-                    }
+                    const createdOrders = await batchCreate.mutateAsync(payload);
 
                     // 3. Generate PDF with the FINAL order state (including payments)
                     try {
@@ -348,7 +334,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                             <OrderReceiptDocument
                                 order={createdOrders[0]}
                                 childOrders={createdOrders.slice(1)}
-                                client={client}
+                                client={client as any}
                                 user={{
                                     id: user?.id || '1',
                                     name: user?.username || 'Vendedor',

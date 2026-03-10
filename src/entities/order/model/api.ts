@@ -53,12 +53,16 @@ export const orderApi = {
         return httpClient.get<Order[]>(`/orders?status=${status}`);
     },
 
-    /**
-     * Create new order
-     * @endpoint POST /api/orders
-     */
     create: async (payload: OrderPayload): Promise<Order> => {
         return httpClient.post<Order>('/orders', payload);
+    },
+
+    /**
+     * Create multiple orders in batch
+     * @endpoint POST /api/orders/batch
+     */
+    batchCreate: async (payload: any): Promise<Order[]> => {
+        return httpClient.post<Order[]>('/orders/batch', payload);
     },
 
     /**

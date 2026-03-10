@@ -39,6 +39,16 @@ export function useCreateOrder() {
     })
 }
 
+export function useBatchCreateOrder() {
+    const qc = useQueryClient()
+    return useMutation({
+        mutationFn: (data: any) => orderApi.batchCreate(data),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: KEYS.list() })
+        }
+    })
+}
+
 export function useUpdateOrder() {
     const qc = useQueryClient()
     return useMutation({
