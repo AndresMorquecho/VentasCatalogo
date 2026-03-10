@@ -1,0 +1,24 @@
+diff a/src/entities/order/model/hooks.ts b/src/entities/order/model/hooks.ts	(rejected hunks)
+@@ -6,6 +6,7 @@ const KEYS = {
+     all: ['orders'] as const,
+     list: (params?: OrderQueryParams) => [...KEYS.all, 'list', params] as const,
+     detail: (id: string) => [...KEYS.all, 'detail', id] as const,
++    byReceipt: (receiptNumber: string) => [...KEYS.all, 'receipt', receiptNumber] as const,
+     byClient: (clientId: string) => [...KEYS.all, 'client', clientId] as const,
+ }
+ 
+@@ -21,6 +22,14 @@ export function useOrder(id: string) {
+     return useQuery({ queryKey: KEYS.detail(id), queryFn: () => orderApi.getById(id), enabled: !!id })
+ }
+ 
++export function useReceiptOrders(receiptNumber: string) {
++    return useQuery({
++        queryKey: KEYS.byReceipt(receiptNumber),
++        queryFn: () => orderApi.getByReceipt(receiptNumber),
++        enabled: !!receiptNumber
++    })
++}
++
+ export function useOrdersByClient(clientId: string) {
+     return useQuery({
+         queryKey: KEYS.byClient(clientId),

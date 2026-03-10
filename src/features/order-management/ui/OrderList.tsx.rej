@@ -1,0 +1,71 @@
+diff a/src/features/order-management/ui/OrderList.tsx b/src/features/order-management/ui/OrderList.tsx	(rejected hunks)
+@@ -19,11 +19,16 @@ import { useQueryClient } from "@tanstack/react-query" // Added queryClient
+ 
+ import { useDebounce } from "@/shared/lib/hooks"
+ import { Pagination } from "@/shared/ui/pagination"
++import { useCashClosures } from "@/features/cash-closure/api/hooks"
+ 
+ export function OrderList() {
+     const [page, setPage] = useState(1)
+     const [limit] = useState(25)
+ 
++    const { data: closuresResponse } = useCashClosures({ limit: 1 })
++    const lastClosure = closuresResponse?.data?.[0]
++    const lastClosureDate = lastClosure ? new Date(lastClosure.toDate) : null
++
+     // We keep the internal search query for the input, but debounce it for the API/filtering
+     const [searchQuery, setSearchQuery] = useState('')
+     const debouncedSearch = useDebounce(searchQuery, 1000)
+@@ -64,7 +69,12 @@ export function OrderList() {
+             return parentsOnly.filter(o =>
+                 o.clientName.toLowerCase().includes(query) ||
+                 o.receiptNumber.toLowerCase().includes(query) ||
+-                o.brandName.toLowerCase().includes(query)
++                (o.orderNumber && o.orderNumber.toLowerCase().includes(query)) ||
++                o.brandName.toLowerCase().includes(query) ||
++                o.childOrders?.some(child =>
++                    (child.orderNumber && child.orderNumber.toLowerCase().includes(query)) ||
++                    (child.invoiceNumber && child.invoiceNumber.toLowerCase().includes(query))
++                )
+             )
+         }
+         return parentsOnly
+@@ -83,7 +93,29 @@ export function OrderList() {
+             notifyError({ message: 'No tienes permiso para editar pedidos' })
+             return
+         }
+-        navigate(`/orders/edit/${order.id}`)
++
++        const isClosed = lastClosureDate && order.transactionDate && new Date(order.transactionDate) <= lastClosureDate;
++        if (isClosed) {
++            notifyError({ message: 'No se puede editar: El periodo de caja ya est├í cerrado.' })
++            return
++        }
++
++        const hasMultiplePayments = order.payments && order.payments.length > 1;
++        if (hasMultiplePayments) {
++            notifyError({ message: 'No se puede editar: El pedido ya tiene abonos adicionales.' })
++            return
++        }
++
++        if (order.status !== 'POR_RECIBIR') {
++            notifyError({ message: `No se puede editar: El pedido ya est├í en estado ${order.status}.` })
++            return
++        }
++
++        if (order.receiptNumber && order.receiptNumber.trim() !== "") {
++            navigate(`/orders/group/${order.receiptNumber}`)
++        } else {
++            navigate(`/orders/edit/${order.id}`)
++        }
+     }
+ 
+     const handleReverseClick = (order: Order) => {
+@@ -186,6 +218,7 @@ export function OrderList() {
+                     onEdit={handleEdit}
+                     onDelete={handleDeleteClick}
+                     onReverse={handleReverseClick}
++                    lastClosureDate={lastClosureDate}
+                 />
+             )}
+ 

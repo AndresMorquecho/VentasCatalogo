@@ -1,0 +1,1582 @@
+﻿diff --git a/src/app/routers/AppRouter.tsx b/src/app/routers/AppRouter.tsx
+index d8b4225..0954c9d 100644
+--- a/src/app/routers/AppRouter.tsx
++++ b/src/app/routers/AppRouter.tsx
+@@ -43,6 +43,7 @@ const protectedChildren = [
+     { path: 'orders', element: <ProtectedRoute permission="orders.view"><OrdersPage /></ProtectedRoute> },
+     { path: 'orders/new', element: <ProtectedRoute permission="orders.create"><OrderFormPage /></ProtectedRoute> },
+     { path: 'orders/edit/:id', element: <ProtectedRoute permission="orders.edit"><OrderFormPage /></ProtectedRoute> },
++    { path: 'orders/group/:receiptNumber', element: <ProtectedRoute permission="orders.edit"><OrderFormPage /></ProtectedRoute> },
+     { path: 'orders/reception', element: <ProtectedRoute permission="reception.view"><ReceptionBatchPage /></ProtectedRoute> },
+     { path: 'orders/reception/history', element: <ProtectedRoute permission="reception.view"><OrderReceptionHistoryPage /></ProtectedRoute> },
+     { path: 'orders/delivery', element: <ProtectedRoute permission="delivery.view"><OrderDeliveryPage /></ProtectedRoute> },
+diff --git a/src/entities/order/model/api.ts b/src/entities/order/model/api.ts
+index 0eed301..62bffed 100644
+--- a/src/entities/order/model/api.ts
++++ b/src/entities/order/model/api.ts
+@@ -89,6 +89,22 @@ export const orderApi = {
+         return httpClient.put<Order>(`/orders/${id}`, payload);
+     },
+ 
++    /**
++     * Batch update multiple orders within the same receipt group.
++     * @endpoint PUT /api/orders/receipt/:receiptNumber/bulk-update
++     */
++    batchUpdate: async (receiptNumber: string, payload: any): Promise<Order[]> => {
++        return httpClient.put<Order[]>(`/orders/receipt/${receiptNumber}/bulk-update`, payload);
++    },
++
++    /**
++     * Get all orders associated with a specific receipt number.
++     * @endpoint GET /api/orders/receipt/:receiptNumber
++     */
++    getByReceipt: async (receiptNumber: string): Promise<Order[]> => {
++        return httpClient.get<Order[]>(`/orders/receipt/${receiptNumber}`);
++    },
++
+     /**
+      * Delete order (soft delete)
+      * @endpoint DELETE /api/orders/:id
+diff --git a/src/entities/order/model/hooks.ts b/src/entities/order/model/hooks.ts
+index 1680fbb..be0e0bc 100644
+--- a/src/entities/order/model/hooks.ts
++++ b/src/entities/order/model/hooks.ts
+@@ -6,6 +6,7 @@ const KEYS = {
+     all: ['orders'] as const,
+     list: (params?: OrderQueryParams) => [...KEYS.all, 'list', params] as const,
+     detail: (id: string) => [...KEYS.all, 'detail', id] as const,
++    byReceipt: (receiptNumber: string) => [...KEYS.all, 'receipt', receiptNumber] as const,
+     byClient: (clientId: string) => [...KEYS.all, 'client', clientId] as const,
+ }
+ 
+@@ -21,6 +22,14 @@ export function useOrder(id: string) {
+     return useQuery({ queryKey: KEYS.detail(id), queryFn: () => orderApi.getById(id), enabled: !!id })
+ }
+ 
++export function useReceiptOrders(receiptNumber: string) {
++    return useQuery({
++        queryKey: KEYS.byReceipt(receiptNumber),
++        queryFn: () => orderApi.getByReceipt(receiptNumber),
++        enabled: !!receiptNumber
++    })
++}
++
+ export function useOrdersByClient(clientId: string) {
+     return useQuery({
+         queryKey: KEYS.byClient(clientId),
+@@ -69,3 +78,13 @@ export function useDeleteOrder() {
+         }
+     })
+ }
++export function useBatchUpdateOrder() {
++    const qc = useQueryClient()
++    return useMutation({
++        mutationFn: ({ receiptNumber, data }: { receiptNumber: string; data: any }) => orderApi.batchUpdate(receiptNumber, data),
++        onSuccess: (_, { receiptNumber }) => {
++            qc.invalidateQueries({ queryKey: KEYS.list() })
++            qc.invalidateQueries({ queryKey: KEYS.byReceipt(receiptNumber) })
++        }
++    })
++}
+diff --git a/src/features/order-management/ui/OrderFormPage.tsx b/src/features/order-management/ui/OrderFormPage.tsx
+index bb3aba3..5ee5c25 100644
+--- a/src/features/order-management/ui/OrderFormPage.tsx
++++ b/src/features/order-management/ui/OrderFormPage.tsx
+@@ -1,8 +1,9 @@
+-import { useState, useRef, useEffect } from "react"
++´╗┐import { useState, useRef, useEffect } from "react"
+ import { useFormik } from "formik"
+ import { useNavigate, useParams } from "react-router-dom"
+ import * as Yup from "yup"
+-import { ArrowLeft, Plus, X, RotateCw, RefreshCw } from "lucide-react"
++import { ArrowLeft, Plus, Pencil, Trash2, RefreshCw, RotateCw } from "lucide-react"
++import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/shared/ui/tooltip"
+ 
+ import { Input } from "@/shared/ui/input"
+ import { Button } from "@/shared/ui/button"
+@@ -12,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card"
+ import { Separator } from "@/shared/ui/separator"
+ 
+ import { useBankAccountList } from "@/features/bank-accounts/api/hooks"
+-import { useCreateOrder, useUpdateOrder, useOrder } from "@/entities/order/model/hooks"
++import { useCreateOrder, useOrder, useReceiptOrders, useBatchUpdateOrder } from "@/entities/order/model/hooks"
+ import type { SalesChannel, OrderType, PaymentMethod } from "@/entities/order/model/types"
+ import { orderApi } from "@/entities/order/model/api"
+ import { useClientList } from "@/features/clients/api/hooks"
+@@ -23,17 +24,18 @@ import { pdf } from "@react-pdf/renderer"
+ import { OrderReceiptDocument } from "@/features/order-receipt/ui/OrderReceiptDocument"
+ import { useClientCredits } from "@/features/transactions/model/hooks"
+ import { useAuth } from "@/shared/auth"
++import { useCashClosures } from "@/features/cash-closure/api/hooks"
+ 
+ /* --- Validation Schema --- */
+ const validationSchema = Yup.object({
+     clientId: Yup.string().required("El cliente es requerido"),
+-    receiptNumber: Yup.string().required("El N┬░ de recibo es requerido"),
++    receiptNumber: Yup.string().required("El N├é┬░ de recibo es requerido"),
+     salesChannel: Yup.string().required("El canal es requerido"),
+     brandItems: Yup.array().of(
+         Yup.object({
+             brandId: Yup.string().required("Requerido"),
+             brandName: Yup.string().required("Requerido"),
+-            quantity: Yup.number().min(1, "M├¡nimo 1").required("Requerido"),
++            quantity: Yup.number().min(1, "M├â┬¡nimo 1").required("Requerido"),
+             total: Yup.number().min(0, "No negativo").required("Requerido"),
+             type: Yup.string().required("Requerido"),
+             possibleDeliveryDate: Yup.string().required("Requerido"),
+@@ -45,7 +47,7 @@ const validationSchema = Yup.object({
+     paymentMethod: Yup.string().required("La forma de pago es requerida"),
+     bankAccountId: Yup.string().test(
+         'is-bank-required',
+-        "Cuenta bancaria requerida para este m├®todo",
++        "Cuenta bancaria requerida para este m├â┬®todo",
+         function (value) {
+             const { deposit, paymentMethod } = this.parent;
+             if (deposit > 0 && paymentMethod !== 'EFECTIVO' && !value) {
+@@ -54,13 +56,13 @@ const validationSchema = Yup.object({
+             return true;
+         }
+     ),
+-    transactionDate: Yup.string().when("paymentMethod", {
+-        is: (val: string) => ['TRANSFERENCIA', 'DEPOSITO', 'CHEQUE'].includes(val),
++    transactionDate: Yup.string().when(["paymentMethod", "deposit"], {
++        is: (paymentMethod: string, deposit: number) => deposit > 0 && ['TRANSFERENCIA', 'DEPOSITO', 'CHEQUE'].includes(paymentMethod),
+         then: (schema) => schema.required("Fecha requerida"),
+         otherwise: (schema) => schema.notRequired()
+     }),
+-    transactionReference: Yup.string().when("paymentMethod", {
+-        is: (val: string) => ['TRANSFERENCIA', 'DEPOSITO', 'CHEQUE'].includes(val),
++    transactionReference: Yup.string().when(["paymentMethod", "deposit"], {
++        is: (paymentMethod: string, deposit: number) => deposit > 0 && ['TRANSFERENCIA', 'DEPOSITO', 'CHEQUE'].includes(paymentMethod),
+         then: (schema) => schema.required("Referencia / N┬░ cheque requerido"),
+         otherwise: (schema) => schema.notRequired()
+     }),
+@@ -121,7 +123,7 @@ function SearchableSelect({
+                 <span className={selectedOption ? "text-foreground" : "text-muted-foreground"}>
+                     {selectedOption ? `${selectedOption.label} ${selectedOption.subLabel ? `(${selectedOption.subLabel})` : ''}` : placeholder}
+                 </span>
+-                <span className="opacity-50 text-xs text-muted-foreground">Ôû╝</span>
++                <span className="opacity-50 text-xs text-muted-foreground">├óÔÇô┬╝</span>
+             </div>
+ 
+             {isOpen && (
+@@ -163,11 +165,16 @@ function SearchableSelect({
+ }
+ 
+ export function OrderFormPage() {
+-    const { id } = useParams()
++    const { id, receiptNumber } = useParams()
+     const navigate = useNavigate()
+-    const isEditing = !!id
++    const isEditing = !!id || !!receiptNumber
++
++    const { data: orderById, isLoading: isLoadingById } = useOrder(id || "")
++    const { data: receiptOrders, isLoading: isLoadingByReceipt } = useReceiptOrders(receiptNumber || "")
++
++    const isLoadingOrder = isLoadingById || isLoadingByReceipt
++    const order = receiptOrders?.[0] || orderById
+ 
+-    const { data: order, isLoading: isLoadingOrder } = useOrder(id || "")
+     const { data: clientsResponse } = useClientList({ limit: 1000 })
+     const { data: bankAccountsResponse } = useBankAccountList({ limit: 500 })
+     const { data: brandsResponse } = useBrandList({ limit: 500 })
+@@ -176,7 +183,7 @@ export function OrderFormPage() {
+     const bankAccounts = bankAccountsResponse?.data || []
+     const brands = brandsResponse?.data || []
+     const createOrder = useCreateOrder()
+-    const updateOrder = useUpdateOrder()
++    const batchUpdateAction = useBatchUpdateOrder()
+     const { notifySuccess, notifyError } = useNotifications()
+     const { user } = useAuth()
+ 
+@@ -184,6 +191,11 @@ export function OrderFormPage() {
+     const [isLoadingReceiptNumber, setIsLoadingReceiptNumber] = useState(false)
+     const [originalOrderIds, setOriginalOrderIds] = useState<string[]>([])
+     const [isLoadingRelated, setIsLoadingRelated] = useState(false)
++    const [editableRow, setEditableRow] = useState<number | null>(null)
++
++    const { data: closuresResponse } = useCashClosures({ limit: 1 })
++    const lastClosure = closuresResponse?.data?.[0]
++    const lastClosureDate = lastClosure ? new Date(lastClosure.toDate) : null
+ 
+     // State for the item being added
+     const [currentItem, setCurrentItem] = useState({
+@@ -239,60 +251,35 @@ export function OrderFormPage() {
+                     const currentItemIds = values.brandItems.map(i => i.id).filter(Boolean);
+                     const toDelete = originalOrderIds.filter(id => !currentItemIds.includes(id));
+ 
+-                    // 2. Perform updates and creations
+-                    let parentId: string | null = null;
+-                    const resultOrders: any[] = [];
+-
+-                    for (let i = 0; i < values.brandItems.length; i++) {
+-                        const item = values.brandItems[i];
+-                        const unitPrice = item.quantity > 0 ? item.total / item.quantity : 0;
+-
+-                        const payload = {
+-                            clientId: values.clientId,
+-                            clientName,
+-                            receiptNumber: values.receiptNumber,
+-                            salesChannel: item.salesChannel || values.salesChannel,
+-                            type: item.type,
++                    // 2. Prepare Payload for Batch Update
++                    const batchPayload = {
++                        receiptNumber: values.receiptNumber,
++                        clientId: values.clientId,
++                        salesChannel: values.salesChannel,
++                        createdAt: values.createdAt,
++                        paymentMethod: values.paymentMethod,
++                        bankAccountId: values.bankAccountId,
++                        transactionDate: values.transactionDate,
++                        notes: values.notes,
++                        to_delete: toDelete,
++                        credit_amount: creditAmount,
++                        orders: values.brandItems.map((item) => ({
++                            id: item.id,
+                             brandId: item.brandId,
+                             brandName: item.brandName,
+-                            total: item.total,
+-                            possibleDeliveryDate: item.possibleDeliveryDate,
+-                            notes: values.notes,
+-                            createdAt: values.createdAt,
+-                            items: [{
+-                                productName: item.brandName,
+-                                quantity: item.quantity,
+-                                unitPrice: unitPrice,
+-                                brandId: item.brandId,
+-                                brandName: item.brandName
+-                            }],
++                            total: Number(item.total),
+                             deposit: Number(item.deposit || 0),
+-                            creditToUse: i === 0 ? creditAmount : 0,
+-                            paymentMethod: values.paymentMethod,
+-                            bankAccountId: values.bankAccountId,
+-                            transactionDate: values.transactionDate,
+-                            transactionReference: values.transactionReference,
+-                            parentOrderId: parentId || undefined,
+-                            orderNumber: item.orderNumber || undefined
+-                        };
+-
+-                        let res;
+-                        if (item.id) {
+-                            // Update existing
+-                            res = await updateOrder.mutateAsync({ id: item.id, data: payload as any });
+-                        } else {
+-                            // Create new (added during edit)
+-                            res = await createOrder.mutateAsync(payload as any);
+-                        }
+-
+-                        resultOrders.push(res);
+-                        if (i === 0) parentId = res.id;
+-                    }
++                            type: item.type,
++                            possibleDeliveryDate: item.possibleDeliveryDate,
++                            orderNumber: item.orderNumber,
++                            quantity: Number(item.quantity || 1)
++                        }))
++                    };
+ 
+-                    // 3. Delete removed items
+-                    for (const idToDelete of toDelete) {
+-                        await orderApi.delete(idToDelete);
+-                    }
++                    await batchUpdateAction.mutateAsync({
++                        receiptNumber: values.receiptNumber,
++                        data: batchPayload
++                    });
+ 
+                     notifySuccess(`Recibo ${values.receiptNumber} actualizado.`);
+                     navigate('/orders');
+@@ -387,7 +374,7 @@ export function OrderFormPage() {
+             formik.setFieldValue('receiptNumber', receiptNumber);
+         } catch (error) {
+             console.error('Error generating receipt number:', error);
+-            notifyError(error, 'Error al generar n├║mero de recibo');
++            notifyError(error, 'Error al generar n├â┬║mero de recibo');
+         } finally {
+             setIsLoadingReceiptNumber(false);
+         }
+@@ -399,7 +386,7 @@ export function OrderFormPage() {
+         try {
+             const { exists } = await orderApi.checkReceiptExists(receiptNumber);
+             if (exists) {
+-                formik.setFieldError('receiptNumber', 'Este n├║mero de recibo ya existe');
++                formik.setFieldError('receiptNumber', 'Este n├â┬║mero de recibo ya existe');
+                 return false;
+             }
+             return true;
+@@ -429,19 +416,33 @@ export function OrderFormPage() {
+     // Update formik when order data is loaded for editing - Load all associated items
+     useEffect(() => {
+         const loadAllItems = async () => {
+-            if (order && isEditing) {
+-                setIsLoadingRelated(true);
+-                try {
+-                    // Fetch all orders sharing the same receipt number
+-                    const related = await orderApi.getAll({ search: order.receiptNumber, limit: 100 });
+-                    const allItems = related.data || [order];
++            if (!isEditing) return;
++
++            setIsLoadingRelated(true);
++            try {
++                let allItems: any[] = [];
++                let referenceOrder: any = null;
+ 
++                if (receiptNumber && receiptOrders) {
++                    allItems = receiptOrders;
++                    referenceOrder = receiptOrders[0];
++                } else if (id && orderById) {
++                    if (orderById.parentOrderId) {
++                        const parent = await orderApi.getById(orderById.parentOrderId);
++                        allItems = [parent, ...(parent.childOrders || [])];
++                    } else {
++                        allItems = [orderById, ...(orderById.childOrders || [])];
++                    }
++                    referenceOrder = orderById;
++                }
++
++                if (referenceOrder && allItems.length > 0) {
+                     setOriginalOrderIds(allItems.map((o: any) => o.id));
+ 
+                     formik.setValues({
+-                        clientId: order.clientId || "",
+-                        receiptNumber: order.receiptNumber || "",
+-                        salesChannel: (order.salesChannel as SalesChannel) || "OFICINA",
++                        clientId: referenceOrder.clientId || "",
++                        receiptNumber: referenceOrder.receiptNumber || "",
++                        salesChannel: (referenceOrder.salesChannel as SalesChannel) || "OFICINA",
+                         brandItems: allItems.map((o: any) => ({
+                             id: o.id,
+                             brandId: o.brandId,
+@@ -449,34 +450,41 @@ export function OrderFormPage() {
+                             quantity: o.items?.[0]?.quantity || 1,
+                             total: Number(o.total) || 0,
+                             type: o.type || "NORMAL",
+-                            possibleDeliveryDate: o.possibleDeliveryDate ? new Date(o.possibleDeliveryDate).toISOString().split('T')[0] : "",
++                            possibleDeliveryDate: o.possibleDeliveryDate ? new Date(o.possibleDeliveryDate).toISOString().split('T')[0] : new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                             salesChannel: o.salesChannel || "OFICINA",
+                             orderNumber: o.orderNumber || "",
+-                            deposit: Number(o.payments?.reduce((sum: number, p: any) => sum + Number(p.amount), 0) || 0)
++                            deposit: Number(o.payments?.reduce((sum: number, p: any) => sum + Number(p.amount), 0) || 0),
++                            status: o.status,
++                            paymentsCount: o.payments?.length || 0,
++                            transactionDate: o.transactionDate
+                         })),
+                         deposit: 0, // Calculated from row sums
+                         creditToUse: 0,
+-                        paymentMethod: (order.paymentMethod === 'CREDITO_CLIENTE' ? 'EFECTIVO' : order.paymentMethod) as PaymentMethod || "EFECTIVO",
+-                        bankAccountId: order.bankAccountId || "",
+-                        transactionDate: order.transactionDate ? new Date(order.transactionDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
++                        paymentMethod: (referenceOrder.paymentMethod === 'CREDITO_CLIENTE' ? 'EFECTIVO' : referenceOrder.paymentMethod) as PaymentMethod || "EFECTIVO",
++                        bankAccountId: referenceOrder.bankAccountId || "",
++                        transactionDate: referenceOrder.transactionDate ? new Date(referenceOrder.transactionDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+                         transactionReference: "",
+-                        createdAt: order.createdAt ? new Date(order.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+-                        notes: order.notes || "",
++                        createdAt: referenceOrder.createdAt ? new Date(referenceOrder.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
++                        notes: referenceOrder.notes || "",
+                     });
+-                } catch (err) {
+-                    console.error("Error loading related orders", err);
+-                    notifyError(null, "No se pudieron cargar todos los pedidos del recibo.");
+-                } finally {
+-                    setIsLoadingRelated(false);
+                 }
+-            } else if (!isEditing) {
+-                generateNextReceiptNumber();
+-                setOriginalOrderIds([]);
++            } catch (err) {
++                console.error("Error loading related orders", err);
++                notifyError(null, "No se pudieron cargar todos los pedidos del recibo.");
++            } finally {
++                setIsLoadingRelated(false);
+             }
+         };
+ 
+-        loadAllItems();
+-    }, [order, isEditing]);
++        if (isEditing) {
++            loadAllItems();
++        } else {
++            generateNextReceiptNumber();
++            setOriginalOrderIds([]);
++        }
++    }, [isEditing, receiptNumber, receiptOrders, id, orderById]);
++
++
+ 
+     const { data: creditsResponse } = useClientCredits(formik.values.clientId)
+     const credits = Array.isArray(creditsResponse) ? creditsResponse : (creditsResponse as any)?.data || []
+@@ -556,361 +564,538 @@ export function OrderFormPage() {
+     }
+ 
+     return (
+-        <form onSubmit={formik.handleSubmit} className="max-w-7xl mx-auto space-y-4 pb-12 px-4">
+-            {/* Header Toolbar */}
+-            <div className="flex items-center justify-between bg-white px-4 py-3 rounded-lg border shadow-sm">
+-                <div className="flex items-center gap-3">
+-                    <Button type="button" variant="ghost" size="icon" onClick={() => navigate('/orders')} className="h-8 w-8">
+-                        <ArrowLeft className="h-4 w-4" />
+-                    </Button>
+-                    <h1 className="text-lg font-bold text-slate-800">
+-                        {isEditing ? "Editar Pedido" : "Registro de Pedidos"}
+-                    </h1>
+-                </div>
+-            </div>
+-
+-            {/* Main Layout Grid */}
+-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+-                {/* Column 1: Client & General Info */}
+-                <Card className="lg:col-span-3 shadow-sm border-slate-200">
+-                    <CardHeader className="py-2 px-4 bg-slate-50/50 border-b">
+-                        <CardTitle className="text-sm font-bold uppercase text-slate-500">Encabezado Recibo</CardTitle>
+-                    </CardHeader>
+-                    <CardContent className="p-3">
+-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+-                            <div className="space-y-1">
+-                                <Label className="text-xs font-bold text-slate-600">No de recibo:</Label>
+-                                <div className="flex gap-1">
+-                                    <Input
+-                                        {...formik.getFieldProps('receiptNumber')}
+-                                        disabled={isLoadingReceiptNumber || isEditing}
+-                                        className="h-8 text-sm font-mono font-bold text-indigo-700 bg-indigo-50/30"
+-                                    />
+-                                    {!isEditing && (
+-                                        <Button
+-                                            type="button"
+-                                            variant="ghost"
+-                                            size="icon"
+-                                            onClick={generateNextReceiptNumber}
+-                                            disabled={isLoadingReceiptNumber}
+-                                            className="h-8 w-8"
+-                                        >
+-                                            <RotateCw className={`h-3 w-3 ${isLoadingReceiptNumber ? 'animate-spin' : ''}`} />
+-                                        </Button>
+-                                    )}
+-                                </div>
+-                            </div>
+-                            <div className="space-y-1">
+-                                <Label className="text-xs font-bold text-slate-600">Fecha de Registro:</Label>
+-                                <Input
+-                                    type="date"
+-                                    {...formik.getFieldProps('createdAt')}
+-                                    disabled={isEditing}
+-                                    className="h-8 text-sm"
+-                                />
+-                            </div>
+-                            <div className="space-y-1">
+-                                <Label className="text-xs font-bold text-slate-600">Empresaria / Cliente:</Label>
+-                                <SearchableSelect
+-                                    options={clientOptions}
+-                                    value={formik.values.clientId}
+-                                    onChange={(val) => formik.setFieldValue('clientId', val)}
+-                                    placeholder="Ingrese nombre o c├®dula..."
+-                                    disabled={isEditing}
+-                                />
+-                                {totalCredit > 0 && (
+-                                    <p className="text-xs text-green-600 font-bold mt-1">Saldo a favor: ${totalCredit.toFixed(2)}</p>
+-                                )}
++        <TooltipProvider>
++            <div className="max-w-7xl mx-auto space-y-4 pb-12 px-4">
++                <form onSubmit={formik.handleSubmit} className="space-y-4">
++                    {/* Header Toolbar */}
++                    <div className="flex items-center justify-between bg-white px-4 py-3 rounded-lg border shadow-sm">
++                        <div className="flex items-center gap-3">
++                            <Button
++                                type="button"
++                                variant="ghost"
++                                size="sm"
++                                onClick={() => navigate(-1)}
++                                className="text-slate-500"
++                            >
++                                <ArrowLeft className="h-4 w-4 mr-1" /> Volver
++                            </Button>
++                            <Separator orientation="vertical" className="h-8" />
++                            <div>
++                                <h1 className="text-lg font-black text-slate-800 tracking-tight leading-none">
++                                    {isEditing ? 'EDITAR RECIBO' : 'REGISTRAR NUEVO RECIBO'}
++                                </h1>
++                                <p className="text-[10px] uppercase font-bold text-slate-400 mt-1">Gesti├â┬│n centralizada de pedidos</p>
+                             </div>
+                         </div>
+-                    </CardContent>
+-                </Card>
+-
+-                {/* Column 2: Quick Summary Totals */}
+-                <Card className="shadow-sm border-slate-200 bg-slate-50">
+-                    <CardHeader className="py-2 px-4 border-b">
+-                        <CardTitle className="text-sm font-bold uppercase text-slate-500">Valores</CardTitle>
+-                    </CardHeader>
+-                    <CardContent className="p-3 space-y-2">
+-                        <div className="flex justify-between items-center text-sm">
+-                            <span className="font-bold text-slate-500">Total pedidos:</span>
+-                            <span className="font-bold text-slate-900">${totalOrderValue.toFixed(2)}</span>
+-                        </div>
+-                        <div className="flex justify-between items-center text-sm text-green-700">
+-                            <span className="font-bold">Total abono:</span>
+-                            <span className="font-bold">${(totalRowDeposit + Number(formik.values.creditToUse)).toFixed(2)}</span>
+-                        </div>
+-                        <Separator className="my-1" />
+-                        <div className="flex justify-between items-center">
+-                            <span className="text-xs font-bold uppercase text-slate-400">Saldo:</span>
+-                            <span className={`text-xl font-black ${balance > 0 ? 'text-red-600' : 'text-slate-800'}`}>
+-                                ${balance.toFixed(2)}
+-                            </span>
++                        <div className="flex items-center gap-2">
++                            {isEditing && (
++                                <Button
++                                    type="button"
++                                    variant="outline"
++                                    size="sm"
++                                    className="h-8 bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 font-bold"
++                                    onClick={async () => {
++                                        const doc = <OrderReceiptDocument
++                                            order={{
++                                                ...order,
++                                                receiptNumber: formik.values.receiptNumber,
++                                                clientName: clients.find(c => c.id === formik.values.clientId)?.firstName || "",
++                                                total: totalOrderValue,
++                                                paymentMethod: formik.values.paymentMethod,
++                                                transactionDate: formik.values.transactionDate,
++                                                notes: formik.values.notes,
++                                            } as any}
++                                            childOrders={formik.values.brandItems.slice(1).map((bi, i) => ({
++                                                id: bi.id || `new-${i}`,
++                                                brandName: bi.brandName,
++                                                total: bi.total,
++                                                orderNumber: bi.orderNumber,
++                                                type: bi.type,
++                                                items: [{ quantity: bi.quantity }]
++                                            })) as any}
++                                            client={clients.find(c => c.id === formik.values.clientId) as any}
++                                            user={user as any}
++                                        />;
++                                        const blob = await pdf(doc).toBlob();
++                                        const url = URL.createObjectURL(blob);
++                                        window.open(url, '_blank');
++                                    }}
++                                >
++                                    Re-imprimir Comprobante
++                                </Button>
++                            )}
+                         </div>
+-                    </CardContent>
+-                </Card>
+-            </div>
+-
+-            {/* Item Entry Bar & Table */}
+-            <Card className="shadow-sm border-slate-200">
+-                <div className="p-3 bg-slate-50 border-b flex flex-wrap lg:flex-nowrap gap-3 items-end">
+-                    <div className="w-full sm:w-[110px] space-y-1 shrink-0">
+-                        <Label className="text-xs font-bold uppercase text-slate-500">Pedido por:</Label>
+-                        <select
+-                            value={currentItem.salesChannel}
+-                            onChange={(e) => setCurrentItem({ ...currentItem, salesChannel: e.target.value as SalesChannel })}
+-                            className="h-8 w-full rounded-md border border-input text-xs px-2 py-1"
+-                        >
+-                            <option value="OFICINA">OFICINA</option>
+-                            <option value="WHATSAPP">WHATSAPP</option>
+-                            <option value="DE CAMPO">DE CAMPO</option>
+-                        </select>
+                     </div>
+-                    <div className="w-full sm:w-[130px] space-y-1 shrink-0">
+-                        <Label className="text-xs font-bold uppercase text-slate-500">Tipo:</Label>
+-                        <select
+-                            value={currentItem.type}
+-                            onChange={(e) => setCurrentItem({ ...currentItem, type: e.target.value as OrderType })}
+-                            className="h-8 w-full rounded-md border border-input text-xs px-2 py-1"
+-                        >
+-                            <option value="NORMAL">NORMAL</option>
+-                            <option value="PREVENTA">PREVENTA</option>
+-                            <option value="REPROGRAMACION">REPROGRAMACION</option>
+-                        </select>
+-                    </div>
+-                    <div className="w-full sm:w-[110px] space-y-1 shrink-0">
+-                        <Label className="text-xs font-bold uppercase text-slate-500">No Pedido:</Label>
+-                        <Input
+-                            className="h-8 w-full text-xs font-mono px-2"
+-                            value={currentItem.orderNumber}
+-                            onChange={(e) => setCurrentItem({ ...currentItem, orderNumber: e.target.value })}
+-                            placeholder="Ej: 12345"
+-                        />
+-                    </div>
+-                    <div className="w-full sm:w-[60px] space-y-1 shrink-0">
+-                        <Label className="text-xs font-bold uppercase text-slate-500">Cant:</Label>
+-                        <Input
+-                            type="number"
+-                            className="h-8 w-full text-xs px-2"
+-                            value={currentItem.quantity}
+-                            onChange={(e) => setCurrentItem({ ...currentItem, quantity: Number(e.target.value) })}
+-                        />
+-                    </div>
+-                    <div className="w-full sm:flex-1 min-w-[180px] space-y-1">
+-                        <Label className="text-xs font-bold uppercase text-slate-500">Cat├ílogo / Marca:</Label>
+-                        <SearchableSelect
+-                            options={brandOptions}
+-                            value={currentItem.brandId}
+-                            onChange={(val) => {
+-                                const b = brands.find(x => x.id === val);
+-                                setCurrentItem({ ...currentItem, brandId: val, brandName: b ? b.name : "" });
+-                            }}
+-                            placeholder="Marca..."
+-                        />
+-                    </div>
+-                    <div className="w-full sm:w-[80px] space-y-1 shrink-0">
+-                        <Label className="text-xs font-bold uppercase text-slate-500">Valor:</Label>
+-                        <Input
+-                            type="number"
+-                            className="h-8 w-full font-bold text-xs px-2"
+-                            value={currentItem.total}
+-                            onChange={(e) => setCurrentItem({ ...currentItem, total: Number(e.target.value) })}
+-                            step="0.01"
+-                        />
+-                    </div>
+-                    <div className="w-full sm:w-[135px] space-y-1 shrink-0">
+-                        <Label className="text-xs font-bold uppercase text-slate-500">Entrega:</Label>
+-                        <Input
+-                            type="date"
+-                            className="h-8 w-full text-xs px-2"
+-                            value={currentItem.possibleDeliveryDate}
+-                            onChange={(e) => setCurrentItem({ ...currentItem, possibleDeliveryDate: e.target.value })}
+-                        />
+-                    </div>
+-                    <div className="w-full sm:w-[80px] shrink-0">
+-                        <Button
+-                            type="button"
+-                            onClick={handleAddItem}
+-                            className="h-8 w-full bg-slate-900 hover:bg-black px-2 text-xs font-bold transition-all"
+-                        >
+-                            <Plus className="h-3 w-3 mr-1" /> Agregar
+-                        </Button>
++
++                    {/* Main Layout Grid */}
++                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
++                        {/* Column 1: Client & General Info */}
++                        <Card className="lg:col-span-3 shadow-sm border-slate-200">
++                            <CardHeader className="py-2 px-4 bg-slate-50/50 border-b">
++                                <CardTitle className="text-sm font-bold uppercase text-slate-500">Encabezado Recibo</CardTitle>
++                            </CardHeader>
++                            <CardContent className="p-3">
++                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
++                                    <div className="space-y-1">
++                                        <Label className="text-xs font-bold text-slate-600">No de recibo:</Label>
++                                        <div className="flex gap-1">
++                                            <Input
++                                                {...formik.getFieldProps('receiptNumber')}
++                                                disabled={isLoadingReceiptNumber || isEditing}
++                                                className="h-8 text-sm font-mono font-bold text-indigo-700 bg-indigo-50/30"
++                                            />
++                                            {!isEditing && (
++                                                <Button
++                                                    type="button"
++                                                    variant="ghost"
++                                                    size="icon"
++                                                    onClick={generateNextReceiptNumber}
++                                                    disabled={isLoadingReceiptNumber}
++                                                    className="h-8 w-8"
++                                                >
++                                                    <RotateCw className={`h-3 w-3 ${isLoadingReceiptNumber ? 'animate-spin' : ''}`} />
++                                                </Button>
++                                            )}
++                                        </div>
++                                    </div>
++                                    <div className="space-y-1">
++                                        <Label className="text-xs font-bold text-slate-600">Fecha de Registro:</Label>
++                                        <Input
++                                            type="date"
++                                            {...formik.getFieldProps('createdAt')}
++                                            disabled={isEditing}
++                                            className="h-8 text-sm"
++                                        />
++                                    </div>
++                                    <div className="space-y-1">
++                                        <Label className="text-xs font-bold text-slate-600">Empresaria / Cliente:</Label>
++                                        <SearchableSelect
++                                            options={clientOptions}
++                                            value={formik.values.clientId}
++                                            onChange={(val) => formik.setFieldValue('clientId', val)}
++                                            placeholder="Ingrese nombre o c├â┬®dula..."
++                                            disabled={isEditing}
++                                        />
++                                        {totalCredit > 0 && (
++                                            <p className="text-xs text-green-600 font-bold mt-1">Saldo a favor: ${totalCredit.toFixed(2)}</p>
++                                        )}
++                                    </div>
++                                </div>
++                            </CardContent>
++                        </Card>
++
++                        {/* Column 2: Quick Summary Totals */}
++                        <Card className="shadow-sm border-slate-200 bg-slate-50">
++                            <CardHeader className="py-2 px-4 border-b">
++                                <CardTitle className="text-sm font-bold uppercase text-slate-500">Valores</CardTitle>
++                            </CardHeader>
++                            <CardContent className="p-3 space-y-2">
++                                <div className="flex justify-between items-center text-sm">
++                                    <span className="font-bold text-slate-500">Total pedidos:</span>
++                                    <span className="font-bold text-slate-900">${totalOrderValue.toFixed(2)}</span>
++                                </div>
++                                <div className="flex justify-between items-center text-sm text-green-700">
++                                    <span className="font-bold">Total abono:</span>
++                                    <span className="font-bold">${(totalRowDeposit + Number(formik.values.creditToUse)).toFixed(2)}</span>
++                                </div>
++                                <Separator className="my-1" />
++                                <div className="flex justify-between items-center">
++                                    <span className="text-xs font-bold uppercase text-slate-400">Saldo:</span>
++                                    <span className={`text-xl font-black ${balance > 0 ? 'text-red-600' : 'text-slate-800'}`}>
++                                        ${balance.toFixed(2)}
++                                    </span>
++                                </div>
++                            </CardContent>
++                        </Card>
+                     </div>
+-                </div>
+ 
+-                <div className="overflow-x-auto">
+-                    <table className="w-full text-xs text-left border-collapse">
+-                        <thead className="bg-slate-100 text-slate-600 border-b uppercase font-bold text-xs">
+-                            <tr>
+-                                <th className="px-3 py-2 border-r text-center w-8">N┬░</th>
+-                                <th className="px-3 py-2 border-r">N┬░ Pedido</th>
+-                                <th className="px-3 py-2 border-r">Tipo</th>
+-                                <th className="px-3 py-2 border-r">Cat├ílogo</th>
+-                                <th className="px-3 py-2 border-r text-right">Valor Pedido</th>
+-                                <th className="px-3 py-2 border-r text-right">Abono</th>
+-                                <th className="px-3 py-2 border-r text-right">Saldo</th>
+-                                <th className="px-3 py-2 border-r">Posible Entrega</th>
+-                                <th className="px-3 py-2 text-center text-xs">Acciones</th>
+-                            </tr>
+-                        </thead>
+-                        <tbody className="divide-y divide-slate-100">
+-                            {formik.values.brandItems.length === 0 ? (
+-                                <tr>
+-                                    <td colSpan={9} className="px-4 py-8 text-center text-slate-400 italic">No hay marcas agregadas en este recibo</td>
+-                                </tr>
+-                            ) : (
+-                                formik.values.brandItems.map((item, idx) => {
+-                                    // Visual distribution balance
+-                                    const distributedAbono = Number(item.deposit || 0);
+-                                    const rowSaldo = Number(item.total) - distributedAbono;
+-                                    const itemHasMovement = item.id && order?.status !== 'POR_RECIBIR';
+-
+-                                    return (
+-                                        <tr key={idx} className="hover:bg-indigo-50/20 transition-colors">
+-                                            <td className="px-3 py-2 border-r text-center font-bold text-slate-400">{idx + 1}</td>
+-                                            <td className="px-3 py-2 border-r font-mono text-[10px] text-slate-600">
+-                                                {item.orderNumber || '---'}
+-                                            </td>
+-                                            <td className="px-3 py-2 border-r">
+-                                                <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${item.type === 'NORMAL' ? 'bg-blue-50 text-blue-700' :
+-                                                    item.type === 'PREVENTA' ? 'bg-amber-50 text-amber-700' : 'bg-purple-50 text-purple-700'
+-                                                    }`}>
+-                                                    {item.type}
+-                                                </span>
+-                                            </td>
+-                                            <td className="px-3 py-2 border-r font-medium">{item.brandName} <span className="text-slate-400 text-xs">({item.quantity})</span></td>
+-                                            <td className="px-3 py-2 border-r text-right">
+-                                                <div className="flex justify-end items-center gap-1">
+-                                                    <span className="text-slate-400 text-xs">$</span>
+-                                                    <input
+-                                                        type="number"
+-                                                        className="h-7 w-20 text-right font-bold bg-transparent border-none focus:ring-0 outline-none text-xs"
+-                                                        value={item.total}
+-                                                        onChange={(e) => {
+-                                                            const items = [...formik.values.brandItems];
+-                                                            items[idx].total = Number(e.target.value);
+-                                                            formik.setFieldValue("brandItems", items);
+-                                                        }}
+-                                                    />
+-                                                </div>
+-                                            </td>
+-                                            <td className="px-3 py-2 border-r text-right font-medium">
+-                                                <div className="flex justify-end items-center gap-1">
+-                                                    <span className="text-green-600 text-xs">$</span>
+-                                                    <input
+-                                                        type="number"
+-                                                        className="h-7 w-20 text-right text-green-600 font-bold bg-green-50/30 rounded border-green-100 focus:ring-1 focus:ring-green-500 outline-none text-xs"
+-                                                        value={item.deposit || ''}
+-                                                        onChange={(e) => {
+-                                                            const items = [...formik.values.brandItems];
+-                                                            items[idx].deposit = Number(e.target.value);
+-                                                            formik.setFieldValue("brandItems", items);
+-                                                        }}
+-                                                        disabled={itemHasMovement} // Movement check per item too if needed, though we disabled edit at table level
+-                                                    />
+-                                                </div>
+-                                            </td>
+-                                            <td className="px-3 py-2 border-r text-right font-bold text-slate-600">${rowSaldo.toFixed(2)}</td>
+-                                            <td className="px-3 py-2 border-r">{item.possibleDeliveryDate}</td>
+-                                            <td className="px-3 py-2 text-center">
+-                                                {!isEditing && (
+-                                                    <Button variant="ghost" size="icon" onClick={() => removeItem(idx)} className="h-6 w-6 text-red-500 hover:text-red-700">
+-                                                        <X className="h-3.5 w-3.5" />
+-                                                    </Button>
+-                                                )}
+-                                            </td>
+-                                        </tr>
+-                                    )
+-                                })
+-                            )}
+-                        </tbody>
+-                    </table>
+-                </div>
+-            </Card>
+-
+-            {/* Bottom Section: Payment & Observations */}
+-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+-                <Card className="lg:col-span-2 shadow-sm border-slate-200">
+-                    <CardHeader className="py-2 px-4 bg-slate-50 border-b">
+-                        <CardTitle className="text-sm font-bold uppercase text-slate-500">Informaci├│n del Pago</CardTitle>
+-                    </CardHeader>
+-                    <CardContent className="p-3">
+-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+-                            <div className="space-y-1">
+-                                <Label className="text-xs font-bold">Forma de Pago:</Label>
++                    {/* Item Entry Bar & Table */}
++                    <Card className="shadow-sm border-slate-200">
++                        <div className="p-3 bg-slate-50 border-b flex flex-wrap lg:flex-nowrap gap-3 items-end">
++                            <div className="w-full sm:w-[110px] space-y-1 shrink-0">
++                                <Label className="text-xs font-bold uppercase text-slate-500">Pedido por:</Label>
++                                <select
++                                    value={currentItem.salesChannel}
++                                    onChange={(e) => setCurrentItem({ ...currentItem, salesChannel: e.target.value as SalesChannel })}
++                                    className="h-8 w-full rounded-md border border-input text-xs px-2 py-1"
++                                >
++                                    <option value="OFICINA">OFICINA</option>
++                                    <option value="WHATSAPP">WHATSAPP</option>
++                                    <option value="DE CAMPO">DE CAMPO</option>
++                                </select>
++                            </div>
++                            <div className="w-full sm:w-[130px] space-y-1 shrink-0">
++                                <Label className="text-xs font-bold uppercase text-slate-500">Tipo:</Label>
+                                 <select
+-                                    {...formik.getFieldProps('paymentMethod')}
+-                                    className="h-8 w-full rounded-md border border-input text-xs"
++                                    value={currentItem.type}
++                                    onChange={(e) => setCurrentItem({ ...currentItem, type: e.target.value as OrderType })}
++                                    className="h-8 w-full rounded-md border border-input text-xs px-2 py-1"
+                                 >
+-                                    <option value="EFECTIVO">EFECTIVO</option>
+-                                    <option value="TRANSFERENCIA">TRANSFERENCIA</option>
+-                                    <option value="DEPOSITO">DEP├ôSITO</option>
+-                                    <option value="CHEQUE">CHEQUE</option>
++                                    <option value="NORMAL">NORMAL</option>
++                                    <option value="PREVENTA">PREVENTA</option>
++                                    <option value="REPROGRAMACION">REPROGRAMACION</option>
+                                 </select>
+                             </div>
+-                            <div className="space-y-1">
+-                                <Label className="text-xs font-bold">Cuenta Bancaria:</Label>
++                            <div className="w-full sm:w-[110px] space-y-1 shrink-0">
++                                <Label className="text-xs font-bold uppercase text-slate-500">No Pedido:</Label>
++                                <Input
++                                    className="h-8 w-full text-xs font-mono px-2"
++                                    value={currentItem.orderNumber}
++                                    onChange={(e) => setCurrentItem({ ...currentItem, orderNumber: e.target.value })}
++                                    placeholder="Ej: 12345"
++                                />
++                            </div>
++                            <div className="w-full sm:w-[60px] space-y-1 shrink-0">
++                                <Label className="text-xs font-bold uppercase text-slate-500">Cant:</Label>
++                                <Input
++                                    type="number"
++                                    className="h-8 w-full text-xs px-2"
++                                    value={currentItem.quantity}
++                                    onChange={(e) => setCurrentItem({ ...currentItem, quantity: Number(e.target.value) })}
++                                />
++                            </div>
++                            <div className="w-full sm:flex-1 min-w-[180px] space-y-1">
++                                <Label className="text-xs font-bold uppercase text-slate-500">Cat├â┬ílogo / Marca:</Label>
+                                 <SearchableSelect
+-                                    options={bankOptions}
+-                                    value={formik.values.bankAccountId}
+-                                    onChange={(val) => formik.setFieldValue('bankAccountId', val)}
+-                                    placeholder="Seleccione cuenta..."
++                                    options={brandOptions}
++                                    value={currentItem.brandId}
++                                    onChange={(val) => {
++                                        const b = brands.find(x => x.id === val);
++                                        setCurrentItem({ ...currentItem, brandId: val, brandName: b ? b.name : "" });
++                                    }}
++                                    placeholder="Marca..."
++                                />
++                            </div>
++                            <div className="w-full sm:w-[80px] space-y-1 shrink-0">
++                                <Label className="text-xs font-bold uppercase text-slate-500">Valor:</Label>
++                                <Input
++                                    type="number"
++                                    className="h-8 w-full font-bold text-xs px-2"
++                                    value={currentItem.total}
++                                    onChange={(e) => setCurrentItem({ ...currentItem, total: Number(e.target.value) })}
++                                    step="0.01"
+                                 />
+                             </div>
+-                            <div className="space-y-1">
+-                                <Label className="text-xs font-bold">Fecha Trans.:</Label>
+-                                <Input type="date" {...formik.getFieldProps('transactionDate')} className="h-8 text-xs" />
++                            <div className="w-full sm:w-[135px] space-y-1 shrink-0">
++                                <Label className="text-xs font-bold uppercase text-slate-500">Entrega:</Label>
++                                <Input
++                                    type="date"
++                                    className="h-8 w-full text-xs px-2"
++                                    value={currentItem.possibleDeliveryDate}
++                                    onChange={(e) => setCurrentItem({ ...currentItem, possibleDeliveryDate: e.target.value })}
++                                />
+                             </div>
+-                            <div className="space-y-1">
+-                                <Label className="text-xs font-bold">No Documento / Ref:</Label>
+-                                <Input {...formik.getFieldProps('transactionReference')} className="h-8 text-xs" placeholder="Referencia..." />
++                            <div className="w-full sm:w-[80px] shrink-0">
++                                <Button
++                                    type="button"
++                                    onClick={handleAddItem}
++                                    className="h-8 w-full bg-slate-900 hover:bg-black px-2 text-xs font-bold transition-all"
++                                >
++                                    <Plus className="h-3 w-3 mr-1" /> Agregar
++                                </Button>
+                             </div>
+                         </div>
+ 
+-                        {totalCredit > 0 && (
+-                            <div className="mt-3 pt-3 border-t">
+-                                <div className="bg-green-50 border border-green-100 rounded-md py-1 px-3 flex items-center justify-between">
+-                                    <span className="text-xs font-bold text-green-700">Usar Saldo Favor:</span>
+-                                    <div className="flex items-center gap-2">
+-                                        <Input
+-                                            type="number"
+-                                            className="h-7 w-24 bg-white text-xs"
+-                                            value={formik.values.creditToUse}
+-                                            onChange={(e) => {
+-                                                const val = Math.min(Number(e.target.value), totalCredit, totalOrderValue - Number(totalRowDeposit));
+-                                                formik.setFieldValue('creditToUse', val > 0 ? val : 0);
+-                                            }}
++                        <div className="overflow-x-auto">
++                            <table className="w-full text-xs text-left border-collapse">
++                                <thead className="bg-slate-100 text-slate-600 border-b uppercase font-bold text-xs">
++                                    <tr>
++                                        <th className="px-3 py-2 border-r text-center w-8">N├é┬░</th>
++                                        <th className="px-3 py-2 border-r">N├é┬░ Pedido</th>
++                                        <th className="px-3 py-2 border-r">Tipo</th>
++                                        <th className="px-3 py-2 border-r">Cat├â┬ílogo</th>
++                                        <th className="px-3 py-2 border-r text-right">Valor Pedido</th>
++                                        <th className="px-3 py-2 border-r text-right">Abono</th>
++                                        <th className="px-3 py-2 border-r text-right">Saldo</th>
++                                        <th className="px-3 py-2 border-r">Posible Entrega</th>
++                                        <th className="px-3 py-2 text-center text-xs">Acciones</th>
++                                    </tr>
++                                </thead>
++                                <tbody className="divide-y divide-slate-100">
++                                    {formik.values.brandItems.length === 0 ? (
++                                        <tr>
++                                            <td colSpan={9} className="px-4 py-8 text-center text-slate-400 italic">No hay marcas agregadas en este recibo</td>
++                                        </tr>
++                                    ) : (
++                                        formik.values.brandItems.map((item, idx) => {
++                                            // Visual distribution balance
++                                            const distributedAbono = Number(item.deposit || 0);
++                                            const rowSaldo = Number(item.total) - distributedAbono;
++
++                                            // SECURITY CHECKS FOR THIS ROW
++                                            const isNew = !item.id;
++                                            const isRowEditable = editableRow === idx || isNew;
++
++                                            const hasMovement = item.id && (item.status !== 'POR_RECIBIR' || (item.paymentsCount && item.paymentsCount > 1));
++                                            const isClosed = lastClosureDate && item.transactionDate && new Date(item.transactionDate) <= lastClosureDate;
++
++                                            const canToggleEdit = !hasMovement && !isClosed;
++
++                                            let blockReason = "";
++                                            if (item.status === 'ENTREGADO') blockReason = "Ya entregado";
++                                            else if (item.status && item.status !== 'POR_RECIBIR') blockReason = "Ya procesado";
++                                            else if (item.paymentsCount > 1) blockReason = "Tiene abonos adicionales";
++                                            else if (isClosed) blockReason = "Periodo de caja cerrado";
++
++                                            return (
++                                                <tr key={idx} className={`hover:bg-indigo-50/20 transition-colors ${!isRowEditable ? 'bg-slate-50/30' : ''}`}>
++                                                    <td className="px-3 py-2 border-r text-center font-bold text-slate-400">{idx + 1}</td>
++                                                    <td className="px-3 py-2 border-r font-mono text-[10px] text-slate-600">
++                                                        <input
++                                                            type="text"
++                                                            className={`h-7 w-full font-mono text-[10px] bg-transparent border-none focus:ring-0 outline-none ${!isRowEditable ? 'text-slate-400' : 'text-slate-600'}`}
++                                                            value={item.orderNumber || ''}
++                                                            disabled={!isRowEditable}
++                                                            onChange={(e) => {
++                                                                const items = [...formik.values.brandItems];
++                                                                items[idx].orderNumber = e.target.value;
++                                                                formik.setFieldValue("brandItems", items);
++                                                            }}
++                                                            placeholder="---"
++                                                        />
++                                                    </td>
++                                                    <td className="px-3 py-2 border-r">
++                                                        <select
++                                                            className={`h-7 w-full text-[10px] font-bold bg-transparent border-none focus:ring-0 outline-none rounded appearance-none ${!isRowEditable ? 'text-slate-400 opacity-70' : ''}`}
++                                                            value={item.type}
++                                                            disabled={!isRowEditable}
++                                                            onChange={(e) => {
++                                                                const items = [...formik.values.brandItems];
++                                                                items[idx].type = e.target.value;
++                                                                formik.setFieldValue("brandItems", items);
++                                                            }}
++                                                        >
++                                                            <option value="NORMAL">NORMAL</option>
++                                                            <option value="PREVENTA">PREVENTA</option>
++                                                            <option value="REPROGRAMACION">REPROG</option>
++                                                        </select>
++                                                    </td>
++                                                    <td className="px-3 py-2 border-r font-medium">
++                                                        <div className="flex flex-col">
++                                                            <span className={!isRowEditable ? 'text-slate-400' : ''}>{item.brandName}</span>
++                                                            <span className="text-[10px] text-slate-400">Cant: {item.quantity}</span>
++                                                        </div>
++                                                    </td>
++                                                    <td className="px-3 py-2 border-r text-right">
++                                                        <div className="flex justify-end items-center gap-1">
++                                                            <span className="text-slate-400 text-xs">$</span>
++                                                            <input
++                                                                type="number"
++                                                                className={`h-7 w-20 text-right font-bold bg-transparent border-none focus:ring-0 outline-none text-xs ${!isRowEditable ? 'text-slate-400' : ''}`}
++                                                                value={item.total}
++                                                                disabled={!isRowEditable}
++                                                                onChange={(e) => {
++                                                                    const items = [...formik.values.brandItems];
++                                                                    items[idx].total = Number(e.target.value);
++                                                                    formik.setFieldValue("brandItems", items);
++                                                                }}
++                                                            />
++                                                        </div>
++                                                    </td>
++                                                    <td className="px-3 py-2 border-r text-right font-medium">
++                                                        <div className="flex justify-end items-center gap-1">
++                                                            <span className="text-green-600 text-xs">$</span>
++                                                            <input
++                                                                type="number"
++                                                                className={`h-7 w-20 text-right text-green-600 font-bold bg-green-50/20 rounded border-none focus:ring-0 outline-none text-xs ${!isRowEditable ? 'opacity-50' : ''}`}
++                                                                value={item.deposit || ''}
++                                                                onChange={(e) => {
++                                                                    const items = [...formik.values.brandItems];
++                                                                    items[idx].deposit = Number(e.target.value);
++                                                                    formik.setFieldValue("brandItems", items);
++                                                                }}
++                                                                disabled={!isRowEditable}
++                                                            />
++                                                        </div>
++                                                    </td>
++                                                    <td className="px-3 py-2 border-r text-right font-bold text-slate-600">${rowSaldo.toFixed(2)}</td>
++                                                    <td className="px-3 py-2 border-r text-[10px]">
++                                                        <input
++                                                            type="date"
++                                                            className={`h-7 w-full bg-transparent border-none focus:ring-0 outline-none text-[10px] ${!isRowEditable ? 'text-slate-400' : ''}`}
++                                                            value={item.possibleDeliveryDate}
++                                                            disabled={!isRowEditable}
++                                                            onChange={(e) => {
++                                                                const items = [...formik.values.brandItems];
++                                                                items[idx].possibleDeliveryDate = e.target.value;
++                                                                formik.setFieldValue("brandItems", items);
++                                                            }}
++                                                        />
++                                                    </td>
++                                                    <td className="px-3 py-2 text-center h-full">
++                                                        <div className="flex items-center justify-center gap-1">
++                                                            {isEditing && !isNew && (
++                                                                canToggleEdit ? (
++                                                                    <Button
++                                                                        type="button"
++                                                                        variant="ghost"
++                                                                        size="icon"
++                                                                        className={`h-6 w-6 ${isRowEditable ? 'text-indigo-600 bg-indigo-50' : 'text-slate-400 hover:text-indigo-600'}`}
++                                                                        onClick={() => setEditableRow(isRowEditable ? null : idx)}
++                                                                        title={isRowEditable ? "Fijar cambios" : "Habilitar edici├â┬│n para este pedido"}
++                                                                    >
++                                                                        <Pencil className="h-3 w-3" />
++                                                                    </Button>
++                                                                ) : (
++                                                                    <TooltipProvider>
++                                                                        <Tooltip>
++                                                                            <TooltipTrigger asChild>
++                                                                                <div className="cursor-not-allowed opacity-30">
++                                                                                    <Button variant="ghost" size="icon" className="h-6 w-6" disabled>
++                                                                                        <Pencil className="h-3 w-3" />
++                                                                                    </Button>
++                                                                                </div>
++                                                                            </TooltipTrigger>
++                                                                            <TooltipContent className="bg-slate-900 text-white text-[10px]">
++                                                                                {blockReason}
++                                                                            </TooltipContent>
++                                                                        </Tooltip>
++                                                                    </TooltipProvider>
++                                                                )
++                                                            )}
++
++                                                            {(canToggleEdit || isNew) ? (
++                                                                <Button
++                                                                    type="button"
++                                                                    variant="ghost"
++                                                                    size="icon"
++                                                                    onClick={() => removeItem(idx)}
++                                                                    className="h-6 w-6 text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"
++                                                                    title="Quitar este pedido"
++                                                                >
++                                                                    <Trash2 className="h-3 w-3" />
++                                                                </Button>
++                                                            ) : (
++                                                                <TooltipProvider>
++                                                                    <Tooltip>
++                                                                        <TooltipTrigger asChild>
++                                                                            <div className="cursor-not-allowed opacity-30">
++                                                                                <Button variant="ghost" size="icon" className="h-6 w-6" disabled>
++                                                                                    <Trash2 className="h-3 w-3" />
++                                                                                </Button>
++                                                                            </div>
++                                                                        </TooltipTrigger>
++                                                                        <TooltipContent className="bg-slate-900 text-white text-[10px]">
++                                                                            No se puede eliminar: {blockReason}
++                                                                        </TooltipContent>
++                                                                    </Tooltip>
++                                                                </TooltipProvider>
++                                                            )}
++                                                        </div>
++                                                    </td>
++                                                </tr>
++                                            )
++                                        })
++                                    )}
++                                </tbody>
++                            </table>
++                        </div>
++                    </Card>
++
++                    {/* Bottom Section: Payment & Observations */}
++                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
++                        <Card className="lg:col-span-2 shadow-sm border-slate-200">
++                            <CardHeader className="py-2 px-4 bg-slate-50 border-b">
++                                <CardTitle className="text-sm font-bold uppercase text-slate-500">Informaci├â┬│n del Pago</CardTitle>
++                            </CardHeader>
++                            <CardContent className="p-3">
++                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
++                                    <div className="space-y-1">
++                                        <Label className="text-xs font-bold">Forma de Pago:</Label>
++                                        <select
++                                            {...formik.getFieldProps('paymentMethod')}
++                                            className="h-8 w-full rounded-md border border-input text-xs"
++                                        >
++                                            <option value="EFECTIVO">EFECTIVO</option>
++                                            <option value="TRANSFERENCIA">TRANSFERENCIA</option>
++                                            <option value="DEPOSITO">DEP├âÔÇ£SITO</option>
++                                            <option value="CHEQUE">CHEQUE</option>
++                                        </select>
++                                    </div>
++                                    <div className="space-y-1">
++                                        <Label className="text-xs font-bold">Cuenta Bancaria:</Label>
++                                        <SearchableSelect
++                                            options={bankOptions}
++                                            value={formik.values.bankAccountId}
++                                            onChange={(val) => formik.setFieldValue('bankAccountId', val)}
++                                            placeholder="Seleccione cuenta..."
+                                         />
+-                                        <p className="text-xs text-slate-500">Disponible: ${totalCredit.toFixed(2)}</p>
++                                    </div>
++                                    <div className="space-y-1">
++                                        <Label className="text-xs font-bold">Fecha Trans.:</Label>
++                                        <Input type="date" {...formik.getFieldProps('transactionDate')} className="h-8 text-xs" />
++                                    </div>
++                                    <div className="space-y-1">
++                                        <Label className="text-xs font-bold">No Documento / Ref:</Label>
++                                        <Input {...formik.getFieldProps('transactionReference')} className="h-8 text-xs" placeholder="Referencia..." />
+                                     </div>
+                                 </div>
++
++                                {totalCredit > 0 && (
++                                    <div className="mt-3 pt-3 border-t">
++                                        <div className="bg-green-50 border border-green-100 rounded-md py-1 px-3 flex items-center justify-between">
++                                            <span className="text-xs font-bold text-green-700">Usar Saldo Favor:</span>
++                                            <div className="flex items-center gap-2">
++                                                <Input
++                                                    type="number"
++                                                    className="h-7 w-24 bg-white text-xs"
++                                                    value={formik.values.creditToUse}
++                                                    onChange={(e) => {
++                                                        const val = Math.min(Number(e.target.value), totalCredit, totalOrderValue - Number(totalRowDeposit));
++                                                        formik.setFieldValue('creditToUse', val > 0 ? val : 0);
++                                                    }}
++                                                />
++                                                <p className="text-xs text-slate-500">Disponible: ${totalCredit.toFixed(2)}</p>
++                                            </div>
++                                        </div>
++                                    </div>
++                                )}
++                            </CardContent>
++                        </Card>
++
++                        <Card className="shadow-sm border-slate-200">
++                            <CardHeader className="py-2 px-4 bg-slate-50 border-b">
++                                <CardTitle className="text-sm font-bold uppercase text-slate-500">Observaci├â┬│n / Notas</CardTitle>
++                            </CardHeader>
++                            <CardContent className="p-3">
++                                <textarea
++                                    {...formik.getFieldProps('notes')}
++                                    className="w-full h-24 p-2 text-sm rounded-md border border-input focus:ring-1 focus:ring-indigo-500 outline-none resize-none"
++                                    placeholder="Ingrese notas adicionales sobre el pedido..."
++                                />
++                            </CardContent>
++                            <div className="p-2 border-t bg-slate-50 flex gap-2">
++                                <AsyncButton
++                                    type="button"
++                                    onClick={() => {
++                                        if (Object.keys(formik.errors).length > 0) {
++                                            const errorMessages = Object.entries(formik.errors).map(([field, err]) => {
++                                                if (field === "brandItems" && Array.isArray(err)) {
++                                                    const itemErrors = err.map((itemErr, idx) => {
++                                                        if (itemErr) {
++                                                            return `Fila ${idx + 1}: ${Object.keys(itemErr).join(', ')}`;
++                                                        }
++                                                        return null;
++                                                    }).filter(Boolean);
++                                                    return `Error en pedidos (${itemErrors.join(' | ')})`;
++                                                }
++                                                return field;
++                                            }).join(", ");
++                                            notifyError(null, `Validaci├│n fallida: ${errorMessages}`);
++                                        }
++                                        formik.handleSubmit();
++                                    }}
++                                    className="w-full bg-slate-800"
++                                    isLoading={isSubmitting}
++                                >
++                                    <Plus className="h-4 w-4 mr-2" /> Guardar Recibo
++                                </AsyncButton>
+                             </div>
+-                        )}
+-                    </CardContent>
+-                </Card>
+-
+-                <Card className="shadow-sm border-slate-200">
+-                    <CardHeader className="py-2 px-4 bg-slate-50 border-b">
+-                        <CardTitle className="text-sm font-bold uppercase text-slate-500">Observaci├│n / Notas</CardTitle>
+-                    </CardHeader>
+-                    <CardContent className="p-3">
+-                        <textarea
+-                            {...formik.getFieldProps('notes')}
+-                            className="w-full h-24 p-2 text-sm rounded-md border border-input focus:ring-1 focus:ring-indigo-500 outline-none resize-none"
+-                            placeholder="Ingrese notas adicionales sobre el pedido..."
+-                        />
+-                    </CardContent>
+-                    <div className="p-2 border-t bg-slate-50 flex gap-2">
+-                        <AsyncButton
+-                            type="submit"
+-                            className="w-full bg-slate-800"
+-                            isLoading={isSubmitting}
+-                        >
+-                            <Plus className="h-4 w-4 mr-2" /> Guardar Recibo
+-                        </AsyncButton>
++                        </Card>
+                     </div>
+-                </Card>
+-            </div>
+-        </form>
++                </form>
++            </div >
++        </TooltipProvider >
+     )
+ }
++export default OrderFormPage;
+diff --git a/src/features/order-management/ui/OrderList.tsx b/src/features/order-management/ui/OrderList.tsx
+index 0416dda..4d5c531 100644
+--- a/src/features/order-management/ui/OrderList.tsx
++++ b/src/features/order-management/ui/OrderList.tsx
+@@ -19,11 +19,16 @@ import { useQueryClient } from "@tanstack/react-query" // Added queryClient
+ 
+ import { useDebounce } from "@/shared/lib/hooks"
+ import { Pagination } from "@/shared/ui/pagination"
++import { useCashClosures } from "@/features/cash-closure/api/hooks"
+ 
+ export function OrderList() {
+     const [page, setPage] = useState(1)
+     const [limit] = useState(25)
+ 
++    const { data: closuresResponse } = useCashClosures({ limit: 1 })
++    const lastClosure = closuresResponse?.data?.[0]
++    const lastClosureDate = lastClosure ? new Date(lastClosure.toDate) : null
++
+     // We keep the internal search query for the input, but debounce it for the API/filtering
+     const [searchQuery, setSearchQuery] = useState('')
+     const debouncedSearch = useDebounce(searchQuery, 1000)
+@@ -64,7 +69,12 @@ export function OrderList() {
+             return parentsOnly.filter(o =>
+                 o.clientName.toLowerCase().includes(query) ||
+                 o.receiptNumber.toLowerCase().includes(query) ||
+-                o.brandName.toLowerCase().includes(query)
++                (o.orderNumber && o.orderNumber.toLowerCase().includes(query)) ||
++                o.brandName.toLowerCase().includes(query) ||
++                o.childOrders?.some(child =>
++                    (child.orderNumber && child.orderNumber.toLowerCase().includes(query)) ||
++                    (child.invoiceNumber && child.invoiceNumber.toLowerCase().includes(query))
++                )
+             )
+         }
+         return parentsOnly
+@@ -83,7 +93,29 @@ export function OrderList() {
+             notifyError({ message: 'No tienes permiso para editar pedidos' })
+             return
+         }
+-        navigate(`/orders/edit/${order.id}`)
++
++        const isClosed = lastClosureDate && order.transactionDate && new Date(order.transactionDate) <= lastClosureDate;
++        if (isClosed) {
++            notifyError({ message: 'No se puede editar: El periodo de caja ya est├í cerrado.' })
++            return
++        }
++
++        const hasMultiplePayments = order.payments && order.payments.length > 1;
++        if (hasMultiplePayments) {
++            notifyError({ message: 'No se puede editar: El pedido ya tiene abonos adicionales.' })
++            return
++        }
++
++        if (order.status !== 'POR_RECIBIR') {
++            notifyError({ message: `No se puede editar: El pedido ya est├í en estado ${order.status}.` })
++            return
++        }
++
++        if (order.receiptNumber && order.receiptNumber.trim() !== "") {
++            navigate(`/orders/group/${order.receiptNumber}`)
++        } else {
++            navigate(`/orders/edit/${order.id}`)
++        }
+     }
+ 
+     const handleReverseClick = (order: Order) => {
+@@ -186,6 +218,7 @@ export function OrderList() {
+                     onEdit={handleEdit}
+                     onDelete={handleDeleteClick}
+                     onReverse={handleReverseClick}
++                    lastClosureDate={lastClosureDate}
+                 />
+             )}
+ 
+diff --git a/src/features/order-management/ui/OrderTable.tsx b/src/features/order-management/ui/OrderTable.tsx
+index 8fd486b..29f7dce 100644
+--- a/src/features/order-management/ui/OrderTable.tsx
++++ b/src/features/order-management/ui/OrderTable.tsx
+@@ -12,6 +12,7 @@ interface OrderTableProps {
+     onEdit: (order: Order) => void
+     onDelete: (order: Order) => void
+     onReverse?: (order: Order) => void
++    lastClosureDate?: Date | null
+ }
+ 
+ const ROW_STATUS_CLASSES: Record<OrderStatus, string> = {
+@@ -56,28 +57,28 @@ function formatCurrency(amount: number): string {
+     return `$${amount.toFixed(2)}`
+ }
+ 
+-export function OrderTable({ orders, onViewDetails, onEdit, onDelete, onReverse }: OrderTableProps) {
++export function OrderTable({ orders, onViewDetails, onEdit, onDelete, onReverse, lastClosureDate }: OrderTableProps) {
+     const { hasPermission } = useAuth()
+ 
+     return (
+         <TooltipProvider>
+             <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                 <div className="overflow-x-auto">
+-                    <table className="w-full text-sm min-w-[1200px] border-collapse">
++                    <table className="w-full text-sm border-collapse">
+                         <thead>
+-                            <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
+-                                <th className="px-5 py-4 text-left w-[140px]">Origen</th>
+-                                <th className="px-5 py-4 text-left w-[180px]">N├║mero Recibo</th>
+-                                <th className="px-5 py-4 text-left w-[130px]">N┬░ Pedido</th>
+-                                <th className="px-5 py-4 text-left w-[130px]">Tipo</th>
+-                                <th className="px-5 py-4 text-left">Cliente</th>
+-                                <th className="px-5 py-4 text-left">Marca</th>
+-                                <th className="px-5 py-4 text-right w-[110px]">Total</th>
+-                                <th className="px-5 py-4 text-right w-[100px]">Abono</th>
+-                                <th className="px-5 py-4 text-right w-[110px]">Saldo</th>
+-                                <th className="px-5 py-4 text-left w-[130px]">F. Entrega</th>
+-                                <th className="px-5 py-4 text-left w-[150px]">Estado</th>
+-                                <th className="px-5 py-4 text-center w-[130px]">Acciones</th>
++                            <tr className="bg-slate-50/80 border-b border-slate-200 text-[10px] uppercase tracking-wider text-slate-500 font-semibold whitespace-nowrap">
++                                <th className="px-4 py-4 text-left w-[110px]">Origen</th>
++                                <th className="px-4 py-4 text-left w-[140px]">N┬░ Recibo</th>
++                                <th className="px-4 py-4 text-left w-[120px]">N┬░ Pedidos</th>
++                                <th className="px-4 py-4 text-left w-[110px]">Tipo</th>
++                                <th className="px-4 py-4 text-left min-w-[150px]">Cliente</th>
++                                <th className="px-4 py-4 text-left min-w-[120px]">Marca</th>
++                                <th className="px-4 py-4 text-right w-[90px]">Total</th>
++                                <th className="px-4 py-4 text-right w-[90px]">Abono</th>
++                                <th className="px-4 py-4 text-right w-[90px]">Saldo</th>
++                                <th className="px-4 py-4 text-left w-[110px]">F. Entrega</th>
++                                <th className="px-4 py-4 text-left w-[130px]">Estado</th>
++                                <th className="px-4 py-4 text-center w-[100px]">Acciones</th>
+                             </tr>
+                         </thead>
+                         <tbody className="divide-y divide-slate-100">
+@@ -85,16 +86,27 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, onReverse
+                                 const showReverse = order.status === 'RECIBIDO_EN_BODEGA' && !order.deliveryDate;
+                                 const accentColor = getAccentColor(order.receiptNumber);
+ 
+-                                // BUSINESS RULE: Cannot edit if any movement happened (status != POR_RECIBIR)
+-                                const hasMovement = order.status !== 'POR_RECIBIR';
+-                                const canEdit = !hasMovement;
++                                // BUSINESS RULE: Cannot edit if any movement happened
++                                // Movement: Status != POR_RECIBIR OR has more than 1 payment
++                                const hasMovement = order.status !== 'POR_RECIBIR' || (order.payments && order.payments.length > 1);
++
++                                // Period check: Cannot edit if date is closed
++                                const isClosed = lastClosureDate && order.transactionDate && new Date(order.transactionDate) <= lastClosureDate;
++
++                                const canEdit = !hasMovement && !isClosed;
++
++                                let blockReason = "";
++                                if (order.status === 'ENTREGADO') blockReason = "Pedido ya entregado";
++                                else if (order.status !== 'POR_RECIBIR') blockReason = "Pedido ya procesado";
++                                else if (order.payments && order.payments.length > 1) blockReason = "Tiene abonos adicionales";
++                                else if (isClosed) blockReason = "Periodo de caja cerrado";
+ 
+                                 return (
+                                     <tr
+                                         key={order.id}
+                                         className={`transition-all duration-200 ${ROW_STATUS_CLASSES[order.status as OrderStatus] || "hover:bg-slate-50"} relative group`}
+                                     >
+-                                        <td className="px-5 py-3 relative">
++                                        <td className="px-4 py-2.5 relative">
+                                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-tight shadow-sm ${order.salesChannel === 'WHATSAPP' ? 'bg-green-100 text-green-700' :
+                                                 order.salesChannel === 'DOMICILIO' ? 'bg-blue-100 text-blue-700' :
+                                                     'bg-slate-100 text-slate-600'
+@@ -103,7 +115,7 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, onReverse
+                                             </span>
+                                         </td>
+ 
+-                                        <td className="px-5 py-3">
++                                        <td className="px-4 py-2.5">
+                                             <div className="flex items-center gap-3">
+                                                 <div className={`w-2 h-2 rounded-full ${accentColor} shadow-sm`} />
+                                                 <span className="text-sm tracking-tight text-slate-900 font-extrabold">
+@@ -112,13 +124,13 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, onReverse
+                                             </div>
+                                         </td>
+ 
+-                                        <td className="px-5 py-3 text-sm font-mono font-bold text-slate-600 bg-slate-50/30">
++                                        <td className="px-4 py-2.5 text-xs font-mono font-bold text-slate-600 bg-slate-50/10">
+                                             {order.childOrdersCount && order.childOrdersCount > 0
+-                                                ? <span className="text-monchito-purple bg-purple-50 px-2 py-1 rounded-md border border-purple-100 italic">{order.childOrdersCount} pedidos</span>
++                                                ? <span className="text-monchito-purple bg-purple-50 px-2 py-1 rounded-md border border-purple-100 italic whitespace-nowrap">{order.childOrdersCount + 1} pedidos</span>
+                                                 : (order.orderNumber || '---')}
+                                         </td>
+ 
+-                                        <td className="px-5 py-3">
++                                        <td className="px-4 py-2.5">
+                                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${order.type === 'REPROGRAMACION' ? 'bg-purple-50 text-purple-700 border-purple-100' :
+                                                 'bg-slate-50 text-slate-500 border-slate-100'
+                                                 }`}>
+@@ -126,9 +138,9 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, onReverse
+                                             </span>
+                                         </td>
+ 
+-                                        <td className="px-5 py-3 font-semibold text-slate-700 truncate max-w-[200px]">{order.clientName}</td>
++                                        <td className="px-4 py-2.5 font-semibold text-slate-700 truncate max-w-[200px] whitespace-nowrap">{order.clientName}</td>
+ 
+-                                        <td className="px-5 py-3">
++                                        <td className="px-4 py-2.5">
+                                             <div className="flex items-center gap-2">
+                                                 {(() => {
+                                                     const brands = new Set<string>();
+@@ -152,34 +164,34 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, onReverse
+                                             </div>
+                                         </td>
+ 
+-                                        <td className="px-5 py-3 text-right font-bold text-slate-900">
++                                        <td className="px-4 py-2.5 text-right font-bold text-slate-900">
+                                             {(() => {
+                                                 const total = (order.childOrders || []).reduce((sum, child) => sum + Number(child.total || 0), Number(order.total || 0));
+                                                 return formatCurrency(total);
+                                             })()}
+                                         </td>
+-                                        <td className="px-5 py-3 text-right text-emerald-600 font-semibold">
++                                        <td className="px-4 py-2.5 text-right text-emerald-600 font-semibold">
+                                             {(() => {
+                                                 const paid = (order.childOrders || []).reduce((sum, child) => sum + getPaidAmount(child), getPaidAmount(order));
+                                                 return formatCurrency(paid);
+                                             })()}
+                                         </td>
+-                                        <td className="px-5 py-3 text-right font-black text-rose-600">
++                                        <td className="px-4 py-2.5 text-right font-black text-rose-600">
+                                             {(() => {
+                                                 const pending = (order.childOrders || []).reduce((sum, child) => sum + getPendingAmount(child), getPendingAmount(order));
+                                                 return formatCurrency(pending);
+                                             })()}
+                                         </td>
+ 
+-                                        <td className="px-5 py-3 text-xs text-slate-500 font-medium">
++                                        <td className="px-4 py-2.5 text-xs text-slate-500 font-medium whitespace-nowrap">
+                                             {order.possibleDeliveryDate ? formatDate(order.possibleDeliveryDate) : '---'}
+                                         </td>
+ 
+-                                        <td className="px-5 py-3">
++                                        <td className="px-4 py-2.5">
+                                             <OrderStatusBadge status={order.status as OrderStatus} />
+                                         </td>
+ 
+-                                        <td className="px-5 py-3">
++                                        <td className="px-4 py-2.5">
+                                             <div className="flex justify-center items-center gap-1.5">
+                                                 <Button
+                                                     variant="ghost"
+@@ -203,30 +215,18 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, onReverse
+                                                     </Button>
+                                                 ) : (
+                                                     hasPermission('orders.edit') && (
+-                                                        canEdit ? (
+-                                                            <Button
+-                                                                variant="ghost"
+-                                                                size="icon"
+-                                                                className="h-8 w-8 text-slate-900 hover:bg-slate-100 font-bold"
+-                                                                onClick={() => onEdit(order)}
+-                                                                title="Editar recibo completo"
+-                                                            >
+-                                                                <Pencil className="h-4 w-4" />
+-                                                            </Button>
+-                                                        ) : (
+-                                                            <Tooltip>
+-                                                                <TooltipTrigger asChild>
+-                                                                    <div className="cursor-not-allowed opacity-30">
+-                                                                        <Button variant="ghost" size="icon" className="h-8 w-8" disabled>
+-                                                                            <Pencil className="h-4 w-4 text-slate-400" />
+-                                                                        </Button>
+-                                                                    </div>
+-                                                                </TooltipTrigger>
+-                                                                <TooltipContent side="top" className="bg-slate-900 text-white border-none text-[10px]">
+-                                                                    No se puede editar: Pedido ya {order.status === 'ENTREGADO' ? 'entregado' : 'procesado'}
+-                                                                </TooltipContent>
+-                                                            </Tooltip>
+-                                                        )
++                                                        <Button
++                                                            variant="ghost"
++                                                            size="icon"
++                                                            className={`h-8 w-8 text-slate-900 hover:bg-slate-100 font-bold ${!canEdit ? 'opacity-40' : ''}`}
++                                                            onClick={async (e) => {
++                                                                e.stopPropagation()
++                                                                onEdit(order)
++                                                            }}
++                                                            title="Editar recibo completo"
++                                                        >
++                                                            <Pencil className="h-4 w-4" />
++                                                        </Button>
+                                                     )
+                                                 )}
+ 
+@@ -234,9 +234,12 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, onReverse
+                                                     <Button
+                                                         variant="ghost"
+                                                         size="icon"
+-                                                        className="h-8 w-8 text-slate-300 hover:text-red-600 hover:bg-red-50 transition-colors"
+-                                                        onClick={() => onDelete(order)}
+-                                                        title="Eliminar registro"
++                                                        className={`h-8 w-8 text-slate-300 hover:text-red-600 hover:bg-red-50 transition-colors ${!canEdit ? 'opacity-40 cursor-not-allowed' : ''}`}
++                                                        onClick={async (e) => {
++                                                            e.stopPropagation()
++                                                            onDelete(order)
++                                                        }}
++                                                        title="Anular Pedido"
+                                                     >
+                                                         <Trash2 className="h-4 w-4" />
+                                                     </Button>

@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react"
 import { useFormik } from "formik"
 import { useNavigate, useParams } from "react-router-dom"
+import { useQueryClient } from "@tanstack/react-query"
 import * as Yup from "yup"
-import { ArrowLeft, Plus, X, RotateCw, RefreshCw } from "lucide-react"
+import { ArrowLeft, Plus, X, RotateCw, RefreshCw, Edit2, Trash2, Printer } from "lucide-react"
 
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
@@ -10,9 +11,11 @@ import { AsyncButton } from "@/shared/ui/async-button"
 import { Label } from "@/shared/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card"
 import { Separator } from "@/shared/ui/separator"
+import { ConfirmDialog } from "@/shared/ui/confirm-dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/ui/dialog"
 
 import { useBankAccountList } from "@/features/bank-accounts/api/hooks"
-import { useCreateOrder, useUpdateOrder, useOrder } from "@/entities/order/model/hooks"
+import { useCreateOrder, useUpdateOrder, useOrder, useReceiptOrders } from "@/entities/order/model/hooks"
 import type { SalesChannel, OrderType, PaymentMethod } from "@/entities/order/model/types"
 import { orderApi } from "@/entities/order/model/api"
 import { useClientList } from "@/features/clients/api/hooks"
@@ -23,6 +26,7 @@ import { pdf } from "@react-pdf/renderer"
 import { OrderReceiptDocument } from "@/features/order-receipt/ui/OrderReceiptDocument"
 import { useClientCredits } from "@/features/transactions/model/hooks"
 import { useAuth } from "@/shared/auth"
+import { useCashClosurePreview } from "@/features/cash-closure/api/hooks"
 
 /* --- Validation Schema --- */
 const validationSchema = Yup.object({
@@ -163,11 +167,17 @@ function SearchableSelect({
 }
 
 export function OrderFormPage() {
-    const { id } = useParams()
+    const { id, receiptNumber } = useParams()
     const navigate = useNavigate()
-    const isEditing = !!id
+    const isEditing = !!(id || receiptNumber)
+    const queryClient = useQueryClient()
 
+    // Caso 1: Edición por receiptNumber (carga múltiples pedidos)
+    const { data: receiptOrders, isLoading: isLoadingReceiptOrders } = useReceiptOrders(receiptNumber || "")
+    
+    // Caso 2: Edición por ID individual (carga un solo pedido)
     const { data: order, isLoading: isLoadingOrder } = useOrder(id || "")
+    
     const { data: clientsResponse } = useClientList({ limit: 1000 })
     const { data: bankAccountsResponse } = useBankAccountList({ limit: 500 })
     const { data: brandsResponse } = useBrandList({ limit: 500 })
@@ -176,14 +186,21 @@ export function OrderFormPage() {
     const bankAccounts = bankAccountsResponse?.data || []
     const brands = brandsResponse?.data || []
     const createOrder = useCreateOrder()
-    const updateOrder = useUpdateOrder()
     const { notifySuccess, notifyError } = useNotifications()
     const { user } = useAuth()
 
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isLoadingReceiptNumber, setIsLoadingReceiptNumber] = useState(false)
-    const [originalOrderIds, setOriginalOrderIds] = useState<string[]>([])
     const [isLoadingRelated, setIsLoadingRelated] = useState(false)
+    
+    // Estados para modal de edición individual
+    const [editModalOpen, setEditModalOpen] = useState(false)
+    const [orderToEdit, setOrderToEdit] = useState<any>(null)
+    
+    // Estados para confirmación de eliminación
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+    const [orderToDelete, setOrderToDelete] = useState<any>(null)
+    const [lastClosureDate, setLastClosureDate] = useState<Date | null>(null)
 
     // State for the item being added
     const [currentItem, setCurrentItem] = useState({
@@ -196,6 +213,8 @@ export function OrderFormPage() {
         salesChannel: "OFICINA" as SalesChannel,
         orderNumber: "",
     })
+
+
 
 
     const formik = useFormik({
@@ -231,146 +250,70 @@ export function OrderFormPage() {
                 }
 
                 const client = clients.find(c => c.id === values.clientId);
-                const clientName = client ? client.firstName : "Desconocido";
                 const creditAmount = Number(values.creditToUse) || 0;
 
-                if (isEditing && order) {
-                    // 1. Identification of changes
-                    const currentItemIds = values.brandItems.map(i => i.id).filter(Boolean);
-                    const toDelete = originalOrderIds.filter(id => !currentItemIds.includes(id));
-
-                    // 2. Perform updates and creations
-                    let parentId: string | null = null;
-                    const resultOrders: any[] = [];
-
-                    for (let i = 0; i < values.brandItems.length; i++) {
-                        const item = values.brandItems[i];
+                // Usar Batch Create para crear todos los pedidos en 1 sola llamada
+                const batchPayload = {
+                    receipt_number: values.receiptNumber,
+                    client_id: values.clientId,
+                    sales_channel: values.salesChannel,
+                    created_at: values.createdAt,
+                    payment_method: values.paymentMethod,
+                    bank_account_id: values.bankAccountId,
+                    transaction_date: values.transactionDate,
+                    transaction_reference: values.transactionReference,
+                    deposit: values.brandItems.reduce((sum, item) => sum + (Number(item.deposit) || 0), 0),
+                    credit_to_use: creditAmount,
+                    orders: values.brandItems.map((item) => {
                         const unitPrice = item.quantity > 0 ? item.total / item.quantity : 0;
-
-                        const payload = {
-                            clientId: values.clientId,
-                            clientName,
-                            receiptNumber: values.receiptNumber,
-                            salesChannel: item.salesChannel || values.salesChannel,
-                            type: item.type,
-                            brandId: item.brandId,
-                            brandName: item.brandName,
+                        return {
+                            brand_id: item.brandId,
+                            brand_name: item.brandName,
                             total: item.total,
-                            possibleDeliveryDate: item.possibleDeliveryDate,
-                            notes: values.notes,
-                            createdAt: values.createdAt,
-                            items: [{
-                                productName: item.brandName,
-                                quantity: item.quantity,
-                                unitPrice: unitPrice,
-                                brandId: item.brandId,
-                                brandName: item.brandName
-                            }],
-                            deposit: Number(item.deposit || 0),
-                            creditToUse: i === 0 ? creditAmount : 0,
-                            paymentMethod: values.paymentMethod,
-                            bankAccountId: values.bankAccountId,
-                            transactionDate: values.transactionDate,
-                            transactionReference: values.transactionReference,
-                            parentOrderId: parentId || undefined,
-                            orderNumber: item.orderNumber || undefined
-                        };
-
-                        let res;
-                        if (item.id) {
-                            // Update existing
-                            res = await updateOrder.mutateAsync({ id: item.id, data: payload as any });
-                        } else {
-                            // Create new (added during edit)
-                            res = await createOrder.mutateAsync(payload as any);
-                        }
-
-                        resultOrders.push(res);
-                        if (i === 0) parentId = res.id;
-                    }
-
-                    // 3. Delete removed items
-                    for (const idToDelete of toDelete) {
-                        await orderApi.delete(idToDelete);
-                    }
-
-                    notifySuccess(`Recibo ${values.receiptNumber} actualizado.`);
-                    navigate('/orders');
-                } else {
-                    let parentId: string | null = null;
-                    let createdOrders: any[] = [];
-
-                    for (let i = 0; i < values.brandItems.length; i++) {
-                        const item = values.brandItems[i];
-                        const unitPrice = item.quantity > 0 ? item.total / item.quantity : 0;
-
-                        const orderPayload = {
-                            clientId: values.clientId,
-                            clientName,
-                            receiptNumber: values.receiptNumber,
-                            salesChannel: item.salesChannel || values.salesChannel,
                             type: item.type,
-                            brandId: item.brandId,
-                            brandName: item.brandName,
-                            total: item.total,
-                            createdAt: values.createdAt,
-                            possibleDeliveryDate: item.possibleDeliveryDate,
-                            notes: values.notes,
+                            possible_delivery_date: item.possibleDeliveryDate,
                             items: [{
-                                productName: item.brandName,
+                                product_name: item.brandName,
                                 quantity: item.quantity,
-                                unitPrice: unitPrice,
-                                brandId: item.brandId,
-                                brandName: item.brandName
-                            }],
-                            deposit: Number(item.deposit) || 0,
-                            creditToUse: i === 0 ? creditAmount : 0,
-                            paymentMethod: values.paymentMethod,
-                            bankAccountId: values.bankAccountId,
-                            transactionDate: values.transactionDate,
-                            transactionReference: values.transactionReference,
-                            parentOrderId: parentId || undefined,
-                            orderNumber: item.orderNumber || undefined
+                                unit_price: unitPrice
+                            }]
                         };
+                    })
+                };
 
-                        const newOrderResult = await createOrder.mutateAsync(orderPayload as any);
-                        createdOrders.push(newOrderResult);
-                        if (i === 0) {
-                            parentId = newOrderResult.id;
-                        }
-                    }
+                const createdOrders = await orderApi.batchCreate(batchPayload);
 
-                    try {
-                        const blob = await pdf(
-                            <OrderReceiptDocument
-                                order={createdOrders[0]}
-                                childOrders={createdOrders.slice(1)}
-                                client={client}
-                                user={{
-                                    id: user?.id || '1',
-                                    name: user?.username || 'Vendedor',
-                                    role: 'OPERATOR',
-                                    email: '',
-                                    status: 'ACTIVE',
-                                    createdAt: new Date().toISOString()
-                                } as any}
-                            />
-                        ).toBlob()
+                try {
+                    const blob = await pdf(
+                        <OrderReceiptDocument
+                            order={createdOrders[0]}
+                            childOrders={createdOrders.slice(1)}
+                            client={client}
+                            user={{
+                                id: user?.id || '1',
+                                name: user?.username || 'Vendedor',
+                                role: 'OPERATOR',
+                                email: '',
+                                status: 'ACTIVE',
+                                createdAt: new Date().toISOString()
+                            } as any}
+                        />
+                    ).toBlob()
 
-                        const url = URL.createObjectURL(blob)
-                        const link = document.createElement('a')
-                        link.href = url
-                        link.download = `Recibo_${createdOrders[0].receiptNumber}.pdf`
-                        document.body.appendChild(link)
-                        link.click()
-                        document.body.removeChild(link)
-                        URL.revokeObjectURL(url)
-                    } catch (pdfError) {
-                        console.error("Error generating PDF", pdfError)
-                    }
-                    notifySuccess(`Se han creado ${createdOrders.length} pedidos exitosamente.`);
-                    navigate('/orders');
+                    const url = URL.createObjectURL(blob)
+                    const link = document.createElement('a')
+                    link.href = url
+                    link.download = `Recibo_${createdOrders[0].receiptNumber}.pdf`
+                    document.body.appendChild(link)
+                    link.click()
+                    document.body.removeChild(link)
+                    URL.revokeObjectURL(url)
+                } catch (pdfError) {
+                    console.error("Error generating PDF", pdfError)
                 }
+                
+                notifySuccess(`Se han creado ${createdOrders.length} pedidos exitosamente.`);
+                navigate('/orders');
             } catch (error: any) {
                 console.error("Error saving order", error)
                 notifyError(error, "Error al guardar el pedido.");
@@ -379,6 +322,13 @@ export function OrderFormPage() {
             }
         }
     })
+
+    useEffect(() => {
+        if (formik.submitCount > 0 && !formik.isValid) {
+            console.log('Formik Errors:', formik.errors)
+            notifyError(null, "Hay campos inválidos en el formulario. Por favor revisa los datos marcados.")
+        }
+    }, [formik.submitCount, formik.isValid])
 
     const generateNextReceiptNumber = async () => {
         try {
@@ -409,6 +359,130 @@ export function OrderFormPage() {
         }
     };
 
+    // Función para validar si un pedido puede ser editado
+    const canEditOrder = (order: any): { canEdit: boolean; reason?: string } => {
+        // 1. Verificar cierre de caja
+        if (lastClosureDate && order.transactionDate) {
+            const transactionDate = new Date(order.transactionDate)
+            if (transactionDate <= lastClosureDate) {
+                return {
+                    canEdit: false,
+                    reason: 'No se puede editar: El periodo de caja ya está cerrado.'
+                }
+            }
+        }
+
+        // 2. Verificar estado del pedido
+        if (order.status === 'RECIBIDO_EN_BODEGA') {
+            return {
+                canEdit: false,
+                reason: 'No se puede editar: El pedido ya ha sido receptado en bodega.'
+            }
+        }
+        
+        if (order.status === 'ENTREGADO') {
+            return {
+                canEdit: false,
+                reason: 'No se puede editar: El pedido ya ha sido entregado.'
+            }
+        }
+
+        if (order.status && order.status !== 'POR_RECIBIR') {
+            return {
+                canEdit: false,
+                reason: `No se puede editar: El pedido ya está en estado ${order.status}.`
+            }
+        }
+
+        // 3. Verificar pagos múltiples
+        if (order.payments && order.payments.length > 1) {
+            return {
+                canEdit: false,
+                reason: 'No se puede editar: El pedido ya tiene abonos adicionales.'
+            }
+        }
+
+        return { canEdit: true }
+    }
+
+    // Función para validar si un pedido puede ser eliminado
+    const canDeleteOrder = (order: any): { canDelete: boolean; reason?: string } => {
+        const editValidation = canEditOrder(order)
+        return {
+            canDelete: editValidation.canEdit,
+            reason: editValidation.reason
+        }
+    }
+
+    // Función para validar si se puede agregar un nuevo item
+    const canAddNewItem = (): { canEdit: boolean; reason?: string } => {
+        // En modo edición, validar contra la fecha de creación del recibo (createdAt)
+        // En modo creación, validar contra la fecha de transacción
+        const dateToCheck = isEditing && formik.values.createdAt 
+            ? new Date(formik.values.createdAt)
+            : formik.values.transactionDate 
+                ? new Date(formik.values.transactionDate)
+                : null
+
+        if (lastClosureDate && dateToCheck) {
+            if (dateToCheck <= lastClosureDate) {
+                return {
+                    canEdit: false,
+                    reason: 'No se puede agregar: El periodo de caja ya está cerrado para la fecha de este recibo.'
+                }
+            }
+        }
+        return { canEdit: true }
+    }
+
+    // Handler para abrir modal de edición
+    const handleEditOrder = (order: any) => {
+        const validation = canEditOrder(order)
+
+        if (!validation.canEdit) {
+            notifyError(null, validation.reason || 'No se puede editar este pedido')
+            return
+        }
+
+        setOrderToEdit(order)
+        setEditModalOpen(true)
+    }
+
+    // Handler para solicitar eliminación de un pedido
+    const handleDeleteOrder = (order: any) => {
+        const validation = canDeleteOrder(order)
+
+        if (!validation.canDelete) {
+            notifyError(null, validation.reason || 'No se puede eliminar este pedido')
+            return
+        }
+
+        setOrderToDelete(order)
+        setDeleteConfirmOpen(true)
+    }
+
+    // Confirmar y ejecutar la eliminación del pedido
+    const confirmDeleteOrder = async () => {
+        if (!orderToDelete) return
+
+        try {
+            await orderApi.delete(orderToDelete.id)
+            
+            // Invalidar las queries relacionadas en lugar de recargar la página
+            queryClient.invalidateQueries({ queryKey: ['orders'] })
+            queryClient.invalidateQueries({ queryKey: ['order', orderToDelete.id] })
+            queryClient.invalidateQueries({ queryKey: ['receiptOrders', orderToDelete.receiptNumber] })
+            
+            notifySuccess('Pedido eliminado correctamente.')
+        } catch (error: any) {
+            console.error('Error deleting order:', error)
+            notifyError(error, 'Error al eliminar el pedido.')
+        } finally {
+            setDeleteConfirmOpen(false)
+            setOrderToDelete(null)
+        }
+    }
+
     useEffect(() => {
         if (currentItem.type === 'REPROGRAMACION') {
             // Check the locally added items in the current form (prioritize "same receipt" logic)
@@ -429,14 +503,60 @@ export function OrderFormPage() {
     // Update formik when order data is loaded for editing - Load all associated items
     useEffect(() => {
         const loadAllItems = async () => {
-            if (order && isEditing) {
+            // Caso 1: Carga por receiptNumber (múltiples pedidos)
+            if (receiptNumber && !isLoadingReceiptOrders) {
+                if (receiptOrders && receiptOrders.length > 0) {
+                    setIsLoadingRelated(true);
+                    try {
+                        const allItems = receiptOrders;
+                        const firstOrder = allItems[0];
+
+                        formik.setValues({
+                            clientId: firstOrder.clientId || "",
+                            receiptNumber: firstOrder.receiptNumber || "",
+                            salesChannel: (firstOrder.salesChannel as SalesChannel) || "OFICINA",
+                            brandItems: allItems.map((o: any) => ({
+                                id: o.id,
+                                brandId: o.brandId,
+                                brandName: o.brand?.name || o.brandName || "Sin marca",
+                                quantity: o.items?.[0]?.quantity || 1,
+                                total: Number(o.total) || 0,
+                                type: o.type || "NORMAL",
+                                possibleDeliveryDate: o.possibleDeliveryDate ? new Date(o.possibleDeliveryDate).toISOString().split('T')[0] : "",
+                                salesChannel: o.salesChannel || "OFICINA",
+                                orderNumber: o.orderNumber || "",
+                                deposit: Number(o.payments?.reduce((sum: number, p: any) => sum + Number(p.amount), 0) || 0),
+                                status: o.status,
+                                payments: o.payments
+                            })),
+                            deposit: 0,
+                            creditToUse: 0,
+                            paymentMethod: (firstOrder.paymentMethod === 'CREDITO_CLIENTE' ? 'EFECTIVO' : firstOrder.paymentMethod) as PaymentMethod || "EFECTIVO",
+                            bankAccountId: firstOrder.bankAccountId || "",
+                            transactionDate: firstOrder.transactionDate ? new Date(firstOrder.transactionDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+                            transactionReference: "",
+                            createdAt: firstOrder.createdAt ? new Date(firstOrder.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+                            notes: firstOrder.notes || "",
+                        });
+                    } catch (err) {
+                        console.error("Error loading receipt orders", err);
+                        notifyError(null, "No se pudieron cargar todos los pedidos del recibo.");
+                    } finally {
+                        setIsLoadingRelated(false);
+                    }
+                } else if (receiptOrders !== undefined) {
+                    // receiptOrders está definido pero vacío - no hay pedidos para este recibo
+                    console.warn(`No se encontraron pedidos para el recibo: ${receiptNumber}`);
+                    // No mostrar error aquí, dejar que el usuario vea la página vacía
+                }
+            }
+            // Caso 2: Carga por ID individual (un solo pedido, luego busca relacionados)
+            else if (order && id) {
                 setIsLoadingRelated(true);
                 try {
                     // Fetch all orders sharing the same receipt number
                     const related = await orderApi.getAll({ search: order.receiptNumber, limit: 100 });
                     const allItems = related.data || [order];
-
-                    setOriginalOrderIds(allItems.map((o: any) => o.id));
 
                     formik.setValues({
                         clientId: order.clientId || "",
@@ -445,16 +565,18 @@ export function OrderFormPage() {
                         brandItems: allItems.map((o: any) => ({
                             id: o.id,
                             brandId: o.brandId,
-                            brandName: o.brandName,
+                            brandName: o.brand?.name || o.brandName || "Sin marca",
                             quantity: o.items?.[0]?.quantity || 1,
                             total: Number(o.total) || 0,
                             type: o.type || "NORMAL",
                             possibleDeliveryDate: o.possibleDeliveryDate ? new Date(o.possibleDeliveryDate).toISOString().split('T')[0] : "",
                             salesChannel: o.salesChannel || "OFICINA",
                             orderNumber: o.orderNumber || "",
-                            deposit: Number(o.payments?.reduce((sum: number, p: any) => sum + Number(p.amount), 0) || 0)
+                            deposit: Number(o.payments?.reduce((sum: number, p: any) => sum + Number(p.amount), 0) || 0),
+                            status: o.status,
+                            payments: o.payments
                         })),
-                        deposit: 0, // Calculated from row sums
+                        deposit: 0,
                         creditToUse: 0,
                         paymentMethod: (order.paymentMethod === 'CREDITO_CLIENTE' ? 'EFECTIVO' : order.paymentMethod) as PaymentMethod || "EFECTIVO",
                         bankAccountId: order.bankAccountId || "",
@@ -469,18 +591,28 @@ export function OrderFormPage() {
                 } finally {
                     setIsLoadingRelated(false);
                 }
-            } else if (!isEditing) {
+            }
+            // Caso 3: Modo creación
+            else if (!isEditing) {
                 generateNextReceiptNumber();
-                setOriginalOrderIds([]);
             }
         };
 
         loadAllItems();
-    }, [order, isEditing]);
+    }, [order, receiptOrders, isEditing, id, receiptNumber, isLoadingReceiptOrders, isLoadingOrder]);
 
     const { data: creditsResponse } = useClientCredits(formik.values.clientId)
     const credits = Array.isArray(creditsResponse) ? creditsResponse : (creditsResponse as any)?.data || []
     const totalCredit = credits.reduce((sum: number, c: any) => sum + Number(c.remainingAmount || 0), 0)
+
+    // Obtener fecha del último cierre de caja
+    const { data: closurePreview } = useCashClosurePreview()
+    
+    useEffect(() => {
+        if (closurePreview?.lastClosureDate) {
+            setLastClosureDate(new Date(closurePreview.lastClosureDate))
+        }
+    }, [closurePreview])
 
     // Total order value remains the same
     const totalOrderValue = formik.values.brandItems.reduce((sum, item) => sum + Number(item.total), 0);
@@ -508,7 +640,7 @@ export function OrderFormPage() {
     }));
     const brandOptions = getActiveBrands(brands).map(b => ({ id: b.id, label: b.name, subLabel: "" }))
 
-    const handleAddItem = () => {
+    const handleAddItem = async () => {
         if (!currentItem.brandId) {
             notifyError(null, "Seleccione una marca");
             return;
@@ -518,35 +650,196 @@ export function OrderFormPage() {
             return;
         }
 
-        if (currentItem.type === 'REPROGRAMACION' && currentItem.quantity > 1) {
-            const newItems = Array.from({ length: currentItem.quantity }).map(() => ({
-                ...currentItem,
-                quantity: 1,
-                total: Number((currentItem.total / currentItem.quantity).toFixed(2)),
-                deposit: 0
-            }));
-            formik.setFieldValue("brandItems", [...formik.values.brandItems, ...newItems]);
-        } else {
-            formik.setFieldValue("brandItems", [...formik.values.brandItems, { ...currentItem, deposit: 0 }]);
+        // Validar cierre de caja
+        const validation = canAddNewItem()
+        if (!validation.canEdit) {
+            notifyError(null, validation.reason || 'No se puede agregar')
+            return
         }
 
-        // Reset item except channel and date for speed
-        setCurrentItem(prev => ({
-            ...prev,
-            brandId: "",
-            brandName: "",
-            total: 0,
-            quantity: 1,
-            orderNumber: ""
-        }));
+        // Si estamos en modo edición, hacer POST directo del nuevo pedido
+        if (isEditing) {
+            try {
+                setIsSubmitting(true)
+
+                // Preparar los items a crear (puede ser múltiples si es REPROGRAMACION)
+                const itemsToCreate = currentItem.type === 'REPROGRAMACION' && currentItem.quantity > 1
+                    ? Array.from({ length: currentItem.quantity }).map(() => ({
+                        ...currentItem,
+                        quantity: 1,
+                        total: Number((currentItem.total / currentItem.quantity).toFixed(2)),
+                    }))
+                    : [currentItem]
+
+                // Obtener el parentOrderId del primer pedido existente
+                const firstExistingOrder = formik.values.brandItems.find((item: any) => item.id)
+                const parentOrderId = firstExistingOrder?.id || null
+
+                // Obtener el nombre del cliente
+                const client = clients.find(c => c.id === formik.values.clientId);
+                const clientName = client ? client.firstName : "Desconocido";
+
+                // Crear cada nuevo pedido
+                for (const itemToCreate of itemsToCreate) {
+                    const unitPrice = itemToCreate.quantity > 0 ? itemToCreate.total / itemToCreate.quantity : 0
+
+                    const payload = {
+                        clientId: formik.values.clientId,
+                        clientName,
+                        receiptNumber: formik.values.receiptNumber,
+                        salesChannel: itemToCreate.salesChannel || formik.values.salesChannel,
+                        type: itemToCreate.type,
+                        brandId: itemToCreate.brandId,
+                        brandName: itemToCreate.brandName,
+                        total: itemToCreate.total,
+                        possibleDeliveryDate: itemToCreate.possibleDeliveryDate,
+                        notes: formik.values.notes,
+                        createdAt: formik.values.createdAt,
+                        items: [{
+                            productName: itemToCreate.brandName,
+                            quantity: itemToCreate.quantity,
+                            unitPrice: unitPrice,
+                            brandId: itemToCreate.brandId,
+                            brandName: itemToCreate.brandName
+                        }],
+                        deposit: 0, // Nuevo pedido sin abono inicial
+                        creditToUse: 0,
+                        paymentMethod: formik.values.paymentMethod,
+                        bankAccountId: formik.values.bankAccountId,
+                        transactionDate: formik.values.transactionDate,
+                        transactionReference: formik.values.transactionReference,
+                        parentOrderId: parentOrderId || undefined,
+                        orderNumber: itemToCreate.orderNumber?.trim() || undefined
+                    }
+
+                    await createOrder.mutateAsync(payload as any)
+                }
+
+                // Invalidar queries para recargar los datos
+                queryClient.invalidateQueries({ queryKey: ['orders'] })
+                queryClient.invalidateQueries({ queryKey: ['receiptOrders', formik.values.receiptNumber] })
+
+                notifySuccess(`${itemsToCreate.length} pedido(s) agregado(s) correctamente.`)
+
+                // Reset item
+                setCurrentItem(prev => ({
+                    ...prev,
+                    brandId: "",
+                    brandName: "",
+                    total: 0,
+                    quantity: 1,
+                    orderNumber: ""
+                }))
+            } catch (error: any) {
+                console.error('Error adding new order:', error)
+                notifyError(error, 'Error al agregar el pedido.')
+            } finally {
+                setIsSubmitting(false)
+            }
+        } else {
+            // Modo creación: agregar a la tabla local
+            const baseId = crypto.randomUUID();
+            if (currentItem.type === 'REPROGRAMACION' && currentItem.quantity > 1) {
+                const newItems = Array.from({ length: currentItem.quantity }).map(() => ({
+                    ...currentItem,
+                    tempId: crypto.randomUUID(),
+                    quantity: 1,
+                    total: Number((currentItem.total / currentItem.quantity).toFixed(2)),
+                    deposit: 0
+                }));
+                formik.setFieldValue("brandItems", [...formik.values.brandItems, ...newItems]);
+            } else {
+                formik.setFieldValue("brandItems", [...formik.values.brandItems, { 
+                    ...currentItem, 
+                    tempId: baseId,
+                    deposit: 0 
+                }]);
+            }
+
+            // Reset item except channel and date for speed
+            setCurrentItem(prev => ({
+                ...prev,
+                brandId: "",
+                brandName: "",
+                total: 0,
+                quantity: 1,
+                orderNumber: ""
+            }));
+        }
     }
 
     const removeItem = (index: number) => {
+        const itemToRemove = formik.values.brandItems[index];
+        
+        // If it's an existing order with ID, we should probably warn or handle it differently
+        // but the table already has a Delete button that calls handleDeleteOrder for those.
+        // This removeItem is for local rows only.
+        if (isEditing && itemToRemove.id) {
+            handleDeleteOrder(itemToRemove);
+            return;
+        }
+
         const items = formik.values.brandItems.filter((_, i) => i !== index);
         formik.setFieldValue("brandItems", items);
     }
 
-    if ((isEditing && isLoadingOrder) || isLoadingRelated) {
+    // Función para imprimir el recibo en modo edición
+    const handlePrintReceipt = async () => {
+        try {
+            setIsSubmitting(true)
+
+            // Obtener todos los pedidos del recibo actual
+            const allOrders = formik.values.brandItems.filter((item: any) => item.id)
+
+            if (allOrders.length === 0) {
+                notifyError(null, 'No hay pedidos para imprimir.')
+                return
+            }
+
+            // Obtener el cliente
+            const client = clients.find((c: any) => c.id === formik.values.clientId)
+
+            if (!client) {
+                notifyError(null, 'No se encontró información del cliente.')
+                return
+            }
+
+            // Generar el PDF
+            const blob = await pdf(
+                <OrderReceiptDocument
+                    order={allOrders[0]}
+                    childOrders={allOrders.slice(1)}
+                    client={client}
+                    user={{
+                        id: user?.id || '1',
+                        name: user?.username || 'Vendedor',
+                        role: 'OPERATOR',
+                        email: '',
+                        status: 'ACTIVE',
+                        createdAt: new Date().toISOString()
+                    } as any}
+                />
+            ).toBlob()
+
+            const url = URL.createObjectURL(blob)
+            const link = document.createElement('a')
+            link.href = url
+            link.download = `Recibo_${formik.values.receiptNumber}.pdf`
+            document.body.appendChild(link)
+            link.click()
+            document.body.removeChild(link)
+            URL.revokeObjectURL(url)
+
+            notifySuccess('Recibo descargado correctamente.')
+        } catch (error: any) {
+            console.error('Error generating PDF:', error)
+            notifyError(error, 'Error al generar el recibo.')
+        } finally {
+            setIsSubmitting(false)
+        }
+    }
+
+    if ((isEditing && (isLoadingOrder || isLoadingReceiptOrders)) || isLoadingRelated) {
         return (
             <div className="flex h-[60vh] flex-col items-center justify-center gap-4">
                 <RefreshCw className="h-10 w-10 animate-spin text-slate-800" />
@@ -556,7 +849,37 @@ export function OrderFormPage() {
     }
 
     return (
-        <form onSubmit={formik.handleSubmit} className="max-w-7xl mx-auto space-y-4 pb-12 px-4">
+        <form onSubmit={(e) => {
+            e.preventDefault()
+            console.log('Form submitted')
+            console.log('Formik errors:', formik.errors)
+            console.log('Formik values:', formik.values)
+            console.log('Formik isValid:', formik.isValid)
+            
+            // Mostrar errores de validación si existen
+            if (Object.keys(formik.errors).length > 0) {
+                console.error('Errores de validación:', formik.errors)
+                
+                // Mostrar el primer error encontrado
+                const firstError = Object.values(formik.errors)[0]
+                if (typeof firstError === 'string') {
+                    notifyError(null, firstError)
+                } else if (Array.isArray(firstError)) {
+                    // Errores en brandItems
+                    const itemErrors = firstError.filter(e => e !== undefined)
+                    if (itemErrors.length > 0) {
+                        const firstItemError = itemErrors[0]
+                        if (typeof firstItemError === 'object') {
+                            const errorMsg = Object.values(firstItemError)[0]
+                            notifyError(null, `Error en fila: ${errorMsg}`)
+                        }
+                    }
+                }
+                return
+            }
+            
+            formik.handleSubmit(e)
+        }} className="max-w-7xl mx-auto space-y-4 pb-12 px-4">
             {/* Header Toolbar */}
             <div className="flex items-center justify-between bg-white px-4 py-3 rounded-lg border shadow-sm">
                 <div className="flex items-center gap-3">
@@ -750,7 +1073,7 @@ export function OrderFormPage() {
                                 <th className="px-3 py-2 border-r text-right">Abono</th>
                                 <th className="px-3 py-2 border-r text-right">Saldo</th>
                                 <th className="px-3 py-2 border-r">Posible Entrega</th>
-                                <th className="px-3 py-2 text-center text-xs">Acciones</th>
+                                <th className="px-3 py-2 text-center text-xs w-20">Acciones</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -760,16 +1083,30 @@ export function OrderFormPage() {
                                 </tr>
                             ) : (
                                 formik.values.brandItems.map((item, idx) => {
-                                    // Visual distribution balance
                                     const distributedAbono = Number(item.deposit || 0);
                                     const rowSaldo = Number(item.total) - distributedAbono;
-                                    const itemHasMovement = item.id && order?.status !== 'POR_RECIBIR';
 
                                     return (
-                                        <tr key={idx} className="hover:bg-indigo-50/20 transition-colors">
+                                        <tr 
+                                            key={item.id || item.tempId || idx} 
+                                            className="hover:bg-indigo-50/20 transition-colors"
+                                        >
                                             <td className="px-3 py-2 border-r text-center font-bold text-slate-400">{idx + 1}</td>
                                             <td className="px-3 py-2 border-r font-mono text-[10px] text-slate-600">
-                                                {item.orderNumber || '---'}
+                                                {!isEditing ? (
+                                                    <Input
+                                                        value={item.orderNumber || ''}
+                                                        onChange={(e) => {
+                                                            const newItems = [...formik.values.brandItems]
+                                                            newItems[idx] = { ...newItems[idx], orderNumber: e.target.value }
+                                                            formik.setFieldValue('brandItems', newItems)
+                                                        }}
+                                                        placeholder="---"
+                                                        className="h-7 text-xs font-mono px-1"
+                                                    />
+                                                ) : (
+                                                    item.orderNumber || '---'
+                                                )}
                                             </td>
                                             <td className="px-3 py-2 border-r">
                                                 <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${item.type === 'NORMAL' ? 'bg-blue-50 text-blue-700' :
@@ -780,44 +1117,93 @@ export function OrderFormPage() {
                                             </td>
                                             <td className="px-3 py-2 border-r font-medium">{item.brandName} <span className="text-slate-400 text-xs">({item.quantity})</span></td>
                                             <td className="px-3 py-2 border-r text-right">
-                                                <div className="flex justify-end items-center gap-1">
-                                                    <span className="text-slate-400 text-xs">$</span>
-                                                    <input
-                                                        type="number"
-                                                        className="h-7 w-20 text-right font-bold bg-transparent border-none focus:ring-0 outline-none text-xs"
-                                                        value={item.total}
-                                                        onChange={(e) => {
-                                                            const items = [...formik.values.brandItems];
-                                                            items[idx].total = Number(e.target.value);
-                                                            formik.setFieldValue("brandItems", items);
-                                                        }}
-                                                    />
-                                                </div>
+                                                {!isEditing ? (
+                                                    <div className="flex justify-end items-center gap-1">
+                                                        <span className="text-slate-400 text-xs">$</span>
+                                                        <input
+                                                            type="number"
+                                                            step="0.01"
+                                                            className="h-7 w-20 text-right font-bold border rounded px-1 focus:ring-1 focus:ring-indigo-500 outline-none text-xs"
+                                                            value={item.total}
+                                                            onChange={(e) => {
+                                                                const newItems = [...formik.values.brandItems]
+                                                                newItems[idx] = { ...newItems[idx], total: Number(e.target.value) }
+                                                                formik.setFieldValue('brandItems', newItems)
+                                                            }}
+                                                        />
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-slate-600 font-bold">${Number(item.total).toFixed(2)}</span>
+                                                )}
                                             </td>
                                             <td className="px-3 py-2 border-r text-right font-medium">
-                                                <div className="flex justify-end items-center gap-1">
-                                                    <span className="text-green-600 text-xs">$</span>
-                                                    <input
-                                                        type="number"
-                                                        className="h-7 w-20 text-right text-green-600 font-bold bg-green-50/30 rounded border-green-100 focus:ring-1 focus:ring-green-500 outline-none text-xs"
-                                                        value={item.deposit || ''}
-                                                        onChange={(e) => {
-                                                            const items = [...formik.values.brandItems];
-                                                            items[idx].deposit = Number(e.target.value);
-                                                            formik.setFieldValue("brandItems", items);
-                                                        }}
-                                                        disabled={itemHasMovement} // Movement check per item too if needed, though we disabled edit at table level
-                                                    />
-                                                </div>
+                                                {!isEditing ? (
+                                                    <div className="flex justify-end items-center gap-1">
+                                                        <span className="text-green-600 text-xs">$</span>
+                                                        <input
+                                                            type="number"
+                                                            step="0.01"
+                                                            className="h-7 w-20 text-right text-green-600 font-bold rounded border-green-100 border focus:ring-1 focus:ring-green-500 outline-none text-xs bg-green-50/30 px-1"
+                                                            value={distributedAbono}
+                                                            onChange={(e) => {
+                                                                const newItems = [...formik.values.brandItems]
+                                                                newItems[idx] = { ...newItems[idx], deposit: Number(e.target.value) }
+                                                                formik.setFieldValue('brandItems', newItems)
+                                                            }}
+                                                        />
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-green-600 font-bold">${distributedAbono.toFixed(2)}</span>
+                                                )}
                                             </td>
                                             <td className="px-3 py-2 border-r text-right font-bold text-slate-600">${rowSaldo.toFixed(2)}</td>
-                                            <td className="px-3 py-2 border-r">{item.possibleDeliveryDate}</td>
+                                            <td className="px-3 py-2 border-r">
+                                                {!isEditing ? (
+                                                    <Input
+                                                        type="date"
+                                                        value={item.possibleDeliveryDate}
+                                                        onChange={(e) => {
+                                                            const newItems = [...formik.values.brandItems]
+                                                            newItems[idx] = { ...newItems[idx], possibleDeliveryDate: e.target.value }
+                                                            formik.setFieldValue('brandItems', newItems)
+                                                        }}
+                                                        className="h-7 text-xs px-1"
+                                                    />
+                                                ) : (
+                                                    item.possibleDeliveryDate
+                                                )}
+                                            </td>
                                             <td className="px-3 py-2 text-center">
-                                                {!isEditing && (
-                                                    <Button variant="ghost" size="icon" onClick={() => removeItem(idx)} className="h-6 w-6 text-red-500 hover:text-red-700">
+                                                {isEditing && item.id ? (
+                                                    <div className="flex items-center justify-center gap-1">
+                                                        <Button 
+                                                            type="button"
+                                                            variant="ghost" 
+                                                            size="icon" 
+                                                            onClick={() => handleEditOrder(item)} 
+                                                            className="h-6 w-6 text-blue-600 hover:text-blue-700"
+                                                            aria-label="Editar pedido"
+                                                            data-testid={`edit-order-${idx}`}
+                                                        >
+                                                            <Edit2 className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                        <Button 
+                                                            type="button"
+                                                            variant="ghost" 
+                                                            size="icon" 
+                                                            onClick={() => handleDeleteOrder(item)} 
+                                                            className="h-6 w-6 text-red-500 hover:text-red-700"
+                                                            aria-label={`Eliminar pedido de ${item.brandName}`}
+                                                            data-testid={`delete-order-${idx}`}
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    </div>
+                                                ) : !isEditing ? (
+                                                    <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(idx)} className="h-6 w-6 text-red-500 hover:text-red-700">
                                                         <X className="h-3.5 w-3.5" />
                                                     </Button>
-                                                )}
+                                                ) : null}
                                             </td>
                                         </tr>
                                     )
@@ -900,17 +1286,253 @@ export function OrderFormPage() {
                             placeholder="Ingrese notas adicionales sobre el pedido..."
                         />
                     </CardContent>
-                    <div className="p-2 border-t bg-slate-50 flex gap-2">
-                        <AsyncButton
-                            type="submit"
-                            className="w-full bg-slate-800"
-                            isLoading={isSubmitting}
-                        >
-                            <Plus className="h-4 w-4 mr-2" /> Guardar Recibo
-                        </AsyncButton>
-                    </div>
+                    {!isEditing ? (
+                        <div className="p-2 border-t bg-slate-50 flex gap-2">
+                            <AsyncButton
+                                type="submit"
+                                className="w-full bg-slate-800"
+                                isLoading={isSubmitting}
+                            >
+                                <Plus className="h-4 w-4 mr-2" /> Guardar Recibo
+                            </AsyncButton>
+                        </div>
+                    ) : (
+                        <div className="p-2 border-t bg-slate-50 flex gap-2">
+                            <AsyncButton
+                                type="button"
+                                onClick={handlePrintReceipt}
+                                className="w-full bg-indigo-600 hover:bg-indigo-700"
+                                isLoading={isSubmitting}
+                            >
+                                <Printer className="h-4 w-4 mr-2" /> Imprimir Recibo
+                            </AsyncButton>
+                        </div>
+                    )}
                 </Card>
             </div>
+
+            {/* Diálogo de confirmación de eliminación */}
+            <ConfirmDialog
+                open={deleteConfirmOpen}
+                onOpenChange={setDeleteConfirmOpen}
+                title="¿Estás seguro de eliminar este pedido?"
+                confirmText="Eliminar"
+                cancelText="Cancelar"
+                onConfirm={confirmDeleteOrder}
+                variant="destructive"
+            >
+                {orderToDelete && (
+                    <div className="space-y-2">
+                        <p>
+                            Estás a punto de eliminar el pedido de <strong>{orderToDelete.brand?.name || orderToDelete.brandName}</strong>.
+                        </p>
+                        <p className="text-amber-600 font-medium">
+                            ⚠️ Esta acción revertirá cualquier abono asociado a este pedido.
+                        </p>
+                        <p className="text-red-600 font-bold">
+                            Esta acción no se puede deshacer.
+                        </p>
+                    </div>
+                )}
+            </ConfirmDialog>
+
+            {/* Modal de edición de pedido individual */}
+            {editModalOpen && orderToEdit && (
+                <OrderEditModal
+                    order={orderToEdit}
+                    open={editModalOpen}
+                    onOpenChange={setEditModalOpen}
+                    onSuccess={() => {
+                        setEditModalOpen(false)
+                        setOrderToEdit(null)
+                        // No recargar la página, las queries se invalidan automáticamente
+                    }}
+                    lastClosureDate={lastClosureDate}
+                />
+            )}
         </form>
+    )
+}
+
+// Componente Modal de Edición Individual
+interface OrderEditModalProps {
+    order: any
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    onSuccess: () => void
+    lastClosureDate: Date | null
+}
+
+function OrderEditModal({ order, open, onOpenChange, onSuccess, lastClosureDate }: OrderEditModalProps) {
+    const { notifySuccess, notifyError } = useNotifications()
+    const updateOrder = useUpdateOrder()
+    const queryClient = useQueryClient()
+    const [formData, setFormData] = useState({
+        total: Number(order.total) || 0,
+        deposit: Number(order.payments?.reduce((sum: number, p: any) => sum + Number(p.amount), 0) || 0),
+        possibleDeliveryDate: order.possibleDeliveryDate ? new Date(order.possibleDeliveryDate).toISOString().split('T')[0] : '',
+        orderNumber: order.orderNumber || ''
+    })
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+
+        // 1. Verificar cierre de caja antes de enviar
+        if (lastClosureDate && order.transactionDate) {
+            const transactionDate = new Date(order.transactionDate)
+            if (transactionDate <= lastClosureDate) {
+                notifyError(null, 'No se puede guardar: El periodo de caja para esta fecha ya está cerrado.')
+                return
+            }
+        }
+        
+        // 2. Verificar estado del pedido
+        if (order.status === 'RECIBIDO_EN_BODEGA' || order.status === 'ENTREGADO') {
+            notifyError(null, `No se puede editar: El pedido ya está en estado ${order.status}.`)
+            return
+        }
+
+        try {
+            const quantity = order.items?.[0]?.quantity || 1
+            const unitPrice = quantity > 0 ? formData.total / quantity : 0
+
+            const payload = {
+                total: formData.total,
+                possibleDeliveryDate: formData.possibleDeliveryDate,
+                orderNumber: formData.orderNumber,
+                items: [{
+                    id: order.items?.[0]?.id || crypto.randomUUID(),
+                    productName: order.brand?.name || order.brandName,
+                    quantity: quantity,
+                    unitPrice: unitPrice,
+                    brandId: order.brandId,
+                    brandName: order.brand?.name || order.brandName
+                }],
+                deposit: formData.deposit
+            }
+
+            console.log('[OrderEditModal] Updating order:', order.id, 'with payload:', payload)
+            
+            await updateOrder.mutateAsync({ id: order.id, data: payload })
+            
+            console.log('[OrderEditModal] Update successful')
+            
+            // Solo invalidar la query específica del recibo, no todas
+            queryClient.invalidateQueries({ queryKey: ['receiptOrders', order.receiptNumber] })
+            
+            notifySuccess('Pedido actualizado correctamente.')
+            onSuccess()
+        } catch (error: any) {
+            console.error('Error updating order:', error)
+            notifyError(error, 'Error al actualizar el pedido.')
+        }
+    }
+
+    const saldo = formData.total - formData.deposit
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-4xl">
+                <DialogHeader>
+                    <DialogTitle className="text-lg font-bold text-slate-800">Editar Pedido</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit}>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-xs border-collapse">
+                            <thead className="bg-slate-100 text-slate-600 border-b uppercase font-bold text-xs">
+                                <tr>
+                                    <th className="px-3 py-2 border-r text-left">Catálogo</th>
+                                    <th className="px-3 py-2 border-r text-left">N° Pedido</th>
+                                    <th className="px-3 py-2 border-r text-right">Valor Pedido</th>
+                                    <th className="px-3 py-2 border-r text-right">Abono</th>
+                                    <th className="px-3 py-2 border-r text-right">Saldo</th>
+                                    <th className="px-3 py-2 text-left">Posible Entrega</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr className="hover:bg-indigo-50/20 transition-colors">
+                                    <td className="px-3 py-2 border-r">
+                                        <Input
+                                            value={order.brand?.name || order.brandName}
+                                            disabled
+                                            className="h-8 text-xs bg-slate-50 border-none"
+                                        />
+                                    </td>
+                                    <td className="px-3 py-2 border-r">
+                                        <Input
+                                            value={formData.orderNumber}
+                                            onChange={(e) => setFormData({ ...formData, orderNumber: e.target.value })}
+                                            placeholder="Ej: 12345"
+                                            className="h-8 text-xs font-mono"
+                                        />
+                                    </td>
+                                    <td className="px-3 py-2 border-r text-right">
+                                        <div className="flex justify-end items-center gap-1">
+                                            <span className="text-slate-400 text-xs">$</span>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                className="h-7 w-20 text-right font-bold border-none focus:ring-0 outline-none text-xs bg-transparent"
+                                                value={formData.total}
+                                                onChange={(e) => setFormData({ ...formData, total: Number(e.target.value) })}
+                                                required
+                                            />
+                                        </div>
+                                    </td>
+                                    <td className="px-3 py-2 border-r text-right">
+                                        <div className="flex justify-end items-center gap-1">
+                                            <span className="text-green-600 text-xs">$</span>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                className="h-7 w-20 text-right text-green-600 font-bold rounded border-green-100 focus:ring-1 focus:ring-green-500 outline-none text-xs bg-green-50/30"
+                                                value={formData.deposit}
+                                                onChange={(e) => setFormData({ ...formData, deposit: Number(e.target.value) })}
+                                                required
+                                            />
+                                        </div>
+                                    </td>
+                                    <td className="px-3 py-2 border-r text-right">
+                                        <span className={`font-bold text-xs ${saldo > 0 ? 'text-red-600' : 'text-slate-600'}`}>
+                                            ${saldo.toFixed(2)}
+                                        </span>
+                                    </td>
+                                    <td className="px-3 py-2">
+                                        <Input
+                                            type="date"
+                                            value={formData.possibleDeliveryDate}
+                                            onChange={(e) => setFormData({ ...formData, possibleDeliveryDate: e.target.value })}
+                                            required
+                                            className="h-8 text-xs"
+                                        />
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <Separator className="my-4" />
+
+                    <div className="flex gap-2 justify-end">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => onOpenChange(false)}
+                            disabled={updateOrder.isPending}
+                            className="h-8 text-xs"
+                        >
+                            Cancelar
+                        </Button>
+                        <AsyncButton
+                            type="submit"
+                            isLoading={updateOrder.isPending}
+                            className="bg-slate-800 h-8 text-xs"
+                        >
+                            Guardar Cambios
+                        </AsyncButton>
+                    </div>
+                </form>
+            </DialogContent>
+        </Dialog>
     )
 }

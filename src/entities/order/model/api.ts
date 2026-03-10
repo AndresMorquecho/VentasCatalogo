@@ -90,6 +90,22 @@ export const orderApi = {
     },
 
     /**
+     * Batch update multiple orders within the same receipt group.
+     * @endpoint PUT /api/orders/receipt/:receiptNumber/bulk-update
+     */
+    batchUpdate: async (receiptNumber: string, payload: any): Promise<Order[]> => {
+        return httpClient.put<Order[]>(`/orders/receipt/${receiptNumber}/bulk-update`, payload);
+    },
+
+    /**
+     * Get all orders associated with a specific receipt number.
+     * @endpoint GET /api/orders/receipt/:receiptNumber
+     */
+    getByReceipt: async (receiptNumber: string): Promise<Order[]> => {
+        return httpClient.get<Order[]>(`/orders/receipt/${receiptNumber}`);
+    },
+
+    /**
      * Delete order (soft delete)
      * @endpoint DELETE /api/orders/:id
      */

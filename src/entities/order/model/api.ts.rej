@@ -1,0 +1,24 @@
+diff a/src/entities/order/model/api.ts b/src/entities/order/model/api.ts	(rejected hunks)
+@@ -89,6 +89,22 @@ export const orderApi = {
+         return httpClient.put<Order>(`/orders/${id}`, payload);
+     },
+ 
++    /**
++     * Batch update multiple orders within the same receipt group.
++     * @endpoint PUT /api/orders/receipt/:receiptNumber/bulk-update
++     */
++    batchUpdate: async (receiptNumber: string, payload: any): Promise<Order[]> => {
++        return httpClient.put<Order[]>(`/orders/receipt/${receiptNumber}/bulk-update`, payload);
++    },
++
++    /**
++     * Get all orders associated with a specific receipt number.
++     * @endpoint GET /api/orders/receipt/:receiptNumber
++     */
++    getByReceipt: async (receiptNumber: string): Promise<Order[]> => {
++        return httpClient.get<Order[]>(`/orders/receipt/${receiptNumber}`);
++    },
++
+     /**
+      * Delete order (soft delete)
+      * @endpoint DELETE /api/orders/:id

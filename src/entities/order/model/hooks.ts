@@ -6,6 +6,7 @@ const KEYS = {
     all: ['orders'] as const,
     list: (params?: OrderQueryParams) => [...KEYS.all, 'list', params] as const,
     detail: (id: string) => [...KEYS.all, 'detail', id] as const,
+    byReceipt: (receiptNumber: string) => [...KEYS.all, 'receipt', receiptNumber] as const,
     byClient: (clientId: string) => [...KEYS.all, 'client', clientId] as const,
 }
 
@@ -19,6 +20,14 @@ export function useOrderList(params?: OrderQueryParams) {
 
 export function useOrder(id: string) {
     return useQuery({ queryKey: KEYS.detail(id), queryFn: () => orderApi.getById(id), enabled: !!id })
+}
+
+export function useReceiptOrders(receiptNumber: string) {
+    return useQuery({
+        queryKey: KEYS.byReceipt(receiptNumber),
+        queryFn: () => orderApi.getByReceipt(receiptNumber),
+        enabled: !!receiptNumber
+    })
 }
 
 export function useOrdersByClient(clientId: string) {
@@ -66,6 +75,16 @@ export function useDeleteOrder() {
         mutationFn: (id: string) => orderApi.delete(id),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: KEYS.list() })
+        }
+    })
+}
+export function useBatchUpdateOrder() {
+    const qc = useQueryClient()
+    return useMutation({
+        mutationFn: ({ receiptNumber, data }: { receiptNumber: string; data: any }) => orderApi.batchUpdate(receiptNumber, data),
+        onSuccess: (_, { receiptNumber }) => {
+            qc.invalidateQueries({ queryKey: KEYS.list() })
+            qc.invalidateQueries({ queryKey: KEYS.byReceipt(receiptNumber) })
         }
     })
 }
