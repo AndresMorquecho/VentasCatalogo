@@ -8,6 +8,7 @@ export interface OrderQueryParams {
     clientId?: string;
     brandId?: string;
     search?: string;
+    onlyParents?: boolean;
 }
 
 export const orderApi = {

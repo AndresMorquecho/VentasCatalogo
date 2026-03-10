@@ -1,4 +1,3 @@
-import { useMemo } from "react"
 import { Eye, Pencil, Trash2, RotateCcw, AlertCircle } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import type { Order, OrderStatus } from "@/entities/order/model/types"
@@ -60,22 +59,6 @@ function formatCurrency(amount: number): string {
 export function OrderTable({ orders, onViewDetails, onEdit, onDelete, onReverse }: OrderTableProps) {
     const { hasPermission } = useAuth()
 
-    const processedOrders = useMemo(() => {
-        const groups: Record<string, Order[]> = {};
-        const sequence: string[] = [];
-
-        orders.forEach(order => {
-            const rn = order.receiptNumber;
-            if (!groups[rn]) {
-                groups[rn] = [];
-                sequence.push(rn);
-            }
-            groups[rn].push(order);
-        });
-
-        return sequence.flatMap(rn => groups[rn]);
-    }, [orders]);
-
     return (
         <TooltipProvider>
             <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
@@ -98,18 +81,11 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, onReverse 
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {processedOrders.map((order, idx) => {
+                            {orders.map((order) => {
                                 const showReverse = order.status === 'RECIBIDO_EN_BODEGA' && !order.deliveryDate;
-
-                                // Grouping state
-                                const isFirstInGroup = idx === 0 || processedOrders[idx - 1].receiptNumber !== order.receiptNumber;
-                                const isGrouped = !isFirstInGroup;
-                                const hasNextInGroup = idx < processedOrders.length - 1 && processedOrders[idx + 1].receiptNumber === order.receiptNumber;
-
                                 const accentColor = getAccentColor(order.receiptNumber);
 
                                 // BUSINESS RULE: Cannot edit if any movement happened (status != POR_RECIBIR)
-                                // Movemet means it was received, delivered or canceled.
                                 const hasMovement = order.status !== 'POR_RECIBIR';
                                 const canEdit = !hasMovement;
 
@@ -119,12 +95,6 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, onReverse 
                                         className={`transition-all duration-200 ${ROW_STATUS_CLASSES[order.status as OrderStatus] || "hover:bg-slate-50"} relative group`}
                                     >
                                         <td className="px-5 py-3 relative">
-                                            {/* Advanced Multi-Color Border Accent */}
-                                            {(isFirstInGroup || isGrouped || hasNextInGroup) && (
-                                                <div
-                                                    className={`absolute left-0 ${isFirstInGroup ? 'top-1.5' : 'top-0'} ${hasNextInGroup ? 'bottom-0' : 'bottom-1.5'} w-1.5 ${accentColor} opacity-90 transition-all group-hover:w-2 group-hover:opacity-100 rounded-r-sm`}
-                                                />
-                                            )}
                                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-tight shadow-sm ${order.salesChannel === 'WHATSAPP' ? 'bg-green-100 text-green-700' :
                                                 order.salesChannel === 'DOMICILIO' ? 'bg-blue-100 text-blue-700' :
                                                     'bg-slate-100 text-slate-600'
@@ -135,17 +105,17 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, onReverse 
 
                                         <td className="px-5 py-3">
                                             <div className="flex items-center gap-3">
-                                                {isFirstInGroup && (
-                                                    <div className={`w-2 h-2 rounded-full ${accentColor} shadow-sm`} />
-                                                )}
-                                                <span className={`text-sm tracking-tight ${isGrouped ? 'text-slate-400 font-medium pl-5 italic' : 'text-slate-900 font-extrabold'}`}>
+                                                <div className={`w-2 h-2 rounded-full ${accentColor} shadow-sm`} />
+                                                <span className="text-sm tracking-tight text-slate-900 font-extrabold">
                                                     {order.receiptNumber}
                                                 </span>
                                             </div>
                                         </td>
 
-                                        <td className="px-5 py-3 text-xs font-mono font-medium text-slate-500 bg-slate-50/30">
-                                            {order.orderNumber || '---'}
+                                        <td className="px-5 py-3 text-sm font-mono font-bold text-slate-600 bg-slate-50/30">
+                                            {order.childOrdersCount && order.childOrdersCount > 0
+                                                ? <span className="text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100 italic">{order.childOrdersCount} pedidos</span>
+                                                : (order.orderNumber || '---')}
                                         </td>
 
                                         <td className="px-5 py-3">
@@ -160,13 +130,46 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, onReverse 
 
                                         <td className="px-5 py-3">
                                             <div className="flex items-center gap-2">
-                                                <span className="text-slate-600 font-medium">{order.brandName}</span>
+                                                {(() => {
+                                                    const brands = new Set<string>();
+                                                    if (order.brandName) brands.add(order.brandName);
+                                                    order.childOrders?.forEach(child => {
+                                                        if (child.brandName) brands.add(child.brandName);
+                                                    });
+                                                    const brandsArray = Array.from(brands);
+                                                    if (brandsArray.length === 0) return <span className="text-slate-400 font-medium">Sin marca</span>;
+                                                    return (
+                                                        <div className="flex flex-col">
+                                                            <span className="text-slate-600 font-medium">{brandsArray[0]}</span>
+                                                            {brandsArray.length > 1 && (
+                                                                <span className="text-[10px] text-indigo-500 font-bold">
+                                                                    + {brandsArray.length - 1} marca{brandsArray.length > 2 ? 's' : ''} adicional{brandsArray.length > 2 ? 'es' : ''}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })()}
                                             </div>
                                         </td>
 
-                                        <td className="px-5 py-3 text-right font-bold text-slate-900">{formatCurrency(Number(order.total))}</td>
-                                        <td className="px-5 py-3 text-right text-emerald-600 font-semibold">{formatCurrency(getPaidAmount(order))}</td>
-                                        <td className="px-5 py-3 text-right font-black text-rose-600">{formatCurrency(getPendingAmount(order))}</td>
+                                        <td className="px-5 py-3 text-right font-bold text-slate-900">
+                                            {(() => {
+                                                const total = (order.childOrders || []).reduce((sum, child) => sum + Number(child.total || 0), Number(order.total || 0));
+                                                return formatCurrency(total);
+                                            })()}
+                                        </td>
+                                        <td className="px-5 py-3 text-right text-emerald-600 font-semibold">
+                                            {(() => {
+                                                const paid = (order.childOrders || []).reduce((sum, child) => sum + getPaidAmount(child), getPaidAmount(order));
+                                                return formatCurrency(paid);
+                                            })()}
+                                        </td>
+                                        <td className="px-5 py-3 text-right font-black text-rose-600">
+                                            {(() => {
+                                                const pending = (order.childOrders || []).reduce((sum, child) => sum + getPendingAmount(child), getPendingAmount(order));
+                                                return formatCurrency(pending);
+                                            })()}
+                                        </td>
 
                                         <td className="px-5 py-3 text-xs text-slate-500 font-medium">
                                             {order.possibleDeliveryDate ? formatDate(order.possibleDeliveryDate) : '---'}

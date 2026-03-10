@@ -59,6 +59,7 @@ export interface Order {
 
     parentOrder?: Order;
     childOrders?: Order[];
+    childOrdersCount?: number;
 
     status: OrderStatus;
 

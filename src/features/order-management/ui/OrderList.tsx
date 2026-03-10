@@ -37,7 +37,8 @@ export function OrderList() {
         page,
         limit,
         status: statusFilter === 'ALL' ? undefined : statusFilter,
-        search: debouncedSearch.length >= 3 ? debouncedSearch : undefined
+        search: debouncedSearch.length >= 3 ? debouncedSearch : undefined,
+        onlyParents: true
     })
 
     const orders = response?.data || []
@@ -56,16 +57,17 @@ export function OrderList() {
 
     // Local filtering for quick results while typing < 3 chars or as a second layer
     const filteredOrders = useMemo(() => {
-        if (!orders) return []
+        const parentsOnly = orders.filter(o => !o.parentOrderId)
+
         if (debouncedSearch.length > 0 && debouncedSearch.length < 3) {
             const query = debouncedSearch.toLowerCase()
-            return orders.filter(o =>
+            return parentsOnly.filter(o =>
                 o.clientName.toLowerCase().includes(query) ||
                 o.receiptNumber.toLowerCase().includes(query) ||
                 o.brandName.toLowerCase().includes(query)
             )
         }
-        return orders
+        return parentsOnly
     }, [orders, debouncedSearch])
 
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
