@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/ui/di
 import { useBankAccountList } from "@/features/bank-accounts/api/hooks"
 import { useCreateOrder, useUpdateOrder, useOrder, useReceiptOrders } from "@/entities/order/model/hooks"
 import type { SalesChannel, OrderType, PaymentMethod } from "@/entities/order/model/types"
+import { getPaidAmount } from "@/entities/order/model/model"
 import { orderApi } from "@/entities/order/model/api"
 import { useClientList } from "@/features/clients/api/hooks"
 import { useBrandList } from "@/features/brands/api/hooks"
@@ -270,8 +271,10 @@ export function OrderFormPage() {
                             brand_id: item.brandId,
                             brand_name: item.brandName,
                             total: item.total,
+                            deposit: Number(item.deposit) || 0,
                             type: item.type,
                             possible_delivery_date: item.possibleDeliveryDate,
+                            order_number: item.orderNumber || "",
                             items: [{
                                 product_name: item.brandName,
                                 quantity: item.quantity,
@@ -283,11 +286,20 @@ export function OrderFormPage() {
 
                 const createdOrders = await orderApi.batchCreate(batchPayload);
 
+                // Map orderNumbers from original form values back to the created orders
+                const ordersWithNumbers = createdOrders.map((createdOrder: any, index: number) => {
+                    const originalItem = values.brandItems[index];
+                    return {
+                        ...createdOrder,
+                        orderNumber: originalItem.orderNumber // Restaurar el orderNumber
+                    };
+                });
+
                 try {
                     const blob = await pdf(
                         <OrderReceiptDocument
-                            order={createdOrders[0]}
-                            childOrders={createdOrders.slice(1)}
+                            order={ordersWithNumbers[0]}
+                            childOrders={ordersWithNumbers.slice(1)}
                             client={client}
                             user={{
                                 id: user?.id || '1',
@@ -511,6 +523,10 @@ export function OrderFormPage() {
                         const allItems = receiptOrders;
                         const firstOrder = allItems[0];
 
+                        const parentOrderNumber = allItems.find(item => 
+                            item.type === 'NORMAL' || item.type === 'PREVENTA'
+                        )?.orderNumber || "";
+
                         formik.setValues({
                             clientId: firstOrder.clientId || "",
                             receiptNumber: firstOrder.receiptNumber || "",
@@ -524,10 +540,10 @@ export function OrderFormPage() {
                                 type: o.type || "NORMAL",
                                 possibleDeliveryDate: o.possibleDeliveryDate ? new Date(o.possibleDeliveryDate).toISOString().split('T')[0] : "",
                                 salesChannel: o.salesChannel || "OFICINA",
-                                orderNumber: o.orderNumber || "",
-                                deposit: Number(o.payments?.reduce((sum: number, p: any) => sum + Number(p.amount), 0) || 0),
-                                status: o.status,
-                                payments: o.payments
+                                orderNumber: o.orderNumber || (o.type === 'REPROGRAMACION' ? parentOrderNumber : ""),
+                            deposit: getPaidAmount(o) || 0,
+                            status: o.status,
+                            payments: o.payments
                             })),
                             deposit: 0,
                             creditToUse: 0,
@@ -558,6 +574,11 @@ export function OrderFormPage() {
                     const related = await orderApi.getAll({ search: order.receiptNumber, limit: 100 });
                     const allItems = related.data || [order];
 
+                    // Encontrar el orderNumber de un pedido NORMAL o PREVENTA para las reprogramaciones
+                    const parentOrderNumber = allItems.find(item => 
+                        item.type === 'NORMAL' || item.type === 'PREVENTA'
+                    )?.orderNumber || "";
+
                     formik.setValues({
                         clientId: order.clientId || "",
                         receiptNumber: order.receiptNumber || "",
@@ -571,8 +592,8 @@ export function OrderFormPage() {
                             type: o.type || "NORMAL",
                             possibleDeliveryDate: o.possibleDeliveryDate ? new Date(o.possibleDeliveryDate).toISOString().split('T')[0] : "",
                             salesChannel: o.salesChannel || "OFICINA",
-                            orderNumber: o.orderNumber || "",
-                            deposit: Number(o.payments?.reduce((sum: number, p: any) => sum + Number(p.amount), 0) || 0),
+                            orderNumber: o.orderNumber || (o.type === 'REPROGRAMACION' ? parentOrderNumber : ""),
+                            deposit: getPaidAmount(o) || 0,
                             status: o.status,
                             payments: o.payments
                         })),
@@ -1369,7 +1390,7 @@ function OrderEditModal({ order, open, onOpenChange, onSuccess, lastClosureDate 
     const queryClient = useQueryClient()
     const [formData, setFormData] = useState({
         total: Number(order.total) || 0,
-        deposit: Number(order.payments?.reduce((sum: number, p: any) => sum + Number(p.amount), 0) || 0),
+        deposit: getPaidAmount(order) || 0,
         possibleDeliveryDate: order.possibleDeliveryDate ? new Date(order.possibleDeliveryDate).toISOString().split('T')[0] : '',
         orderNumber: order.orderNumber || ''
     })

@@ -130,12 +130,13 @@ const styles = StyleSheet.create({
         textAlign: 'left',
     },
     // Column widths
-    colType: { width: '15%' },
-    colBrand: { width: '15%' },
-    colQty: { width: '10%', textAlign: 'center' },
-    colDate: { width: '15%' },
-    colPrice: { width: '15%', textAlign: 'right' },
-    colPaid: { width: '15%', textAlign: 'right' },
+    colType: { width: '10%' },
+    colOrderNumber: { width: '12%' },
+    colBrand: { width: '13%' },
+    colQty: { width: '8%', textAlign: 'center' },
+    colDate: { width: '14%' },
+    colPrice: { width: '14%', textAlign: 'right' },
+    colPaid: { width: '14%', textAlign: 'right' },
     colPending: { width: '15%', textAlign: 'right' },
 
     summarySection: {
@@ -309,6 +310,7 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({ order, child
                 <View style={styles.tableContainer}>
                     <View style={styles.tableHeader}>
                         <Text style={[styles.tableHeaderCell, styles.colType]}>Tipo</Text>
+                        <Text style={[styles.tableHeaderCell, styles.colOrderNumber]}>N° Pedido</Text>
                         <Text style={[styles.tableHeaderCell, styles.colBrand]}>Catálogo</Text>
                         <Text style={[styles.tableHeaderCell, styles.colQty]}>Cant.</Text>
                         <Text style={[styles.tableHeaderCell, styles.colDate]}>Entrega Est.</Text>
@@ -320,6 +322,7 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({ order, child
                     {allOrders.map((o, idx) => (
                         <View key={idx} style={styles.tableRow}>
                             <Text style={[styles.tableCell, styles.colType]}>{o.type}</Text>
+                            <Text style={[styles.tableCell, styles.colOrderNumber]}>{o.orderNumber || '---'}</Text>
                             <Text style={[styles.tableCell, styles.colBrand]}>{o.brandName}</Text>
                             <Text style={[styles.tableCell, styles.colQty]}>{o.items?.[0]?.quantity || 1}</Text>
                             <Text style={[styles.tableCell, styles.colDate]}>
