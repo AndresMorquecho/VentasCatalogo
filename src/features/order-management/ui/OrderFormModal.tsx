@@ -396,7 +396,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto w-[95vw] max-w-[95vw] sm:w-full">
                 <DialogHeader>
-                    <DialogTitle className="text-base sm:text-lg">{isEditing ? "Editar Pedido" : "Nuevo Pedido"}</DialogTitle>
+                    <DialogTitle className="text-base sm:text-lg">{isEditing ? "" : "Nuevo Pedido"}</DialogTitle>
                 </DialogHeader>
 
                 <form onSubmit={formik.handleSubmit} className="space-y-4 sm:space-y-6 py-2 sm:py-4">

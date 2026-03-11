@@ -26,7 +26,7 @@ const ACTION_META: Record<string, { label: string; severity: AuditSeverity }> = 
     DELETE_ROLE: { label: 'Eliminar rol', severity: 'CRITICAL' },
     CHANGE_PERMISSIONS: { label: 'Cambiar permisos', severity: 'CRITICAL' },
     CREATE_ORDER: { label: 'Crear pedido', severity: 'INFO' },
-    EDIT_ORDER: { label: 'Editar pedido', severity: 'WARNING' },
+    EDIT_ORDER: { label: '', severity: 'WARNING' },
     DELETE_ORDER: { label: 'Eliminar pedido', severity: 'CRITICAL' },
     CONFIRM_RECEPTION: { label: 'Confirmar recepción', severity: 'INFO' },
     CONFIRM_DELIVERY: { label: 'Confirmar entrega', severity: 'INFO' },

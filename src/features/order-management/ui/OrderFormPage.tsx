@@ -197,6 +197,7 @@ export function OrderFormPage() {
     // Estados para modal de edición individual
     const [editModalOpen, setEditModalOpen] = useState(false)
     const [orderToEdit, setOrderToEdit] = useState<any>(null)
+    const [editRowIndex, setEditRowIndex] = useState<number | null>(null)
     
     // Estados para confirmación de eliminación
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
@@ -457,6 +458,8 @@ export function OrderFormPage() {
         }
 
         setOrderToEdit(order)
+        const idx = formik.values.brandItems.findIndex((item: any) => item.id === order.id)
+        setEditRowIndex(idx >= 0 ? idx : null)
         setEditModalOpen(true)
     }
 
@@ -869,38 +872,30 @@ export function OrderFormPage() {
         )
     }
 
-    return (
-        <form onSubmit={(e) => {
-            e.preventDefault()
-            console.log('Form submitted')
-            console.log('Formik errors:', formik.errors)
-            console.log('Formik values:', formik.values)
-            console.log('Formik isValid:', formik.isValid)
-            
-            // Mostrar errores de validación si existen
-            if (Object.keys(formik.errors).length > 0) {
-                console.error('Errores de validación:', formik.errors)
-                
-                // Mostrar el primer error encontrado
-                const firstError = Object.values(formik.errors)[0]
-                if (typeof firstError === 'string') {
-                    notifyError(null, firstError)
-                } else if (Array.isArray(firstError)) {
-                    // Errores en brandItems
-                    const itemErrors = firstError.filter(e => e !== undefined)
-                    if (itemErrors.length > 0) {
-                        const firstItemError = itemErrors[0]
-                        if (typeof firstItemError === 'object') {
-                            const errorMsg = Object.values(firstItemError)[0]
-                            notifyError(null, `Error en fila: ${errorMsg}`)
-                        }
+    const handleMainSave = async () => {
+        // Mostrar errores de validación si existen
+        if (Object.keys(formik.errors).length > 0) {
+            const firstError = Object.values(formik.errors)[0]
+            if (typeof firstError === 'string') {
+                notifyError(null, firstError)
+            } else if (Array.isArray(firstError)) {
+                const itemErrors = firstError.filter(e => e !== undefined)
+                if (itemErrors.length > 0) {
+                    const firstItemError = itemErrors[0]
+                    if (typeof firstItemError === 'object') {
+                        const errorMsg = Object.values(firstItemError)[0]
+                        notifyError(null, `Error en fila: ${errorMsg}`)
                     }
                 }
-                return
             }
-            
-            formik.handleSubmit(e)
-        }} className="max-w-7xl mx-auto space-y-4 pb-12 px-4">
+            return
+        }
+
+        await formik.submitForm()
+    }
+
+    return (
+        <div className="max-w-7xl mx-auto space-y-4 pb-12 px-4">
             {/* Header Toolbar */}
             <div className="flex items-center justify-between bg-white px-4 py-3 rounded-lg border shadow-sm">
                 <div className="flex items-center gap-3">
@@ -1310,7 +1305,8 @@ export function OrderFormPage() {
                     {!isEditing ? (
                         <div className="p-2 border-t bg-slate-50 flex gap-2">
                             <AsyncButton
-                                type="submit"
+                                type="button"
+                                onClick={handleMainSave}
                                 className="w-full bg-slate-800"
                                 isLoading={isSubmitting}
                             >
@@ -1363,15 +1359,30 @@ export function OrderFormPage() {
                     order={orderToEdit}
                     open={editModalOpen}
                     onOpenChange={setEditModalOpen}
-                    onSuccess={() => {
+                    onSuccess={(updatedOrder) => {
                         setEditModalOpen(false)
                         setOrderToEdit(null)
-                        // No recargar la página, las queries se invalidan automáticamente
+                        if (updatedOrder && editRowIndex !== null && editRowIndex >= 0) {
+                            const items = [...formik.values.brandItems]
+                            const original = items[editRowIndex]
+                            items[editRowIndex] = {
+                                ...original,
+                                total: Number(updatedOrder.total) || original.total,
+                                deposit: Number((updatedOrder as any).deposit ?? original.deposit) || original.deposit,
+                                possibleDeliveryDate: updatedOrder.possibleDeliveryDate
+                                    ? new Date(updatedOrder.possibleDeliveryDate).toISOString().split('T')[0]
+                                    : original.possibleDeliveryDate,
+                                orderNumber: updatedOrder.orderNumber || original.orderNumber,
+                                status: updatedOrder.status || original.status,
+                                payments: updatedOrder.payments || original.payments
+                            }
+                            formik.setFieldValue('brandItems', items)
+                        }
                     }}
                     lastClosureDate={lastClosureDate}
                 />
             )}
-        </form>
+        </div>
     )
 }
 
@@ -1380,7 +1391,7 @@ interface OrderEditModalProps {
     order: any
     open: boolean
     onOpenChange: (open: boolean) => void
-    onSuccess: () => void
+    onSuccess: (updatedOrder: any) => void
     lastClosureDate: Date | null
 }
 
@@ -1438,11 +1449,18 @@ function OrderEditModal({ order, open, onOpenChange, onSuccess, lastClosureDate 
             
             console.log('[OrderEditModal] Update successful')
             
-            // Solo invalidar la query específica del recibo, no todas
-            queryClient.invalidateQueries({ queryKey: ['receiptOrders', order.receiptNumber] })
+            // Invalidar la query específica del recibo para refrescar caches
+            queryClient.invalidateQueries({ queryKey: ['orders', 'receipt', order.receiptNumber] })
             
             notifySuccess('Pedido actualizado correctamente.')
-            onSuccess()
+            onSuccess({
+                ...order,
+                ...payload,
+                total: payload.total,
+                possibleDeliveryDate: payload.possibleDeliveryDate,
+                orderNumber: payload.orderNumber,
+                payments: order.payments, // se mantienen igual a nivel de frontend
+            })
         } catch (error: any) {
             console.error('Error updating order:', error)
             notifyError(error, 'Error al actualizar el pedido.')
