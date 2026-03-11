@@ -4,7 +4,7 @@ import type { Order, OrderStatus } from "@/entities/order/model/types"
 import { getPaidAmount, getPendingAmount } from "@/entities/order/model/model"
 import { OrderStatusBadge } from "./OrderStatusBadge"
 import { useAuth } from "@/shared/auth"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/shared/ui/tooltip"
+import { TooltipProvider } from "@/shared/ui/tooltip"
 
 interface OrderTableProps {
     orders: Order[]
@@ -70,13 +70,12 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, onReverse,
                                 <th className="px-4 py-4 text-left w-[110px]">Origen</th>
                                 <th className="px-4 py-4 text-left w-[140px]">N° Recibo</th>
                                 <th className="px-4 py-4 text-left w-[120px]">N° Pedidos</th>
-                                <th className="px-4 py-4 text-left w-[110px]">Tipo</th>
                                 <th className="px-4 py-4 text-left min-w-[150px]">Cliente</th>
-                                <th className="px-4 py-4 text-left min-w-[120px]">Marca</th>
+                                <th className="px-4 py-4 text-left min-w-[120px]">Catalogo</th>
                                 <th className="px-4 py-4 text-right w-[90px]">Total</th>
                                 <th className="px-4 py-4 text-right w-[90px]">Abono</th>
                                 <th className="px-4 py-4 text-right w-[90px]">Saldo</th>
-                                <th className="px-4 py-4 text-left w-[110px]">F. Entrega</th>
+                                <th className="px-4 py-4 text-left w-[110px]">fecha posible entrega</th>
                                 <th className="px-4 py-4 text-left w-[130px]">Estado</th>
                                 <th className="px-4 py-4 text-center w-[100px]">Acciones</th>
                             </tr>
@@ -95,11 +94,7 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, onReverse,
 
                                 const canEdit = !hasMovement && !isClosed;
 
-                                let blockReason = "";
-                                if (order.status === 'ENTREGADO') blockReason = "Pedido ya entregado";
-                                else if (order.status !== 'POR_RECIBIR') blockReason = "Pedido ya procesado";
-                                else if (order.payments && order.payments.length > 1) blockReason = "Tiene abonos adicionales";
-                                else if (isClosed) blockReason = "Periodo de caja cerrado";
+
 
                                 return (
                                     <tr
@@ -130,13 +125,7 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, onReverse,
                                                 : (order.orderNumber || '---')}
                                         </td>
 
-                                        <td className="px-4 py-2.5">
-                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${order.type === 'REPROGRAMACION' ? 'bg-purple-50 text-purple-700 border-purple-100' :
-                                                'bg-slate-50 text-slate-500 border-slate-100'
-                                                }`}>
-                                                {order.type}
-                                            </span>
-                                        </td>
+
 
                                         <td className="px-4 py-2.5 font-semibold text-slate-700 truncate max-w-[200px] whitespace-nowrap">{order.clientName}</td>
 

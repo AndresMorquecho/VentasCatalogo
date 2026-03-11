@@ -38,7 +38,7 @@ export function OrderFilters({ statusFilter, onStatusChange, searchQuery, onSear
 
             <div className="w-full sm:w-auto sm:min-w-[300px] order-1 sm:order-2">
                 <Input
-                    placeholder="Buscar cliente, marca, recibo..."
+                    placeholder="Buscar cliente, catalogo, recibo..."
                     value={searchQuery}
                     onChange={(e) => onSearchChange(e.target.value)}
                     className="bg-background"

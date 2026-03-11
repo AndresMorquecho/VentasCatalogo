@@ -467,7 +467,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                     {/* Listado de Marcas (Items) */}
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                            <h4 className="text-xs sm:text-sm font-medium text-muted-foreground">Marcas en este Recibo</h4>
+                            <h4 className="text-xs sm:text-sm font-medium text-muted-foreground">Catalogos en este Recibo</h4>
                             {!isEditing && (
                                 <Button
                                     type="button"
@@ -486,7 +486,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                                         formik.setFieldValue("brandItems", items);
                                     }}
                                 >
-                                    + Agregar Marca
+                                    + Agregar Catalogo
                                 </Button>
                             )}
                         </div>
@@ -509,7 +509,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                                 )}
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
                                     <div className="lg:col-span-2 space-y-2">
-                                        <Label>Marca</Label>
+                                        <Label>Catalogo</Label>
                                         <SearchableSelect
                                             options={brandOptions}
                                             value={item.brandId}
@@ -518,7 +518,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                                                 formik.setFieldValue(`brandItems.${index}.brandId`, val);
                                                 formik.setFieldValue(`brandItems.${index}.brandName`, b ? b.name : "");
                                             }}
-                                            placeholder="Seleccione marca..."
+                                            placeholder="Seleccione catalogo..."
                                         />
                                     </div>
                                     <div className="space-y-2">

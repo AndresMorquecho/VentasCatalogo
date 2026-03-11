@@ -115,8 +115,7 @@ export function OrderDetailModal({ order, open, onOpenChange }: OrderDetailModal
                                 <thead>
                                     <tr className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase font-bold text-slate-500">
                                         <th className="px-5 py-4">N° Pedido</th>
-                                        <th className="px-5 py-4">Marca</th>
-                                        <th className="px-5 py-4">Tipo</th>
+                                        <th className="px-5 py-4">Catalogo</th>
                                         <th className="px-5 py-4 text-right">Total</th>
                                         <th className="px-5 py-4 text-right">Abono</th>
                                         <th className="px-5 py-4 text-right">Saldo</th>
@@ -128,9 +127,6 @@ export function OrderDetailModal({ order, open, onOpenChange }: OrderDetailModal
                                     <tr className="bg-purple-50/40 font-medium border-l-4 border-l-monchito-purple">
                                         <td className="px-5 py-4 font-black text-slate-900">{order.orderNumber || 'Principal'}</td>
                                         <td className="px-5 py-4">{order.brandName}</td>
-                                        <td className="px-5 py-4">
-                                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-white border border-slate-200 uppercase font-bold shadow-sm">{order.type}</span>
-                                        </td>
                                         <td className="px-5 py-4 text-right font-black text-slate-900">{formatCurrency(Number(order.total))}</td>
                                         <td className="px-5 py-4 text-right text-emerald-600 font-bold">{formatCurrency(getPaidAmount(order))}</td>
                                         <td className="px-5 py-4 text-right text-rose-600 font-bold">{formatCurrency(getPendingAmount(order))}</td>
@@ -143,11 +139,6 @@ export function OrderDetailModal({ order, open, onOpenChange }: OrderDetailModal
                                         <tr key={child.id} className="hover:bg-slate-50 transition-colors">
                                             <td className="px-5 py-4 font-bold text-slate-700">{child.orderNumber || 'S/N'}</td>
                                             <td className="px-5 py-4">{child.brandName}</td>
-                                            <td className="px-5 py-4">
-                                                <span className={`text-[9px] px-2 py-0.5 rounded-full border uppercase font-bold ${child.type === 'REPROGRAMACION' ? 'bg-purple-100 text-purple-700 border-purple-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
-                                                    {child.type}
-                                                </span>
-                                            </td>
                                             <td className="px-5 py-4 text-right font-medium text-slate-900">{formatCurrency(Number(child.total))}</td>
                                             <td className="px-5 py-4 text-right text-emerald-600">{formatCurrency(getPaidAmount(child))}</td>
                                             <td className="px-5 py-4 text-right text-rose-600 font-bold">{formatCurrency(getPendingAmount(child))}</td>

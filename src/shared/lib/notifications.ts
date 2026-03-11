@@ -19,8 +19,18 @@ export const useNotifications = () => {
      * Extracts message from Error object if available.
      */
     const notifyError = (err: any, defaultMessage: string = 'Ocurrió un error inesperado') => {
-        // Extract message from error object (Axios/Standard/Backend)
-        const message = err?.message || err?.error?.message || err?.error || defaultMessage;
+        // Extract message from error object (Axios/Standard/Backend/String)
+        let message = defaultMessage;
+        
+        if (typeof err === 'string') {
+            message = err;
+        } else if (err?.message) {
+            message = err.message;
+        } else if (err?.error?.message) {
+            message = err.error.message;
+        } else if (err?.error) {
+            message = typeof err.error === 'string' ? err.error : defaultMessage;
+        }
 
         // Log to console for dev, but show toast for user
         console.error('[Notification Error]:', err);

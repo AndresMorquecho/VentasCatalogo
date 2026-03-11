@@ -323,6 +323,7 @@ export function OrderFormPage() {
                     URL.revokeObjectURL(url)
                 } catch (pdfError) {
                     console.error("Error generating PDF", pdfError)
+                    notifyError(pdfError, "Error al generar el recibo PDF.")
                 }
                 
                 notifySuccess(`Se han creado ${createdOrders.length} pedidos exitosamente.`);
@@ -1083,7 +1084,6 @@ export function OrderFormPage() {
                             <tr>
                                 <th className="px-3 py-2 border-r text-center w-8">N°</th>
                                 <th className="px-3 py-2 border-r">N° Pedido</th>
-                                <th className="px-3 py-2 border-r">Tipo</th>
                                 <th className="px-3 py-2 border-r">Catálogo</th>
                                 <th className="px-3 py-2 border-r text-right">Valor Pedido</th>
                                 <th className="px-3 py-2 border-r text-right">Abono</th>
@@ -1095,7 +1095,7 @@ export function OrderFormPage() {
                         <tbody className="divide-y divide-slate-100">
                             {formik.values.brandItems.length === 0 ? (
                                 <tr>
-                                    <td colSpan={9} className="px-4 py-8 text-center text-slate-400 italic">No hay marcas agregadas en este recibo</td>
+                                    <td colSpan={8} className="px-4 py-8 text-center text-slate-400 italic">No hay marcas agregadas en este recibo</td>
                                 </tr>
                             ) : (
                                 formik.values.brandItems.map((item, idx) => {
@@ -1124,13 +1124,7 @@ export function OrderFormPage() {
                                                     item.orderNumber || '---'
                                                 )}
                                             </td>
-                                            <td className="px-3 py-2 border-r">
-                                                <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${item.type === 'NORMAL' ? 'bg-blue-50 text-blue-700' :
-                                                    item.type === 'PREVENTA' ? 'bg-amber-50 text-amber-700' : 'bg-purple-50 text-purple-700'
-                                                    }`}>
-                                                    {item.type}
-                                                </span>
-                                            </td>
+
                                             <td className="px-3 py-2 border-r font-medium">{item.brandName} <span className="text-slate-400 text-xs">({item.quantity})</span></td>
                                             <td className="px-3 py-2 border-r text-right">
                                                 {!isEditing ? (
@@ -1418,10 +1412,15 @@ function OrderEditModal({ order, open, onOpenChange, onSuccess, lastClosureDate 
             }
         }
         
-        // 2. Verificar estado del pedido
-        if (order.status === 'RECIBIDO_EN_BODEGA' || order.status === 'ENTREGADO') {
-            notifyError(null, `No se puede editar: El pedido ya está en estado ${order.status}.`)
-            return
+        // 2. Verificar estado del pedido y movimientos
+        if (order.status !== 'POR_RECIBIR' || (order.payments && order.payments.length > 1)) {
+            let reason = 'No se puede editar: El pedido ya tiene movimientos procesados.';
+            if (order.status === 'RECIBIDO_EN_BODEGA') reason = 'No se puede editar: El pedido ya ha sido receptado en bodega.';
+            if (order.status === 'ENTREGADO') reason = 'No se puede editar: El pedido ya ha sido entregado.';
+            if (order.payments && order.payments.length > 1) reason = 'No se puede editar: El pedido ya tiene abonos adicionales vinculados.';
+            
+            notifyError(null, reason);
+            return;
         }
 
         try {

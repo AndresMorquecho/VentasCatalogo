@@ -285,7 +285,7 @@ export function OrderList() {
 
                         <div className="text-muted-foreground border-t pt-2">
                             <p><strong>Cliente:</strong> {selectedOrder.clientName}</p>
-                            <p><strong>Marca:</strong> {selectedOrder.brandName}</p>
+                            <p><strong>Catalogo:</strong> {selectedOrder.brandName}</p>
                             <p><strong>Total:</strong> ${selectedOrder.total.toFixed(2)}</p>
                         </div>
                     </div>
