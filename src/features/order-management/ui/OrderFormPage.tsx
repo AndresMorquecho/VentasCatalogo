@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card"
 import { Separator } from "@/shared/ui/separator"
 import { ConfirmDialog } from "@/shared/ui/confirm-dialog"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/ui/dialog"
+import { Badge } from "@/shared/ui/badge"
 
 import { useBankAccountList } from "@/features/bank-accounts/api/hooks"
 import { useCreateOrder, useUpdateOrder, useOrder, useReceiptOrders } from "@/entities/order/model/hooks"
@@ -259,7 +260,7 @@ export function OrderFormPage() {
                     receipt_number: values.receiptNumber,
                     client_id: values.clientId,
                     sales_channel: values.salesChannel,
-                    created_at: values.createdAt,
+                    created_at: new Date().toISOString(), // Use full ISO string instead of just date
                     payment_method: values.paymentMethod,
                     bank_account_id: values.bankAccountId,
                     transaction_date: values.transactionDate,
@@ -286,6 +287,11 @@ export function OrderFormPage() {
                 };
 
                 const createdOrders = await orderApi.batchCreate(batchPayload);
+
+                // Invalidate ALL order related queries to ensure consistency
+                await queryClient.invalidateQueries({ queryKey: ['orders'] });
+                await queryClient.invalidateQueries({ queryKey: ['financial-records'] });
+                await queryClient.invalidateQueries({ queryKey: ['transactions'] });
 
                 // Map orderNumbers from original form values back to the created orders
                 const ordersWithNumbers = createdOrders.map((createdOrder: any, index: number) => {
@@ -575,11 +581,11 @@ export function OrderFormPage() {
                 setIsLoadingRelated(true);
                 try {
                     // Fetch all orders sharing the same receipt number
-                    const related = await orderApi.getAll({ search: order.receiptNumber, limit: 100 });
-                    const allItems = related.data || [order];
+                    const response = await orderApi.getAll({ search: order.receiptNumber, limit: 100 });
+                    const allItems = (response as any).data || (Array.isArray(response) ? response : [order]);
 
                     // Encontrar el orderNumber de un pedido NORMAL o PREVENTA para las reprogramaciones
-                    const parentOrderNumber = allItems.find(item => 
+                    const parentOrderNumber = allItems.find((item: any) => 
                         item.type === 'NORMAL' || item.type === 'PREVENTA'
                     )?.orderNumber || "";
 
@@ -1080,22 +1086,25 @@ export function OrderFormPage() {
 
                 <div className="overflow-x-auto">
                     <table className="w-full text-xs text-left border-collapse">
-                        <thead className="bg-slate-100 text-slate-600 border-b uppercase font-bold text-xs">
+                        <thead className="bg-slate-100 text-slate-600 border-b uppercase font-bold text-[10px]">
                             <tr>
-                                <th className="px-3 py-2 border-r text-center w-8">N°</th>
-                                <th className="px-3 py-2 border-r">N° Pedido</th>
-                                <th className="px-3 py-2 border-r">Catálogo</th>
-                                <th className="px-3 py-2 border-r text-right">Valor Pedido</th>
-                                <th className="px-3 py-2 border-r text-right">Abono</th>
-                                <th className="px-3 py-2 border-r text-right">Saldo</th>
-                                <th className="px-3 py-2 border-r">Posible Entrega</th>
-                                <th className="px-3 py-2 text-center text-xs w-20">Acciones</th>
+                                <th className="px-2 py-2 border-r text-center w-8">N°</th>
+                                <th className="px-2 py-2 border-r">Pedido Por</th>
+                                <th className="px-2 py-2 border-r">N° Pedido</th>
+                                <th className="px-2 py-2 border-r">Tipo</th>
+                                <th className="px-2 py-2 border-r">Catálogo</th>
+                                <th className="px-2 py-2 border-r text-center">Cant</th>
+                                <th className="px-2 py-2 border-r text-right">Valor Pedido</th>
+                                <th className="px-2 py-2 border-r text-right">Abono</th>
+                                <th className="px-2 py-2 border-r text-right">Saldo</th>
+                                <th className="px-2 py-2 border-r">Posible Entrega</th>
+                                <th className="px-2 py-2 text-center w-20">Acciones</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {formik.values.brandItems.length === 0 ? (
                                 <tr>
-                                    <td colSpan={8} className="px-4 py-8 text-center text-slate-400 italic">No hay marcas agregadas en este recibo</td>
+                                    <td colSpan={11} className="px-4 py-8 text-center text-slate-400 italic">No hay marcas agregadas en este recibo</td>
                                 </tr>
                             ) : (
                                 formik.values.brandItems.map((item, idx) => {
@@ -1105,10 +1114,19 @@ export function OrderFormPage() {
                                     return (
                                         <tr 
                                             key={item.id || item.tempId || idx} 
-                                            className="hover:bg-indigo-50/20 transition-colors"
+                                            className="hover:bg-indigo-50/20 transition-colors border-b last:border-0"
                                         >
-                                            <td className="px-3 py-2 border-r text-center font-bold text-slate-400">{idx + 1}</td>
-                                            <td className="px-3 py-2 border-r font-mono text-[10px] text-slate-600">
+                                            <td className="px-2 py-1.5 border-r text-center font-bold text-slate-400">{idx + 1}</td>
+                                            
+                                            {/* Pedido por */}
+                                            <td className="px-2 py-1.5 border-r text-[10px] text-slate-600">
+                                                <Badge variant="outline" className="text-[9px] font-bold px-1 py-0 border-slate-200 text-slate-500 uppercase">
+                                                    {item.salesChannel || "OFICINA"}
+                                                </Badge>
+                                            </td>
+
+                                            {/* N° Pedido */}
+                                            <td className="px-2 py-1.5 border-r font-mono text-[10px] text-slate-600">
                                                 {!isEditing ? (
                                                     <Input
                                                         value={item.orderNumber || ''}
@@ -1118,22 +1136,42 @@ export function OrderFormPage() {
                                                             formik.setFieldValue('brandItems', newItems)
                                                         }}
                                                         placeholder="---"
-                                                        className="h-7 text-xs font-mono px-1"
+                                                        className="h-7 text-[10px] font-mono px-1 border-slate-200"
                                                     />
                                                 ) : (
-                                                    item.orderNumber || '---'
+                                                    <span className="font-bold text-indigo-600">{item.orderNumber || '---'}</span>
                                                 )}
                                             </td>
 
-                                            <td className="px-3 py-2 border-r font-medium">{item.brandName} <span className="text-slate-400 text-xs">({item.quantity})</span></td>
-                                            <td className="px-3 py-2 border-r text-right">
+                                            {/* Tipo */}
+                                            <td className="px-2 py-1.5 border-r text-[10px] text-slate-600">
+                                                <span className={`px-1 rounded text-[9px] font-bold ${
+                                                    item.type === 'NORMAL' ? 'bg-blue-50 text-blue-600' :
+                                                    item.type === 'PREVENTA' ? 'bg-amber-50 text-amber-600' :
+                                                    'bg-purple-50 text-purple-600'
+                                                }`}>
+                                                    {item.type}
+                                                </span>
+                                            </td>
+
+                                            {/* Catálogo */}
+                                            <td className="px-2 py-1.5 border-r font-medium text-slate-700">
+                                                <span className="truncate block" title={item.brandName}>{item.brandName}</span>
+                                            </td>
+
+                                            {/* Cantidad */}
+                                            <td className="px-2 py-1.5 border-r text-center font-bold text-slate-600">
+                                                {item.quantity}
+                                            </td>
+
+                                            <td className="px-2 py-1.5 border-r text-right">
                                                 {!isEditing ? (
                                                     <div className="flex justify-end items-center gap-1">
-                                                        <span className="text-slate-400 text-xs">$</span>
+                                                        <span className="text-slate-400 text-[10px]">$</span>
                                                         <input
                                                             type="number"
                                                             step="0.01"
-                                                            className="h-7 w-20 text-right font-bold border rounded px-1 focus:ring-1 focus:ring-indigo-500 outline-none text-xs"
+                                                            className="h-7 w-16 text-right font-bold border rounded px-1 focus:ring-1 focus:ring-indigo-500 outline-none text-[10px] border-slate-200"
                                                             value={item.total}
                                                             onChange={(e) => {
                                                                 const newItems = [...formik.values.brandItems]
@@ -1143,18 +1181,19 @@ export function OrderFormPage() {
                                                         />
                                                     </div>
                                                 ) : (
-                                                    <span className="text-slate-600 font-bold">${Number(item.total).toFixed(2)}</span>
+                                                    <span className="text-slate-800 font-bold">${Number(item.total).toFixed(2)}</span>
                                                 )}
                                             </td>
-                                            <td className="px-3 py-2 border-r text-right font-medium">
+
+                                            <td className="px-2 py-1.5 border-r text-right">
                                                 {!isEditing ? (
                                                     <div className="flex justify-end items-center gap-1">
-                                                        <span className="text-green-600 text-xs">$</span>
+                                                        <span className="text-emerald-500 text-[10px]">$</span>
                                                         <input
                                                             type="number"
                                                             step="0.01"
-                                                            className="h-7 w-20 text-right text-green-600 font-bold rounded border-green-100 border focus:ring-1 focus:ring-green-500 outline-none text-xs bg-green-50/30 px-1"
-                                                            value={distributedAbono}
+                                                            className="h-7 w-16 text-right font-bold border rounded px-1 focus:ring-1 focus:ring-emerald-500 outline-none text-[10px] border-slate-200 text-emerald-600"
+                                                            value={item.deposit || ''}
                                                             onChange={(e) => {
                                                                 const newItems = [...formik.values.brandItems]
                                                                 newItems[idx] = { ...newItems[idx], deposit: Number(e.target.value) }
@@ -1163,57 +1202,66 @@ export function OrderFormPage() {
                                                         />
                                                     </div>
                                                 ) : (
-                                                    <span className="text-green-600 font-bold">${distributedAbono.toFixed(2)}</span>
+                                                    <span className="text-green-600 font-bold text-[10px]">${distributedAbono.toFixed(2)}</span>
                                                 )}
                                             </td>
-                                            <td className="px-3 py-2 border-r text-right font-bold text-slate-600">${rowSaldo.toFixed(2)}</td>
-                                            <td className="px-3 py-2 border-r">
+
+                                            <td className="px-2 py-1.5 border-r text-right">
+                                                <span className={`font-bold ${rowSaldo > 0 ? 'text-red-500' : 'text-slate-400'}`}>
+                                                    ${rowSaldo.toFixed(2)}
+                                                </span>
+                                            </td>
+
+                                            <td className="px-2 py-1.5 border-r">
                                                 {!isEditing ? (
-                                                    <Input
+                                                    <input
                                                         type="date"
+                                                        className="h-7 w-full text-[10px] border rounded px-1 border-slate-200"
                                                         value={item.possibleDeliveryDate}
                                                         onChange={(e) => {
                                                             const newItems = [...formik.values.brandItems]
                                                             newItems[idx] = { ...newItems[idx], possibleDeliveryDate: e.target.value }
                                                             formik.setFieldValue('brandItems', newItems)
                                                         }}
-                                                        className="h-7 text-xs px-1"
                                                     />
                                                 ) : (
-                                                    item.possibleDeliveryDate
+                                                    <span className="text-slate-500">{new Date(item.possibleDeliveryDate).toLocaleDateString()}</span>
                                                 )}
                                             </td>
-                                            <td className="px-3 py-2 text-center">
-                                                {isEditing && item.id ? (
-                                                    <div className="flex items-center justify-center gap-1">
-                                                        <Button 
-                                                            type="button"
-                                                            variant="ghost" 
-                                                            size="icon" 
-                                                            onClick={() => handleEditOrder(item)} 
-                                                            className="h-6 w-6 text-blue-600 hover:text-blue-700"
-                                                            aria-label="Editar pedido"
-                                                            data-testid={`edit-order-${idx}`}
-                                                        >
-                                                            <Edit2 className="h-3.5 w-3.5" />
+
+                                            <td className="px-2 py-1.5 text-center">
+                                                <div className="flex justify-center gap-1">
+                                                    {isEditing && item.id ? (
+                                                        <>
+                                                            <Button 
+                                                                type="button"
+                                                                variant="ghost" 
+                                                                size="icon" 
+                                                                onClick={() => handleEditOrder(item)} 
+                                                                className="h-6 w-6 text-blue-600 hover:text-blue-700"
+                                                                aria-label="Editar pedido"
+                                                                data-testid={`edit-order-${idx}`}
+                                                            >
+                                                                <Edit2 className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                            <Button 
+                                                                type="button"
+                                                                variant="ghost" 
+                                                                size="icon" 
+                                                                onClick={() => handleDeleteOrder(item)} 
+                                                                className="h-6 w-6 text-red-500 hover:text-red-700"
+                                                                aria-label={`Eliminar pedido de ${item.brandName}`}
+                                                                data-testid={`delete-order-${idx}`}
+                                                            >
+                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        </>
+                                                    ) : !isEditing ? (
+                                                        <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(idx)} className="h-6 w-6 text-red-500 hover:text-red-700">
+                                                            <X className="h-3.5 w-3.5" />
                                                         </Button>
-                                                        <Button 
-                                                            type="button"
-                                                            variant="ghost" 
-                                                            size="icon" 
-                                                            onClick={() => handleDeleteOrder(item)} 
-                                                            className="h-6 w-6 text-red-500 hover:text-red-700"
-                                                            aria-label={`Eliminar pedido de ${item.brandName}`}
-                                                            data-testid={`delete-order-${idx}`}
-                                                        >
-                                                            <Trash2 className="h-3.5 w-3.5" />
-                                                        </Button>
-                                                    </div>
-                                                ) : !isEditing ? (
-                                                    <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(idx)} className="h-6 w-6 text-red-500 hover:text-red-700">
-                                                        <X className="h-3.5 w-3.5" />
-                                                    </Button>
-                                                ) : null}
+                                                    ) : null}
+                                                </div>
                                             </td>
                                         </tr>
                                     )

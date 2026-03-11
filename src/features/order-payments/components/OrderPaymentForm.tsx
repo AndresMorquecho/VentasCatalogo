@@ -18,7 +18,8 @@ interface OrderPaymentFormProps {
 }
 
 export function OrderPaymentForm({ order, payment, open, onOpenChange }: OrderPaymentFormProps) {
-    const { data: bankAccounts = [] } = useBankAccountList()
+    const { data: bankAccountsResponse } = useBankAccountList()
+    const bankAccounts = bankAccountsResponse?.data || []
     const { data: credits = [] } = useClientCredits(order.clientId)
     const addPayment = useAddOrderPayment()
     const editPayment = useEditOrderPayment()

@@ -18,9 +18,10 @@ export interface OrderItem {
 export type OrderPayment = {
     id: string;
     amount: number;
-    bankAccountId?: string; // Optional now as cash doesn't strictly need it per transaction item
-    method?: string; // EFECTIVO, TRANSFERENCIA, etc.
+    bankAccountId?: string;
+    method?: string;
     reference?: string;
+    receiptNumber?: string;
     createdAt: string;
     description?: string;
 }

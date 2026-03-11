@@ -54,7 +54,14 @@ export function OrderReceptionTable({ orders, onReceive, onReverse, isProcessing
                         orders.map((order) => (
                             <TableRow key={order.id} className={order.status === 'RECIBIDO_EN_BODEGA' ? 'bg-blue-50/30' : ''}>
                                 <TableCell>{formatDate(order.createdAt)}</TableCell>
-                                <TableCell className="font-medium">{order.receiptNumber}</TableCell>
+                                <TableCell className="font-medium">
+                                    {order.receiptNumber}
+                                    {order.orderNumber && (
+                                        <span className="block text-[10px] text-muted-foreground">
+                                            N°: {order.orderNumber}
+                                        </span>
+                                    )}
+                                </TableCell>
                                 <TableCell>{order.clientName}</TableCell>
                                 <TableCell>{order.brandName}</TableCell>
                                 <TableCell className="text-right">{formatCurrency(order.total)}</TableCell>

@@ -37,7 +37,8 @@ export function DeliverOrderModal({ order, open, onOpenChange }: DeliverOrderMod
     const isProcessingRef = useRef(false)
 
     const qc = useQueryClient()
-    const { data: bankAccounts = [] } = useBankAccountList()
+    const { data: bankAccountsResponse } = useBankAccountList()
+    const bankAccounts = bankAccountsResponse?.data || []
     const { data: creditData } = useClientCredit(order?.clientId || '')
     const { notifySuccess, notifyError } = useNotifications()
     const { user, hasPermission } = useAuth()

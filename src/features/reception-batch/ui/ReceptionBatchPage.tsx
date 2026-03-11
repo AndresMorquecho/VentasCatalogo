@@ -5,7 +5,7 @@ import { SelectedOrdersTable } from "./SelectedOrdersTable"
 import { ReceptionHistory } from "./ReceptionHistory"
 import { useToast } from "@/shared/ui/use-toast"
 import { generateOrderLabels } from "@/features/order-labels/lib/generateOrderLabels"
-import { Loader2, ArrowDown } from "lucide-react"
+import { ArrowDown, Loader2 } from "lucide-react"
 import {
     Dialog,
     DialogContent,
@@ -18,14 +18,6 @@ import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
 import { Label } from "@/shared/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs"
-import { useBankAccountList } from "@/features/bank-accounts/api/hooks"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/shared/ui/select"
 import { useAuth } from "@/shared/auth"
 import { logAction } from "@/shared/lib/auditService"
 
@@ -36,33 +28,25 @@ export function ReceptionBatchPage() {
         selectedOrders,
         moveToSelected,
         moveToPending,
-        updateAbono,
         updateInvoiceTotal,
         updateInvoiceNumber,
+        updateDocumentType,
+        updateEntryDate,
         saveBatch,
         isLoading,
-        clients
+        clients,
+        packingNumber,
+        setPackingNumber,
+        packingTotal,
+        setPackingTotal
     } = useReceptionBatch()
 
     const { user, hasPermission } = useAuth()
     const { showToast } = useToast()
-    const { data: bankAccounts = [] } = useBankAccountList()
     const [confirmOpen, setConfirmOpen] = useState(false)
-    const [paymentMethod, setPaymentMethod] = useState<'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE'>('EFECTIVO')
-    const [referenceNumber, setReferenceNumber] = useState('')
-    const [selectedBankId, setSelectedBankId] = useState('')
 
     const handleSaveRequest = () => {
         if (selectedOrders.length === 0) return
-
-        // Auto-select cash account for EFECTIVO
-        if (paymentMethod === 'EFECTIVO' && !selectedBankId) {
-            const cashAccount = bankAccounts.find(b => b.type === 'CASH')
-            if (cashAccount) {
-                setSelectedBankId(cashAccount.id)
-            }
-        }
-
         setConfirmOpen(true)
     }
 
@@ -71,29 +55,45 @@ export function ReceptionBatchPage() {
             showToast("No tienes permiso para confirmar recepciones", "error")
             return
         }
-        // Validate if there are payments to register
-        const totalAbono = selectedOrders.reduce((acc, o) => acc + o.abonoRecepcion, 0)
 
-        if (totalAbono > 0) {
-            // Validate payment method requirements
-            if (paymentMethod !== 'EFECTIVO' && !referenceNumber.trim()) {
-                showToast("Debe ingresar el número de referencia para este método de pago", "error")
+        // --- VALIDACIONES ---
+        if (!packingNumber.trim()) {
+            showToast("Debe ingresar el N° de Packing Empresa", "error")
+            return
+        }
+
+        if (packingTotal === undefined || packingTotal === null || isNaN(packingTotal)) {
+            showToast("Debe ingresar un valor válido para el packing", "error")
+            return
+        }
+
+        if (packingTotal < 0) {
+            showToast("El valor del packing no puede ser negativo", "error")
+            return
+        }
+
+        if (selectedOrders.length === 0) {
+            showToast("No hay pedidos seleccionados para recibir", "error")
+            return
+        }
+
+        // Validaciones por cada pedido
+        for (const item of selectedOrders) {
+            if (!item.finalInvoiceNumber.trim()) {
+                showToast(`Debe ingresar el número de factura para el pedido ${item.order.receiptNumber}`, "error")
                 return
             }
-
-            if (!selectedBankId) {
-                showToast("Debe seleccionar una cuenta bancaria", "error")
+            if (item.finalTotal < 0) {
+                showToast(`El valor de factura para el pedido ${item.order.receiptNumber} no puede ser negativo`, "error")
                 return
             }
         }
 
         try {
-            // Pass payment details to saveBatch
             const updatedOrders = await saveBatch.mutateAsync({
                 ordersToSave: selectedOrders,
-                paymentMethod: paymentMethod,
-                bankAccountId: selectedBankId,
-                referenceNumber: referenceNumber
+                packingNumber: packingNumber,
+                packingTotal: packingTotal
             });
 
             await generateOrderLabels({
@@ -108,17 +108,12 @@ export function ReceptionBatchPage() {
                     userName: user.username,
                     action: 'CONFIRM_RECEPTION',
                     module: 'reception',
-                    detail: `Procesó recepción de ${updatedOrders.length} pedidos. Total abonos: $${totalAbono.toFixed(2)}`
+                    detail: `Procesó recepción de ${updatedOrders.length} pedidos. Packing: ${packingNumber || 'N/A'}`
                 });
             }
 
             showToast(`Recepción de ${updatedOrders.length} pedidos procesada exitosamente. Etiquetas generadas.`, "success")
             setConfirmOpen(false)
-
-            // Reset payment fields
-            setPaymentMethod('EFECTIVO')
-            setReferenceNumber('')
-            setSelectedBankId('')
 
         } catch (error: any) {
             console.error("Error en recepción batch:", error)
@@ -135,10 +130,9 @@ export function ReceptionBatchPage() {
     }
 
     // Calculations for Dialog
-    const totalAbono = selectedOrders.reduce((acc, o) => acc + o.abonoRecepcion, 0);
     const totalInvoices = selectedOrders.reduce((sum, o) => sum + o.finalTotal, 0);
     const totalPrevPaid = selectedOrders.reduce((sum, o) => sum + (o.order.payments || []).reduce((acc, p) => acc + p.amount, 0), 0);
-    const globalRemaining = Math.max(0, totalInvoices - totalPrevPaid - totalAbono);
+    const globalRemaining = Math.max(0, totalInvoices - totalPrevPaid);
 
     return (
         <div className="h-[calc(100vh-70px)] w-full bg-slate-50 p-2 flex flex-col gap-2 overflow-hidden mx-auto">
@@ -187,7 +181,7 @@ export function ReceptionBatchPage() {
                             </span>
                         </div>
                         <div className="flex-1 overflow-hidden min-h-0 p-0">
-                            <PendingOrdersTable orders={pendingOrders} onMove={moveToSelected} clients={clients} />
+                            <PendingOrdersTable orders={pendingOrders} onMove={moveToSelected} />
                         </div>
                     </div>
 
@@ -200,25 +194,70 @@ export function ReceptionBatchPage() {
 
                     {/* Bottom Section: Target (Reception) - Takes remaining space */}
                     <div className="flex-1 flex flex-col bg-white rounded-lg border border-emerald-100 shadow-md ring-1 ring-emerald-500/10 overflow-hidden min-h-0 mt-1">
-                        <div className="p-2 border-b bg-emerald-50/30 flex justify-between items-center shrink-0">
-                            <h2 className="text-sm font-semibold text-emerald-800 flex items-center gap-2">
-                                <span className="bg-emerald-100 text-emerald-700 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold">2</span>
-                                Zona de Recepción
-                            </h2>
-                            <span className="text-xs font-mono bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
-                                {selectedOrders.length}
-                            </span>
+                        <div className="p-2 border-b bg-emerald-50/30 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shrink-0">
+                            <div className="flex items-center gap-2">
+                                <h2 className="text-sm font-semibold text-emerald-800 flex items-center gap-2">
+                                    <span className="bg-emerald-100 text-emerald-700 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold">2</span>
+                                    Zona de Recepción
+                                </h2>
+                                <span className="text-xs font-mono bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+                                    {selectedOrders.length}
+                                </span>
+                            </div>
+
+                            <div className="flex flex-1 flex-wrap gap-2 items-center justify-end w-full sm:w-auto">
+                                {/* Batch Packing Details */}
+                                <div className="flex gap-2 items-center">
+                                    <div className="flex flex-col gap-0.5">
+                                        <Label className="text-[10px] text-emerald-700 font-bold uppercase">N° Packing Empresa</Label>
+                                        <Input 
+                                            placeholder="P-000..." 
+                                            value={packingNumber}
+                                            onChange={(e) => setPackingNumber(e.target.value)}
+                                            className="h-7 text-xs w-28 bg-white border-emerald-200"
+                                        />
+                                    </div>
+                                    <div className="flex flex-col gap-0.5">
+                                        <Label className="text-[10px] text-emerald-700 font-bold uppercase">Valor Packing</Label>
+                                        <Input 
+                                            type="number"
+                                            placeholder="0.00" 
+                                            value={packingTotal || ''}
+                                            onChange={(e) => setPackingTotal(parseFloat(e.target.value) || 0)}
+                                            className="h-7 text-xs w-24 bg-white border-emerald-200 text-right font-mono"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-2 ml-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => moveToPending(selectedOrders.map(o => o.order.id))}
+                                        className="text-red-500 border-red-200 hover:bg-red-50 h-8 text-[10px]"
+                                    >
+                                        Limpiar
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        onClick={handleSaveRequest}
+                                        disabled={selectedOrders.length === 0 || saveBatch.isPending}
+                                        className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm h-8 text-[10px] px-3 font-bold"
+                                    >
+                                        {saveBatch.isPending ? "Guardando..." : "Confirmar Recepción"}
+                                    </Button>
+                                </div>
+                            </div>
                         </div>
                         <div className="flex-1 overflow-hidden min-h-0 relative">
-                            <SelectedOrdersTable
-                                orders={selectedOrders}
-                                onRemove={moveToPending}
-                                onUpdateAbono={updateAbono}
-                                onUpdateInvoiceTotal={updateInvoiceTotal}
-                                onUpdateInvoiceNumber={updateInvoiceNumber}
-                                onSave={handleSaveRequest}
-                                isSaving={saveBatch.isPending}
-                            />
+                        <SelectedOrdersTable
+                            orders={selectedOrders}
+                            onRemove={moveToPending}
+                            onUpdateInvoiceTotal={updateInvoiceTotal}
+                            onUpdateInvoiceNumber={updateInvoiceNumber}
+                            onUpdateDocumentType={updateDocumentType}
+                            onUpdateEntryDate={updateEntryDate}
+                        />
                         </div>
                     </div>
                 </TabsContent>
@@ -248,8 +287,8 @@ export function ReceptionBatchPage() {
                                 <span className="font-bold">${totalInvoices.toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between text-blue-600">
-                                <span>Total Abonos a Registrar:</span>
-                                <span className="font-bold">+ ${totalAbono.toFixed(2)}</span>
+                                <span>Abonado Previamente:</span>
+                                <span className="font-bold">${totalPrevPaid.toFixed(2)}</span>
                             </div>
                             <div className="pt-2 border-t flex justify-between font-bold text-slate-800">
                                 <span>Saldo Restante Global:</span>
@@ -258,72 +297,8 @@ export function ReceptionBatchPage() {
                         </div>
 
                         {/* Payment Details - Only show if there are payments to register */}
-                        {totalAbono > 0 && (
-                            <div className="space-y-3 p-4 bg-blue-50/50 rounded-md border border-blue-100">
-                                <h4 className="font-semibold text-sm text-blue-900">Detalles del Abono</h4>
-
-                                {/* Payment Method */}
-                                <div className="space-y-2">
-                                    <Label htmlFor="paymentMethod" className="text-xs">Método de Pago</Label>
-                                    <Select value={paymentMethod} onValueChange={(v: any) => setPaymentMethod(v)}>
-                                        <SelectTrigger id="paymentMethod" className="bg-white">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="EFECTIVO">Efectivo</SelectItem>
-                                            <SelectItem value="TRANSFERENCIA">Transferencia</SelectItem>
-                                            <SelectItem value="DEPOSITO">Depósito</SelectItem>
-                                            <SelectItem value="CHEQUE">Cheque</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                {/* Bank Account */}
-                                <div className="space-y-2">
-                                    <Label htmlFor="bankAccount" className="text-xs">Cuenta Bancaria</Label>
-                                    <Select value={selectedBankId} onValueChange={setSelectedBankId}>
-                                        <SelectTrigger id="bankAccount" className="bg-white">
-                                            <SelectValue placeholder="Seleccione cuenta..." />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {bankAccounts
-                                                .filter(b => {
-                                                    if (!b.isActive) return false;
-                                                    if (paymentMethod === 'EFECTIVO') return b.type === 'CASH';
-                                                    if (['TRANSFERENCIA', 'DEPOSITO'].includes(paymentMethod)) return b.type === 'BANK';
-                                                    if (paymentMethod === 'CHEQUE') return true;
-                                                    return true;
-                                                })
-                                                .map(account => (
-                                                    <SelectItem key={account.id} value={account.id}>
-                                                        {account.name} ({account.type === 'CASH' ? 'Efectivo' : 'Banco'})
-                                                    </SelectItem>
-                                                ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                {/* Reference Number - Only for non-cash */}
-                                {paymentMethod !== 'EFECTIVO' && (
-                                    <div className="space-y-2">
-                                        <Label htmlFor="reference" className="text-xs">
-                                            Número de Referencia / Comprobante *
-                                        </Label>
-                                        <Input
-                                            id="reference"
-                                            value={referenceNumber}
-                                            onChange={(e) => setReferenceNumber(e.target.value)}
-                                            placeholder="Ej: 123456789"
-                                            className="bg-white"
-                                        />
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
                         <p className="text-xs text-muted-foreground">
                             Se generarán etiquetas PDF y se actualizarán los saldos.
-                            {totalAbono > 0 && ' El abono se registrará en el sistema financiero.'}
                             <br />Si se generan saldos a favor, se crearán los créditos automáticamente.
                         </p>
                     </div>

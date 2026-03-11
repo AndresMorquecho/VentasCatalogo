@@ -106,10 +106,11 @@ const styles = StyleSheet.create({
         color: '#475569',
     },
     // Column widths
-    colDate: { width: '20%' },
-    colMethod: { width: '25%' },
-    colRef: { width: '30%' },
-    colAmount: { width: '25%', textAlign: 'right', borderRightWidth: 0 },
+    colNum: { width: '15%' },
+    colDate: { width: '25%' },
+    colMethod: { width: '20%' },
+    colRef: { width: '25%' },
+    colAmount: { width: '15%', textAlign: 'right', borderRightWidth: 0 },
 
     totalSection: {
         marginTop: 10,
@@ -208,7 +209,8 @@ export const PaymentReceiptDocument = ({ order, payments, userName }: Props) => 
 
                 <View style={styles.table}>
                     <View style={[styles.tableRow, styles.tableHeaderRow]}>
-                        <View style={[styles.tableCol, styles.colDate]}><Text style={styles.tableHeaderCell}>Fecha</Text></View>
+                        <View style={[styles.tableCol, styles.colNum]}><Text style={styles.tableHeaderCell}>N° Abono</Text></View>
+                        <View style={[styles.tableCol, styles.colDate]}><Text style={styles.tableHeaderCell}>Fecha / Hora</Text></View>
                         <View style={[styles.tableCol, styles.colMethod]}><Text style={styles.tableHeaderCell}>Método</Text></View>
                         <View style={[styles.tableCol, styles.colRef]}><Text style={styles.tableHeaderCell}>Referencia</Text></View>
                         <View style={[styles.tableCol, styles.colAmount]}><Text style={styles.tableHeaderCell}>Monto</Text></View>
@@ -216,7 +218,18 @@ export const PaymentReceiptDocument = ({ order, payments, userName }: Props) => 
                     {payments.length > 0 ? (
                         payments.map((p, i) => (
                             <View style={styles.tableRow} key={i}>
-                                <View style={[styles.tableCol, styles.colDate]}><Text style={styles.tableCell}>{new Date(p.date).toLocaleDateString()}</Text></View>
+                                <View style={[styles.tableCol, styles.colNum]}><Text style={styles.tableCell}>{p.receiptNumber || '-'}</Text></View>
+                                <View style={[styles.tableCol, styles.colDate]}>
+                                    <Text style={styles.tableCell}>
+                                        {new Date(p.date || p.createdAt).toLocaleString('es-EC', { 
+                                            day: '2-digit', 
+                                            month: '2-digit', 
+                                            year: 'numeric',
+                                            hour: '2-digit',
+                                            minute: '2-digit'
+                                        })}
+                                    </Text>
+                                </View>
                                 <View style={[styles.tableCol, styles.colMethod]}><Text style={styles.tableCell}>{p.method}</Text></View>
                                 <View style={[styles.tableCol, styles.colRef]}><Text style={styles.tableCell}>{p.reference || '-'}</Text></View>
                                 <View style={[styles.tableCol, styles.colAmount]}><Text style={[styles.tableCell, { fontWeight: 'bold' }]}>${p.amount.toFixed(2)}</Text></View>

@@ -26,11 +26,15 @@ export const receptionService = {
         order: any;
         abonoRecepcion: number;
         finalTotal: number;
-        finalInvoiceNumber: string
+        finalInvoiceNumber: string;
+        documentType?: string;
+        entryDate?: string;
       }[],
       paymentMethod?: string,
       bankAccountId?: string,
-      referenceNumber?: string
+      referenceNumber?: string;
+      packingNumber?: string;
+      packingTotal?: number;
     }
   ): Promise<Order[]> => {
     // Transform from component format to API format
@@ -39,17 +43,27 @@ export const receptionService = {
       abonoRecepcion: so.abonoRecepcion,
       finalTotal: so.finalTotal,
       finalInvoiceNumber: so.finalInvoiceNumber,
+      documentType: so.documentType || "FACTURA",
+      entryDate: so.entryDate || new Date().toISOString(),
       paymentMethod: params.paymentMethod,
       bankAccountId: params.bankAccountId,
       referenceNumber: params.referenceNumber
     }));
 
-    const response = await orderApi.batchReception(items);
+    const response = await orderApi.batchReception(items, { 
+      packingNumber: params.packingNumber, 
+      packingTotal: params.packingTotal 
+    });
 
     // Backend returns { success: [{data: Order}], errors: [], summary: {} }
-    // Extract the actual Order objects from the nested structure
     if (response && typeof response === 'object' && 'success' in response) {
       const batchResponse = response as any;
+      
+      if (batchResponse.errors && batchResponse.errors.length > 0) {
+        const errorMsgs = batchResponse.errors.map((e: any) => e.message).join(", ");
+        throw new Error(`Error en algunos pedidos: ${errorMsgs}`);
+      }
+
       return batchResponse.success.map((item: any) => item.data);
     }
 

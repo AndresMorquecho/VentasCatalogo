@@ -20,7 +20,8 @@ interface Props {
 
 export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
     const { registerPayment } = usePaymentOperations();
-    const { data: bankAccounts = [] } = useBankAccountList();
+    const { data: bankAccountsResponse } = useBankAccountList();
+    const bankAccounts = bankAccountsResponse?.data || [];
     const { data: credits = [] } = useClientCredits(order?.clientId || "");
     const [amount, setAmount] = useState<number>(0);
     const [creditToUse, setCreditToUse] = useState<number>(0);
@@ -61,25 +62,32 @@ export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (amount <= 0 && creditToUse <= 0) {
+        // Basic numeric validations
+        if (isNaN(amount) || isNaN(creditToUse)) {
+            notifyError({ message: "Los montos deben ser valores numéricos válidos." });
+            return;
+        }
+
+        if (amount < 0 || creditToUse < 0) {
+            notifyError({ message: "Los montos no pueden ser negativos." });
+            return;
+        }
+
+        if (amount === 0 && creditToUse === 0) {
             notifyError({ message: "Debes ingresar un monto manual o usar saldo a favor." });
+            return;
+        }
+
+        const totalToPay = amount + creditToUse;
+        
+        // Strict check: cannot pay more than pending balance (user request)
+        if (totalToPay > (pendingBalance + 0.01)) {
+            notifyError({ message: `El abono ($${totalToPay.toFixed(2)}) no puede superar el saldo pendiente ($${pendingBalance.toFixed(2)}).` });
             return;
         }
 
         if (amount > 0 && !bankAccountId) {
             notifyError({ message: "Debes seleccionar una cuenta para el abono manual." });
-            return;
-        }
-
-        if (amount + creditToUse > pendingBalance && creditToUse > 0) {
-            // Cannot use credit to overpay
-            if (amount < pendingBalance) {
-                // Adjust creditToUse
-                setCreditToUse(pendingBalance - amount);
-            } else {
-                setCreditToUse(0);
-            }
-            notifyError({ message: "No puedes usar saldo a favor si el monto supera el pendiente." });
             return;
         }
 

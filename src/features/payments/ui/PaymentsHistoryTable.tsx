@@ -9,6 +9,7 @@ interface Payment {
     date: string;
     method: string;
     reference?: string;
+    receiptNumber?: string;
 }
 
 interface Props {
@@ -31,7 +32,8 @@ export function PaymentsHistoryTable({ payments, onDelete, readOnly = false }: P
             <Table>
                 <TableHeader className="bg-slate-50">
                     <TableRow>
-                        <TableHead className="w-[100px]">Fecha</TableHead>
+                        <TableHead className="w-[80px]">N° Abono</TableHead>
+                        <TableHead className="w-[140px]">Fecha / Hora</TableHead>
                         <TableHead>Método</TableHead>
                         <TableHead>Referencia</TableHead>
                         <TableHead className="text-right">Monto</TableHead>
@@ -41,8 +43,17 @@ export function PaymentsHistoryTable({ payments, onDelete, readOnly = false }: P
                 <TableBody>
                     {payments.map((p) => (
                         <TableRow key={p.id}>
-                            <TableCell className="font-mono text-xs">
-                                {new Date(p.date).toLocaleDateString('es-EC')}
+                            <TableCell className="font-bold text-emerald-700 text-xs">
+                                {p.receiptNumber || '-'}
+                            </TableCell>
+                            <TableCell className="font-mono text-[10px] text-slate-500">
+                                {new Date(p.date).toLocaleString('es-EC', { 
+                                    year: 'numeric', 
+                                    month: '2-digit', 
+                                    day: '2-digit',
+                                    hour: '2-digit', 
+                                    minute: '2-digit'
+                                })}
                             </TableCell>
                             <TableCell>
                                 <Badge variant="outline" className="text-[10px] font-bold">

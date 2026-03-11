@@ -5,6 +5,7 @@ import { canDeleteClient } from "@/entities/client/model/model";
 import type { Client } from "@/entities/client/model/types";
 import { ClientTable } from "./ClientTable";
 import { ClientForm } from "./ClientForm";
+import { ClientDetailModal } from "./ClientDetailModal";
 import { Input } from "@/shared/ui/input";
 import { Button } from "@/shared/ui/button";
 import { AlertCircle, Plus, RotateCw, Search } from "lucide-react";
@@ -42,7 +43,9 @@ export function ClientList() {
     const deleteClientMutation = useDeleteClient();
 
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+    const [viewingClient, setViewingClient] = useState<Client | null>(null);
     const [isFormOpen, setIsFormOpen] = useState(false);
+    const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState<Client | null>(null);
     const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -70,6 +73,11 @@ export function ClientList() {
         }
         setSelectedClient(client);
         setIsFormOpen(true);
+    };
+
+    const handleView = (client: Client) => {
+        setViewingClient(client);
+        setIsDetailOpen(true);
     };
 
     const handleDeleteRequest = (client: Client) => {
@@ -186,6 +194,7 @@ export function ClientList() {
                 clients={clients}
                 isLoading={isLoading}
                 onEdit={handleEdit}
+                onView={handleView}
                 onDelete={handleDeleteRequest}
             />
 
@@ -193,6 +202,12 @@ export function ClientList() {
                 client={selectedClient}
                 open={isFormOpen}
                 onOpenChange={setIsFormOpen}
+            />
+
+            <ClientDetailModal
+                client={viewingClient}
+                open={isDetailOpen}
+                onOpenChange={setIsDetailOpen}
             />
 
             {pagination && (

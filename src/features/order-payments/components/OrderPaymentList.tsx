@@ -26,7 +26,8 @@ interface OrderPaymentListProps {
 }
 
 export function OrderPaymentList({ order, readOnly = false }: OrderPaymentListProps) {
-    const { data: bankAccounts = [] } = useBankAccountList()
+    const { data: bankAccountsResponse } = useBankAccountList()
+    const bankAccounts = bankAccountsResponse?.data || []
     const removePayment = useRemoveOrderPayment()
 
     const [selectedPayment, setSelectedPayment] = useState<OrderPayment | undefined>(undefined)

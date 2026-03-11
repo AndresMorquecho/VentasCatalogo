@@ -11,6 +11,7 @@ import { generatePaymentReceipt } from "@/features/payment-receipt/lib/generateP
 import { useAuth } from "@/shared/auth";
 
 import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/tabs";
+import { ConfirmDialog } from "@/shared/ui/confirm-dialog";
 
 export function PaymentsPage() {
     const { orders, searchOrders, loading } = usePaymentSearch();
@@ -22,6 +23,8 @@ export function PaymentsPage() {
     const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState("pending");
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+    const [paymentToDelete, setPaymentToDelete] = useState<string | null>(null);
 
     // Filter Logic
     const filteredOrders = useMemo(() => {
@@ -53,19 +56,24 @@ export function PaymentsPage() {
         setIsPaymentModalOpen(false);
     };
 
-    const handleDeletePayment = async (paymentId: string) => {
+    const handleDeletePayment = (paymentId: string) => {
         if (!hasPermission('payments.delete')) {
             showToast("No tienes permiso para eliminar abonos", "error");
             return;
         }
-        if (!confirm("¿Está seguro de eliminar este abono? Esta acción revertirá el saldo y la caja.")) return;
+        setPaymentToDelete(paymentId);
+        setDeleteConfirmOpen(true);
+    };
+
+    const confirmDeletePayment = async () => {
+        if (!paymentToDelete || !selectedOrderId) return;
         try {
-            if (selectedOrderId) {
-                await revertPayment.mutateAsync({ orderId: selectedOrderId, paymentId });
-                showToast("Abono eliminado y saldo revertido.", "info");
-            }
+            await revertPayment.mutateAsync({ orderId: selectedOrderId, paymentId: paymentToDelete });
+            showToast("Abono eliminado y saldo revertido.", "info");
         } catch (e) {
             showToast("Error al eliminar abono", "error");
+        } finally {
+            setPaymentToDelete(null);
         }
     };
 
@@ -129,8 +137,25 @@ export function PaymentsPage() {
                                     >
                                         <div className="flex justify-between items-start mb-2">
                                             <div>
-                                                <span className="font-bold text-slate-700 block text-lg">#{order.receiptNumber}</span>
-                                                <span className="text-sm text-slate-500">{order.clientName}</span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-bold text-slate-700 block text-lg">#{order.receiptNumber}</span>
+                                                    {order.orderNumber && (
+                                                        <Badge variant="outline" className="text-[10px] py-0 px-1 border-slate-300 text-slate-500">
+                                                            N°: {order.orderNumber}
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center gap-1 mt-1">
+                                                    <span className="text-sm text-slate-600 font-bold uppercase">{order.brandName}</span>
+                                                    <Badge variant="outline" className={`text-[9px] px-1 py-0 h-4 border-none ${
+                                                        order.type === 'NORMAL' ? 'bg-blue-50 text-blue-600' :
+                                                        order.type === 'PREVENTA' ? 'bg-amber-50 text-amber-600' :
+                                                        'bg-purple-50 text-purple-600'
+                                                    }`}>
+                                                        {order.type}
+                                                    </Badge>
+                                                </div>
+                                                <span className="text-xs text-slate-400 mt-0.5 block">{order.clientName}</span>
                                             </div>
                                             <Badge variant={isPaid ? "default" : "destructive"} className={isPaid ? "bg-emerald-100 text-emerald-700" : ""}>
                                                 {isPaid ? "PAGADO" : "PENDIENTE"}
@@ -234,11 +259,14 @@ export function PaymentsPage() {
                                     </span>
                                 </h3>
                                 <PaymentsHistoryTable
-                                    payments={(selectedOrder.payments || []).map(p => ({
-                                        ...p,
-                                        date: p.createdAt,
-                                        method: p.method || 'DESCONOCIDO'
-                                    }))}
+                                    payments={selectedOrder.payments.map((p: any) => ({
+                                    id: p.id,
+                                    amount: p.amount,
+                                    date: p.createdAt,
+                                    method: p.method,
+                                    reference: p.reference,
+                                    receiptNumber: p.receiptNumber
+                                }))}
                                     onDelete={handleDeletePayment}
                                 />
                             </div>
@@ -252,6 +280,16 @@ export function PaymentsPage() {
                                     onSuccess={handlePaymentSuccess}
                                 />
                             )}
+                            
+                            <ConfirmDialog
+                                open={deleteConfirmOpen}
+                                onOpenChange={setDeleteConfirmOpen}
+                                onConfirm={confirmDeletePayment}
+                                title="Eliminar Abono"
+                                description="¿Está seguro de eliminar este abono? Esta acción revertirá el saldo del pedido y descontará el monto de la caja."
+                                confirmText="Eliminar"
+                                variant="destructive"
+                            />
                         </div>
                     ) : (
                         <div className="h-full flex flex-col items-center justify-center text-slate-400 border-2 border-dashed rounded-xl bg-slate-50 min-h-[400px]">

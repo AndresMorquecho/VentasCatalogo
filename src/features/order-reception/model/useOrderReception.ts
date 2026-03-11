@@ -13,8 +13,9 @@ export const useOrderReceptionList = (filters?: ReceptionFilters) => {
     return useQuery({
         queryKey: ['orders', 'reception-list', filters],
         queryFn: async () => {
-            const allOrders = await orderApi.getAll();
-            let filtered = allOrders.filter((o: Order) =>
+            const response = await orderApi.getAll();
+            const orders = response.data || [];
+            let filtered = orders.filter((o: Order) =>
                 o.status === 'POR_RECIBIR' || o.status === 'ATRASADO' || (o.status === 'RECIBIDO_EN_BODEGA' && !o.deliveryDate)
             );
 
@@ -47,10 +48,11 @@ export const useOrderReceptionHistory = (filters?: ReceptionFilters) => {
     return useQuery({
         queryKey: ['orders', 'reception-history', filters],
         queryFn: async () => {
-            const allOrders = await orderApi.getAll();
+            const response = await orderApi.getAll();
+            const orders = response.data || [];
             // History: Recibidos en bodega o entregados (ya pasaron por recepción)
             // Y que tengan fecha de recepción
-            let filtered = allOrders.filter((o: Order) =>
+            let filtered = orders.filter((o: Order) =>
                 (o.status === 'RECIBIDO_EN_BODEGA' || o.status === 'ENTREGADO') &&
                 o.receptionDate
             );

@@ -42,7 +42,8 @@ export const orderApi = {
      * @endpoint GET /api/orders?clientId=:clientId
      */
     getByClient: async (clientId: string): Promise<Order[]> => {
-        return httpClient.get<Order[]>(`/orders?clientId=${clientId}`);
+        const response = await httpClient.get<any>(`/orders?clientId=${clientId}`);
+        return (response && 'data' in response && 'pagination' in response) ? response.data : response;
     },
 
     /**
@@ -50,7 +51,8 @@ export const orderApi = {
      * @endpoint GET /api/orders?status=:status
      */
     getByStatus: async (status: string): Promise<Order[]> => {
-        return httpClient.get<Order[]>(`/orders?status=${status}`);
+        const response = await httpClient.get<any>(`/orders?status=${status}`);
+        return (response && 'data' in response && 'pagination' in response) ? response.data : response;
     },
 
     create: async (payload: OrderPayload): Promise<Order> => {
@@ -178,12 +180,17 @@ export const orderApi = {
             abonoRecepcion: number;
             finalTotal: number;
             finalInvoiceNumber: string;
+            documentType?: string;
+            entryDate?: string;
+            packingNumber?: string;
+            packingTotal?: number;
             paymentMethod?: string;
             bankAccountId?: string;
             referenceNumber?: string;
-        }[]
+        }[],
+        batchDetails?: { packingNumber?: string, packingTotal?: number }
     ): Promise<Order[]> => {
-        return httpClient.post<Order[]>('/orders/batch-reception', { items });
+        return httpClient.post<Order[]>('/orders/batch-reception', { items, ...batchDetails });
     },
 
     /**
@@ -216,7 +223,8 @@ export const orderApi = {
      * @endpoint GET /api/orders?status=RECIBIDO_EN_BODEGA
      */
     getDeliveryList: async (): Promise<Order[]> => {
-        return httpClient.get<Order[]>('/orders?status=RECIBIDO_EN_BODEGA');
+        const response = await httpClient.get<any>('/orders?status=RECIBIDO_EN_BODEGA');
+        return (response && 'data' in response && 'pagination' in response) ? response.data : response;
     },
 
     /**
@@ -224,7 +232,8 @@ export const orderApi = {
      * @endpoint GET /api/orders?status=ENTREGADO
      */
     getDeliveryHistory: async (): Promise<Order[]> => {
-        return httpClient.get<Order[]>('/orders?status=ENTREGADO');
+        const response = await httpClient.get<any>('/orders?status=ENTREGADO');
+        return (response && 'data' in response && 'pagination' in response) ? response.data : response;
     },
 
     /**

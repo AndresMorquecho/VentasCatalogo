@@ -11,6 +11,8 @@ export type SelectedOrderState = {
     abonoRecepcion: number;
     finalTotal: number;
     finalInvoiceNumber: string;
+    documentType: string;
+    entryDate: string;
 }
 
 export function useReceptionBatch() {
@@ -21,8 +23,17 @@ export function useReceptionBatch() {
     const clients = clientsResponse?.data || [];
     const qc = useQueryClient();
 
-    // Map OrderID -> { abono, total, invoiceNumber }
-    const [selectionMap, setSelectionMap] = useState<Record<string, { abono: number, total: number, invoice: string }>>({});
+    const [packingNumber, setPackingNumber] = useState("");
+    const [packingTotal, setPackingTotal] = useState(0);
+
+    // Map OrderID -> { abono, total, invoiceNumber, documentType, entryDate }
+    const [selectionMap, setSelectionMap] = useState<Record<string, { 
+        abono: number, 
+        total: number, 
+        invoice: string,
+        documentType: string,
+        entryDate: string
+    }>>({});
 
     const selectedIds = useMemo(() => new Set(Object.keys(selectionMap)), [selectionMap]);
 
@@ -39,7 +50,9 @@ export function useReceptionBatch() {
                 order: o,
                 abonoRecepcion: selectionMap[o.id]?.abono ?? 0,
                 finalTotal: selectionMap[o.id]?.total ?? (o.realInvoiceTotal || o.total),
-                finalInvoiceNumber: selectionMap[o.id]?.invoice ?? (o.invoiceNumber || o.receiptNumber) // Default to receipt if no invoice
+                finalInvoiceNumber: selectionMap[o.id]?.invoice ?? (o.invoiceNumber || o.receiptNumber),
+                documentType: selectionMap[o.id]?.documentType ?? "FACTURA",
+                entryDate: selectionMap[o.id]?.entryDate ?? new Date().toISOString().split('T')[0]
             }));
     }, [allOrders, selectedIds, selectionMap]);
 
@@ -51,9 +64,11 @@ export function useReceptionBatch() {
                 if (order && !next[id]) {
                     // Initialize with defaults
                     next[id] = {
-                        abono: 0, // Default abono 0 (user must enter)
+                        abono: 0,
                         total: order.realInvoiceTotal || order.total,
-                        invoice: order.invoiceNumber || "" // Empty initially unless set
+                        invoice: order.invoiceNumber || "",
+                        documentType: "FACTURA",
+                        entryDate: new Date().toISOString().split('T')[0]
                     };
                 }
             });
@@ -82,6 +97,20 @@ export function useReceptionBatch() {
         });
     };
 
+    const updateDocumentType = (id: string, value: string) => {
+        setSelectionMap(prev => {
+            if (!prev[id]) return prev;
+            return { ...prev, [id]: { ...prev[id], documentType: value } };
+        });
+    };
+
+    const updateEntryDate = (id: string, value: string) => {
+        setSelectionMap(prev => {
+            if (!prev[id]) return prev;
+            return { ...prev, [id]: { ...prev[id], entryDate: value } };
+        });
+    };
+
     const moveToPending = (ids: string[]) => {
         setSelectionMap(prev => {
             const next = { ...prev };
@@ -97,7 +126,9 @@ export function useReceptionBatch() {
             ordersToSave: SelectedOrderState[],
             paymentMethod?: string,
             bankAccountId?: string,
-            referenceNumber?: string
+            referenceNumber?: string,
+            packingNumber?: string,
+            packingTotal?: number
         }) => {
             if (params.ordersToSave.length === 0) throw new Error("No hay órdenes seleccionadas");
             // Call API with the enriched payload
@@ -105,7 +136,9 @@ export function useReceptionBatch() {
                 selectedOrders: params.ordersToSave,
                 paymentMethod: params.paymentMethod,
                 bankAccountId: params.bankAccountId,
-                referenceNumber: params.referenceNumber
+                referenceNumber: params.referenceNumber,
+                packingNumber: params.packingNumber,
+                packingTotal: params.packingTotal
             });
         },
         onSuccess: () => {
@@ -125,9 +158,15 @@ export function useReceptionBatch() {
         updateAbono,
         updateInvoiceTotal,
         updateInvoiceNumber,
+        updateDocumentType,
+        updateEntryDate,
         clearSelection,
         saveBatch,
         isLoading,
-        clients
+        clients,
+        packingNumber,
+        setPackingNumber,
+        packingTotal,
+        setPackingTotal
     };
 }

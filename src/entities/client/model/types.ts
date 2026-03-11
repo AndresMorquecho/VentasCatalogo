@@ -24,6 +24,7 @@ export interface Client {
     referredById?: string;
     lastDataUpdate?: string;
     lastOrderDate?: string;
+    lastBrandName?: string;
     isBlocked: boolean;
     paymentPreference: string;
 

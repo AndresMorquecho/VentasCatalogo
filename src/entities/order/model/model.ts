@@ -80,8 +80,8 @@ export function receiveOrder(order: Order, realInvoiceTotal: number, invoiceNumb
         throw new Error("El pedido ya fue recibido anteriormente");
     }
 
-    if (typeof realInvoiceTotal !== 'number' || !Number.isFinite(realInvoiceTotal) || realInvoiceTotal <= 0) {
-        throw new Error("El valor real de factura debe ser un número positivo válido");
+    if (typeof realInvoiceTotal !== 'number' || !Number.isFinite(realInvoiceTotal) || realInvoiceTotal < 0) {
+        throw new Error("El valor real de factura debe ser un número válido (mayor o igual a 0)");
     }
 
     // NO validar que realInvoiceTotal >= paidAmount

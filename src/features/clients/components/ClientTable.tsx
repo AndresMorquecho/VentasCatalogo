@@ -8,7 +8,7 @@ import {
     TableRow,
 } from "@/shared/ui/table";
 import { Button } from "@/shared/ui/button";
-import { Pencil, Trash2, Download, Filter, Phone } from "lucide-react";
+import { Pencil, Trash2, Download, Filter, Phone, Eye } from "lucide-react";
 import type { Client } from "@/entities/client/model/types";
 import { cn } from "@/shared/lib/utils";
 import { format, differenceInDays } from "date-fns";
@@ -18,10 +18,11 @@ interface ClientTableProps {
     clients: Client[];
     isLoading: boolean;
     onEdit: (client: Client) => void;
+    onView: (client: Client) => void;
     onDelete: (client: Client) => void;
 }
 
-export function ClientTable({ clients, isLoading, onEdit, onDelete }: ClientTableProps) {
+export function ClientTable({ clients, isLoading, onEdit, onView, onDelete }: ClientTableProps) {
     const exportToExcel = () => {
         const dataToExport = clients.map(client => ({
             "Cédula/Documento": client.identificationNumber,
@@ -130,12 +131,28 @@ export function ClientTable({ clients, isLoading, onEdit, onDelete }: ClientTabl
                                         </TableCell>
                                         <TableCell className="text-xs sm:text-sm whitespace-nowrap">
                                             {client.lastOrderDate
-                                                ? format(new Date(client.lastOrderDate), "dd/MM/yyyy")
+                                                ? <div className="flex flex-col">
+                                                    <span>{format(new Date(client.lastOrderDate), "dd/MM/yyyy")}</span>
+                                                    {client.lastBrandName && (
+                                                        <span className="text-[10px] font-bold text-primary uppercase leading-tight">
+                                                            {client.lastBrandName}
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 : <span className="text-muted-foreground italic">Ninguno</span>
                                             }
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex justify-end gap-0.5 sm:gap-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => onView(client)}
+                                                    title="Ver Detalle"
+                                                    className="h-7 w-7 sm:h-8 sm:w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                >
+                                                    <Eye className="h-3 w-3 sm:h-4 sm:w-4" />
+                                                </Button>
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"

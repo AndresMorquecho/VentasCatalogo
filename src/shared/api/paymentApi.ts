@@ -28,6 +28,7 @@ export const paymentApi = {
     },
 
     revertPayment: async (orderId: string, paymentId: string): Promise<void> => {
-        return httpClient.delete<void>(`/orders/${orderId}/payments/${paymentId}`);
+        // The backend expects DELETE /payments/:paymentId
+        return httpClient.delete<void>(`/payments/${paymentId}`);
     }
 };
