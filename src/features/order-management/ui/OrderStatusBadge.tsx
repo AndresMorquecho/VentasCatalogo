@@ -6,21 +6,9 @@ interface OrderStatusBadgeProps {
 }
 
 const STATUS_CONFIG: Record<OrderStatus, { label: string; className: string }> = {
-    RECIBIDO: {
-        label: "Recibido",
-        className: "bg-emerald-100 text-emerald-800 border border-emerald-300"
-    },
     POR_RECIBIR: {
         label: "Por Recibir",
         className: "bg-amber-100 text-amber-800 border border-amber-300"
-    },
-    ATRASADO: {
-        label: "Atrasado",
-        className: "bg-red-100 text-red-700 border border-red-300"
-    },
-    CANCELADO: {
-        label: "Cancelado",
-        className: "bg-gray-100 text-gray-600 border border-gray-300"
     },
     RECIBIDO_EN_BODEGA: {
         label: "En Bodega",

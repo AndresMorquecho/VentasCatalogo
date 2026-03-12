@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { Label } from '@/shared/ui/label';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, Phone } from 'lucide-react';
 import { useCalls } from '../model/hooks';
 import { CallFormModal } from './CallFormModal';
 import { CallsTable } from './CallsTable';
 import { useDebounce } from '@/shared/lib/hooks';
 import { Pagination } from '@/shared/ui/pagination';
+import { PageHeader } from '@/shared/ui/PageHeader';
 
 import {
     CALL_REASONS,
@@ -60,16 +61,17 @@ export function CallsPage() {
     };
 
     return (
-        <div className="space-y-6 container mx-auto p-4 md:p-8">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Registro de Llamadas</h1>
-                    <p className="text-muted-foreground">Gestiona y consulta el historial de llamadas a clientes.</p>
-                </div>
-                <Button onClick={handleCreate}>
-                    <Plus className="mr-2 h-4 w-4" /> Nueva Llamada
-                </Button>
-            </div>
+        <div className="space-y-6">
+            <PageHeader 
+                title="Registro de Llamadas" 
+                description="Gestiona y consulta el historial de llamadas a clientes"
+                icon={Phone}
+                actions={
+                    <Button onClick={handleCreate}>
+                        <Plus className="mr-2 h-4 w-4" /> Nueva Llamada
+                    </Button>
+                }
+            />
 
             <div className="bg-card rounded-lg border p-4 shadow-sm">
                 <div className="grid gap-4 md:grid-cols-4 items-end">

@@ -6,6 +6,7 @@ import { RoleList } from './RoleList';
 import { AuditLog } from './AuditLog';
 import { useAuth } from '@/shared/auth';
 import { Navigate } from 'react-router-dom';
+import { PageHeader } from '@/shared/ui/PageHeader';
 
 type Tab = 'users' | 'roles' | 'audit';
 
@@ -24,12 +25,11 @@ export function AdminUsersPage() {
 
     return (
         <div className="p-6 space-y-6 bg-white min-h-screen">
-            <div className="mb-2 px-1">
-                <div className="space-y-1 sm:space-y-2">
-                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Usuarios y Roles</h1>
-                    <h2 className="text-base font-medium text-muted-foreground tracking-tight">Administra el acceso y los permisos del sistema.</h2>
-                </div>
-            </div>
+            <PageHeader 
+                title="Usuarios y Roles" 
+                description="Administra el acceso y los permisos del sistema"
+                icon={Users}
+            />
 
             {/* Tabs */}
             <div className="bg-white rounded-xl border border-slate-200 p-1 flex gap-1 w-fit shadow-sm">

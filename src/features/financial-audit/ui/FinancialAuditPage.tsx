@@ -1,5 +1,6 @@
 import { useFinancialAudit } from '../model/useFinancialAudit';
-import { AlertTriangle, CheckCircle2, TrendingUp } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, TrendingUp, Calculator } from 'lucide-react';
+import { PageHeader } from '@/shared/ui/PageHeader';
 import {
     Table,
     TableBody,
@@ -40,13 +41,11 @@ export function FinancialAuditPage() {
 
     return (
         <div className="space-y-6 p-6">
-            {/* Header */}
-            <div className="border-b pb-4">
-                <div className="space-y-1 sm:space-y-2 px-1 mb-2">
-                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Auditoría Financiera</h1>
-                    <h2 className="text-base font-medium text-muted-foreground tracking-tight">Reconciliación de balances calculados vs reportados</h2>
-                </div>
-            </div>
+            <PageHeader 
+                title="Auditoría Financiera" 
+                description="Reconciliación de balances calculados vs reportados"
+                icon={Calculator}
+            />
 
             {/* Status Card */}
             <div className={`p-6 rounded-xl border-2 ${hasIssues ? 'bg-red-50 border-red-300' : 'bg-green-50 border-green-300'}`}>

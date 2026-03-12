@@ -12,11 +12,8 @@ interface OrderFiltersProps {
 const FILTERS: { value: OrderFilterType; label: string }[] = [
     { value: 'ALL', label: 'Todos' },
     { value: 'POR_RECIBIR', label: 'Por Recibir' },
-    { value: 'RECIBIDO', label: 'Recibido' },
     { value: 'RECIBIDO_EN_BODEGA', label: 'En Bodega' },
     { value: 'ENTREGADO', label: 'Entregados' },
-    { value: 'ATRASADO', label: 'Atrasado' },
-    { value: 'CANCELADO', label: 'Cancelado' },
 ]
 
 export function OrderFilters({ statusFilter, onStatusChange, searchQuery, onSearchChange }: OrderFiltersProps) {

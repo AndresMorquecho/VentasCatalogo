@@ -51,7 +51,7 @@ function CollapsibleHeader() {
             >
                 {/* Banner ocupa todo el espacio disponible */}
                 <img
-                    src="/images/BannerHeader.png"
+                    src="/images/BannerHeader.jpg"
                     alt="TEMU Manager"
                     style={{
                         flex: 1,

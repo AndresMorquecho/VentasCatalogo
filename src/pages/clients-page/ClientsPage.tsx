@@ -1,9 +1,15 @@
 import { ClientList } from "@/features/clients";
+import { PageHeader } from "@/shared/ui/PageHeader";
+import { Users } from "lucide-react";
 
 export default function ClientsPage() {
     return (
-        <div className="space-y-1 sm:space-y-2">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Empresarias</h1>
+        <div className="space-y-6">
+            <PageHeader 
+                title="Empresarias" 
+                description="Gestiona tu red de empresarias y clientes"
+                icon={Users}
+            />
             <ClientList />
         </div>
     );

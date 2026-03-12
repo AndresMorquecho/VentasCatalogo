@@ -1,126 +1,85 @@
 import { useState, useMemo } from "react"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table"
-import { Button } from "@/shared/ui/button"
+import { Search, RotateCcw, X, Edit, Trash2, AlertCircle } from "lucide-react"
 import { Input } from "@/shared/ui/input"
-import { useToast } from "@/shared/ui/use-toast"
-import { generateOrderLabels } from "@/features/order-labels/lib/generateOrderLabels"
-import { Search, Printer, RotateCcw, X, AlertTriangle } from "lucide-react"
-import { useQueryClient } from "@tanstack/react-query"
-import type { Order } from "@/entities/order/model/types"
-import type { Client } from "@/entities/client/model/types"
+import { Button } from "@/shared/ui/button"
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/shared/ui/table"
 import { orderApi } from "@/entities/order/model/api"
+import { useToast } from "@/shared/ui/use-toast"
+import { useQueryClient } from "@tanstack/react-query"
 import { getPendingAmount } from "@/entities/order/model/model"
-import { useAuth } from "@/shared/auth"
-import { ConfirmDialog } from "@/shared/ui/confirm-dialog"
+import type { Client } from "@/entities/client/model/types"
 
 interface Props {
-    orders: Order[]
+    batches: any[]
     clients: Client[]
+    onEdit: (batch: any) => void
+    onDelete: (batchId: string) => void
+    isDeleting?: boolean
 }
 
-export function ReceptionHistory({ orders, clients }: Props) {
-    const [selected, setSelected] = useState<Set<string>>(new Set())
+export function ReceptionHistory({ batches, onEdit, onDelete, isDeleting }: Props) {
     const [searchTerm, setSearchTerm] = useState("")
     const [dateFilter, setDateFilter] = useState("")
     const [isProcessing, setIsProcessing] = useState<string | null>(null)
-    const [reversingOrder, setReversingOrder] = useState<Order | null>(null)
+    const [expandedBatch, setExpandedBatch] = useState<string | null>(null)
 
     const { showToast } = useToast()
     const queryClient = useQueryClient()
-    const { user } = useAuth()
 
     // 1. Filter Logic
-    const receivedOrders = useMemo(() => {
-        return orders
-            .filter(o => o.status === 'RECIBIDO_EN_BODEGA' || o.status === 'ENTREGADO')
-            .sort((a, b) => new Date(b.receptionDate || b.createdAt).getTime() - new Date(a.receptionDate || a.createdAt).getTime())
-    }, [orders])
-
-    const clientMap = useMemo(() => {
-        const map = new Map<string, Client>();
-        clients.forEach(c => map.set(c.id, c));
-        return map;
-    }, [clients]);
-
-    const filteredOrders = useMemo(() => {
+    const filteredBatches = useMemo(() => {
         const lowerSearch = searchTerm.toLowerCase().trim();
         const targetDate = dateFilter ? new Date(dateFilter).toISOString().split('T')[0] : null;
 
-        return receivedOrders.filter(o => {
+        return batches.filter(b => {
             let matchesSearch = true;
             if (lowerSearch) {
-                const client = clientMap.get(o.clientId);
-                const identification = client?.identificationNumber?.toLowerCase() || "";
-                matchesSearch = (
+                const matchesPacking = b.packingNumber.toLowerCase().includes(lowerSearch);
+                const matchesOrders = (b.orders || []).some((o: any) => 
                     o.clientName.toLowerCase().includes(lowerSearch) ||
-                    o.receiptNumber.toLowerCase().includes(lowerSearch) ||
-                    identification.includes(lowerSearch) ||
-                    (o.brandName ? o.brandName.toLowerCase().includes(lowerSearch) : false)
+                    o.receiptNumber.toLowerCase().includes(lowerSearch)
                 );
+                matchesSearch = matchesPacking || matchesOrders;
             }
 
             let matchesDate = true;
             if (targetDate) {
-                const rDateStr = o.receptionDate || o.createdAt;
-                const rDate = new Date(rDateStr).toISOString().split('T')[0];
+                const rDate = new Date(b.receptionDate).toISOString().split('T')[0];
                 matchesDate = rDate === targetDate;
             }
 
             return matchesSearch && matchesDate;
         });
-    }, [receivedOrders, searchTerm, dateFilter, clientMap]);
+    }, [batches, searchTerm, dateFilter]);
 
-    // 2. Selection Logic
-    const toggle = (id: string) => {
-        setSelected(prev => {
-            const next = new Set(prev)
-            if (next.has(id)) next.delete(id)
-            else next.add(id)
-            return next
-        })
-    }
-
-    const toggleAll = () => {
-        const allIds = filteredOrders.map(o => o.id);
-        if (selected.size === allIds.length && allIds.length > 0) setSelected(new Set());
-        else setSelected(new Set(allIds));
-    }
-
-    // 3. Print Logic
-    const handlePrint = async () => {
-        const toPrint = orders.filter(o => selected.has(o.id));
-        if (toPrint.length === 0) return;
-
+    // 2. Reverse Individual Logic (fallback)
+    const handleReverseIndividual = async (orderId: string) => {
+        setIsProcessing(orderId)
         try {
-            await generateOrderLabels({
-                orders: toPrint,
-                clients: clients,
-                user: { name: user?.username || 'Operador' }
-            });
-            showToast("Etiquetas generadas exitosamente", "success");
-            setSelected(new Set());
-        } catch (e) {
-            console.error(e);
-            showToast("Error al generar etiquetas", "error");
-        }
-    }
-
-    // 4. Reverse Logic
-    const handleReverse = async () => {
-        if (!reversingOrder) return
-
-        setIsProcessing(reversingOrder.id)
-        try {
-            await orderApi.reverseReception(reversingOrder.id)
+            await orderApi.reverseReception(orderId)
             showToast("La recepción ha sido revertida correctamente.", "success")
             await queryClient.invalidateQueries({ queryKey: ['orders'] })
-            setReversingOrder(null)
+            await queryClient.invalidateQueries({ queryKey: ['reception-batches'] });
         } catch (error) {
             showToast(error instanceof Error ? error.message : "Error al revertir recepción", "error")
         } finally {
             setIsProcessing(null)
         }
     }
+
+    const totalGrandReception = filteredBatches.reduce((sum, b) => sum + Number(b.packingTotal || 0), 0);
+
+    const checkCanModify = (batch: any) => {
+        // Can't modify ONLY if ANY order is delivered
+        return !batch.orders?.some((o: any) => o.status === 'ENTREGADO');
+    };
 
     return (
         <div className="space-y-4 h-full flex flex-col pt-2">
@@ -129,7 +88,7 @@ export function ReceptionHistory({ orders, clients }: Props) {
                     <div className="relative flex-1 max-w-xs">
                         <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-400" />
                         <Input
-                            placeholder="Buscar cliente, recibo, marca..."
+                            placeholder="Buscar packing, cliente, recibo..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="pl-8"
@@ -149,16 +108,11 @@ export function ReceptionHistory({ orders, clients }: Props) {
                     )}
                 </div>
 
-                <div className="flex gap-2">
-                    <Button
-                        onClick={handlePrint}
-                        disabled={selected.size === 0}
-                        variant="outline"
-                        className="gap-2 border-slate-300 text-slate-700 hover:bg-slate-50"
-                    >
-                        <Printer className="h-4 w-4" />
-                        Imprimir ({selected.size})
-                    </Button>
+                <div className="flex items-center gap-4">
+                    <div className="text-right">
+                        <p className="text-[10px] text-muted-foreground uppercase font-bold">Total Recepción</p>
+                        <p className="text-lg font-mono font-bold text-emerald-700">${totalGrandReception.toFixed(2)}</p>
+                    </div>
                 </div>
             </div>
 
@@ -166,121 +120,158 @@ export function ReceptionHistory({ orders, clients }: Props) {
                 <Table>
                     <TableHeader className="bg-slate-50 sticky top-0 z-10">
                         <TableRow>
-                            <TableHead className="w-[40px]">
-                                <input
-                                    type="checkbox"
-                                    checked={filteredOrders.length > 0 && selected.size === filteredOrders.length}
-                                    onChange={toggleAll}
-                                    className="accent-slate-600 h-4 w-4 cursor-pointer"
-                                />
-                            </TableHead>
-                            <TableHead>Fecha Recep.</TableHead>
-                            <TableHead>Cliente / Marca</TableHead>
-                            <TableHead>Recibo</TableHead>
-                            <TableHead className="text-right">Total Factura</TableHead>
-                            <TableHead className="text-right">Último Abono</TableHead>
-                            <TableHead className="text-right">Saldo Pendiente</TableHead>
-                            <TableHead className="w-[50px]"></TableHead>
+                            <TableHead className="w-[100px]">Fecha</TableHead>
+                            <TableHead>N° Packing Empresa</TableHead>
+                            <TableHead className="text-center">Cant. Pedidos</TableHead>
+                            <TableHead className="text-right">Valor Packing</TableHead>
+                            <TableHead className="text-right">Total Facturas</TableHead>
+                            <TableHead className="text-right">Diferencia</TableHead>
+                            <TableHead className="text-right">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {filteredOrders.length === 0 ? (
+                        {filteredBatches.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
-                                    No se encontraron recepciones con los filtros aplicados.
+                                <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+                                    No se encontraron recepciones.
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            filteredOrders.map(order => {
-                                const pending = getPendingAmount(order);
-                                const lastPay = (order.payments && order.payments.length > 0)
-                                    ? order.payments[order.payments.length - 1].amount
-                                    : 0;
+                            filteredBatches.map(batch => {
+                                const totalInvoices = (batch.orders || []).reduce((sum: number, o: any) => sum + Number(o.realInvoiceTotal || 0), 0);
+                                const diff = Number(batch.packingTotal) - totalInvoices;
+                                const isExpanded = expandedBatch === batch.id;
+                                const canModify = checkCanModify(batch);
 
                                 return (
-                                    <TableRow key={order.id} className="hover:bg-slate-50 transition-colors">
-                                        <TableCell>
-                                            <input
-                                                type="checkbox"
-                                                checked={selected.has(order.id)}
-                                                onChange={() => toggle(order.id)}
-                                                className="accent-slate-600 h-4 w-4 cursor-pointer"
-                                            />
-                                        </TableCell>
-                                        <TableCell className="text-xs text-slate-500">
-                                            {order.receptionDate ? new Date(order.receptionDate).toLocaleDateString('es-EC') : '-'}
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex flex-col">
-                                                <span className="font-medium text-slate-800">{order.clientName}</span>
-                                                <span className="text-xs text-slate-500 flex items-center gap-1">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
-                                                    {order.brandName}
+                                    <>
+                                        <TableRow key={batch.id} className={`hover:bg-slate-50 transition-colors ${isExpanded ? 'bg-emerald-50/20' : ''}`}>
+                                            <TableCell className="text-xs font-medium" onClick={() => setExpandedBatch(isExpanded ? null : batch.id)}>
+                                                {new Date(batch.receptionDate).toLocaleDateString('es-EC')}
+                                            </TableCell>
+                                            <TableCell onClick={() => setExpandedBatch(isExpanded ? null : batch.id)}>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-bold text-slate-700">{batch.packingNumber}</span>
+                                                    {batch.notes && <span className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">{batch.notes}</span>}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-center" onClick={() => setExpandedBatch(isExpanded ? null : batch.id)}>
+                                                <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs font-bold">
+                                                    {batch.orders?.length || 0}
                                                 </span>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="font-mono text-xs">#{order.receiptNumber}</TableCell>
-                                        <TableCell className="text-right font-mono text-sm">
-                                            ${(order.realInvoiceTotal || order.total).toFixed(2)}
-                                        </TableCell>
+                                            </TableCell>
+                                            <TableCell className="text-right font-mono font-bold text-emerald-700" onClick={() => setExpandedBatch(isExpanded ? null : batch.id)}>
+                                                ${Number(batch.packingTotal).toFixed(2)}
+                                            </TableCell>
+                                            <TableCell className="text-right font-mono text-slate-600" onClick={() => setExpandedBatch(isExpanded ? null : batch.id)}>
+                                                ${totalInvoices.toFixed(2)}
+                                            </TableCell>
+                                            <TableCell className={`text-right font-mono text-xs ${Math.abs(diff) > 0.1 ? 'text-amber-600 font-bold' : 'text-slate-400'}`} onClick={() => setExpandedBatch(isExpanded ? null : batch.id)}>
+                                                ${diff.toFixed(2)}
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <div className="flex justify-end gap-1">
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="icon" 
+                                                        className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                        onClick={(e) => { e.stopPropagation(); onEdit(batch); }}
+                                                        disabled={!canModify}
+                                                        title={canModify ? "Editar Packing" : "No se puede editar: Pedidos ya entregados"}
+                                                    >
+                                                        <Edit className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="icon" 
+                                                        className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                        onClick={(e) => { 
+                                                            e.stopPropagation(); 
+                                                            if (confirm('¿Estás seguro de ELIMINAR todo este packing? Todos los pedidos regresarán a estado PENDIENTE.')) {
+                                                                onDelete(batch.id);
+                                                            }
+                                                        }}
+                                                        disabled={!canModify || isDeleting}
+                                                        title={canModify ? "Eliminar Packing (Regresar a Pendiente)" : "No se puede eliminar: Pedidos ya entregados"}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="icon" 
+                                                        className="h-8 w-8"
+                                                        onClick={(e) => { e.stopPropagation(); setExpandedBatch(isExpanded ? null : batch.id); }}
+                                                    >
+                                                        <Search className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
 
-                                        <TableCell className="text-right">
-                                            <span className="font-mono text-sm text-green-700">
-                                                ${Number(lastPay || 0).toFixed(2)}
-                                            </span>
-                                        </TableCell>
-
-                                        <TableCell className={`text-right font-mono text-sm font-bold ${pending > 0.01 ? 'text-amber-600' : 'text-slate-400'}`}>
-                                            ${pending.toFixed(2)}
-                                        </TableCell>
-
-                                        <TableCell>
-                                            {order.status === 'RECIBIDO_EN_BODEGA' && (
-                                                <Button
-                                                    size="icon"
-                                                    variant="ghost"
-                                                    className="h-8 w-8 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
-                                                    onClick={() => setReversingOrder(order)}
-                                                    disabled={isProcessing === order.id}
-                                                    title="Regresar Recepción"
-                                                >
-                                                    <RotateCcw className={`h-4 w-4 ${isProcessing === order.id ? 'animate-spin' : ''}`} />
-                                                </Button>
-                                            )}
-                                        </TableCell>
-                                    </TableRow>
+                                        {isExpanded && (
+                                            <TableRow className="bg-slate-50/50 hover:bg-slate-50/50 border-b">
+                                                <TableCell colSpan={7} className="p-0">
+                                                    <div className="p-4 border-l-4 border-emerald-500 ml-4 mb-4 mt-2 bg-white rounded-r-lg shadow-inner">
+                                                        <div className="flex justify-between items-center mb-3">
+                                                            <h4 className="text-[10px] font-bold text-emerald-700 uppercase">Pedidos asociados al Packing</h4>
+                                                            {!canModify && (
+                                                                <div className="flex items-center gap-1 text-[9px] bg-amber-50 text-amber-700 px-2 py-0.5 rounded border border-amber-100">
+                                                                    <AlertCircle className="h-3 w-3" />
+                                                                    <span>Este packing tiene pedidos entregados y no puede ser modificado completamente.</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                            {(batch.orders || []).map((order: any) => {
+                                                                const pending = getPendingAmount(order);
+                                                                const orderCanModify = order.status !== 'ENTREGADO'; // Simple check for individual
+                                                                return (
+                                                                    <div key={order.id} className="flex justify-between items-center p-2 border-b border-slate-100 last:border-0 hover:bg-slate-50 rounded">
+                                                                        <div className="flex flex-col">
+                                                                            <span className="text-xs font-bold text-slate-800">{order.clientName}</span>
+                                                                            <span className="text-[10px] text-slate-500 font-mono">Recibo: #{order.receiptNumber} | Factura: {order.invoiceNumber || 'N/A'}</span>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-6">
+                                                                            <div className="text-right">
+                                                                                <p className="text-[9px] text-slate-400 uppercase">Total Factura</p>
+                                                                                <p className="text-xs font-mono font-bold">${Number(order.realInvoiceTotal || order.total).toFixed(2)}</p>
+                                                                            </div>
+                                                                            <div className="text-right">
+                                                                                <p className="text-[9px] text-slate-400 uppercase">Saldo</p>
+                                                                                <p className={`text-xs font-mono font-bold ${pending > 0.01 ? 'text-amber-600' : 'text-slate-400'}`}>
+                                                                                    ${pending.toFixed(2)}
+                                                                                </p>
+                                                                            </div>
+                                                                            <Button
+                                                                                size="icon"
+                                                                                variant="ghost"
+                                                                                className="h-7 w-7 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    if (confirm(`¿Revertir recepción de ${order.receiptNumber}?`)) {
+                                                                                        handleReverseIndividual(order.id);
+                                                                                    }
+                                                                                }}
+                                                                                disabled={isProcessing === order.id || !orderCanModify}
+                                                                                title={orderCanModify ? "Regresar Recepción Individual" : "No se puede revertir: Ya fue entregado"}
+                                                                            >
+                                                                                <RotateCcw className={`h-3.5 w-3.5 ${isProcessing === order.id ? 'animate-spin' : ''}`} />
+                                                                            </Button>
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    </>
                                 )
                             })
                         )}
                     </TableBody>
                 </Table>
-            </div>
-
-            <ConfirmDialog
-                open={!!reversingOrder}
-                onOpenChange={(open) => !open && setReversingOrder(null)}
-                onConfirm={handleReverse}
-                title="Regresar Recepción"
-                description={`¿Está seguro de regresar la recepción del pedido ${reversingOrder?.receiptNumber}?`}
-                confirmText="Regresar Recepción"
-                cancelText="Cancelar"
-            >
-                <div className="p-3 bg-amber-50 rounded border border-amber-200 text-amber-800 text-sm">
-                    <p>Esta acción:</p>
-                    <ul className="list-disc ml-4 mt-1">
-                        <li>Revertirá los abonos asociados al banco y caja.</li>
-                        <li>Eliminará la factura y movimientos de inventario.</li>
-                        <li>El pedido volverá al estado <strong>POR RECIBIR</strong>.</li>
-                    </ul>
-                </div>
-            </ConfirmDialog>
-
-            <div className="bg-blue-50 text-blue-700 px-4 py-2 rounded-md text-xs flex items-center gap-2 border border-blue-100">
-                <AlertTriangle className="h-4 w-4" />
-                <p>
-                    <strong>Nota:</strong> Solo se pueden regresar los pedidos que no han sido entregados al cliente final.
-                    Esta acción restaurará el inventario y los saldos bancarios.
-                </p>
             </div>
         </div>
     )

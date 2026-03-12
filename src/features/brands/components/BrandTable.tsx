@@ -52,7 +52,7 @@ export function BrandTable({ brands, isLoading, onEdit, onDelete }: BrandTablePr
                 </TableHeader>
                 <TableBody>
                     {brands.map((brand) => (
-                        <TableRow key={brand.id}>
+                        <TableRow key={brand.id} className="hover:bg-slate-50/80 transition-colors cursor-pointer">
                             <TableCell className="font-medium text-xs sm:text-sm">
                                 {brand.name}
                                 {brand.description && (

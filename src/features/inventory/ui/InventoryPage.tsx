@@ -4,6 +4,7 @@ import { InventoryFilters } from './InventoryFilters';
 import { InventoryTable } from './InventoryTable';
 import { useDebounce } from '@/shared/lib/hooks';
 import { Pagination } from '@/shared/ui/pagination';
+import { PageHeader } from '@/shared/ui/PageHeader';
 
 import { PackageOpen, Clock, Truck, Boxes } from 'lucide-react';
 
@@ -108,21 +109,17 @@ export function InventoryPage() {
     }
 
     return (
-        <div className="p-6 space-y-6 bg-white min-h-screen">
+        <div className="space-y-6">
+            <PageHeader 
+                title="Inventario & Trazabilidad" 
+                description="Control físico de paquetes en bodega y entregas"
+                icon={Boxes}
+            />
+
             {/* Header & Stats */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                        <Boxes className="h-6 w-6 text-indigo-600" />
-                        Inventario & Trazabilidad
-                    </h1>
-                    <p className="text-slate-500 text-sm mt-1">
-                        Control físico de paquetes en bodega y entregas.
-                    </p>
-                </div>
-
                 {/* KPI Cards */}
-                <div className="flex flex-wrap gap-4">
+                <div className="flex flex-wrap gap-4 w-full">
                     <div className="bg-white px-5 py-3 rounded-xl border border-emerald-100 shadow-[0_2px_10px_-3px_rgba(16,185,129,0.3)] flex items-center gap-3 min-w-[180px]">
                         <div className="bg-emerald-50 p-2.5 rounded-lg text-emerald-600">
                             <PackageOpen className="h-5 w-5" />

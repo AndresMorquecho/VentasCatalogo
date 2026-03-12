@@ -3,386 +3,313 @@ import { Page, Text, View, Document, StyleSheet, Image } from '@react-pdf/render
 import type { Order } from '@/entities/order/model/types';
 import type { User } from '@/entities/user/model/types';
 import type { Client } from '@/entities/client/model/types';
-import { getPendingAmount, getPaidAmount } from '@/entities/order/model/model';
+import { getPaidAmount } from '@/entities/order/model/model';
 
 // Register a nice font if possible, otherwise use standard fonts effectively
 // Font.register({ family: 'Open Sans', src: '...' }); // Skipped for now to avoid external dependency issues
 
 const styles = StyleSheet.create({
     page: {
-        padding: 40,
+        padding: 30,
         fontFamily: 'Helvetica',
         backgroundColor: '#FFFFFF',
-        color: '#333333',
+        color: '#000000',
     },
-    headerRow: {
+    // Top Section
+    headerContainer: {
+        marginBottom: 10,
+    },
+    logoRow: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 30,
-        borderBottomWidth: 2,
-        borderBottomColor: '#2563EB', // Modern blue
-        paddingBottom: 20,
+        justifyContent: 'space-between',
+        marginBottom: 10,
     },
-    logoContainer: {
-        width: 140, // Increased size
-        height: 80,
-        justifyContent: 'center',
-    },
-    watermark: {
-        position: 'absolute',
-        top: 200,
-        left: 100,
-        width: 400,
-        height: 400,
-        opacity: 0.1, // Very transparent
-        zIndex: -1,
-        // transform: 'rotate(-45deg)', // Optional rotation for watermark effect
+    logoGroup: {
+        flexDirection: 'row',
+        alignItems: 'center',
     },
     logo: {
-        width: '100%',
+        width: 60,
+        height: 40,
         objectFit: 'contain',
     },
-    brandDetails: {
+    logoText: {
+        fontSize: 8,
+        marginLeft: 5,
+        textTransform: 'uppercase',
+    },
+    receiptGroup: {
         alignItems: 'flex-end',
     },
-    brandTitle: {
+    receiptLabel: {
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+    receiptNumber: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: '#1E293B', // Slate 800
-        textTransform: 'uppercase',
+    },
+    
+    // Info Rows
+    infoRow: {
+        flexDirection: 'row',
+        fontSize: 10,
         marginBottom: 4,
     },
-    brandSubtitle: {
-        fontSize: 10,
-        color: '#64748B', // Slate 500
-        letterSpacing: 1,
-    },
-    invoiceInfoContainer: {
+    empresariaRow: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 30,
-    },
-    infoBlock: {
-        width: '45%',
-    },
-    infoTitle: {
-        fontSize: 11,
-        color: '#2563EB',
-        fontWeight: 'bold',
-        textTransform: 'uppercase',
-        marginBottom: 8,
-    },
-    infoText: {
         fontSize: 10,
-        marginBottom: 3,
-        color: '#334155',
+        alignItems: 'center',
+        marginBottom: 2,
     },
-    invoiceMeta: {
-        alignItems: 'flex-end',
+    label: {
+        width: 60,
     },
-    metaRow: {
-        flexDirection: 'row',
-        marginBottom: 4,
+    divider: {
+        borderBottom: '1.5pt solid black',
+        width: '100%',
+        marginVertical: 4,
     },
-    metaLabel: {
-        fontSize: 10,
-        color: '#64748B',
-        width: 100,
-        textAlign: 'right',
-        marginRight: 10,
-    },
-    metaValue: {
-        fontSize: 10,
-        fontWeight: 'bold',
-        color: '#1E293B',
-        textAlign: 'right',
-        minWidth: 80,
-    },
-    tableContainer: {
+
+    // Table
+    table: {
         marginTop: 10,
-        marginBottom: 20,
+        border: '1pt solid black',
+        borderBottom: 0,
     },
     tableHeader: {
         flexDirection: 'row',
-        backgroundColor: '#F1F5F9', // Light slate
-        borderBottomWidth: 1,
-        borderBottomColor: '#CBD5E1',
-        paddingVertical: 8,
-        paddingHorizontal: 4,
-    },
-    tableHeaderCell: {
-        fontSize: 9,
-        fontWeight: 'bold',
-        color: '#475569',
-        textAlign: 'left',
+        borderBottom: '1pt solid black',
+        backgroundColor: '#FFFFFF',
     },
     tableRow: {
         flexDirection: 'row',
-        borderBottomWidth: 1,
-        borderBottomColor: '#E2E8F0',
-        paddingVertical: 8,
-        paddingHorizontal: 4,
+        borderBottom: '1pt solid black',
+    },
+    tableHeaderCell: {
+        fontSize: 10,
+        fontWeight: 'bold',
+        padding: 4,
+        borderRight: '1pt solid black',
+        textAlign: 'center',
     },
     tableCell: {
         fontSize: 9,
-        color: '#334155',
-        textAlign: 'left',
+        padding: 3,
+        borderRight: '1pt solid black',
+        textAlign: 'center',
     },
-    // Column widths
-    colType: { width: '10%' },
-    colOrderNumber: { width: '12%' },
-    colBrand: { width: '13%' },
-    colQty: { width: '8%', textAlign: 'center' },
-    colDate: { width: '14%' },
-    colPrice: { width: '14%', textAlign: 'right' },
-    colPaid: { width: '14%', textAlign: 'right' },
-    colPending: { width: '15%', textAlign: 'right' },
+    
+    // Column Widths
+    colNo: { width: '13%' },
+    colType: { width: '15%' },
+    colCat: { width: '19%' },
+    colVal: { width: '14%', textAlign: 'right', paddingRight: 6 },
+    colAbo: { width: '10%', textAlign: 'right', paddingRight: 6 },
+    colSal: { width: '10%', textAlign: 'right', paddingRight: 6 },
+    colDate: { width: '19%', borderRight: 0 },
 
-    summarySection: {
+    // Financial Summary Row
+    financialRow: {
         flexDirection: 'row',
-        justifyContent: 'flex-end',
+        fontSize: 10,
+        fontWeight: 'bold',
+        marginTop: 5,
+    },
+    finCol1: { width: '47%' }, // Up to Valor pedido
+    finColVal: { width: '14%', textAlign: 'right', paddingRight: 6 },
+    finColAbo: { width: '10%', textAlign: 'right', paddingRight: 6 },
+    finColSal: { width: '10%', textAlign: 'right', paddingRight: 6 },
+
+    // Footer Info
+    footerInfo: {
+        marginTop: 5,
+        fontSize: 10,
+    },
+    observations: {
         marginTop: 10,
         marginBottom: 30,
     },
-    summaryBlock: {
-        width: 250,
-        backgroundColor: '#F8FAFC',
-        padding: 10,
-        borderRadius: 4,
-    },
-    summaryRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 6,
-    },
-    summaryTotalRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginTop: 6,
-        paddingTop: 6,
-        borderTopWidth: 1,
-        borderTopColor: '#CBD5E1',
-    },
-    summaryLabel: {
-        fontSize: 10,
-        color: '#64748B',
-    },
-    summaryValue: {
-        fontSize: 10,
-        fontWeight: 'bold',
-        color: '#1E293B',
-    },
-    totalLabel: {
-        fontSize: 12,
-        fontWeight: 'bold',
-        color: '#2563EB',
-    },
-    totalValue: {
-        fontSize: 12,
-        fontWeight: 'bold',
-        color: '#2563EB',
-    },
-    paymentInfo: {
+
+    // Legal Notes
+    legalSection: {
         marginTop: 20,
-        marginBottom: 30,
-        padding: 15,
-        backgroundColor: '#F0F9FF', // Light blue background
-        borderLeftWidth: 4,
-        borderLeftColor: '#0EA5E9',
-    },
-    paymentLabel: {
         fontSize: 10,
+        lineHeight: 1.2,
+    },
+    noteBold: {
         fontWeight: 'bold',
-        color: '#0369A1',
-        marginBottom: 4,
-    },
-    paymentText: {
-        fontSize: 9,
-        color: '#0C4A6E',
-    },
-    footerContainer: {
-        position: 'absolute',
-        bottom: 30,
-        left: 40,
-        right: 40,
-    },
-    legalText: {
-        fontSize: 8,
-        color: '#94A3B8',
-        textAlign: 'center',
-        marginBottom: 20,
         fontStyle: 'italic',
     },
+    notimonchito: {
+        fontWeight: 'bold',
+        marginTop: 10,
+    },
+
+    // Signatures
     signatureContainer: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
+        justifyContent: 'space-around',
+        alignItems: 'flex-end',
         marginTop: 20,
     },
     signatureBlock: {
-        width: '40%',
         alignItems: 'center',
+        width: 200,
     },
     signatureLine: {
         width: '100%',
-        height: 1,
-        backgroundColor: '#CBD5E1',
-        marginBottom: 8,
+        borderBottom: '1pt solid black',
+        marginBottom: 5,
     },
     signatureLabel: {
-        fontSize: 9,
+        fontSize: 10,
         fontWeight: 'bold',
-        color: '#475569',
+        fontStyle: 'italic',
     },
-    signatureWho: {
-        fontSize: 8,
-        color: '#94A3B8',
-    },
+    signatureName: {
+        fontSize: 10,
+        marginBottom: 2,
+    }
 });
 
 interface OrderReceiptProps {
     order: Order;
-    childOrders?: Order[]; // Nuevas órdenes hijas para el Recibo Madre
-    user?: User; // Optional logged user
-    client?: Client; // Extended client details
+    childOrders?: Order[];
+    user?: User;
+    client?: Client;
+    receiptNumber?: string; // Optional override for the general receipt number
 }
 
-export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({ order, childOrders = [], user, client }) => {
+export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({ order, childOrders = [], user, client, receiptNumber }) => {
     const allOrders = [order, ...childOrders];
-    const totalConsolidated = allOrders.reduce((sum, o) => sum + Number(o.total), 0);
-    const totalPaidConsolidated = allOrders.reduce((sum, o) => sum + Number(getPaidAmount(o)), 0);
-    const totalPendingConsolidated = Math.max(0, totalConsolidated - totalPaidConsolidated);
+    
+    const totalVal = allOrders.reduce((sum, o) => sum + Number(o.total), 0);
+    const totalAbo = allOrders.reduce((sum, o) => sum + Number(getPaidAmount(o)), 0);
+    const totalSal = totalVal - totalAbo;
 
-    const currentDate = new Date().toLocaleString('es-EC', { dateStyle: 'long', timeStyle: 'short' });
-    const logoUrl = '/images/mochitopng.png'; // Assuming public folder structure
+    const formattedDate = new Date().toLocaleString('es-EC', { 
+        day: '2-digit', 
+        month: '2-digit', 
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    }).replace(',', '');
+    
+    const logoUrl = '/images/mochitopng.png';
 
     return (
         <Document>
             <Page size="A4" style={styles.page}>
-
-                {/* WATERMARK */}
-                <Image src={logoUrl} style={styles.watermark} fixed />
-
                 {/* HEADER */}
-                <View style={styles.headerRow}>
-                    <View style={styles.logoContainer}>
-                        {/* Try to load logo, fallback to text if fails (though Image handles empty src gracefully) */}
-                        <Image style={styles.logo} src={logoUrl} />
+                <View style={styles.headerContainer}>
+                    <View style={styles.logoRow}>
+                        <View style={styles.logoGroup}>
+                            <Image style={styles.logo} src={logoUrl} />
+                            <Text style={styles.logoText}>VENTA POR CATÁLOGO</Text>
+                        </View>
+                        <View style={styles.receiptGroup}>
+                            <Text style={styles.receiptLabel}>RECIBO No</Text>
+                            <Text style={styles.receiptNumber}>{receiptNumber || order.receiptNumber || 'ORD-000000'}</Text>
+                        </View>
                     </View>
-                    <View style={styles.brandDetails}>
-                        <Text style={styles.brandTitle}>Venta por Catálogo</Text>
-                        <Text style={styles.brandSubtitle}>Comprobante de Pedido</Text>
-                    </View>
-                </View>
 
-                {/* INFO BLOCK */}
-                <View style={styles.invoiceInfoContainer}>
-                    <View style={styles.infoBlock}>
-                        <Text style={styles.infoTitle}>Facturar a:</Text>
-                        <Text style={styles.infoText}>{order.clientName}</Text>
+                    <View style={styles.infoRow}>
+                        <Text style={styles.label}>Fecha:</Text>
+                        <Text>{formattedDate}</Text>
+                    </View>
 
-                        {/* Extended Client Details */}
-                        <Text style={styles.infoText}>Cédula/RUC: {client?.identificationNumber || order.clientId}</Text>
-                        {client?.phone1 && (
-                            <Text style={styles.infoText}>Celular: {client.phone1}</Text>
-                        )}
-                        {client?.email && (
-                            <Text style={styles.infoText}>Email: {client.email}</Text>
-                        )}
+                    <View style={styles.empresariaRow}>
+                        <Text style={styles.label}>Empresaria:</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                            <Text style={{ fontSize: 10 }}>{client?.identificationNumber || order.clientId}</Text>
+                            <Text style={{ fontWeight: 'bold', textTransform: 'uppercase', marginLeft: 20, fontSize: 10 }}>
+                                {order.clientName || client?.firstName}
+                            </Text>
+                        </View>
+                        <Text style={{ fontSize: 10 }}>Teléfonos:  2787237--</Text>
                     </View>
-                    <View style={[styles.infoBlock, styles.invoiceMeta]}>
-                        <View style={styles.metaRow}>
-                            <Text style={styles.metaLabel}>Recibo N°:</Text>
-                            <Text style={styles.metaValue}>#{order.receiptNumber || '---'}</Text>
-                        </View>
-                        <View style={styles.metaRow}>
-                            <Text style={styles.metaLabel}>Fecha Emisión:</Text>
-                            <Text style={styles.metaValue}>{currentDate}</Text>
-                        </View>
-                        <View style={styles.metaRow}>
-                            <Text style={styles.metaLabel}>Vendedor:</Text>
-                            <Text style={styles.metaValue}>{user?.name || 'Administrador'}</Text>
-                        </View>
-                    </View>
+                    <View style={styles.divider} />
                 </View>
 
                 {/* TABLE */}
-                <View style={styles.tableContainer}>
+                <View style={styles.table}>
                     <View style={styles.tableHeader}>
-                        <Text style={[styles.tableHeaderCell, styles.colType]}>Tipo</Text>
-                        <Text style={[styles.tableHeaderCell, styles.colOrderNumber]}>N° Pedido</Text>
-                        <Text style={[styles.tableHeaderCell, styles.colBrand]}>Catálogo</Text>
-                        <Text style={[styles.tableHeaderCell, styles.colQty]}>Cant.</Text>
-                        <Text style={[styles.tableHeaderCell, styles.colDate]}>Entrega Est.</Text>
-                        <Text style={[styles.tableHeaderCell, styles.colPrice]}>Total</Text>
-                        <Text style={[styles.tableHeaderCell, styles.colPaid]}>Abono</Text>
-                        <Text style={[styles.tableHeaderCell, styles.colPending]}>Pendiente</Text>
+                        <Text style={[styles.tableHeaderCell, styles.colNo]}>No pedido</Text>
+                        <Text style={[styles.tableHeaderCell, styles.colType]}>Tipo pedido</Text>
+                        <Text style={[styles.tableHeaderCell, styles.colCat]}>Catálogo</Text>
+                        <Text style={[styles.tableHeaderCell, styles.colVal]}>Valor pedido</Text>
+                        <Text style={[styles.tableHeaderCell, styles.colAbo]}>Abono</Text>
+                        <Text style={[styles.tableHeaderCell, styles.colSal]}>Saldo</Text>
+                        <Text style={[styles.tableHeaderCell, styles.colDate]}>Posible fecha de entrega</Text>
                     </View>
 
-                    {allOrders.map((o, idx) => (
-                        <View key={idx} style={styles.tableRow}>
-                            <Text style={[styles.tableCell, styles.colType]}>{o.type}</Text>
-                            <Text style={[styles.tableCell, styles.colOrderNumber]}>{o.orderNumber || '---'}</Text>
-                            <Text style={[styles.tableCell, styles.colBrand]}>{o.brandName}</Text>
-                            <Text style={[styles.tableCell, styles.colQty]}>{o.items?.[0]?.quantity || 1}</Text>
-                            <Text style={[styles.tableCell, styles.colDate]}>
-                                {o.possibleDeliveryDate ? new Date(o.possibleDeliveryDate).toLocaleDateString() : 'N/A'}
-                            </Text>
-                            <Text style={[styles.tableCell, styles.colPrice]}>${Number(o.total).toFixed(2)}</Text>
-                            <Text style={[styles.tableCell, styles.colPaid]}>${Number(getPaidAmount(o)).toFixed(2)}</Text>
-                            <Text style={[styles.tableCell, styles.colPending]}>${Number(Math.max(0, getPendingAmount(o))).toFixed(2)}</Text>
-                        </View>
-                    ))}
+                    {allOrders.map((o, idx) => {
+                        const paid = getPaidAmount(o);
+                        const pending = Number(o.total) - paid;
+                        return (
+                            <View key={idx} style={styles.tableRow}>
+                                <Text style={[styles.tableCell, styles.colNo]}>{o.orderNumber || idx+1}</Text>
+                                <Text style={[styles.tableCell, styles.colType]}>{o.type}</Text>
+                                <Text style={[styles.tableCell, styles.colCat]}>{o.brandName}</Text>
+                                <Text style={[styles.tableCell, styles.colVal]}>{Number(o.total).toFixed(2)}</Text>
+                                <Text style={[styles.tableCell, styles.colAbo]}>{paid.toFixed(2)}</Text>
+                                <Text style={[styles.tableCell, styles.colSal]}>{pending.toFixed(2)}</Text>
+                                <Text style={[styles.tableCell, styles.colDate]}>
+                                    {o.possibleDeliveryDate ? new Date(o.possibleDeliveryDate).toLocaleDateString('es-EC') : 'N/A'}
+                                </Text>
+                            </View>
+                        );
+                    })}
                 </View>
 
-                {/* SUMMARY & TOTALS */}
-                <View style={styles.summarySection}>
-                    <View style={styles.summaryBlock}>
-                        <View style={styles.summaryRow}>
-                            <Text style={styles.summaryLabel}>Subtotal Consolidado:</Text>
-                            <Text style={styles.summaryValue}>${totalConsolidated.toFixed(2)}</Text>
-                        </View>
-                        <View style={styles.summaryRow}>
-                            <Text style={styles.summaryLabel}>Abono(s) Registrado(s):</Text>
-                            <Text style={styles.summaryValue}>- ${totalPaidConsolidated.toFixed(2)}</Text>
-                        </View>
-                        <View style={styles.summaryTotalRow}>
-                            <Text style={styles.totalLabel}>Total Pendiente:</Text>
-                            <Text style={styles.totalValue}>${totalPendingConsolidated.toFixed(2)}</Text>
-                        </View>
+                {/* FINANCIAL SUMMARY */}
+                <View style={styles.financialRow}>
+                    <View style={styles.finCol1}>
+                        <Text>Forma de pago: {order.paymentMethod}</Text>
                     </View>
+                    <Text style={styles.finColVal}>{totalVal.toFixed(2)}</Text>
+                    <Text style={styles.finColAbo}>{totalAbo.toFixed(2)}</Text>
+                    <Text style={styles.finColSal}>{totalSal.toFixed(2)}</Text>
                 </View>
 
-                {/* PAYMENT & NOTES */}
-                <View style={styles.paymentInfo}>
-                    <Text style={styles.paymentLabel}>Método de Pago: {order.paymentMethod}</Text>
-                    {order.paymentMethod === 'TRANSFERENCIA' && (
-                        <Text style={styles.paymentText}>* Por favor realizar la transferencia a la cuenta registrada. Enviar comprobante al vendedor.</Text>
-                    )}
-                    <Text style={[styles.paymentText, { marginTop: 5 }]}>* Nota: Todos los pedidos requieren el 50% de abono inicial.</Text>
-                </View>
-
-                {/* FOOTER */}
-                <View style={styles.footerContainer}>
-                    <Text style={styles.legalText}>
-                        Términos y Condiciones: Pedido que no sea retirado dentro de los 10 días será desmantelado y pierde el abono.
-                        Gracias por su preferencia.
-                    </Text>
-
-                    <View style={styles.signatureContainer}>
-                        <View style={styles.signatureBlock}>
-                            <View style={styles.signatureLine} />
-                            <Text style={styles.signatureLabel}>Vendedor</Text>
-                            <Text style={styles.signatureWho}>{user?.name || 'Autorizado'}</Text>
-                        </View>
-                        <View style={styles.signatureBlock}>
-                            <View style={styles.signatureLine} />
-                            <Text style={styles.signatureLabel}>Cliente</Text>
-                            <Text style={styles.signatureWho}>{order.clientName}</Text>
-                        </View>
+                {/* FOOTER INFO */}
+                <View style={styles.footerInfo}>
+                    <View style={{ flexDirection: 'row', marginBottom: 5 }}>
+                        <Text style={{ width: '47%' }}>No de documento: {order.receiptNumber || ""}</Text>
+                        <Text>Teléfono de contacto: {client?.phone1 || ""}</Text>
+                    </View>
+                    <View style={styles.observations}>
+                        <Text>Observaciones:</Text>
+                        <Text style={{ marginTop: 2 }}>{order.notes || ""}</Text>
                     </View>
                 </View>
 
+                {/* LEGAL NOTES */}
+                <View style={styles.legalSection}>
+                    <Text style={styles.noteBold}>Nota: Todos los pedidos serán ingresados con el 50%</Text>
+                    <Text style={styles.noteBold}>caso contrario no se realizará.</Text>
+                    <Text style={styles.noteBold}>Pedido que no sea retirado dentro de los 10 días será</Text>
+                    <Text style={styles.noteBold}>desmantelado y pierde el abono</Text>
+                    <Text style={styles.notimonchito}>NOTIMONCHITO:</Text>
+                </View>
+
+                {/* SIGNATURES */}
+                <View style={styles.signatureContainer}>
+                    <View style={styles.signatureBlock}>
+                        <Text style={styles.signatureName}>{user?.name?.toUpperCase() || ""}</Text>
+                        <View style={styles.signatureLine} />
+                        <Text style={styles.signatureLabel}>Vendedor</Text>
+                    </View>
+                    <View style={styles.signatureBlock}>
+                        <View style={{ height: 15 }} />
+                        <View style={styles.signatureLine} />
+                        <Text style={styles.signatureLabel}>Empresario/a</Text>
+                    </View>
+                </View>
             </Page>
         </Document>
     );

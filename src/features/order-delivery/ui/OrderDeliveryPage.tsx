@@ -7,9 +7,10 @@ import { DeliverOrderModal } from "./DeliverOrderModal"
 import type { Order } from "@/entities/order/model/types"
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
-import { Search, History } from "lucide-react"
+import { Search, History, Truck } from "lucide-react"
 import { useAuth } from "@/shared/auth"
 import { useToast } from "@/shared/ui/use-toast"
+import { PageHeader } from "@/shared/ui/PageHeader"
 
 export function OrderDeliveryPage() {
     const [filters, setFilters] = useState<DeliveryFilters>({})
@@ -47,14 +48,13 @@ export function OrderDeliveryPage() {
     });
 
     return (
-        <div className="container mx-auto py-8">
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4 border-b pb-4 border-green-200">
-                <div className="space-y-1 sm:space-y-2 px-1">
-                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-                        Entrega al Cliente
-                    </h1>
-                    <h2 className="text-base font-medium text-muted-foreground tracking-tight">Gestión de entregas y cobro de saldos</h2>
-                </div>
+        <div className="container mx-auto py-8 space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <PageHeader 
+                    title="Entrega al Cliente" 
+                    description="Gestión de entregas y cobro de saldos"
+                    icon={Truck}
+                />
                 <Button variant="outline" onClick={() => navigate('/orders/delivery/history')} className="gap-2">
                     <History className="h-4 w-4" />
                     Historial de Entregas

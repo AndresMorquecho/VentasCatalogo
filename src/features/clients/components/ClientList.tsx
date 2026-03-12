@@ -1,7 +1,5 @@
 import { useState, useEffect } from "react";
 import { useClientList, useDeleteClient } from "@/features/clients/api/hooks";
-import { useOrderList } from "@/entities/order/model/hooks";
-import { canDeleteClient } from "@/entities/client/model/model";
 import type { Client } from "@/entities/client/model/types";
 import { ClientTable } from "./ClientTable";
 import { ClientForm } from "./ClientForm";
@@ -22,25 +20,46 @@ import { logAction } from "@/shared/lib/auditService";
 import { useNotifications } from "@/shared/lib/notifications";
 import { useDebounce } from "@/shared/lib/hooks";
 import { Pagination } from "@/shared/ui/pagination";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/shared/ui/select";
+import { Card, CardContent } from "@/shared/ui/card";
+import { Filter, X, Download, Loader2 } from "lucide-react";
+import { clientApi } from "@/shared/api/clientApi";
+import { exportClientsToExcel } from "../lib/exportUtils";
 
 export function ClientList() {
     const [page, setPage] = useState(1);
     const [limit] = useState(25);
     const [searchQuery, setSearchQuery] = useState("");
     const debouncedSearch = useDebounce(searchQuery, 1000);
+    const [status, setStatus] = useState<string>("ALL");
+    const [city, setCity] = useState("");
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
+    const debouncedCity = useDebounce(city, 500);
 
     const { data: response, isLoading, isError, refetch } = useClientList({
         page,
         limit,
         search: debouncedSearch.length >= 3 ? debouncedSearch : undefined,
+        status: status === "ALL" ? undefined : status,
+        city: debouncedCity || undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
     });
 
     const clients = response?.data || [];
     const pagination = response?.pagination;
 
-    const { data: ordersResponse } = useOrderList({ limit: 500 }); // Large limit for integrity check
-    const orders = ordersResponse?.data || [];
+    // Remove the limit: 500 fetch which causes slow loading
+    // We will let the backend handle referential integrity during delete
     const deleteClientMutation = useDeleteClient();
+    const [isExporting, setIsExporting] = useState(false);
 
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
     const [viewingClient, setViewingClient] = useState<Client | null>(null);
@@ -52,10 +71,19 @@ export function ClientList() {
     const { hasPermission, user } = useAuth();
     const { notifySuccess, notifyError } = useNotifications();
 
-    // Reset page on search
+    // Reset page on filter changes
     useEffect(() => {
         setPage(1);
-    }, [debouncedSearch]);
+    }, [debouncedSearch, status, debouncedCity, startDate, endDate]);
+
+    const resetFilters = () => {
+        setSearchQuery("");
+        setStatus("ALL");
+        setCity("");
+        setStartDate("");
+        setEndDate("");
+        setPage(1);
+    };
 
     const handleCreate = () => {
         if (!hasPermission('clients.create')) {
@@ -86,17 +114,6 @@ export function ClientList() {
             return;
         }
         setDeleteError(null);
-
-        // Check referential integrity: does any order reference this client?
-        const orderClientIds = orders.map((o) => o.clientId);
-        if (!canDeleteClient(client.id, orderClientIds)) {
-            setDeleteError(
-                `No se puede eliminar a "${client.firstName}" porque tiene pedidos asociados. Primero debe eliminar o reasignar sus pedidos.`
-            );
-            setDeleteTarget(null);
-            return;
-        }
-
         setDeleteTarget(client);
     };
 
@@ -115,8 +132,43 @@ export function ClientList() {
             }
             notifySuccess(`Empresaria "${deleteTarget.firstName}" eliminada correctamente`);
             setDeleteTarget(null);
+        } catch (error: any) {
+            // Handle specific referential integrity error from backend if possible
+            const errorMsg = error?.response?.data?.error?.message || error?.message || "";
+            if (errorMsg.includes("foreign key constraint") || errorMsg.includes("pedidos asociados")) {
+                setDeleteError(`No se puede eliminar a "${deleteTarget.firstName}" porque tiene pedidos asociados. Primero debe eliminar o reasignar sus pedidos.`);
+            } else {
+                notifyError(error, "Ocurrió un error al eliminar. Intente de nuevo.");
+            }
+        } finally {
+            setDeleteTarget(null);
+        }
+    };
+
+    const handleExportAll = async () => {
+        try {
+            setIsExporting(true);
+            // Fetch all filtered data with a high limit (2000 is supported now)
+            const response = await clientApi.getAll({
+                limit: 2000,
+                search: debouncedSearch.length >= 3 ? debouncedSearch : undefined,
+                status: status === "ALL" ? undefined : status,
+                city: debouncedCity || undefined,
+                startDate: startDate || undefined,
+                endDate: endDate || undefined,
+            });
+
+            if (response.data && response.data.length > 0) {
+                exportClientsToExcel(response.data);
+                notifySuccess(`Exportación de ${response.data.length} empresarias completada`);
+            } else {
+                notifyError(null, "No hay datos para exportar con los filtros actuales");
+            }
         } catch (error) {
-            notifyError(error, "Ocurrió un error al eliminar. Intente de nuevo.");
+            console.error("Export error:", error);
+            notifyError(error, "Error al generar el archivo Excel");
+        } finally {
+            setIsExporting(false);
         }
     };
 
@@ -154,22 +206,101 @@ export function ClientList() {
                 <h2 className="text-base font-medium text-muted-foreground tracking-tight">
                     Listado de Empresarias
                 </h2>
-                <Button onClick={handleCreate} className="w-full sm:w-auto">
-                    <Plus className="mr-2 h-4 w-4" /> Nueva Empresaria
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                    <Button 
+                        variant="outline" 
+                        onClick={handleExportAll} 
+                        disabled={isExporting || isLoading}
+                        className="w-full sm:w-auto border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+                    >
+                        {isExporting ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                            <Download className="mr-2 h-4 w-4" />
+                        )}
+                        Exportar Excel
+                    </Button>
+                    <Button onClick={handleCreate} className="w-full sm:w-auto">
+                        <Plus className="mr-2 h-4 w-4" /> Nueva Empresaria
+                    </Button>
+                </div>
             </div>
 
-            {/* Search bar */}
-            <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                    id="client-search"
-                    placeholder="Buscar por cédula o nombre..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                />
-            </div>
+            {/* Filters Bar */}
+            <Card className="border-slate-200 bg-slate-50/30">
+                <CardContent className="p-3 sm:p-4 space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                id="client-search"
+                                placeholder="Buscar por cédula o nombre..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="pl-10 h-10 bg-white"
+                            />
+                        </div>
+
+                        <Select value={status} onValueChange={setStatus}>
+                            <SelectTrigger className="h-10 bg-white">
+                                <SelectValue placeholder="Estado (Actividad)" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ALL">Cualquier Estado</SelectItem>
+                                <SelectItem value="ACTIVE">Activas (Pedido {"<"} 30 días)</SelectItem>
+                                <SelectItem value="INACTIVE">Inactivas (Pedido {">"} 30 días)</SelectItem>
+                            </SelectContent>
+                        </Select>
+
+                        <div className="relative">
+                            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Filtrar por ciudad..."
+                                value={city}
+                                onChange={(e) => setCity(e.target.value)}
+                                className="pl-10 h-10 bg-white"
+                            />
+                            {city && (
+                                <button 
+                                    onClick={() => setCity("")}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                >
+                                    <X className="h-3 w-3" />
+                                </button>
+                            )}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-1">
+                                <Input
+                                    type="date"
+                                    className="h-10 text-xs bg-white"
+                                    value={startDate}
+                                    onChange={(e) => setStartDate(e.target.value)}
+                                    title="Registro Desde"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <Input
+                                    type="date"
+                                    className="h-10 text-xs bg-white"
+                                    value={endDate}
+                                    onChange={(e) => setEndDate(e.target.value)}
+                                    title="Registro Hasta"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {(searchQuery || status !== "ALL" || city || startDate || endDate) && (
+                        <div className="flex justify-end">
+                            <Button variant="ghost" size="sm" onClick={resetFilters} className="text-[10px] h-7 uppercase font-bold tracking-wider hover:bg-red-50 hover:text-red-600">
+                                <RotateCw className="h-3 w-3 mr-1.5" /> Limpiar Filtros
+                            </Button>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
 
             {/* Error de eliminación por integridad referencial */}
             {deleteError && (

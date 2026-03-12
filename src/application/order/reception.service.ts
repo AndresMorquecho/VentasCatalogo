@@ -55,7 +55,13 @@ export const receptionService = {
       packingTotal: params.packingTotal 
     });
 
-    // Backend returns { success: [{data: Order}], errors: [], summary: {} }
+    // The backend now returns { batch: ReceptionBatch, orders: Order[] }
+    // Or it might still be in the old format if we are transitioning.
+    if (response && typeof response === 'object' && 'orders' in response) {
+      return (response as any).orders as Order[];
+    }
+
+    // Fallback: if response has 'success' field (old format)
     if (response && typeof response === 'object' && 'success' in response) {
       const batchResponse = response as any;
       
@@ -67,7 +73,6 @@ export const receptionService = {
       return batchResponse.success.map((item: any) => item.data);
     }
 
-    // Fallback: if response is already an array, return as-is
     return response as Order[];
   },
 

@@ -1,5 +1,6 @@
 import * as React from "react"
 import { cn } from "@/shared/lib/utils"
+import { Search } from "lucide-react"
 
 interface SelectProps {
   value?: string
@@ -7,46 +8,66 @@ interface SelectProps {
   children: React.ReactNode
 }
 
-interface SelectTriggerProps extends React.HTMLAttributes<HTMLButtonElement> {
-  children: React.ReactNode
-}
-
-interface SelectContentProps {
-  children: React.ReactNode
-}
-
-interface SelectItemProps {
-  value: string
-  children: React.ReactNode
-}
-
-interface SelectValueProps {
-  placeholder?: string
-}
-
-const SelectContext = React.createContext<{
+interface SelectContextType {
   value?: string
   onValueChange?: (value: string) => void
   open: boolean
   setOpen: (open: boolean) => void
-}>({
+  searchValue: string
+  setSearchValue: (val: string) => void
+  labels: Record<string, string>
+  registerLabel: (value: string, label: string) => void
+}
+
+const SelectContext = React.createContext<SelectContextType>({
   open: false,
   setOpen: () => {},
+  searchValue: "",
+  setSearchValue: () => {},
+  labels: {},
+  registerLabel: () => {},
 })
 
 export const Select: React.FC<SelectProps> = ({ value, onValueChange, children }) => {
   const [open, setOpen] = React.useState(false)
-  
+  const [searchValue, setSearchValue] = React.useState("")
+  const [labels, setLabels] = React.useState<Record<string, string>>({})
+
+  const registerLabel = React.useCallback((val: string, label: string) => {
+    setLabels(prev => {
+      if (prev[val] === label) return prev
+      return { ...prev, [val]: label }
+    })
+  }, [])
+
+  // Limpiar búsqueda al cerrar
+  React.useEffect(() => {
+    if (!open) setSearchValue("")
+  }, [open])
+
   return (
-    <SelectContext.Provider value={{ value, onValueChange, open, setOpen }}>
+    <SelectContext.Provider value={{ 
+      value, 
+      onValueChange, 
+      open, 
+      setOpen, 
+      searchValue, 
+      setSearchValue, 
+      labels, 
+      registerLabel 
+    }}>
       <div className="relative">
         {children}
+        {/* Render children hidden to collect labels on mount */}
+        <div className="hidden" aria-hidden="true">
+          {children}
+        </div>
       </div>
     </SelectContext.Provider>
   )
 }
 
-export const SelectTrigger = React.forwardRef<HTMLButtonElement, SelectTriggerProps>(
+export const SelectTrigger = React.forwardRef<HTMLButtonElement, React.HTMLAttributes<HTMLButtonElement>>(
   ({ className, children, ...props }, ref) => {
     const { setOpen, open } = React.useContext(SelectContext)
     
@@ -63,7 +84,7 @@ export const SelectTrigger = React.forwardRef<HTMLButtonElement, SelectTriggerPr
       >
         {children}
         <svg
-          className="h-4 w-4 opacity-50"
+          className={cn("h-4 w-4 opacity-50 transition-transform", open && "rotate-180")}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -76,36 +97,48 @@ export const SelectTrigger = React.forwardRef<HTMLButtonElement, SelectTriggerPr
 )
 SelectTrigger.displayName = "SelectTrigger"
 
-export const SelectValue: React.FC<SelectValueProps> = ({ placeholder }) => {
-  const { value } = React.useContext(SelectContext)
-  const [label, setLabel] = React.useState<string>("")
+export const SelectValue: React.FC<{ placeholder?: string }> = ({ placeholder }) => {
+  const { value, labels } = React.useContext(SelectContext)
+  const label = value ? labels[value] : undefined
   
-  React.useEffect(() => {
-    if (value) {
-      // Find the label from SelectItem children
-      const items = document.querySelectorAll(`[data-select-item][data-value="${value}"]`)
-      if (items.length > 0) {
-        setLabel(items[0].textContent || "")
-      }
-    }
-  }, [value])
-  
-  return <span>{value ? label : placeholder}</span>
+  return (
+    <span className={cn("block truncate", !label && "text-muted-foreground")}>
+      {label || placeholder}
+    </span>
+  )
 }
 
-export const SelectContent: React.FC<SelectContentProps> = ({ children }) => {
-  const { open, setOpen } = React.useContext(SelectContext)
+export const SelectContent: React.FC<{ children: React.ReactNode; searchable?: boolean }> = ({ 
+  children, 
+  searchable = false 
+}) => {
+  const { open, setOpen, searchValue, setSearchValue } = React.useContext(SelectContext)
   
   if (!open) return null
   
   return (
     <>
       <div
-        className="fixed inset-0 z-40"
+        className="fixed inset-0 z-40 bg-transparent"
         onClick={() => setOpen(false)}
       />
-      <div className="absolute z-50 mt-1 max-h-96 w-full overflow-auto rounded-md border bg-popover text-popover-foreground shadow-md">
-        <div className="p-1">
+      <div className={cn(
+        "absolute z-50 mt-1 max-h-96 w-full flex flex-col overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95",
+        "bottom-full mb-1 lg:bottom-auto lg:top-full lg:mt-1"
+      )}>
+        {searchable && (
+          <div className="flex items-center border-b px-3 py-2">
+            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+            <input
+              className="flex h-8 w-full rounded-md bg-transparent text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+              placeholder="Buscar..."
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+              autoFocus
+            />
+          </div>
+        )}
+        <div className="p-1 overflow-auto">
           {children}
         </div>
       </div>
@@ -113,43 +146,59 @@ export const SelectContent: React.FC<SelectContentProps> = ({ children }) => {
   )
 }
 
-export const SelectItem: React.FC<SelectItemProps> = ({ value, children }) => {
-  const { value: selectedValue, onValueChange, setOpen } = React.useContext(SelectContext)
+export const SelectItem: React.FC<{ value: string; children: React.ReactNode }> = ({ value, children }) => {
+  const { value: selectedValue, onValueChange, setOpen, registerLabel, searchValue } = React.useContext(SelectContext)
   const isSelected = selectedValue === value
+  
+  const label = React.useMemo(() => {
+    if (typeof children === "string") return children
+    // Fallback simple para elementos que contienen texto
+    return React.Children.toArray(children)
+      .filter(child => typeof child === "string" || typeof child === "number")
+      .join("")
+  }, [children])
+
+  React.useEffect(() => {
+    registerLabel(value, label)
+  }, [value, label, registerLabel])
+
+  // Filtrado por búsqueda
+  if (searchValue && !label.toLowerCase().includes(searchValue.toLowerCase())) {
+    return null
+  }
   
   return (
     <div
-      data-select-item
-      data-value={value}
       onClick={() => {
         onValueChange?.(value)
         setOpen(false)
       }}
       className={cn(
-        "relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
-        isSelected && "bg-accent"
+        "relative flex w-full cursor-pointer select-none items-center rounded-sm py-2 pl-8 pr-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground transition-colors",
+        isSelected && "bg-accent text-accent-foreground"
       )}
     >
-      {isSelected && (
-        <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
+      <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
+        {isSelected && (
           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
-        </span>
-      )}
+        )}
+      </span>
       {children}
     </div>
   )
 }
 
 export const SelectGroup: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  return <div>{children}</div>
+  return <div className="p-1">{children}</div>
 }
 
 export const SelectLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  return <div className="py-1.5 pl-8 pr-2 text-sm font-semibold">{children}</div>
+  return <div className="py-1.5 pl-8 pr-2 text-sm font-semibold text-muted-foreground">{children}</div>
 }
 
 export const SelectSeparator: React.FC = () => {
   return <div className="-mx-1 my-1 h-px bg-muted" />
 }
+

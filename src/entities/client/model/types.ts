@@ -26,9 +26,16 @@ export interface Client {
     lastOrderDate?: string;
     lastBrandName?: string;
     isBlocked: boolean;
-    paymentPreference: string;
+    createdByName?: string;
 
     createdAt: string;
+
+    clientAccount?: {
+        totalOrders: number;
+        totalSpent: number;
+        rewardLevel: string;
+        totalCreditAvailable: number;
+    };
 }
 
 export interface ClientPayload {
@@ -52,5 +59,5 @@ export interface ClientPayload {
     birthDate?: string | null;
     isWhatsApp?: boolean;
     referredById?: string | null;
-    paymentPreference?: string;
 }
+

@@ -9,6 +9,8 @@ export interface OrderQueryParams {
     brandId?: string;
     search?: string;
     onlyParents?: boolean;
+    startDate?: string;
+    endDate?: string;
 }
 
 export const orderApi = {
@@ -188,9 +190,17 @@ export const orderApi = {
             bankAccountId?: string;
             referenceNumber?: string;
         }[],
-        batchDetails?: { packingNumber?: string, packingTotal?: number }
+        batchDetails?: { packingNumber?: string, packingTotal?: number, id?: string }
     ): Promise<Order[]> => {
         return httpClient.post<Order[]>('/orders/batch-reception', { items, ...batchDetails });
+    },
+
+    /**
+     * Delete reception batch (reverts all orders)
+     * @endpoint DELETE /api/orders/reception-batches/:id
+     */
+    deleteReceptionBatch: async (id: string): Promise<{ message: string }> => {
+        return httpClient.delete<{ message: string }>(`/orders/reception-batches/${id}`);
     },
 
     /**
@@ -250,5 +260,13 @@ export const orderApi = {
      */
     reverseReception: async (orderId: string): Promise<{ message: string }> => {
         return httpClient.post<{ message: string }>(`/orders/${orderId}/reverse-reception`, {});
+    },
+
+    /**
+     * Get all reception batches
+     * @endpoint GET /api/orders/reception-batches
+     */
+    getReceptionBatches: async (): Promise<any[]> => {
+        return httpClient.get<any[]>('/orders/reception-batches');
     }
 };

@@ -11,7 +11,6 @@ import {
 import { Input } from "@/shared/ui/input";
 import { AsyncButton } from "@/shared/ui/async-button";
 import { Label } from "@/shared/ui/label";
-import { Separator } from "@/shared/ui/separator";
 import { Badge } from "@/shared/ui/badge";
 import type { Client, IdentificationType } from "@/entities/client/model/types";
 import { useCreateClient, useUpdateClient, useClientList } from "@/features/clients/api/hooks";
@@ -24,10 +23,23 @@ import {
     SelectValue,
 } from "@/shared/ui/select";
 import { differenceInYears } from "date-fns";
+import { 
+    User, 
+    MapPin, 
+    Phone as PhoneIcon, 
+    Mail, 
+    Calendar, 
+    UserPlus, 
+    CreditCard,
+    MessageSquare,
+    AlertCircle,
+} from "lucide-react";
 
 import { useAuth } from "@/shared/auth";
 import { logAction } from "@/shared/lib/auditService";
 import { useNotifications } from "@/shared/lib/notifications";
+import { cn } from "@/shared/lib/utils";
+import { Button } from "@/shared/ui/button";
 
 interface ClientFormProps {
     client?: Client | null;
@@ -40,10 +52,6 @@ const ID_TYPES = [
     { label: "N° Cedula", value: "CEDULA" },
     { label: "Cedula extranjera", value: "CEDULA_EXTRANJERA" },
     { label: "RUC", value: "RUC" }
-];
-const PAYMENT_PREFERENCES = [
-    { label: "Normal", value: "NORMAL" },
-    { label: "Solo Contado", value: "SOLO_CONTADO" }
 ];
 
 const validationSchema = Yup.object({
@@ -80,13 +88,12 @@ const validationSchema = Yup.object({
     birthDate: Yup.date().optional().nullable(),
     isWhatsApp: Yup.boolean().optional(),
     referredById: Yup.string().optional().nullable(),
-    paymentPreference: Yup.string().optional(),
 });
 
 export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
     const createClient = useCreateClient();
     const updateClient = useUpdateClient();
-    const { data: clientsResponse } = useClientList({ limit: 1000 }); // Para el selector de referidos
+    const { data: clientsResponse } = useClientList({ limit: 1000 });
     const allClients = clientsResponse?.data || [];
 
     const { user } = useAuth();
@@ -94,9 +101,6 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
     const isEditing = !!client;
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
-
-    const inputClass =
-        "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
 
     const formik = useFormik({
         initialValues: {
@@ -118,7 +122,6 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
             birthDate: client?.birthDate ? client.birthDate.split('T')[0] : "",
             isWhatsApp: client?.isWhatsApp || false,
             referredById: client?.referredById || "",
-            paymentPreference: client?.paymentPreference || "NORMAL",
         },
         validationSchema,
         enableReinitialize: true,
@@ -144,7 +147,6 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
                 birthDate: values.birthDate || null,
                 isWhatsApp: values.isWhatsApp,
                 referredById: values.referredById || null,
-                paymentPreference: values.paymentPreference,
             };
 
             try {
@@ -198,337 +200,284 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto w-[95vw] max-w-[95vw] sm:w-full">
-                <DialogHeader>
-                    <DialogTitle className="text-base sm:text-lg">
-                        {isEditing ? "Editar Empresaria" : "Nueva Empresaria"}
-                    </DialogTitle>
+            <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden border-none shadow-2xl">
+                <DialogHeader className="p-6 pb-4 bg-gradient-to-r from-primary/5 to-primary/10 border-b">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
+                            {isEditing ? <User className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
+                        </div>
+                        <div>
+                            <DialogTitle className="text-xl font-bold tracking-tight">
+                                {isEditing ? "Editar Perfil de Empresaria" : "Registro de Nueva Empresaria"}
+                            </DialogTitle>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                                {isEditing ? "Actualice la información detallada de la empresaria." : "Complete todos los campos para dar de alta una nueva empresaria."}
+                            </p>
+                        </div>
+                    </div>
                 </DialogHeader>
 
-                <form onSubmit={formik.handleSubmit} className="space-y-4 sm:space-y-6 py-2 sm:py-4">
-                    {/* Sección: Identificación */}
-                    <div>
-                        <h4 className="text-xs sm:text-sm font-medium text-muted-foreground mb-2 sm:mb-3">
-                            Identificación
-                        </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="identificationType">Tipo Documento</Label>
-                                <Select
-                                    value={formik.values.identificationType}
-                                    onValueChange={(val) => formik.setFieldValue("identificationType", val)}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Seleccione tipo" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {ID_TYPES.map(type => (
-                                            <SelectItem key={type.value} value={type.value}>
-                                                {type.label}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                <div className="flex-1 overflow-y-auto px-6 py-4 custom-scrollbar">
+                    <form id="client-form" onSubmit={formik.handleSubmit} className="space-y-8">
+                        {/* SECCIÓN 1: INFORMACIÓN PERSONAL */}
+                        <section className="space-y-4">
+                            <div className="flex items-center gap-2 pb-2 border-b border-muted">
+                                <User className="h-4 w-4 text-primary" />
+                                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700">Información Personal</h3>
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="identificationNumber">Nº Documento</Label>
-                                <Input
-                                    id="identificationNumber"
-                                    {...formik.getFieldProps("identificationNumber")}
-                                    placeholder="1723456789"
-                                />
-                                {formik.touched.identificationNumber &&
-                                    formik.errors.identificationNumber && (
-                                        <p className="text-red-500 text-xs">
-                                            {formik.errors.identificationNumber}
-                                        </p>
-                                    )}
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="firstName">Nombre Completo</Label>
-                                <Input
-                                    id="firstName"
-                                    {...formik.getFieldProps("firstName")}
-                                    placeholder="Maria Fernanda Gonzalez"
-                                />
-                                {formik.touched.firstName && formik.errors.firstName && (
-                                    <p className="text-red-500 text-xs">
-                                        {formik.errors.firstName}
-                                    </p>
-                                )}
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="paymentPreference">Preferencia de Pago</Label>
-                                <Select
-                                    value={formik.values.paymentPreference}
-                                    onValueChange={(val) => formik.setFieldValue("paymentPreference", val)}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Preferencia" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {PAYMENT_PREFERENCES.map(pref => (
-                                            <SelectItem key={pref.value} value={pref.value}>
-                                                {pref.label}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mt-3 sm:mt-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="birthDate">Fecha de Nacimiento</Label>
-                                <div className="flex gap-2 items-center">
-                                    <Input
-                                        id="birthDate"
-                                        type="date"
-                                        {...formik.getFieldProps("birthDate")}
-                                    />
-                                    {formik.values.birthDate && (
-                                        <Badge variant="outline" className="h-9 px-2 whitespace-nowrap">
-                                            {differenceInYears(new Date(), new Date(formik.values.birthDate))} años
-                                        </Badge>
-                                    )}
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="referredById">Referido por</Label>
-                                <Select
-                                    value={formik.values.referredById || "none"}
-                                    onValueChange={(val) => formik.setFieldValue("referredById", val === "none" ? "" : val)}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Buscar cliente..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="none">-- Sin referido --</SelectItem>
-                                        {allClients
-                                            .filter(c => c.id !== client?.id)
-                                            .map(c => (
-                                                <SelectItem key={c.id} value={c.id}>
-                                                    {c.firstName} ({c.identificationNumber})
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
+                                <div className="md:col-span-4 space-y-2">
+                                    <Label htmlFor="identificationType" className="text-xs font-semibold">Tipo Documento</Label>
+                                    <Select
+                                        value={formik.values.identificationType}
+                                        onValueChange={(val) => formik.setFieldValue("identificationType", val)}
+                                    >
+                                        <SelectTrigger className="bg-slate-50/50">
+                                            <SelectValue placeholder="Seleccione tipo" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {ID_TYPES.map(type => (
+                                                <SelectItem key={type.value} value={type.value}>
+                                                    {type.label}
                                                 </SelectItem>
                                             ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                    </div>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
 
-                    <Separator />
-
-                    {/* Sección: Ubicación */}
-                    <div>
-                        <h4 className="text-xs sm:text-sm font-medium text-muted-foreground mb-2 sm:mb-3">
-                            Ubicación
-                        </h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="country">País</Label>
-                                <Input
-                                    id="country"
-                                    {...formik.getFieldProps("country")}
-                                    placeholder="Ecuador"
-                                />
-                                {formik.touched.country && formik.errors.country && (
-                                    <p className="text-red-500 text-xs">
-                                        {formik.errors.country}
-                                    </p>
-                                )}
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="province">Provincia</Label>
-                                <Input
-                                    id="province"
-                                    {...formik.getFieldProps("province")}
-                                    placeholder="Pichincha"
-                                />
-                                {formik.touched.province && formik.errors.province && (
-                                    <p className="text-red-500 text-xs">
-                                        {formik.errors.province}
-                                    </p>
-                                )}
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="city">Ciudad</Label>
-                                <Input
-                                    id="city"
-                                    {...formik.getFieldProps("city")}
-                                    placeholder="Quito"
-                                />
-                                {formik.touched.city && formik.errors.city && (
-                                    <p className="text-red-500 text-xs">
-                                        {formik.errors.city}
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mt-3 sm:mt-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="address">Dirección</Label>
-                                <Input
-                                    id="address"
-                                    {...formik.getFieldProps("address")}
-                                    placeholder="Av. Amazonas y Colon N23-45"
-                                />
-                                {formik.touched.address && formik.errors.address && (
-                                    <p className="text-red-500 text-xs">
-                                        {formik.errors.address}
-                                    </p>
-                                )}
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="reference">Referencia (Opcional)</Label>
-                                <Input
-                                    id="reference"
-                                    {...formik.getFieldProps("reference")}
-                                    placeholder="Frente al parque..."
-                                />
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mt-3 sm:mt-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="neighborhood">Barrio (Opcional)</Label>
-                                <Input
-                                    id="neighborhood"
-                                    {...formik.getFieldProps("neighborhood")}
-                                    placeholder="La Mariscal"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="sector">Sector (Opcional)</Label>
-                                <Input
-                                    id="sector"
-                                    {...formik.getFieldProps("sector")}
-                                    placeholder="Norte"
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    <Separator />
-
-                    {/* Sección: Contacto */}
-                    <div>
-                        <h4 className="text-xs sm:text-sm font-medium text-muted-foreground mb-2 sm:mb-3">
-                            Contacto
-                        </h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
-                            <div className="space-y-2 md:col-span-1">
-                                <Label htmlFor="email">Correo Electrónico</Label>
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    {...formik.getFieldProps("email")}
-                                    placeholder="correo@ejemplo.com"
-                                />
-                                {formik.touched.email && formik.errors.email && (
-                                    <p className="text-red-500 text-xs">
-                                        {formik.errors.email}
-                                    </p>
-                                )}
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="phone1">Teléfono Principal</Label>
-                                <div className="space-y-2">
-                                    <Input
-                                        id="phone1"
-                                        {...formik.getFieldProps("phone1")}
-                                        placeholder="0998765432"
-                                    />
-                                    <div className="flex items-center space-x-2">
-                                        <Switch
-                                            id="isWhatsApp"
-                                            checked={formik.values.isWhatsApp}
-                                            onCheckedChange={(checked: boolean) => formik.setFieldValue("isWhatsApp", checked)}
+                                <div className="md:col-span-8 space-y-2">
+                                    <Label htmlFor="identificationNumber" className="text-xs font-semibold">Número de Identificación</Label>
+                                    <div className="relative">
+                                        <Input
+                                            id="identificationNumber"
+                                            {...formik.getFieldProps("identificationNumber")}
+                                            placeholder="Ej: 1723456789"
+                                            className={cn(
+                                                "bg-slate-50/50 font-mono",
+                                                formik.touched.identificationNumber && formik.errors.identificationNumber && "border-destructive ring-destructive/20"
+                                            )}
                                         />
-                                        <label
-                                            htmlFor="isWhatsApp"
-                                            className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                                        >
-                                            Es WhatsApp
-                                        </label>
+                                        <span className="absolute right-3 top-2.5 text-muted-foreground/30">
+                                            <CreditCard className="h-4 w-4" />
+                                        </span>
+                                    </div>
+                                    {formik.touched.identificationNumber && formik.errors.identificationNumber && (
+                                        <p className="text-[10px] font-medium text-destructive mt-1">{formik.errors.identificationNumber}</p>
+                                    )}
+                                </div>
+
+                                <div className="md:col-span-12 space-y-2">
+                                    <Label htmlFor="firstName" className="text-xs font-semibold">Nombre Completo de la Empresaria</Label>
+                                    <Input
+                                        id="firstName"
+                                        {...formik.getFieldProps("firstName")}
+                                        placeholder="Nombre y Apellidos"
+                                        className={cn(
+                                            "bg-slate-50/50",
+                                            formik.touched.firstName && formik.errors.firstName && "border-destructive ring-destructive/20"
+                                        )}
+                                    />
+                                    {formik.touched.firstName && formik.errors.firstName && (
+                                        <p className="text-[10px] font-medium text-destructive mt-1">{formik.errors.firstName}</p>
+                                    )}
+                                </div>
+
+                                <div className="md:col-span-6 space-y-2">
+                                    <Label htmlFor="birthDate" className="text-xs font-semibold">Fecha de Nacimiento</Label>
+                                    <div className="relative flex gap-2">
+                                        <Input
+                                            id="birthDate"
+                                            type="date"
+                                            {...formik.getFieldProps("birthDate")}
+                                            className="bg-slate-50/50 flex-1"
+                                        />
+                                        {formik.values.birthDate && (
+                                            <Badge variant="secondary" className="h-9 px-3 shrink-0 bg-primary/5 text-primary border-primary/10">
+                                                <Calendar className="h-3 w-3 mr-1.5" />
+                                                {differenceInYears(new Date(), new Date(formik.values.birthDate))} años
+                                            </Badge>
+                                        )}
                                     </div>
                                 </div>
-                                {formik.touched.phone1 && formik.errors.phone1 && (
-                                    <p className="text-red-500 text-xs text-xs">
-                                        {formik.errors.phone1}
-                                    </p>
-                                )}
+
+                                <div className="md:col-span-6 space-y-2">
+                                    <Label htmlFor="referredById" className="text-xs font-semibold">Referido por (Opcional)</Label>
+                                    <Select
+                                        value={formik.values.referredById || "none"}
+                                        onValueChange={(val) => formik.setFieldValue("referredById", val === "none" ? "" : val)}
+                                    >
+                                        <SelectTrigger className="bg-slate-50/50">
+                                            <SelectValue placeholder="Busque una empresaria..." />
+                                        </SelectTrigger>
+                                        <SelectContent searchable>
+                                            <SelectItem value="none">-- Sin referido --</SelectItem>
+                                            {allClients
+                                                .filter(c => c.id !== client?.id)
+                                                .map(c => (
+                                                    <SelectItem key={c.id} value={c.id}>
+                                                        {c.firstName}
+                                                    </SelectItem>
+                                                ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="operator1">Operadora</Label>
-                                <select
-                                    id="operator1"
-                                    {...formik.getFieldProps("operator1")}
-                                    className={inputClass}
-                                >
-                                    {OPERATORS.map((op) => (
-                                        <option key={op} value={op}>
-                                            {op}
-                                        </option>
-                                    ))}
-                                </select>
-                                {formik.touched.operator1 && formik.errors.operator1 && (
-                                    <p className="text-red-500 text-xs">
-                                        {formik.errors.operator1}
-                                    </p>
-                                )}
+                        </section>
+
+                        {/* SECCIÓN 2: UBICACIÓN Y DOMICILIO */}
+                        <section className="space-y-4">
+                            <div className="flex items-center gap-2 pb-2 border-b border-muted">
+                                <MapPin className="h-4 w-4 text-primary" />
+                                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700">Ubicación y Domicilio</h3>
                             </div>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 mt-3 sm:mt-4">
-                            <div className="md:col-span-1" /> {/* spacer */}
-                            <div className="space-y-2">
-                                <Label htmlFor="phone2">Teléfono Secundario (Opc.)</Label>
-                                <Input
-                                    id="phone2"
-                                    {...formik.getFieldProps("phone2")}
-                                    placeholder="0987654321"
-                                />
-                                {formik.touched.phone2 && formik.errors.phone2 && (
-                                    <p className="text-red-500 text-xs">
-                                        {formik.errors.phone2}
-                                    </p>
-                                )}
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                                <div className="space-y-2">
+                                    <Label htmlFor="country" className="text-xs font-semibold">País</Label>
+                                    <Input id="country" {...formik.getFieldProps("country")} className="bg-slate-50/50" />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="province" className="text-xs font-semibold">Provincia</Label>
+                                    <Input id="province" {...formik.getFieldProps("province")} className="bg-slate-50/50" />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="city" className="text-xs font-semibold">Ciudad</Label>
+                                    <Input id="city" {...formik.getFieldProps("city")} className="bg-slate-50/50" />
+                                </div>
+
+                                <div className="md:col-span-2 space-y-2">
+                                    <Label htmlFor="address" className="text-xs font-semibold">Dirección Domiciliaria</Label>
+                                    <Input id="address" {...formik.getFieldProps("address")} placeholder="Calle principal y secundaria, N° de casa" className="bg-slate-50/50" />
+                                </div>
+                                <div className="md:col-span-1 space-y-2">
+                                    <Label htmlFor="neighborhood" className="text-xs font-semibold">Barrio / Urbanización</Label>
+                                    <Input id="neighborhood" {...formik.getFieldProps("neighborhood")} className="bg-slate-50/50" />
+                                </div>
+
+                                <div className="md:col-span-3 space-y-2 text-area-like">
+                                    <Label htmlFor="reference" className="text-xs font-semibold">Referencia de Ubicación</Label>
+                                    <Input id="reference" {...formik.getFieldProps("reference")} placeholder="Ej: Frente a la farmacia, casa color verde..." className="bg-slate-50/50" />
+                                </div>
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="operator2">Operadora (Opc.)</Label>
-                                <select
-                                    id="operator2"
-                                    {...formik.getFieldProps("operator2")}
-                                    className={inputClass}
-                                >
-                                    <option value="">— Ninguna —</option>
-                                    {OPERATORS.map((op) => (
-                                        <option key={op} value={op}>
-                                            {op}
-                                        </option>
-                                    ))}
-                                </select>
+                        </section>
+
+                        {/* SECCIÓN 3: CONTACTO DIGITAL Y TELEFÓNICO */}
+                        <section className="space-y-4">
+                            <div className="flex items-center gap-2 pb-2 border-b border-muted">
+                                <PhoneIcon className="h-4 w-4 text-primary" />
+                                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700">Canales de Contacto</h3>
                             </div>
-                        </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
+                                <div className="md:col-span-12 space-y-2">
+                                    <Label htmlFor="email" className="text-xs font-semibold">Correo Electrónico</Label>
+                                    <div className="relative">
+                                        <Input id="email" type="email" {...formik.getFieldProps("email")} placeholder="ejemplo@correo.com" className="bg-slate-50/50 pl-10" />
+                                        <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground/50" />
+                                    </div>
+                                    {formik.touched.email && formik.errors.email && (
+                                        <p className="text-[10px] font-medium text-destructive mt-1">{formik.errors.email}</p>
+                                    )}
+                                </div>
+
+                                <div className="md:col-span-6 lg:md:col-span-7 space-y-3">
+                                    <Label className="text-xs font-semibold">Teléfono Principal</Label>
+                                    <div className="flex flex-col gap-3 p-3 rounded-lg border bg-slate-50/30 border-dashed">
+                                        <div className="flex gap-2">
+                                            <Input id="phone1" {...formik.getFieldProps("phone1")} placeholder="0998765432" className="flex-1" />
+                                            <div className="w-32 shrink-0">
+                                                <Select
+                                                    value={formik.values.operator1}
+                                                    onValueChange={(val) => formik.setFieldValue("operator1", val)}
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Operador" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {OPERATORS.map(op => (
+                                                            <SelectItem key={op} value={op}>{op}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center justify-between px-1">
+                                            <div className="flex items-center gap-2">
+                                                <div className={cn(
+                                                    "p-1.5 rounded-md",
+                                                    formik.values.isWhatsApp ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-400"
+                                                )}>
+                                                    <MessageSquare className="h-3.5 w-3.5" />
+                                                </div>
+                                                <Label htmlFor="isWhatsApp" className="text-xs cursor-pointer">Vincular con WhatsApp</Label>
+                                            </div>
+                                            <Switch
+                                                id="isWhatsApp"
+                                                checked={formik.values.isWhatsApp}
+                                                onCheckedChange={(val) => formik.setFieldValue("isWhatsApp", val)}
+                                            />
+                                        </div>
+                                    </div>
+                                    {formik.touched.phone1 && formik.errors.phone1 && (
+                                        <p className="text-[10px] font-medium text-destructive mt-1">{formik.errors.phone1}</p>
+                                    )}
+                                </div>
+
+                                <div className="md:col-span-6 lg:md:col-span-5 space-y-2">
+                                    <Label htmlFor="phone2" className="text-xs font-semibold">Teléfono Secundario (Respaldos)</Label>
+                                    <div className="space-y-3">
+                                        <Input id="phone2" {...formik.getFieldProps("phone2")} placeholder="022123456" className="bg-slate-50/50" />
+                                        <Select
+                                            value={formik.values.operator2 || "none"}
+                                            onValueChange={(val) => formik.setFieldValue("operator2", val === "none" ? "" : val)}
+                                        >
+                                            <SelectTrigger className="bg-slate-50/50">
+                                                <SelectValue placeholder="Operador secundario" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="none">-- Sin especificar --</SelectItem>
+                                                {OPERATORS.map(op => (
+                                                    <SelectItem key={op} value={op}>{op}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                    </form>
+                </div>
+
+                <DialogFooter className="p-6 bg-slate-50 border-t flex items-center justify-between gap-4">
+                    <div className="hidden sm:block">
+                        {submitError && (
+                            <p className="text-xs font-semibold text-destructive flex items-center gap-1.5">
+                                <AlertCircle className="h-3.5 w-3.5" />
+                                {submitError}
+                            </p>
+                        )}
                     </div>
-
-                    {submitError && (
-                        <p className="text-red-500 text-sm text-center">{submitError}</p>
-                    )}
-
-                    <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
-                        <AsyncButton
+                    <div className="flex items-center gap-3 w-full sm:w-auto">
+                        <Button
                             type="button"
-                            variant="outline"
+                            variant="ghost"
                             onClick={() => onOpenChange(false)}
-                            className="w-full sm:w-auto"
+                            className="flex-1 sm:flex-none uppercase text-[10px] font-bold tracking-widest"
                         >
-                            Cancelar
+                            Cerrar
+                        </Button>
+                        <AsyncButton 
+                            form="client-form"
+                            type="submit" 
+                            isLoading={isSubmitting} 
+                            loadingText="Procesando..." 
+                            className="flex-1 sm:flex-none px-8 uppercase text-[10px] font-bold tracking-widest shadow-lg shadow-primary/20"
+                        >
+                            {isEditing ? "Actualizar Registro" : "Registrar Empresaria"}
                         </AsyncButton>
-                        <AsyncButton type="submit" isLoading={isSubmitting} loadingText="Guardando..." className="w-full sm:w-auto">
-                            {isEditing ? "Guardar Cambios" : "Crear Empresaria"}
-                        </AsyncButton>
-                    </DialogFooter>
-                </form>
+                    </div>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     );

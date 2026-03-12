@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { usePaymentSearch, usePaymentOperations } from "../model/hooks";
 import { Input } from "@/shared/ui/input";
-import { Search, DollarSign, Wallet, FileText, Printer } from "lucide-react";
+import { Search, DollarSign, Wallet, FileText, Printer, Plus } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import { PaymentsHistoryTable } from "./PaymentsHistoryTable";
 import { PaymentFormModal } from "./PaymentFormModal";
@@ -9,6 +9,7 @@ import { useToast } from "@/shared/ui/use-toast";
 import { Badge } from "@/shared/ui/badge";
 import { generatePaymentReceipt } from "@/features/payment-receipt/lib/generatePaymentReceipt";
 import { useAuth } from "@/shared/auth";
+import { PageHeader } from "@/shared/ui/PageHeader";
 
 import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import { ConfirmDialog } from "@/shared/ui/confirm-dialog";
@@ -78,16 +79,17 @@ export function PaymentsPage() {
     };
 
     return (
-        <div className="p-6 bg-white min-h-screen">
-            <div className="flex justify-between items-center mb-6">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                        <Wallet className="h-6 w-6 text-emerald-600" />
-                        Gestión de Abonos
-                    </h1>
-                    <p className="text-slate-500 text-sm">Registro de pagos, historial y estados de cuenta.</p>
-                </div>
-            </div>
+        <div className="space-y-6">
+            <PageHeader 
+                title="Gestión de Abonos" 
+                description="Registro de pagos, historial y estados de cuenta"
+                icon={Wallet}
+                actions={
+                    <Button onClick={() => setIsPaymentModalOpen(true)}>
+                        <Plus className="mr-2 h-4 w-4" /> Registrar Abono
+                    </Button>
+                }
+            />
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Orders List & Filters */}

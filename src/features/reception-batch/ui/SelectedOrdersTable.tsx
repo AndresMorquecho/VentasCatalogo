@@ -1,8 +1,15 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table"
 import { Input } from "@/shared/ui/input"
-import type { SelectedOrderState } from "../model/useReceptionBatch"
+import type { Order } from "@/entities/order/model/types"
 import { X, CheckCircle, AlertCircle } from "lucide-react"
 
+export interface SelectedOrderState {
+    order: Order
+    finalTotal: number
+    finalInvoiceNumber: string
+    documentType: string
+    entryDate: string
+}
 
 interface Props {
     orders: SelectedOrderState[]
@@ -21,8 +28,8 @@ export function SelectedOrdersTable({
     onUpdateDocumentType,
     onUpdateEntryDate
 }: Props) {
-    const totalEstimate = orders.reduce((sum, o) => sum + o.order.total, 0)
-    const totalInvoice = orders.reduce((sum, o) => sum + o.finalTotal, 0)
+    const totalEstimate = orders.reduce((sum, o) => sum + Number(o.order.total || 0), 0)
+    const totalInvoice = orders.reduce((sum, o) => sum + Number(o.finalTotal || 0), 0)
     // const totalAbono = orders.reduce((sum, o) => sum + (o.abonoRecepcion || 0), 0)
 
     if (orders.length === 0) {
@@ -59,15 +66,15 @@ export function SelectedOrdersTable({
                         </TableHeader>
                         <TableBody>
                             {orders.map(({ order, finalTotal, finalInvoiceNumber, documentType, entryDate }) => {
-                                const initialPaid = (order.payments || []).reduce((acc, p) => acc + p.amount, 0);
+                                const initialPaid = (order.payments || []).reduce((acc: number, p: any) => acc + Number(p.amount || 0), 0);
                                 
                                 // Current pending based on actual invoice value vs initial paid
-                                const finalBalance = finalTotal - initialPaid;
+                                const finalBalance = Number(finalTotal || 0) - initialPaid;
 
                                 const fmt = (n: number) => `$${Math.abs(n).toFixed(2)}`;
                                 
                                 // Highlight if Estimate doesn't match Real
-                                const mismatch = Math.abs(order.total - finalTotal) > 0.01;
+                                const mismatch = Math.abs(Number(order.total || 0) - Number(finalTotal || 0)) > 0.01;
 
                                 return (
                                     <TableRow key={order.id} className={`group hover:bg-emerald-50/20 transition-colors h-10 border-b border-slate-100 ${mismatch ? 'bg-amber-50/30' : ''}`}>
@@ -80,7 +87,7 @@ export function SelectedOrdersTable({
                                         <TableCell className="py-1 px-2 text-xs">{order.brandName}</TableCell>
                                         
                                         {/* Valor Pedido (Esimated) */}
-                                        <TableCell className="py-1 px-2 text-right font-mono text-xs">${order.total.toFixed(2)}</TableCell>
+                                        <TableCell className="py-1 px-2 text-right font-mono text-xs">${Number(order.total || 0).toFixed(2)}</TableCell>
 
                                         {/* Abono Anterior (Read Only) */}
                                         <TableCell className="py-1 px-2 text-right font-mono text-xs text-blue-600">

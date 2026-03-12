@@ -1,9 +1,15 @@
 import { BankAccountList } from "@/features/bank-accounts"
+import { PageHeader } from "@/shared/ui/PageHeader"
+import { Wallet } from "lucide-react"
 
 export default function BankAccountsPage() {
     return (
         <div className="space-y-6">
-            <h1 className="text-3xl font-bold tracking-tight">Gestión Financiera</h1>
+            <PageHeader 
+                title="Gestión Financiera" 
+                description="Administra cuentas bancarias y efectivo"
+                icon={Wallet}
+            />
             <BankAccountList />
         </div>
     )

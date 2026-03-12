@@ -44,37 +44,38 @@ export function BankAccountTable({ accounts, isLoading, onEdit, onDelete }: Bank
     }
 
     return (
-        <div className="rounded-md border">
+        <div className="rounded-md border overflow-hidden">
+            <div className="overflow-x-auto">
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>Nombre</TableHead>
-                        <TableHead>Tipo</TableHead>
-                        <TableHead>Saldo Actual</TableHead>
-                        <TableHead>Estado</TableHead>
-                        <TableHead className="text-right">Acciones</TableHead>
+                        <TableHead className="whitespace-nowrap text-xs sm:text-sm">Nombre</TableHead>
+                        <TableHead className="whitespace-nowrap text-xs sm:text-sm">Tipo</TableHead>
+                        <TableHead className="whitespace-nowrap text-xs sm:text-sm">Saldo Actual</TableHead>
+                        <TableHead className="whitespace-nowrap text-xs sm:text-sm">Estado</TableHead>
+                        <TableHead className="text-right whitespace-nowrap text-xs sm:text-sm">Acciones</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {accounts.map((acc) => (
-                        <TableRow key={acc.id}>
-                            <TableCell className="font-medium">
+                        <TableRow key={acc.id} className="hover:bg-slate-50/80 transition-colors cursor-pointer">
+                            <TableCell className="font-medium text-xs sm:text-sm">
                                 {acc.name}
                                 {acc.description && acc.description !== acc.name && (
-                                    <span className="block text-xs text-muted-foreground font-normal">{acc.description}</span>
+                                    <span className="block text-[10px] sm:text-xs text-muted-foreground font-normal">{acc.description}</span>
                                 )}
                             </TableCell>
-                            <TableCell>
-                                <Badge variant="outline">
+                            <TableCell className="text-xs sm:text-sm">
+                                <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-wider">
                                     {acc.type === 'CASH' ? 'Efectivo' : 'Banco'}
                                 </Badge>
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="text-xs sm:text-sm">
                                 <span className={(Number(acc.currentBalance) || 0) < 0 ? "text-red-500 font-bold" : "font-medium"}>
                                     ${(Number(acc.currentBalance) || 0).toFixed(2)}
                                 </span>
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="text-xs sm:text-sm">
                                 <div className="flex items-center space-x-2">
                                     <Switch
                                         checked={acc.isActive}
@@ -106,26 +107,30 @@ export function BankAccountTable({ accounts, isLoading, onEdit, onDelete }: Bank
                                 </div>
                             </TableCell>
                             <TableCell className="text-right">
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => onEdit(acc)}
-                                >
-                                    <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                    onClick={() => onDelete(acc)}
-                                >
-                                    <Trash2 className="h-4 w-4" />
-                                </Button>
+                                <div className="flex justify-end gap-0.5 sm:gap-1">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => onEdit(acc)}
+                                        className="h-7 w-7 sm:h-8 sm:w-8"
+                                    >
+                                        <Pencil className="h-3 w-3 sm:h-4 sm:w-4" />
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="text-red-500 hover:text-red-700 hover:bg-red-50 h-7 w-7 sm:h-8 sm:w-8"
+                                        onClick={() => onDelete(acc)}
+                                    >
+                                        <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                                    </Button>
+                                </div>
                             </TableCell>
                         </TableRow>
                     ))}
                 </TableBody>
             </Table>
+            </div>
         </div>
     )
 }

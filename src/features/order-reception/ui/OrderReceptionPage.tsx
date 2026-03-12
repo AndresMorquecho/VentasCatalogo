@@ -7,10 +7,11 @@ import { ReceiveOrderModal } from "./ReceiveOrderModal"
 import type { Order } from "@/entities/order/model/types"
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
-import { Search, History } from "lucide-react"
+import { Search, History, PackageCheck } from "lucide-react"
 import { orderApi } from "@/entities/order/model/api"
 import { useToast } from "@/shared/ui/use-toast"
 import { useQueryClient } from "@tanstack/react-query"
+import { PageHeader } from "@/shared/ui/PageHeader"
 
 export function OrderReceptionPage() {
     const [filters, setFilters] = useState<ReceptionFilters>({})
@@ -46,15 +47,12 @@ export function OrderReceptionPage() {
     if (isError) return <div className="p-8 text-red-500">Error al cargar pedidos.</div>
 
     return (
-        <div className="container mx-auto py-8">
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4 border-b pb-4 border-amber-200">
-                <div className="space-y-1 sm:space-y-2 px-1">
-                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-                        Packing (Bodega)
-                    </h1>
-                    <h2 className="text-base font-medium text-muted-foreground tracking-tight">Gestión de llegada de pedidos y ajuste de facturación</h2>
-                </div>
-                <div className="flex gap-2">
+        <div className="space-y-6">
+            <PageHeader 
+                title="Packing (Bodega)" 
+                description="Gestión de llegada de pedidos y ajuste de facturación"
+                icon={PackageCheck}
+                actions={
                     <Button variant="outline" onClick={() => navigate('/orders/reception/history')} className="gap-2">
                         <History className="h-4 w-4" />
                         Historial

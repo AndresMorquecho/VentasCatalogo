@@ -414,11 +414,15 @@ export function OrderFormPage() {
             }
         }
 
-        // 3. Verificar pagos múltiples
-        if (order.payments && order.payments.length > 1) {
+        // 3. Verificar pagos múltiples del pedido ESPECÍFICO
+        // Se permiten hasta 2 abonos si uno de ellos es 'CREDITO_CLIENTE' (abono inicial + saldo a favor)
+        const payments = order.payments || [];
+        const hasExtraPayments = payments.length > 2 || (payments.length > 1 && !payments.some((p: any) => p.method === 'CREDITO_CLIENTE'));
+        
+        if (hasExtraPayments) {
             return {
                 canEdit: false,
-                reason: 'No se puede editar: El pedido ya tiene abonos adicionales.'
+                reason: 'No se puede editar este pedido: Ya tiene abonos adicionales vinculados.'
             }
         }
 
@@ -460,12 +464,12 @@ export function OrderFormPage() {
         const validation = canEditOrder(order)
 
         if (!validation.canEdit) {
-            notifyError(null, validation.reason || 'No se puede editar este pedido')
+            notifyError(null, validation.reason || 'No se puede editar este pedido individual')
             return
         }
 
         setOrderToEdit(order)
-        const idx = formik.values.brandItems.findIndex((item: any) => item.id === order.id)
+        const idx = formik.values.brandItems.findIndex((item: any) => (item.id && item.id === order.id) || (item.tempId && item.tempId === order.tempId))
         setEditRowIndex(idx >= 0 ? idx : null)
         setEditModalOpen(true)
     }
@@ -551,9 +555,13 @@ export function OrderFormPage() {
                                 possibleDeliveryDate: o.possibleDeliveryDate ? new Date(o.possibleDeliveryDate).toISOString().split('T')[0] : "",
                                 salesChannel: o.salesChannel || "OFICINA",
                                 orderNumber: o.orderNumber || (o.type === 'REPROGRAMACION' ? parentOrderNumber : ""),
-                            deposit: getPaidAmount(o) || 0,
-                            status: o.status,
-                            payments: o.payments
+                                bankAccountId: o.bankAccountId,
+                                deposit: getPaidAmount(o) || 0,
+                                status: o.status,
+                                payments: o.payments,
+                                receiptNumber: o.receiptNumber || "",
+                                clientId: o.clientId || "",
+                                clientName: o.clientName || ""
                             })),
                             deposit: 0,
                             creditToUse: 0,
@@ -603,9 +611,13 @@ export function OrderFormPage() {
                             possibleDeliveryDate: o.possibleDeliveryDate ? new Date(o.possibleDeliveryDate).toISOString().split('T')[0] : "",
                             salesChannel: o.salesChannel || "OFICINA",
                             orderNumber: o.orderNumber || (o.type === 'REPROGRAMACION' ? parentOrderNumber : ""),
+                            bankAccountId: o.bankAccountId,
                             deposit: getPaidAmount(o) || 0,
                             status: o.status,
-                            payments: o.payments
+                            payments: o.payments,
+                            receiptNumber: o.receiptNumber || "",
+                            clientId: o.clientId || "",
+                            clientName: o.clientName || ""
                         })),
                         deposit: 0,
                         creditToUse: 0,
@@ -841,6 +853,7 @@ export function OrderFormPage() {
                     order={allOrders[0]}
                     childOrders={allOrders.slice(1)}
                     client={client}
+                    receiptNumber={formik.values.receiptNumber}
                     user={{
                         id: user?.id || '1',
                         name: user?.username || 'Vendedor',

@@ -1,4 +1,4 @@
-import { Eye, Pencil, Trash2, RotateCcw, AlertCircle } from "lucide-react"
+import { Eye, Pencil, Trash2, AlertCircle } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import type { Order, OrderStatus } from "@/entities/order/model/types"
 import { getPaidAmount, getPendingAmount } from "@/entities/order/model/model"
@@ -10,16 +10,12 @@ interface OrderTableProps {
     orders: Order[]
     onViewDetails: (order: Order) => void
     onEdit: (order: Order) => void
-    onDelete: (order: Order) => void
-    onReverse?: (order: Order) => void
+    onDelete: (client: Order) => void
     lastClosureDate?: Date | null
 }
 
 const ROW_STATUS_CLASSES: Record<OrderStatus, string> = {
-    RECIBIDO: "bg-emerald-50/20 hover:bg-emerald-50/40",
     POR_RECIBIR: "bg-amber-50/20 hover:bg-amber-50/40",
-    ATRASADO: "bg-red-50/20 hover:bg-red-50/40",
-    CANCELADO: "bg-gray-50/20 hover:bg-gray-50/40",
     RECIBIDO_EN_BODEGA: "bg-blue-50/20 hover:bg-blue-50/40",
     ENTREGADO: "bg-slate-50/20 hover:bg-slate-50/40",
 }
@@ -57,7 +53,7 @@ function formatCurrency(amount: number): string {
     return `$${amount.toFixed(2)}`
 }
 
-export function OrderTable({ orders, onViewDetails, onEdit, onDelete, onReverse, lastClosureDate }: OrderTableProps) {
+export function OrderTable({ orders, onViewDetails, onEdit, onDelete, lastClosureDate }: OrderTableProps) {
     const { hasPermission } = useAuth()
 
     return (
@@ -82,17 +78,19 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, onReverse,
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {orders.map((order) => {
-                                const showReverse = order.status === 'RECIBIDO_EN_BODEGA' && !order.deliveryDate;
                                 const accentColor = getAccentColor(order.receiptNumber);
 
-                                // BUSINESS RULE: Cannot edit if any movement happened
-                                // Movement: Status != POR_RECIBIR OR has more than 1 payment
-                                const hasMovement = order.status !== 'POR_RECIBIR' || (order.payments && order.payments.length > 1);
+                                // Movement check: Used for delete and visual warnings
+                                // We allow up to 2 payments if one is credit, as that's standard for initial movements
+                                const paymentCount = order.payments?.length || 0;
+                                const hasRealMovement = order.status !== 'POR_RECIBIR' || paymentCount > 2 || (paymentCount > 1 && !order.payments?.some(p => p.method === 'CREDITO_CLIENTE'));
 
                                 // Period check: Cannot edit if date is closed
                                 const isClosed = lastClosureDate && order.transactionDate && new Date(order.transactionDate) <= lastClosureDate;
 
-                                const canEdit = !hasMovement && !isClosed;
+                                // For the receipt level edit button, we only block if period is closed
+                                const canEditReceipt = !isClosed;
+                                const canDeleteReceipt = !hasRealMovement && !isClosed;
 
 
 
@@ -192,41 +190,29 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, onReverse,
                                                     <Eye className="h-4 w-4" />
                                                 </Button>
 
-                                                {showReverse ? (
+                                                {hasPermission('orders.edit') && (
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        className="h-8 w-8 text-amber-600 hover:bg-amber-50"
-                                                        onClick={() => onReverse?.(order)}
-                                                        title="Regresar recepción"
+                                                        className={`h-8 w-8 text-slate-900 hover:bg-slate-100 font-bold ${!canEditReceipt ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                                        onClick={async (e) => {
+                                                            e.stopPropagation()
+                                                            if (canEditReceipt) onEdit(order)
+                                                        }}
+                                                        title="Editar recibo completo"
                                                     >
-                                                        <RotateCcw className="h-4 w-4" />
+                                                        <Pencil className="h-4 w-4" />
                                                     </Button>
-                                                ) : (
-                                                    hasPermission('orders.edit') && (
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className={`h-8 w-8 text-slate-900 hover:bg-slate-100 font-bold ${!canEdit ? 'opacity-40' : ''}`}
-                                                            onClick={async (e) => {
-                                                                e.stopPropagation()
-                                                                onEdit(order)
-                                                            }}
-                                                            title="Editar recibo completo"
-                                                        >
-                                                            <Pencil className="h-4 w-4" />
-                                                        </Button>
-                                                    )
                                                 )}
 
                                                 {hasPermission('orders.delete') && (
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        className={`h-8 w-8 text-slate-300 hover:text-red-600 hover:bg-red-50 transition-colors ${!canEdit ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                                        className={`h-8 w-8 text-slate-300 hover:text-red-600 hover:bg-red-50 transition-colors ${!canDeleteReceipt ? 'opacity-40 cursor-not-allowed' : ''}`}
                                                         onClick={async (e) => {
                                                             e.stopPropagation()
-                                                            onDelete(order)
+                                                            if (canDeleteReceipt) onDelete(order)
                                                         }}
                                                         title="Anular Pedido"
                                                     >
@@ -234,8 +220,8 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, onReverse,
                                                     </Button>
                                                 )}
 
-                                                {!canEdit && (
-                                                    <div title="Este pedido ya tiene movimientos y no puede ser modificado">
+                                                {!canDeleteReceipt && (
+                                                    <div title="Este recibo o su pedido principal ya tiene movimientos y no puede ser anulado completamente">
                                                         <AlertCircle className="h-3.5 w-3.5 text-amber-400 opacity-50 ml-1" />
                                                     </div>
                                                 )}

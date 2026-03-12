@@ -3,12 +3,25 @@ import { httpClient } from '../lib/httpClient';
 import type { PaginatedResponse } from '@/entities/order/model/types';
 
 export const clientApi = {
-    getAll: async (params?: { page?: number; limit?: number; search?: string; active?: boolean }): Promise<PaginatedResponse<Client>> => {
+    getAll: async (params?: { 
+        page?: number; 
+        limit?: number; 
+        search?: string; 
+        active?: boolean;
+        status?: string;
+        city?: string;
+        startDate?: string;
+        endDate?: string;
+    }): Promise<PaginatedResponse<Client>> => {
         const queryParams = new URLSearchParams();
         if (params?.page) queryParams.append('page', params.page.toString());
         if (params?.limit) queryParams.append('limit', params.limit.toString());
         if (params?.search) queryParams.append('search', params.search);
         if (params?.active !== undefined) queryParams.append('active', params.active.toString());
+        if (params?.status) queryParams.append('status', params.status);
+        if (params?.city) queryParams.append('city', params.city);
+        if (params?.startDate) queryParams.append('startDate', params.startDate);
+        if (params?.endDate) queryParams.append('endDate', params.endDate);
 
         return httpClient.get<PaginatedResponse<Client>>(`/clients?${queryParams.toString()}`);
     },

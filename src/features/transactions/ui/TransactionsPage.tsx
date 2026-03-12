@@ -4,9 +4,10 @@ import { TransactionsTable } from "./TransactionsTable"
 import { TransactionDetailsModal } from "./TransactionDetailsModal"
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
-import { Search, Loader2, X } from "lucide-react"
+import { Search, Loader2, X, DollarSign } from "lucide-react"
 import { useDebounce } from "@/shared/lib/hooks"
 import { Pagination } from "@/shared/ui/pagination"
+import { PageHeader } from "@/shared/ui/PageHeader"
 import type { FinancialRecord } from "@/entities/financial-record/model/types"
 
 export function TransactionsPage() {
@@ -45,13 +46,12 @@ export function TransactionsPage() {
     }
 
     return (
-        <div className="container mx-auto py-8">
-            <div className="mb-2 px-1">
-                <div className="space-y-1 sm:space-y-2">
-                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Transacciones Financieras</h1>
-                    <h2 className="text-base font-medium text-muted-foreground tracking-tight">Registro centralizado de depósitos, transferencias y cheques.</h2>
-                </div>
-            </div>
+        <div className="space-y-6">
+            <PageHeader 
+                title="Transacciones Financieras" 
+                description="Registro centralizado de depósitos, transferencias y cheques"
+                icon={DollarSign}
+            />
 
             <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 mb-6 flex flex-wrap gap-4 items-end">
                 <div className="w-full md:w-64">

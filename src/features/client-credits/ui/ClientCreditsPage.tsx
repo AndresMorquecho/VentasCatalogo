@@ -4,6 +4,7 @@ import { ClientCreditsTable } from "./ClientCreditsTable";
 import { Input } from "@/shared/ui/input";
 import { Search, Gift, DollarSign } from "lucide-react";
 import { useDebounce } from "@/shared/lib/hooks";
+import { PageHeader } from "@/shared/ui/PageHeader";
 
 import { Pagination } from "@/shared/ui/pagination";
 
@@ -38,25 +39,20 @@ export function ClientCreditsPage() {
 
 
     return (
-        <div className="container mx-auto py-8">
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4 border-b pb-4 border-emerald-200">
-                <div>
-                    <h1 className="text-3xl font-bold text-emerald-900 flex items-center gap-2">
-                        <Gift className="h-8 w-8" />
-                        Saldos a Favor
-                    </h1>
-                    <p className="text-emerald-700 text-sm mt-1">
-                        Créditos disponibles de clientes para futuros pedidos
-                    </p>
+        <div className="space-y-6">
+            <PageHeader 
+                title="Saldos a Favor" 
+                description="Créditos disponibles de clientes para futuros pedidos"
+                icon={Gift}
+            />
+
+            <div className="bg-white px-5 py-3 rounded-xl border border-emerald-100 shadow-[0_2px_10px_-3px_rgba(16,185,129,0.3)] flex items-center gap-3 min-w-[220px]">
+                <div className="bg-emerald-50 p-2.5 rounded-lg text-emerald-600">
+                    <DollarSign className="h-5 w-5" />
                 </div>
-                <div className="bg-white px-5 py-3 rounded-xl border border-emerald-100 shadow-[0_2px_10px_-3px_rgba(16,185,129,0.3)] flex items-center gap-3 min-w-[220px]">
-                    <div className="bg-emerald-50 p-2.5 rounded-lg text-emerald-600">
-                        <DollarSign className="h-5 w-5" />
-                    </div>
-                    <div>
-                        <p className="text-slate-500 text-[11px] font-semibold mb-0.5">Total Saldos a Favor</p>
-                        <p className="text-xl font-bold text-slate-800 tracking-tight leading-none">${totalCredits.toFixed(2)}</p>
-                    </div>
+                <div>
+                    <p className="text-slate-500 text-[11px] font-semibold mb-0.5">Total Saldos a Favor</p>
+                    <p className="text-xl font-bold text-slate-800 tracking-tight leading-none">${totalCredits.toFixed(2)}</p>
                 </div>
             </div>
 

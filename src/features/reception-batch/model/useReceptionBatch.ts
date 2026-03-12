@@ -1,172 +1,158 @@
-import { useState, useMemo } from 'react';
-import { useQueryClient, useMutation } from '@tanstack/react-query'; // Consolidated
-import { useOrderList } from '@/entities/order/model/hooks';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { orderApi } from '@/entities/order/model/api';
 import type { Order } from '@/entities/order/model/types';
+import { useToast } from '@/shared/ui/use-toast';
 
-import { receptionApi } from '@/shared/api/receptionApi';
-import { useClientList } from '@/features/clients/api/hooks';
-
-export type SelectedOrderState = {
-    order: Order;
-    abonoRecepcion: number;
-    finalTotal: number;
-    finalInvoiceNumber: string;
-    documentType: string;
-    entryDate: string;
-}
-
-export function useReceptionBatch() {
-    const { data: ordersResponse, isLoading } = useOrderList({ limit: 500 });
-    const { data: clientsResponse } = useClientList({ limit: 500 });
-
-    const allOrders = ordersResponse?.data || [];
-    const clients = clientsResponse?.data || [];
-    const qc = useQueryClient();
-
-    const [packingNumber, setPackingNumber] = useState("");
+export const useReceptionBatch = () => {
+    const { showToast } = useToast();
+    const queryClient = useQueryClient();
+    const [selectedOrders, setSelectedOrders] = useState<Order[]>([]);
+    const [packingNumber, setPackingNumber] = useState('');
     const [packingTotal, setPackingTotal] = useState(0);
+    const [editingBatchId, setEditingBatchId] = useState<string | null>(null);
+    const [lastSavedOrders, setLastSavedOrders] = useState<Order[] | null>(null);
 
-    // Map OrderID -> { abono, total, invoiceNumber, documentType, entryDate }
-    const [selectionMap, setSelectionMap] = useState<Record<string, { 
-        abono: number, 
-        total: number, 
-        invoice: string,
-        documentType: string,
-        entryDate: string
-    }>>({});
-
-    const selectedIds = useMemo(() => new Set(Object.keys(selectionMap)), [selectionMap]);
-
-    // LEFT TABLE: Available orders
-    const pendingOrders = useMemo(() =>
-        allOrders.filter(o => o.status === 'POR_RECIBIR' && !selectedIds.has(o.id)),
-        [allOrders, selectedIds]);
-
-    // RIGHT TABLE: Selected orders with local state
-    const selectedOrders: SelectedOrderState[] = useMemo(() => {
-        return allOrders
-            .filter(o => selectedIds.has(o.id))
-            .map(o => ({
-                order: o,
-                abonoRecepcion: selectionMap[o.id]?.abono ?? 0,
-                finalTotal: selectionMap[o.id]?.total ?? (o.realInvoiceTotal || o.total),
-                finalInvoiceNumber: selectionMap[o.id]?.invoice ?? (o.invoiceNumber || o.receiptNumber),
-                documentType: selectionMap[o.id]?.documentType ?? "FACTURA",
-                entryDate: selectionMap[o.id]?.entryDate ?? new Date().toISOString().split('T')[0]
-            }));
-    }, [allOrders, selectedIds, selectionMap]);
-
-    const moveToSelected = (ids: string[]) => {
-        setSelectionMap(prev => {
-            const next = { ...prev };
-            ids.forEach(id => {
-                const order = allOrders.find(o => o.id === id);
-                if (order && !next[id]) {
-                    // Initialize with defaults
-                    next[id] = {
-                        abono: 0,
-                        total: order.realInvoiceTotal || order.total,
-                        invoice: order.invoiceNumber || "",
-                        documentType: "FACTURA",
-                        entryDate: new Date().toISOString().split('T')[0]
-                    };
-                }
-            });
-            return next;
-        });
-    };
-
-    const updateAbono = (id: string, value: number) => {
-        setSelectionMap(prev => {
-            if (!prev[id]) return prev;
-            return { ...prev, [id]: { ...prev[id], abono: value } };
-        });
-    };
-
-    const updateInvoiceTotal = (id: string, value: number) => {
-        setSelectionMap(prev => {
-            if (!prev[id]) return prev;
-            return { ...prev, [id]: { ...prev[id], total: value } };
-        });
-    };
-
-    const updateInvoiceNumber = (id: string, value: string) => {
-        setSelectionMap(prev => {
-            if (!prev[id]) return prev;
-            return { ...prev, [id]: { ...prev[id], invoice: value } };
-        });
-    };
-
-    const updateDocumentType = (id: string, value: string) => {
-        setSelectionMap(prev => {
-            if (!prev[id]) return prev;
-            return { ...prev, [id]: { ...prev[id], documentType: value } };
-        });
-    };
-
-    const updateEntryDate = (id: string, value: string) => {
-        setSelectionMap(prev => {
-            if (!prev[id]) return prev;
-            return { ...prev, [id]: { ...prev[id], entryDate: value } };
-        });
-    };
-
-    const moveToPending = (ids: string[]) => {
-        setSelectionMap(prev => {
-            const next = { ...prev };
-            ids.forEach(id => delete next[id]);
-            return next;
-        });
-    };
-
-    const clearSelection = () => setSelectionMap({});
-
-    const saveBatch = useMutation({
-        mutationFn: async (params: {
-            ordersToSave: SelectedOrderState[],
-            paymentMethod?: string,
-            bankAccountId?: string,
-            referenceNumber?: string,
-            packingNumber?: string,
-            packingTotal?: number
-        }) => {
-            if (params.ordersToSave.length === 0) throw new Error("No hay órdenes seleccionadas");
-            // Call API with the enriched payload
-            return receptionApi.saveBatchWithPayments({
-                selectedOrders: params.ordersToSave,
-                paymentMethod: params.paymentMethod,
-                bankAccountId: params.bankAccountId,
-                referenceNumber: params.referenceNumber,
-                packingNumber: params.packingNumber,
-                packingTotal: params.packingTotal
-            });
-        },
-        onSuccess: () => {
-            qc.invalidateQueries({ queryKey: ['orders'] });
-            qc.invalidateQueries({ queryKey: ['financial-records'] });
-            qc.invalidateQueries({ queryKey: ['bank-accounts'] });
-            clearSelection();
-        }
+    // Queries
+    const { data: allOrders = [], isLoading: isLoadingOrders } = useQuery({
+        queryKey: ['orders-pending-reception'],
+        queryFn: () => orderApi.getByStatus('POR_RECIBIR'),
     });
 
-    return {
-        allOrders,
-        pendingOrders,
-        selectedOrders,
-        moveToSelected,
-        moveToPending,
-        updateAbono,
-        updateInvoiceTotal,
-        updateInvoiceNumber,
-        updateDocumentType,
-        updateEntryDate,
-        clearSelection,
-        saveBatch,
-        isLoading,
-        clients,
-        packingNumber,
-        setPackingNumber,
-        packingTotal,
-        setPackingTotal
+    const { data: batches = [], isLoading: isLoadingBatches } = useQuery({
+        queryKey: ['reception-batches'],
+        queryFn: () => orderApi.getReceptionBatches(),
+    });
+
+    // Mutations
+    const saveBatch = useMutation({
+        mutationFn: (data: { items: any[], packingNumber: string, packingTotal: number, id?: string }) => 
+            orderApi.batchReception(data.items, { 
+                packingNumber: data.packingNumber, 
+                packingTotal: data.packingTotal,
+                id: data.id
+            }),
+        onSuccess: (data: any) => {
+            queryClient.invalidateQueries({ queryKey: ['orders-pending-reception'] });
+            queryClient.invalidateQueries({ queryKey: ['reception-batches'] });
+            
+            // Si la API retorna un objeto { batch, orders }
+            const orders = data.orders || data;
+            setLastSavedOrders(Array.isArray(orders) ? orders : null);
+
+            setSelectedOrders([]);
+            setPackingNumber('');
+            setPackingTotal(0);
+            setEditingBatchId(null);
+            showToast(editingBatchId ? 'Packing actualizado' : 'Pedidos recepcionados correctamente', 'success');
+        },
+        onError: (error: any) => {
+            showToast(error.message || 'Error al procesar recepción', 'error');
+        },
+    });
+
+    const deleteBatch = useMutation({
+        mutationFn: (id: string) => orderApi.deleteReceptionBatch(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['orders-pending-reception'] });
+            queryClient.invalidateQueries({ queryKey: ['reception-batches'] });
+            showToast('Recepción revertida. Los pedidos han regresado a pendientes.', 'success');
+        },
+        onError: (error: any) => {
+            showToast(error.message || 'Error al eliminar el lote', 'error');
+        },
+    });
+
+    // Actions
+    const addOrders = (ids: string[]) => {
+        const toAdd = allOrders.filter(o => ids.includes(o.id) && !selectedOrders.find(so => so.id === o.id));
+        setSelectedOrders(prev => [
+            ...prev,
+            ...toAdd.map(o => ({
+                ...o,
+                finalTotal: Number(o.total),
+                finalInvoiceNumber: '',
+                documentType: 'FACTURA',
+                entryDate: new Date().toISOString().split('T')[0]
+            }))
+        ]);
     };
-}
+
+    const removeOrder = (orderId: string) => {
+        setSelectedOrders(selectedOrders.filter(o => o.id !== orderId));
+    };
+
+    const startEditingBatch = (batch: any) => {
+        setEditingBatchId(batch.id);
+        setPackingNumber(batch.packingNumber);
+        setPackingTotal(Number(batch.packingTotal));
+        
+        // Cargar los pedidos del batch a la zona de selección
+        const batchOrders = batch.orders.map((o: any) => ({
+            ...o,
+            finalTotal: Number(o.realInvoiceTotal),
+            finalInvoiceNumber: o.invoiceNumber,
+            documentType: o.documentType || 'FACTURA'
+        }));
+        
+        setSelectedOrders(batchOrders);
+    };
+
+    const cancelEdit = () => {
+        setEditingBatchId(null);
+        setSelectedOrders([]);
+        setPackingNumber('');
+        setPackingTotal(0);
+    };
+
+    const handleSaveBatch = () => {
+        const items = selectedOrders.map(o => ({
+            orderId: o.id,
+            finalTotal: (o as any).finalTotal || Number(o.total),
+            finalInvoiceNumber: (o as any).finalInvoiceNumber || '',
+            documentType: (o as any).documentType || 'FACTURA',
+            abonoRecepcion: (o as any).abonoRecepcion || 0,
+            bankAccountId: (o as any).bankAccountId,
+            paymentMethod: (o as any).paymentMethod || 'EFECTIVO',
+            referenceNumber: (o as any).referenceNumber,
+            entryDate: (o as any).entryDate
+        }));
+
+        saveBatch.mutate({
+            items,
+            packingNumber,
+            packingTotal,
+            id: editingBatchId || undefined
+        });
+    };
+
+    const updateOrderItem = (orderId: string, data: Partial<any>) => {
+        setSelectedOrders(prev => prev.map(o => 
+            o.id === orderId ? { ...o, ...data } : o
+        ));
+    };
+
+    return {
+        allOrders: allOrders.filter(o => !selectedOrders.find(so => so.id === o.id)),
+        selectedOrders,
+        packingNumber,
+        packingTotal,
+        setPackingNumber,
+        setPackingTotal,
+        addOrders,
+        removeOrder,
+        handleSaveBatch,
+        isSaving: saveBatch.isPending,
+        batches,
+        isLoadingBatches,
+        deleteBatch: (id: string) => deleteBatch.mutate(id),
+        isDeleting: deleteBatch.isPending,
+        editingBatchId,
+        startEditingBatch,
+        cancelEdit,
+        isLoadingOrders,
+        updateOrderItem,
+        lastSavedOrders,
+        clearLastSaved: () => setLastSavedOrders(null)
+    };
+};

@@ -14,8 +14,6 @@ import { useNotifications } from "@/shared/lib/notifications"
 import { getPaidAmount } from "@/entities/order/model/model"
 import type { Order } from "@/entities/order/model/types"
 import { useAuth } from "@/shared/auth"
-import { orderApi } from "@/entities/order/model/api" // Added orderApi
-import { useQueryClient } from "@tanstack/react-query" // Added queryClient
 
 import { useDebounce } from "@/shared/lib/hooks"
 import { Pagination } from "@/shared/ui/pagination"
@@ -51,7 +49,6 @@ export function OrderList() {
 
     const deleteOrder = useDeleteOrder()
     const { notifySuccess, notifyError } = useNotifications()
-    const qc = useQueryClient()
     const { hasPermission, user } = useAuth()
     const navigate = useNavigate()
 
@@ -81,7 +78,7 @@ export function OrderList() {
     }, [orders, debouncedSearch])
 
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
-    const [modalMode, setModalMode] = useState<'none' | 'detail' | 'create' | 'edit' | 'delete' | 'reverse'>('none')
+    const [modalMode, setModalMode] = useState<'none' | 'detail' | 'create' | 'edit' | 'delete'>('none')
 
     const handleViewDetails = (order: Order) => {
         setSelectedOrder(order)
@@ -100,39 +97,13 @@ export function OrderList() {
             return
         }
 
-        const hasMultiplePayments = order.payments && order.payments.length > 1;
-        if (hasMultiplePayments) {
-            notifyError({ message: 'No se puede editar: El pedido ya tiene abonos adicionales.' })
-            return
-        }
-
-        if (order.status !== 'POR_RECIBIR') {
-            notifyError({ message: `No se puede editar: El pedido ya está en estado ${order.status}.` })
-            return
-        }
+        // Note: Individual movement/status checks are performed inside OrderFormPage 
+        // per order item, allowing editing of other items in the same receipt.
 
         if (order.receiptNumber && order.receiptNumber.trim() !== "") {
             navigate(`/orders/group/${order.receiptNumber}`)
         } else {
             navigate(`/orders/edit/${order.id}`)
-        }
-    }
-
-    const handleReverseClick = (order: Order) => {
-        setSelectedOrder(order)
-        setModalMode('reverse')
-    }
-
-    const handleConfirmReverse = async () => {
-        if (!selectedOrder) return
-        try {
-            await orderApi.reverseReception(selectedOrder.id)
-            notifySuccess("La recepción ha sido revertida correctamente.")
-            await qc.invalidateQueries({ queryKey: ['orders'] })
-            setModalMode('none')
-            setSelectedOrder(null)
-        } catch (error) {
-            notifyError(error, "Error al revertir recepción")
         }
     }
 
@@ -217,7 +188,6 @@ export function OrderList() {
                     onViewDetails={handleViewDetails}
                     onEdit={handleEdit}
                     onDelete={handleDeleteClick}
-                    onReverse={handleReverseClick}
                     lastClosureDate={lastClosureDate}
                 />
             )}
@@ -238,26 +208,7 @@ export function OrderList() {
                 onOpenChange={(open) => !open && handleClose()}
             />
 
-            {selectedOrder && (
-                <ConfirmDialog
-                    open={modalMode === 'reverse'}
-                    onOpenChange={(open) => !open && handleClose()}
-                    onConfirm={handleConfirmReverse}
-                    title="Regresar Recepción"
-                    description={`¿Estás seguro de regresar la recepción del pedido ${selectedOrder.receiptNumber}?`}
-                    confirmText="Regresar Recepción"
-                    cancelText="Cancelar"
-                >
-                    <div className="p-3 bg-amber-50 rounded border border-amber-200 text-amber-800 text-sm">
-                        <p>Esta acción:</p>
-                        <ul className="list-disc ml-4 mt-1">
-                            <li>Revertirá el abono realizado en la recepción del banco.</li>
-                            <li>Eliminará la factura real y movimientos de inventario asociados.</li>
-                            <li>El pedido volverá al estado <strong>POR RECIBIR</strong>.</li>
-                        </ul>
-                    </div>
-                </ConfirmDialog>
-            )}
+
 
             {selectedOrder && (
                 <ConfirmDialog

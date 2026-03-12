@@ -8,11 +8,11 @@ import {
     TableRow,
 } from "@/shared/ui/table";
 import { Button } from "@/shared/ui/button";
-import { Pencil, Trash2, Download, Filter, Phone, Eye } from "lucide-react";
+import { Pencil, Trash2, Filter, Phone, Eye } from "lucide-react";
 import type { Client } from "@/entities/client/model/types";
 import { cn } from "@/shared/lib/utils";
 import { format, differenceInDays } from "date-fns";
-import * as XLSX from "xlsx";
+import { Badge } from "@/shared/ui/badge";
 
 interface ClientTableProps {
     clients: Client[];
@@ -23,28 +23,8 @@ interface ClientTableProps {
 }
 
 export function ClientTable({ clients, isLoading, onEdit, onView, onDelete }: ClientTableProps) {
-    const exportToExcel = () => {
-        const dataToExport = clients.map(client => ({
-            "Cédula/Documento": client.identificationNumber,
-            "Tipo": client.identificationType,
-            "Nombre Completo": client.firstName,
-            "País": client.country,
-            "Provincia": client.province,
-            "Ciudad": client.city,
-            "Email": client.email,
-            "Teléfono 1": client.phone1,
-            "Operador 1": client.operator1,
-            "WhatsApp": client.isWhatsApp ? "SI" : "NO",
-            "Fecha Registro": format(new Date(client.createdAt), "yyyy-MM-dd"),
-            "Último Pedido": client.lastOrderDate ? format(new Date(client.lastOrderDate), "yyyy-MM-dd") : "N/A",
-            "Estado Pago": client.paymentPreference
-        }));
+    // Export logic moved to ClientList for fetching all data correctly
 
-        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Empresarias");
-        XLSX.writeFile(workbook, `empresarias_${format(new Date(), "yyyyMMdd")}.xlsx`);
-    };
 
     if (isLoading) {
         return (
@@ -67,13 +47,6 @@ export function ClientTable({ clients, isLoading, onEdit, onView, onDelete }: Cl
 
     return (
         <div className="space-y-4">
-            <div className="flex justify-end">
-                <Button variant="outline" size="sm" onClick={exportToExcel} className="gap-2">
-                    <Download className="h-4 w-4" />
-                    Exportar Excel
-                </Button>
-            </div>
-
             <div className="rounded-md border overflow-hidden">
                 <div className="overflow-x-auto">
                     <Table>
@@ -90,6 +63,7 @@ export function ClientTable({ clients, isLoading, onEdit, onView, onDelete }: Cl
                                     </div>
                                 </TableHead>
                                 <TableHead className="whitespace-nowrap text-xs sm:text-sm">Ciudad</TableHead>
+                                <TableHead className="whitespace-nowrap text-xs sm:text-sm">Estado</TableHead>
                                 <TableHead className="whitespace-nowrap text-xs sm:text-sm">Contacto</TableHead>
                                 <TableHead className="whitespace-nowrap text-xs sm:text-sm">F. Registro</TableHead>
                                 <TableHead className="whitespace-nowrap text-xs sm:text-sm">Últ. Pedido</TableHead>
@@ -99,12 +73,16 @@ export function ClientTable({ clients, isLoading, onEdit, onView, onDelete }: Cl
                         <TableBody>
                             {clients.map((client) => {
                                 const lastOrder = client.lastOrderDate ? new Date(client.lastOrderDate) : null;
-                                const isInactive = !lastOrder || differenceInDays(new Date(), lastOrder) > 90;
+                                // Active if ordered in the last 30 days
+                                const isInactive = !lastOrder || differenceInDays(new Date(), lastOrder) > 30;
 
                                 return (
                                     <TableRow
                                         key={client.id}
-                                        className={cn(isInactive && "bg-red-50/50 hover:bg-red-100/50 dark:bg-red-950/20 dark:hover:bg-red-900/30")}
+                                        className={cn(
+                                            "hover:bg-slate-50/80 transition-colors cursor-pointer",
+                                            isInactive && "bg-red-50/50 hover:bg-red-100/50 dark:bg-red-950/20 dark:hover:bg-red-900/30"
+                                        )}
                                     >
                                         <TableCell className="font-mono text-xs sm:text-sm whitespace-nowrap">
                                             <span className="block">{client.identificationNumber}</span>
@@ -117,6 +95,17 @@ export function ClientTable({ clients, isLoading, onEdit, onView, onDelete }: Cl
                                             </span>
                                         </TableCell>
                                         <TableCell className="text-xs sm:text-sm whitespace-nowrap">{client.city}</TableCell>
+                                        <TableCell className="text-xs sm:text-sm whitespace-nowrap">
+                                            {isInactive ? (
+                                                <Badge variant="outline" className="bg-slate-50 text-slate-500 border-slate-200 text-[10px] font-bold uppercase tracking-wider">
+                                                    Inactivo
+                                                </Badge>
+                                            ) : (
+                                                <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200 text-[10px] font-bold uppercase tracking-wider">
+                                                    Activo
+                                                </Badge>
+                                            )}
+                                        </TableCell>
                                         <TableCell className="text-xs sm:text-sm">
                                             <div className="flex items-center gap-1">
                                                 <span className="whitespace-nowrap">{client.phone1}</span>

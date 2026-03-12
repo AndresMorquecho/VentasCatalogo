@@ -3,7 +3,7 @@ import { useCreateCashClosure, useCashClosures, useCashClosurePreview } from '@/
 import { CashClosureHistory } from './CashClosureHistory';
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
-import { Loader2, Info, HelpCircle, Wallet, CheckCircle2, FileText, AlertCircle, Calendar, Banknote } from "lucide-react";
+import { Loader2, Info, HelpCircle, Wallet, CheckCircle2, FileText, AlertCircle, Calendar, Banknote, Calculator } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
 import { useNotifications } from "@/shared/lib/notifications";
 import { logAction } from "@/shared/lib/auditService";
@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { generateCashClosurePDF } from '../lib/generateCashClosurePDF';
 import { useAuth } from '@/shared/auth';
 import { Pagination } from '@/shared/ui/pagination';
+import { PageHeader } from '@/shared/ui/PageHeader';
 
 export function CashClosurePage() {
     // 1. Estados Locales
@@ -113,69 +114,71 @@ export function CashClosurePage() {
     };
 
     return (
-        <div className="h-[calc(100vh-70px)] w-full bg-slate-50 p-2 flex flex-col gap-2 overflow-hidden mx-auto">
-            <div className="flex justify-between items-center mb-1 shrink-0 px-1">
-                <div className="space-y-1 sm:space-y-2">
-                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Control de Caja</h1>
-                    <h2 className="text-base font-medium text-muted-foreground tracking-tight">Gestión de saldos, auditoría y cierres de periodo.</h2>
-                </div>
-
-                <Dialog>
-                    <DialogTrigger asChild>
-                        <Button variant="outline" size="sm" className="gap-2 font-bold border-2 hover:bg-slate-50 h-8 text-xs">
-                            <HelpCircle className="h-4 w-4 text-blue-500" />
-                            Guía Rápida
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-2xl">
-                        <DialogHeader>
-                            <DialogTitle className="text-2xl font-black flex items-center gap-2">
-                                <CheckCircle2 className="h-6 w-6 text-green-500" />
-                                ¿Cómo realizar un cierre profesional?
-                            </DialogTitle>
-                            <DialogDescription className="text-base pt-4 space-y-4">
-                                <div className="space-y-4">
-                                    <div className="flex gap-4 p-4 rounded-xl bg-slate-50 border">
-                                        <div className="h-8 w-8 rounded-full bg-primary text-white flex items-center justify-center font-bold flex-shrink-0">1</div>
-                                        <div>
-                                            <p className="font-bold text-slate-900">Verificación de Documentos</p>
-                                            <p className="text-sm text-slate-500 text-balance">Asegúrate de que todos los pagos en efectivo del periodo estén registrados en el sistema.</p>
+        <div className="space-y-6">
+            <PageHeader 
+                title="Control de Caja" 
+                description="Gestión de saldos, auditoría y cierres de periodo"
+                icon={Calculator}
+                actions={
+                    <>
+                        <Dialog>
+                            <DialogTrigger asChild>
+                                <Button variant="outline" size="sm" className="gap-2 font-bold border-2 hover:bg-slate-50 h-8 text-xs">
+                                    <HelpCircle className="h-4 w-4 text-blue-500" />
+                                    Guía Rápida
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-2xl">
+                                <DialogHeader>
+                                    <DialogTitle className="text-2xl font-black flex items-center gap-2">
+                                        <CheckCircle2 className="h-6 w-6 text-green-500" />
+                                        ¿Cómo realizar un cierre profesional?
+                                    </DialogTitle>
+                                    <DialogDescription className="text-base pt-4 space-y-4">
+                                        <div className="space-y-4">
+                                            <div className="flex gap-4 p-4 rounded-xl bg-slate-50 border">
+                                                <div className="h-8 w-8 rounded-full bg-primary text-white flex items-center justify-center font-bold flex-shrink-0">1</div>
+                                                <div>
+                                                    <p className="font-bold text-slate-900">Verificación de Documentos</p>
+                                                    <p className="text-sm text-slate-500 text-balance">Asegúrate de que todos los pagos en efectivo del periodo estén registrados en el sistema.</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-4 p-4 rounded-xl bg-slate-50 border">
+                                                <div className="h-8 w-8 rounded-full bg-primary text-white flex items-center justify-center font-bold flex-shrink-0">2</div>
+                                                <div>
+                                                    <p className="font-bold text-slate-900">Conteo Físico</p>
+                                                    <p className="text-sm text-slate-500 text-balance">Cuenta físicamente todo el efectivo billete por billete y moneda por moneda.</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-4 p-4 rounded-xl bg-slate-50 border">
+                                                <div className="h-8 w-8 rounded-full bg-primary text-white flex items-center justify-center font-bold flex-shrink-0">3</div>
+                                                <div>
+                                                    <p className="font-bold text-slate-900">Ingreso de Monto Real</p>
+                                                    <p className="text-sm text-slate-500 text-balance">Digita el valor exacto contado en el campo "Efectivo Contado".</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-4 p-4 rounded-xl bg-slate-50 border">
+                                                <div className="h-8 w-8 rounded-full bg-primary text-white flex items-center justify-center font-bold flex-shrink-0">4</div>
+                                                <div>
+                                                    <p className="font-bold text-slate-900">Justificación</p>
+                                                    <p className="text-sm text-slate-500 text-balance">Si existe una diferencia significativa, utiliza el campo de notas para explicar el motivo.</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-4 p-4 rounded-xl bg-slate-50 border">
+                                                <div className="h-8 w-8 rounded-full bg-primary text-white flex items-center justify-center font-bold flex-shrink-0">5</div>
+                                                <div>
+                                                    <p className="font-bold text-slate-900">Inmutabilidad</p>
+                                                    <p className="text-sm text-slate-500 text-balance">Una vez confirmado, el cierre no se puede editar. Solo un Administrador puede eliminarlo si se cometió un error grave.</p>
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className="flex gap-4 p-4 rounded-xl bg-slate-50 border">
-                                        <div className="h-8 w-8 rounded-full bg-primary text-white flex items-center justify-center font-bold flex-shrink-0">2</div>
-                                        <div>
-                                            <p className="font-bold text-slate-900">Conteo Físico</p>
-                                            <p className="text-sm text-slate-500 text-balance">Cuenta físicamente todo el efectivo billete por billete y moneda por moneda.</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-4 p-4 rounded-xl bg-slate-50 border">
-                                        <div className="h-8 w-8 rounded-full bg-primary text-white flex items-center justify-center font-bold flex-shrink-0">3</div>
-                                        <div>
-                                            <p className="font-bold text-slate-900">Ingreso de Monto Real</p>
-                                            <p className="text-sm text-slate-500 text-balance">Digita el valor exacto contado en el campo "Efectivo Contado".</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-4 p-4 rounded-xl bg-slate-50 border">
-                                        <div className="h-8 w-8 rounded-full bg-primary text-white flex items-center justify-center font-bold flex-shrink-0">4</div>
-                                        <div>
-                                            <p className="font-bold text-slate-900">Justificación</p>
-                                            <p className="text-sm text-slate-500 text-balance">Si existe una diferencia significativa, utiliza el campo de notas para explicar el motivo.</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-4 p-4 rounded-xl bg-slate-50 border">
-                                        <div className="h-8 w-8 rounded-full bg-primary text-white flex items-center justify-center font-bold flex-shrink-0">5</div>
-                                        <div>
-                                            <p className="font-bold text-slate-900">Inmutabilidad</p>
-                                            <p className="text-sm text-slate-500 text-balance">Una vez confirmado, el cierre no se puede editar. Solo un Administrador puede eliminarlo si se cometió un error grave.</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </DialogDescription>
-                        </DialogHeader>
-                    </DialogContent>
-                </Dialog>
-            </div>
+                                    </DialogDescription>
+                                </DialogHeader>
+                            </DialogContent>
+                        </Dialog>
+                    </>
+                }
+            />
 
             <Tabs defaultValue="closure" className="flex-1 flex flex-col min-h-0">
                 <TabsList className="grid w-[400px] grid-cols-2 h-9 p-1 bg-slate-100 mb-2 shrink-0">

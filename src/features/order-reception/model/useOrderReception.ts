@@ -16,7 +16,7 @@ export const useOrderReceptionList = (filters?: ReceptionFilters) => {
             const response = await orderApi.getAll();
             const orders = response.data || [];
             let filtered = orders.filter((o: Order) =>
-                o.status === 'POR_RECIBIR' || o.status === 'ATRASADO' || (o.status === 'RECIBIDO_EN_BODEGA' && !o.deliveryDate)
+                o.status === 'POR_RECIBIR' || (o.status === 'RECIBIDO_EN_BODEGA' && !o.deliveryDate)
             );
 
             if (!filters) return filtered;
