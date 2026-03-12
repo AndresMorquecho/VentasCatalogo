@@ -17,7 +17,18 @@ export const inventoryApi = {
    * Get all inventory movements with pagination
    * @endpoint GET /api/inventory/movements
    */
-  getAll: async (params?: { page?: number; limit?: number; type?: string; brandId?: string; orderId?: string }): Promise<PaginatedResponse<InventoryMovement>> => {
+  getAll: async (params?: { 
+    page?: number; 
+    limit?: number; 
+    type?: string; 
+    brandId?: string; 
+    orderId?: string;
+    startDate?: string;
+    endDate?: string;
+    receiptNumber?: string;
+    orderNumber?: string;
+    search?: string;
+  }): Promise<PaginatedResponse<InventoryMovement>> => {
     const queryParams = new URLSearchParams();
     if (params) {
       Object.entries(params).forEach(([key, value]) => {

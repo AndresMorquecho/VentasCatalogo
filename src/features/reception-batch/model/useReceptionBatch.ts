@@ -12,6 +12,7 @@ export const useReceptionBatch = () => {
     const [packingTotal, setPackingTotal] = useState(0);
     const [editingBatchId, setEditingBatchId] = useState<string | null>(null);
     const [lastSavedOrders, setLastSavedOrders] = useState<Order[] | null>(null);
+    const [lastSavedBatch, setLastSavedBatch] = useState<any | null>(null);
 
     // Queries
     const { data: allOrders = [], isLoading: isLoadingOrders } = useQuery({
@@ -39,6 +40,11 @@ export const useReceptionBatch = () => {
             // Si la API retorna un objeto { batch, orders }
             const orders = data.orders || data;
             setLastSavedOrders(Array.isArray(orders) ? orders : null);
+            setLastSavedBatch({
+                packingNumber,
+                packingTotal,
+                id: data.batchId || data.id // Use batchId from response if available
+            });
 
             setSelectedOrders([]);
             setPackingNumber('');
@@ -153,6 +159,10 @@ export const useReceptionBatch = () => {
         isLoadingOrders,
         updateOrderItem,
         lastSavedOrders,
-        clearLastSaved: () => setLastSavedOrders(null)
+        lastSavedBatch,
+        clearLastSaved: () => {
+            setLastSavedOrders(null);
+            setLastSavedBatch(null);
+        }
     };
 };

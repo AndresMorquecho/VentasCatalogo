@@ -27,6 +27,7 @@ export function ReceptionBatchPage() {
         cancelEdit,
         updateOrderItem,
         lastSavedOrders,
+        lastSavedBatch,
         clearLastSaved
     } = useReceptionBatch();
 
@@ -34,13 +35,13 @@ export function ReceptionBatchPage() {
 
     const onEditBatch = (batch: any) => {
         startEditingBatch(batch);
-        setActiveTab("reception"); 
+        setActiveTab("reception");
     };
 
     return (
         <div className="flex flex-col h-full bg-slate-50/50">
             {/* Header section */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-6 py-4 bg-white border-b border-slate-200">
+            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600 shadow-sm border border-emerald-100">
                         <Truck size={24} />
@@ -54,11 +55,11 @@ export function ReceptionBatchPage() {
                         </p>
                     </div>
                 </div>
-                
+
                 <div className="flex items-center gap-3 mt-4 sm:mt-0">
                     {editingBatchId && (
-                        <Button 
-                            variant="outline" 
+                        <Button
+                            variant="outline"
                             className="bg-white hover:bg-slate-50 border-slate-200 text-slate-700 font-bold transition-all"
                             onClick={cancelEdit}
                         >
@@ -109,9 +110,9 @@ export function ReceptionBatchPage() {
                         </div>
                     </div>
                 ) : (
-                    <ReceptionHistory 
-                        batches={batches} 
-                        clients={[]} 
+                    <ReceptionHistory
+                        batches={batches}
+                        clients={[]}
                         onEdit={onEditBatch}
                         onDelete={deleteBatch}
                         isDeleting={isDeleting}
@@ -119,10 +120,11 @@ export function ReceptionBatchPage() {
                 )}
             </div>
 
-            <BatchPrintModal 
+            <BatchPrintModal
                 isOpen={!!lastSavedOrders}
                 onClose={clearLastSaved}
                 orders={lastSavedOrders || []}
+                batchDetails={lastSavedBatch}
             />
         </div>
     );

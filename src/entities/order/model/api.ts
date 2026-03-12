@@ -218,14 +218,32 @@ export const orderApi = {
     deliverOrder: async (
         orderId: string,
         data: {
-            finalPayment?: number;
-            bankAccountId?: string;
-            paymentMethod?: string;
-            reference?: string;
+            payments?: {
+                amount: number;
+                bankAccountId?: string;
+                paymentMethod: string;
+                reference?: string;
+            }[];
             notes?: string;
         }
     ): Promise<Order> => {
         return httpClient.post<Order>(`/orders/${orderId}/deliver`, data);
+    },
+
+    /**
+     * Batch deliver multiple orders for the same client
+     * @endpoint POST /api/orders/batch-deliver
+     */
+    batchDeliver: async (
+        orderIds: string[],
+        payments?: {
+            amount: number;
+            bankAccountId?: string;
+            paymentMethod: string;
+            reference?: string;
+        }[]
+    ): Promise<any> => {
+        return httpClient.post<any>('/orders/batch-deliver', { orderIds, payments });
     },
 
     /**

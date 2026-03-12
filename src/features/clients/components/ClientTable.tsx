@@ -96,15 +96,21 @@ export function ClientTable({ clients, isLoading, onEdit, onView, onDelete }: Cl
                                         </TableCell>
                                         <TableCell className="text-xs sm:text-sm whitespace-nowrap">{client.city}</TableCell>
                                         <TableCell className="text-xs sm:text-sm whitespace-nowrap">
-                                            {isInactive ? (
-                                                <Badge variant="outline" className="bg-slate-50 text-slate-500 border-slate-200 text-[10px] font-bold uppercase tracking-wider">
-                                                    Inactivo
-                                                </Badge>
-                                            ) : (
-                                                <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200 text-[10px] font-bold uppercase tracking-wider">
-                                                    Activo
-                                                </Badge>
-                                            )}
+                                            <div className="flex flex-col gap-1 items-start">
+                                                {client.isBlocked ? (
+                                                    <Badge variant="destructive" className="text-[9px] font-bold uppercase tracking-wider h-5 flex items-center justify-center animate-pulse">
+                                                        Bloqueada
+                                                    </Badge>
+                                                ) : isInactive ? (
+                                                    <Badge variant="outline" className="bg-slate-50 text-slate-500 border-slate-200 text-[10px] font-bold uppercase tracking-wider">
+                                                        Inactivo
+                                                    </Badge>
+                                                ) : (
+                                                    <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200 text-[10px] font-bold uppercase tracking-wider">
+                                                        Activo
+                                                    </Badge>
+                                                )}
+                                            </div>
                                         </TableCell>
                                         <TableCell className="text-xs sm:text-sm">
                                             <div className="flex items-center gap-1">

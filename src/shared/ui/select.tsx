@@ -67,7 +67,7 @@ export const Select: React.FC<SelectProps> = ({ value, onValueChange, children }
   )
 }
 
-export const SelectTrigger = React.forwardRef<HTMLButtonElement, React.HTMLAttributes<HTMLButtonElement>>(
+export const SelectTrigger = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HTMLButtonElement>>(
   ({ className, children, ...props }, ref) => {
     const { setOpen, open } = React.useContext(SelectContext)
     

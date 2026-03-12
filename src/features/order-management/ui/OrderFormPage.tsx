@@ -1399,7 +1399,7 @@ export function OrderFormPage() {
                             Estás a punto de eliminar el pedido de <strong>{orderToDelete.brand?.name || orderToDelete.brandName}</strong>.
                         </p>
                         <p className="text-amber-600 font-medium">
-                            ⚠️ Esta acción revertirá cualquier abono asociado a este pedido.
+                            Esta acción revertirá cualquier abono asociado a este pedido.
                         </p>
                         <p className="text-red-600 font-bold">
                             Esta acción no se puede deshacer.

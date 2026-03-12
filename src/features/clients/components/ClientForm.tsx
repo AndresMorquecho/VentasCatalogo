@@ -35,6 +35,7 @@ import {
     AlertCircle,
 } from "lucide-react";
 
+import { ECUADOR_DATA } from "@/shared/constants/ecuador-locations";
 import { useAuth } from "@/shared/auth";
 import { logAction } from "@/shared/lib/auditService";
 import { useNotifications } from "@/shared/lib/notifications";
@@ -122,6 +123,7 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
             birthDate: client?.birthDate ? client.birthDate.split('T')[0] : "",
             isWhatsApp: client?.isWhatsApp || false,
             referredById: client?.referredById || "",
+            isBlocked: client?.isBlocked || false,
         },
         validationSchema,
         enableReinitialize: true,
@@ -147,6 +149,7 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
                 birthDate: values.birthDate || null,
                 isWhatsApp: values.isWhatsApp,
                 referredById: values.referredById || null,
+                isBlocked: values.isBlocked,
             };
 
             try {
@@ -323,6 +326,30 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
                                     </Select>
                                 </div>
                             </div>
+                                </section>
+                        {/* SECCIÓN NUEVA: ESTADO DE BLOQUEO */}
+                        <section className="space-y-4">
+                            <div className="flex items-center gap-2 pb-2 border-b border-muted">
+                                <AlertCircle className="h-4 w-4 text-primary" />
+                                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700">Estado de Cuenta</h3>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-1 bg-slate-50/30 p-4 rounded-xl border border-dashed">
+                                <div className="flex items-center justify-between p-3 bg-white rounded-lg border shadow-sm">
+                                    <div className="space-y-0.5">
+                                        <div className="flex items-center gap-2">
+                                            <Label htmlFor="isBlocked" className="text-xs font-bold text-destructive">Bloquear Empresaria</Label>
+                                            {formik.values.isBlocked && <Badge variant="destructive" className="h-4 text-[8px] px-1 uppercase animate-pulse">Bloqueada</Badge>}
+                                        </div>
+                                        <p className="text-[10px] text-muted-foreground">Impide que la empresaria realice nuevos pedidos.</p>
+                                    </div>
+                                    <Switch
+                                        id="isBlocked"
+                                        checked={formik.values.isBlocked}
+                                        onCheckedChange={(val) => formik.setFieldValue("isBlocked", val)}
+                                        className="data-[state=checked]:bg-destructive"
+                                    />
+                                </div>
+                            </div>
                         </section>
 
                         {/* SECCIÓN 2: UBICACIÓN Y DOMICILIO */}
@@ -339,11 +366,44 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="province" className="text-xs font-semibold">Provincia</Label>
-                                    <Input id="province" {...formik.getFieldProps("province")} className="bg-slate-50/50" />
+                                    <Select
+                                        value={formik.values.province}
+                                        onValueChange={(val) => {
+                                            formik.setFieldValue("province", val);
+                                            formik.setFieldValue("city", ""); // Reset city when province changes
+                                        }}
+                                    >
+                                        <SelectTrigger className="bg-slate-50/50">
+                                            <SelectValue placeholder="Seleccione provincia" />
+                                        </SelectTrigger>
+                                        <SelectContent searchable>
+                                            {Object.keys(ECUADOR_DATA).sort().map(prov => (
+                                                <SelectItem key={prov} value={prov}>{prov}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    {formik.touched.province && formik.errors.province && (
+                                        <p className="text-[10px] font-medium text-destructive mt-1">{formik.errors.province}</p>
+                                    )}
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="city" className="text-xs font-semibold">Ciudad</Label>
-                                    <Input id="city" {...formik.getFieldProps("city")} className="bg-slate-50/50" />
+                                    <Select
+                                        value={formik.values.city}
+                                        onValueChange={(val) => formik.setFieldValue("city", val)}
+                                    >
+                                        <SelectTrigger className="bg-slate-50/50" disabled={!formik.values.province}>
+                                            <SelectValue placeholder={formik.values.province ? "Seleccione ciudad" : "Primero elija provincia"} />
+                                        </SelectTrigger>
+                                        <SelectContent searchable>
+                                            {formik.values.province && ECUADOR_DATA[formik.values.province]?.sort().map(city => (
+                                                <SelectItem key={city} value={city}>{city}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    {formik.touched.city && formik.errors.city && (
+                                        <p className="text-[10px] font-medium text-destructive mt-1">{formik.errors.city}</p>
+                                    )}
                                 </div>
 
                                 <div className="md:col-span-2 space-y-2">
@@ -381,68 +441,65 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
                                     )}
                                 </div>
 
-                                <div className="md:col-span-6 lg:md:col-span-7 space-y-3">
+                                <div className="md:col-span-6 space-y-2">
                                     <Label className="text-xs font-semibold">Teléfono Principal</Label>
-                                    <div className="flex flex-col gap-3 p-3 rounded-lg border bg-slate-50/30 border-dashed">
-                                        <div className="flex gap-2">
-                                            <Input id="phone1" {...formik.getFieldProps("phone1")} placeholder="0998765432" className="flex-1" />
-                                            <div className="w-32 shrink-0">
-                                                <Select
-                                                    value={formik.values.operator1}
-                                                    onValueChange={(val) => formik.setFieldValue("operator1", val)}
-                                                >
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder="Operador" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {OPERATORS.map(op => (
-                                                            <SelectItem key={op} value={op}>{op}</SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
+                                    <div className="flex gap-2">
+                                        <Input id="phone1" {...formik.getFieldProps("phone1")} placeholder="0998765432" className="flex-1 bg-slate-50/50" />
+                                        <div className="w-32 shrink-0">
+                                            <Select
+                                                value={formik.values.operator1}
+                                                onValueChange={(val) => formik.setFieldValue("operator1", val)}
+                                            >
+                                                <SelectTrigger className="bg-slate-50/50">
+                                                    <SelectValue placeholder="Operador" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {OPERATORS.map(op => (
+                                                        <SelectItem key={op} value={op}>{op}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
                                         </div>
-                                        <div className="flex items-center justify-between px-1">
-                                            <div className="flex items-center gap-2">
-                                                <div className={cn(
-                                                    "p-1.5 rounded-md",
-                                                    formik.values.isWhatsApp ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-400"
-                                                )}>
-                                                    <MessageSquare className="h-3.5 w-3.5" />
-                                                </div>
-                                                <Label htmlFor="isWhatsApp" className="text-xs cursor-pointer">Vincular con WhatsApp</Label>
-                                            </div>
-                                            <Switch
-                                                id="isWhatsApp"
-                                                checked={formik.values.isWhatsApp}
-                                                onCheckedChange={(val) => formik.setFieldValue("isWhatsApp", val)}
-                                            />
-                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 pt-1">
+                                        <Switch
+                                            id="isWhatsApp"
+                                            checked={formik.values.isWhatsApp}
+                                            onCheckedChange={(val) => formik.setFieldValue("isWhatsApp", val)}
+                                        />
+                                        <Label htmlFor="isWhatsApp" className="text-[10px] cursor-pointer flex items-center gap-1.5 font-medium text-slate-500">
+                                            <MessageSquare className={cn("h-3 w-3", formik.values.isWhatsApp ? "text-green-600" : "text-slate-400")} />
+                                            Vincular con WhatsApp
+                                        </Label>
                                     </div>
                                     {formik.touched.phone1 && formik.errors.phone1 && (
                                         <p className="text-[10px] font-medium text-destructive mt-1">{formik.errors.phone1}</p>
                                     )}
                                 </div>
 
-                                <div className="md:col-span-6 lg:md:col-span-5 space-y-2">
+                                <div className="md:col-span-6 space-y-2">
                                     <Label htmlFor="phone2" className="text-xs font-semibold">Teléfono Secundario (Respaldos)</Label>
-                                    <div className="space-y-3">
-                                        <Input id="phone2" {...formik.getFieldProps("phone2")} placeholder="022123456" className="bg-slate-50/50" />
-                                        <Select
-                                            value={formik.values.operator2 || "none"}
-                                            onValueChange={(val) => formik.setFieldValue("operator2", val === "none" ? "" : val)}
-                                        >
-                                            <SelectTrigger className="bg-slate-50/50">
-                                                <SelectValue placeholder="Operador secundario" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="none">-- Sin especificar --</SelectItem>
-                                                {OPERATORS.map(op => (
-                                                    <SelectItem key={op} value={op}>{op}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                    <div className="flex gap-2">
+                                        <Input id="phone2" {...formik.getFieldProps("phone2")} placeholder="022123456" className="flex-1 bg-slate-50/50" />
+                                        <div className="w-32 shrink-0">
+                                            <Select
+                                                value={formik.values.operator2 || "none"}
+                                                onValueChange={(val) => formik.setFieldValue("operator2", val === "none" ? "" : val)}
+                                            >
+                                                <SelectTrigger className="bg-slate-50/50">
+                                                    <SelectValue placeholder="Operador" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="none">-- Sin especificar --</SelectItem>
+                                                    {OPERATORS.map(op => (
+                                                        <SelectItem key={op} value={op}>{op}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
                                     </div>
+                                    {/* Placeholder div to maintain height alignment with Phone 1's WhatsApp switch */}
+                                    <div className="h-[20px] pt-1" aria-hidden="true" />
                                 </div>
                             </div>
                         </section>

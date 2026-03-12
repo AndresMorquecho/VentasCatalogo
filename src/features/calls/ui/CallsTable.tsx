@@ -89,7 +89,7 @@ export function CallsTable({ calls, onEdit }: CallsTableProps) {
                                     <div className="flex flex-col gap-0.5">
                                         <span title="Registrado por">{call.createdBy}</span>
                                         {call.updatedBy && call.updatedBy !== call.createdBy && (
-                                            <span className="text-slate-400 italic" title="Editado por">✎ {call.updatedBy}</span>
+                                            <span className="text-slate-400 italic" title="Editado por">MOD: {call.updatedBy}</span>
                                         )}
                                     </div>
                                 </TableCell>

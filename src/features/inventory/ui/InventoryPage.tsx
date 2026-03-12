@@ -5,8 +5,10 @@ import { InventoryTable } from './InventoryTable';
 import { useDebounce } from '@/shared/lib/hooks';
 import { Pagination } from '@/shared/ui/pagination';
 import { PageHeader } from '@/shared/ui/PageHeader';
+import { useBrandList } from '@/features/brands/api/hooks';
 
-import { PackageOpen, Clock, Truck, Boxes } from 'lucide-react';
+import { PackageOpen, Clock, Truck, Boxes, AlertCircle, RefreshCw } from 'lucide-react';
+import { Button } from '@/shared/ui/button';
 
 export function InventoryPage() {
     const [page, setPage] = useState(1);
@@ -14,140 +16,148 @@ export function InventoryPage() {
 
     // UI State for Filters
     const [searchTerm, setSearchTerm] = useState('');
-    const debouncedSearch = useDebounce(searchTerm, 1000);
+    const debouncedSearch = useDebounce(searchTerm, 500);
 
     const [statusFilter, setStatusFilter] = useState('ALL');
     const [brandFilter, setBrandFilter] = useState('');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+    const [receiptNumber, setReceiptNumber] = useState('');
+    const [orderNumber, setOrderNumber] = useState('');
 
-    const { movements, stats, isLoading, pagination } = useInventory({
+    const { movements, stats, isLoading, pagination, refetch } = useInventory({
         page,
         limit,
         type: statusFilter === 'ALL' ? undefined : statusFilter,
-        // Since we don't have a direct 'search' in inventory backend yet, we'll keep local search
-        // or I could add search to inventory backend. Let's see if I added it.
-        // Yes, I added logic for brandId and orderId, but not generic text search in inventory.
-        // Actually, I'll filter locally for now but use paginated base data.
+        brandId: brandFilter,
+        search: debouncedSearch,
+        startDate,
+        endDate,
+        receiptNumber,
+        orderNumber
     });
 
     // Reset to page 1 on filter change
     useEffect(() => {
         setPage(1);
-    }, [debouncedSearch, statusFilter, brandFilter]);
+    }, [debouncedSearch, statusFilter, brandFilter, startDate, endDate, receiptNumber, orderNumber]);
 
-    // Derived Data for Filters
-    const availableBrands = useMemo(() => Array.from(new Set(movements.map(m => m.brandName))).sort(), [movements]);
+    const clearFilters = () => {
+        setSearchTerm('');
+        setStatusFilter('ALL');
+        setBrandFilter('');
+        setStartDate('');
+        setEndDate('');
+        setReceiptNumber('');
+        setOrderNumber('');
+    };
 
-    // Filter Logic in UI (Pure View Logic) - Now with Grouping
-    const filteredMovements = useMemo(() => {
-        // 1. Group movements by orderCode/orderId
+    // Derived Data for Filters (Brands)
+    const { data: brandsRes } = useBrandList();
+    const availableBrands = useMemo(() => {
+        const brandsEntries = brandsRes ? (Array.isArray(brandsRes) ? brandsRes : (brandsRes.data || [])) : [];
+        return Array.isArray(brandsEntries) ? brandsEntries.map((b: any) => b.name).sort() : [];
+    }, [brandsRes]);
+
+    // Grouping Logic - Processed to ensure one row per Order in the inventory view
+    const groupedRows = useMemo(() => {
+        if (!movements || movements.length === 0) return [];
+
         const orderMap = new Map<string, any>();
 
-        // Ensure movements are sorted by date ascending so we process oldest to newest
-        const sortedMovements = [...movements].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        // Sort movements by date ascending to process flow correctly
+        const sortedMovements = [...movements].sort((a, b) => {
+            const dateA = new Date(a.createdAt).getTime();
+            const dateB = new Date(b.createdAt).getTime();
+            return dateA - dateB;
+        });
 
         sortedMovements.forEach(m => {
+            if (!m.orderId) return; // Skip invalid entries
+
             if (!orderMap.has(m.orderId)) {
-                orderMap.set(m.orderId, {
-                    orderId: m.orderId,
-                    clientName: m.clientName,
-                    brandName: m.brandName,
-                    orderCode: m.orderCode,
-                    entryDate: m.type === 'ENTRY' ? m.createdAt : null,
-                    deliveryDate: m.type === 'DELIVERED' ? m.createdAt : null,
-                    returnDate: m.type === 'RETURNED' ? m.createdAt : null,
-                    status: m.type,
-                    daysInWarehouse: 0
-                });
+                orderMap.set(m.orderId, { ...m });
             } else {
                 const existing = orderMap.get(m.orderId);
-                existing.status = m.type; // Set to the latest status
+                // Update with latest status/dates
+                existing.status = m.status;
                 if (m.type === 'ENTRY') existing.entryDate = m.createdAt;
-                if (m.type === 'DELIVERED') existing.deliveryDate = m.createdAt;
+                if (m.type === 'DELIVERED') existing.deliveryDate = m.createdAt || m.deliveryDate;
                 if (m.type === 'RETURNED') existing.returnDate = m.createdAt;
+                
+                // Recalculate days 
+                existing.daysInWarehouse = m.daysInWarehouse;
             }
         });
 
-        // 2. Format grouped rows and calculate final Days in Warehouse
-        const groupedRows = Array.from(orderMap.values()).map(order => {
-            let end = new Date(); // default to today if still in warehouse
-            if (order.deliveryDate) end = new Date(order.deliveryDate);
-            if (order.returnDate) end = new Date(order.returnDate);
-
-            let days = 0;
-            if (order.entryDate) {
-                const start = new Date(order.entryDate);
-                // Strip time portion for fair days calculation
-                const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
-                const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
-                const diffTime = Math.abs(endDay.getTime() - startDay.getTime());
-                days = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-            }
-            order.daysInWarehouse = days;
-            return order;
-        });
-
-        // 3. Apply Filters and sort descending
-        return groupedRows.filter(m => {
-            const matchesSearch =
-                m.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                m.orderCode.toLowerCase().includes(searchTerm.toLowerCase());
-
-            const matchesStatus = statusFilter === 'ALL' || m.status === statusFilter;
-            const matchesBrand = brandFilter === '' || m.brandName === brandFilter;
-
-            return matchesSearch && matchesStatus && matchesBrand;
-        }).sort((a, b) => {
-            const aDate = new Date(a.deliveryDate || a.returnDate || a.entryDate).getTime();
-            const bDate = new Date(b.deliveryDate || b.returnDate || b.entryDate).getTime();
+        return Array.from(orderMap.values()).sort((a, b) => {
+            const aDate = new Date(a.deliveryDate || a.returnDate || a.createdAt).getTime();
+            const bDate = new Date(b.deliveryDate || b.returnDate || b.createdAt).getTime();
             return bDate - aDate;
         });
 
-    }, [movements, searchTerm, statusFilter, brandFilter]);
+    }, [movements]);
 
-    if (isLoading) {
-        return <div className="p-8 text-center text-slate-400">Cargando inventario...</div>;
+    if (isLoading && movements.length === 0) {
+        return (
+            <div className="p-20 flex flex-col items-center justify-center gap-4 text-slate-400 min-h-[400px]">
+                <div className="h-10 w-10 border-4 border-slate-100 border-t-emerald-500 rounded-full animate-spin" />
+                <span className="font-bold text-sm">Cargando inventario de pedidos...</span>
+            </div>
+        );
     }
 
+    const hasFilters = debouncedSearch || startDate || endDate || receiptNumber || orderNumber || statusFilter !== 'ALL' || brandFilter;
+
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 container mx-auto py-8 px-4 animate-in fade-in duration-500">
             <PageHeader 
-                title="Inventario & Trazabilidad" 
-                description="Control físico de paquetes en bodega y entregas"
+                title="Inventario de Pedidos" 
+                description="Control físico, financiero y trazabilidad de paquetes"
                 icon={Boxes}
+                actions={
+                    <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="bg-white" 
+                        onClick={() => refetch()}
+                        disabled={isLoading}
+                    >
+                        <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                        Sincronizar
+                    </Button>
+                }
             />
 
-            {/* Header & Stats */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                {/* KPI Cards */}
-                <div className="flex flex-wrap gap-4 w-full">
-                    <div className="bg-white px-5 py-3 rounded-xl border border-emerald-100 shadow-[0_2px_10px_-3px_rgba(16,185,129,0.3)] flex items-center gap-3 min-w-[180px]">
-                        <div className="bg-emerald-50 p-2.5 rounded-lg text-emerald-600">
-                            <PackageOpen className="h-5 w-5" />
-                        </div>
-                        <div>
-                            <p className="text-slate-500 text-[11px] font-semibold mb-0.5">En Bodega</p>
-                            <p className="text-xl font-bold text-slate-800 tracking-tight leading-none">{stats.inWarehouse}</p>
-                        </div>
+            {/* KPI Cards */}
+            <div className="flex flex-wrap gap-4 w-full">
+                <div className="bg-white px-6 py-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 min-w-[200px] flex-1">
+                    <div className="bg-emerald-50 p-3 rounded-xl text-emerald-600">
+                        <PackageOpen className="h-6 w-6" />
                     </div>
-
-                    <div className="bg-white px-5 py-3 rounded-xl border border-blue-100 shadow-[0_2px_10px_-3px_rgba(59,130,246,0.3)] flex items-center gap-3 min-w-[180px]">
-                        <div className="bg-blue-50 p-2.5 rounded-lg text-blue-600">
-                            <Truck className="h-5 w-5" />
-                        </div>
-                        <div>
-                            <p className="text-slate-500 text-[11px] font-semibold mb-0.5">Entregados Hoy</p>
-                            <p className="text-xl font-bold text-slate-800 tracking-tight leading-none">{stats.deliveredToday}</p>
-                        </div>
+                    <div>
+                        <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-0.5">En Bodega</p>
+                        <p className="text-2xl font-black text-emerald-600 tracking-tight leading-none">{stats?.inWarehouse || 0}</p>
                     </div>
+                </div>
 
-                    <div className="bg-white px-5 py-3 rounded-xl border border-red-100 shadow-[0_2px_10px_-3px_rgba(239,68,68,0.3)] flex items-center gap-3 min-w-[180px]">
-                        <div className="bg-red-50 p-2.5 rounded-lg text-red-600">
-                            <Clock className="h-5 w-5" />
-                        </div>
-                        <div>
-                            <p className="text-slate-500 text-[11px] font-semibold mb-0.5">+10 Días</p>
-                            <p className="text-xl font-bold text-red-600 tracking-tight leading-none">{stats.longStorage}</p>
-                        </div>
+                <div className="bg-white px-6 py-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 min-w-[200px] flex-1">
+                    <div className="bg-blue-50 p-3 rounded-xl text-blue-600">
+                        <Truck className="h-6 w-6" />
+                    </div>
+                    <div>
+                        <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-0.5">Entregados Hoy</p>
+                        <p className="text-2xl font-black text-blue-600 tracking-tight leading-none">{stats?.deliveredToday || 0}</p>
+                    </div>
+                </div>
+
+                <div className="bg-white px-6 py-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 min-w-[200px] flex-1">
+                    <div className="bg-red-50 p-3 rounded-xl text-red-600">
+                        <Clock className="h-6 w-6" />
+                    </div>
+                    <div>
+                        <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-0.5">+10 Días</p>
+                        <p className="text-2xl font-black text-red-600 tracking-tight leading-none">{stats?.longStorage || 0}</p>
                     </div>
                 </div>
             </div>
@@ -161,19 +171,59 @@ export function InventoryPage() {
                 brandFilter={brandFilter}
                 onBrandChange={setBrandFilter}
                 brands={availableBrands}
+                startDate={startDate}
+                onStartDateChange={setStartDate}
+                endDate={endDate}
+                onEndDateChange={setEndDate}
+                receiptNumber={receiptNumber}
+                onReceiptNumberChange={setReceiptNumber}
+                orderNumber={orderNumber}
+                onOrderNumberChange={setOrderNumber}
+                onClear={clearFilters}
             />
 
-            {/* Table */}
-            <InventoryTable movements={filteredMovements} />
+            {/* Content Section */}
+            {movements.length === 0 ? (
+                <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-slate-200 shadow-sm">
+                    {hasFilters ? (
+                        <>
+                            <AlertCircle className="h-12 w-12 mx-auto mb-4 text-orange-400 opacity-50" />
+                            <h3 className="text-lg font-bold text-slate-700">Sin coincidencias</h3>
+                            <p className="text-sm text-slate-400 mt-2">Pruebe ajustando los filtros o limpie la búsqueda.</p>
+                            <Button variant="link" onClick={clearFilters} className="mt-4 text-emerald-600 font-bold">Limpiar Filtros</Button>
+                        </>
+                    ) : (
+                        <>
+                            <PackageOpen className="h-12 w-12 mx-auto mb-4 text-slate-200" />
+                            <h3 className="text-lg font-bold text-slate-400">Inventario Vacío</h3>
+                            <p className="text-sm text-slate-300 max-w-xs mx-auto mt-2 text-balance leading-relaxed">
+                                No hay movimientos de inventario registrados. 
+                                Ingrese mercadería en el módulo de Recepción para comenzar.
+                            </p>
+                        </>
+                    )}
+                </div>
+            ) : (
+                <>
+                    <div className="flex justify-between items-center px-1">
+                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                            Mostrando <span className="text-slate-900">{groupedRows.length}</span> pedidos únicos
+                        </p>
+                    </div>
+                    <InventoryTable movements={groupedRows} />
+                </>
+            )}
 
-            {pagination && (
-                <Pagination
-                    currentPage={page}
-                    totalPages={pagination.pages}
-                    onPageChange={setPage}
-                    totalItems={pagination.total}
-                    itemsPerPage={limit}
-                />
+            {pagination && pagination.pages > 1 && (
+                <div className="flex justify-center mt-8">
+                    <Pagination
+                        currentPage={page}
+                        totalPages={pagination.pages}
+                        onPageChange={setPage}
+                        totalItems={pagination.total}
+                        itemsPerPage={limit}
+                    />
+                </div>
             )}
         </div>
     );

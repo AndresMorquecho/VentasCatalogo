@@ -122,7 +122,7 @@ export function RewardDetailsModal({ open, onOpenChange, clientId }: RewardDetai
                                                                 {prize.name}
                                                             </p>
                                                             <p className="text-[10px] text-slate-400 mt-0.5 line-clamp-1">
-                                                                {prize.description || '🎁 Premio especial'}
+                                                                {prize.description || 'Premio especial'}
                                                             </p>
                                                         </div>
                                                         <div className={`shrink-0 text-[10px] font-black px-2 py-0.5 rounded shadow-sm border ${canAfford ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-slate-100 text-slate-400 border-slate-200'

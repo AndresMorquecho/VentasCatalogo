@@ -72,6 +72,8 @@ export interface Order {
     createdByName?: string;   // Usuario que creó el pedido
     receivedByName?: string;  // Usuario que recibió en bodega
     deliveredByName?: string; // Usuario que procesó la entrega
+    documentType?: string;    // FACTURA/NOTA_VENTA
+    entryDate?: string;       // Fecha de ingreso físico
 }
 
 export interface OrderPayload {

@@ -5,6 +5,7 @@ import { Printer, X, FileText } from "lucide-react"
 import type { Order } from "@/entities/order/model/types"
 import { pdf } from '@react-pdf/renderer'
 import { OrderLabelsDocument } from "@/features/order-labels/ui/OrderLabelsDocument"
+import { ReceptionBatchReport } from "./ReceptionBatchReport"
 import { clientApi } from "@/shared/api/clientApi"
 import type { Client } from "@/entities/client/model/types"
 
@@ -12,11 +13,13 @@ interface Props {
     isOpen: boolean
     onClose: () => void
     orders: Order[]
+    batchDetails?: { packingNumber: string, packingTotal: number, id?: string }
 }
 
-export function BatchPrintModal({ isOpen, onClose, orders }: Props) {
+export function BatchPrintModal({ isOpen, onClose, orders, batchDetails }: Props) {
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
     const [isGenerating, setIsGenerating] = useState(false)
+    const [isGeneratingReport, setIsGeneratingReport] = useState(false)
     const [clientsMap, setClientsMap] = useState<Record<string, Client>>({})
 
     useEffect(() => {
@@ -91,6 +94,35 @@ export function BatchPrintModal({ isOpen, onClose, orders }: Props) {
             console.error("Error generating PDF:", error);
         } finally {
             setIsGenerating(false)
+        }
+    }
+
+    const handleGenerateReport = async () => {
+        setIsGeneratingReport(true)
+        try {
+            const doc = <ReceptionBatchReport 
+                orders={orders} 
+                packingNumber={batchDetails?.packingNumber || ''}
+                packingTotal={batchDetails?.packingTotal || 0}
+                userName={localStorage.getItem('user_name') || 'Admin'}
+                batchId={batchDetails?.id}
+            />;
+
+            const blob = await pdf(doc).toBlob();
+            const url = URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `reporte-packing-${batchDetails?.packingNumber || 'batch'}-${new Date().getTime()}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            setTimeout(() => URL.revokeObjectURL(url), 100);
+        } catch (error) {
+            console.error("Error generating report:", error);
+        } finally {
+            setIsGeneratingReport(false)
         }
     }
 
@@ -170,22 +202,38 @@ export function BatchPrintModal({ isOpen, onClose, orders }: Props) {
                     </div>
                 </div>
 
-                <DialogFooter className="gap-2">
+                <DialogFooter className="gap-2 sm:justify-between items-center">
                     <Button variant="outline" onClick={onClose} className="border-slate-200">
-                        <X className="mr-2 h-4 w-4" /> Cancelar
+                        <X className="mr-2 h-4 w-4" /> Cerrar
                     </Button>
-                    <Button 
-                        onClick={handleGeneratePdf} 
-                        disabled={selectedIds.size === 0 || isGenerating}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
-                    >
-                        {isGenerating ? (
-                            <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                        ) : (
-                            <FileText className="mr-2 h-4 w-4" />
-                        )}
-                        Generar PDF ({selectedIds.size})
-                    </Button>
+                    
+                    <div className="flex gap-2">
+                        <Button 
+                            onClick={handleGenerateReport}
+                            disabled={isGenerating || isGeneratingReport}
+                            className="bg-amber-600 hover:bg-amber-700 text-white font-bold"
+                        >
+                            {isGeneratingReport ? (
+                                <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                            ) : (
+                                <FileText className="mr-2 h-4 w-4" />
+                            )}
+                            Descargar Reporte Tabla
+                        </Button>
+
+                        <Button 
+                            onClick={handleGeneratePdf} 
+                            disabled={selectedIds.size === 0 || isGenerating || isGeneratingReport}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                        >
+                            {isGenerating ? (
+                                <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                            ) : (
+                                <Printer className="mr-2 h-4 w-4" />
+                            )}
+                            Imprimir Etiquetas ({selectedIds.size})
+                        </Button>
+                    </div>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

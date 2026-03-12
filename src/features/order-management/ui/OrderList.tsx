@@ -223,7 +223,7 @@ export function OrderList() {
                 >
                     <div className="space-y-3 text-sm">
                         <div className="rounded-lg bg-red-50 border border-red-200 p-3">
-                            <p className="font-medium text-red-900 mb-2">⚠️ ATENCIÓN: Eliminación Física</p>
+                            <p className="font-medium text-red-900 mb-2">ATENCIÓN: Eliminación Física</p>
                             <ul className="space-y-1 text-red-800">
                                 <li>• El pedido será <strong>BORRADO COMPLETAMENTE</strong> de la base de datos.</li>
                                 {getPaidAmount(selectedOrder) > 0 && (

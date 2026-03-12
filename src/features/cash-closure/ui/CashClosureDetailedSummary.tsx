@@ -136,28 +136,28 @@ export function CashClosureDetailedSummary({ report }: Props) {
                         <CardContent>
                             <div className="space-y-3">
                                 <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                                    <span className="font-medium">💵 Efectivo</span>
+                                    <span className="font-medium">Efectivo</span>
                                     <div className="text-right">
                                         <div className="font-bold text-green-900">{formatCurrency(incomeByMethod.EFECTIVO)}</div>
                                         <div className="text-xs text-green-600">{formatPercent(incomeByMethod.EFECTIVO, totalIncome)}</div>
                                     </div>
                                 </div>
                                 <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-                                    <span className="font-medium">🏦 Transferencia</span>
+                                    <span className="font-medium">Transferencia</span>
                                     <div className="text-right">
                                         <div className="font-bold text-blue-900">{formatCurrency(incomeByMethod.TRANSFERENCIA)}</div>
                                         <div className="text-xs text-blue-600">{formatPercent(incomeByMethod.TRANSFERENCIA, totalIncome)}</div>
                                     </div>
                                 </div>
                                 <div className="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
-                                    <span className="font-medium">💳 Depósito</span>
+                                    <span className="font-medium">Depósito</span>
                                     <div className="text-right">
                                         <div className="font-bold text-purple-900">{formatCurrency(incomeByMethod.DEPOSITO)}</div>
                                         <div className="text-xs text-purple-600">{formatPercent(incomeByMethod.DEPOSITO, totalIncome)}</div>
                                     </div>
                                 </div>
                                 <div className="flex justify-between items-center p-3 bg-orange-50 rounded-lg">
-                                    <span className="font-medium">📝 Cheque</span>
+                                    <span className="font-medium">Cheque</span>
                                     <div className="text-right">
                                         <div className="font-bold text-orange-900">{formatCurrency(incomeByMethod.CHEQUE)}</div>
                                         <div className="text-xs text-orange-600">{formatPercent(incomeByMethod.CHEQUE, totalIncome)}</div>

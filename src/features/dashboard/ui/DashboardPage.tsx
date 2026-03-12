@@ -70,7 +70,7 @@ export function DashboardPage() {
         return (
             <div className="min-h-screen bg-white flex items-center justify-center p-12">
                 <div className="flex flex-col items-center gap-4 text-center">
-                    <div className="text-5xl">⚠️</div>
+                    <div className="text-5xl font-bold text-slate-300">!</div>
                     <h3 className="text-lg font-black text-slate-800">Error al cargar el dashboard</h3>
                     <p className="text-slate-500 text-sm font-medium">No se pudieron obtener los datos del servidor.<br />Por favor, recarga la página.</p>
                 </div>

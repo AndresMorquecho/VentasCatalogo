@@ -183,7 +183,7 @@ export function ClientDetailModal({ client: initialClient, open, onOpenChange }:
                                 <p className="text-[10px] font-black uppercase text-slate-400 leading-none">Registrado Por</p>
                                 <p className="text-sm font-black text-primary flex items-center justify-end gap-1.5">
                                     <UserCheck className="h-4 w-4" />
-                                    {client?.createdByName || 'SISTEMA'}
+                                    {client?.createdByName || 'No disponible'}
                                 </p>
                             </div>
                         </div>

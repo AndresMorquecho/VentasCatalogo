@@ -59,5 +59,6 @@ export interface ClientPayload {
     birthDate?: string | null;
     isWhatsApp?: boolean;
     referredById?: string | null;
+    isBlocked?: boolean;
 }
 

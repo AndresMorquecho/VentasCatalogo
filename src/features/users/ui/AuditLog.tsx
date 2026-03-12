@@ -144,7 +144,7 @@ export function AuditLog() {
                 <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-700">
                     <ShieldAlert className="h-5 w-5 shrink-0" />
                     <span className="font-medium text-sm">
-                        ⚠️ {todayCritical} acción{todayCritical > 1 ? 'es' : ''} crítica{todayCritical > 1 ? 's' : ''} registrada{todayCritical > 1 ? 's' : ''} hoy.
+                        {todayCritical} acción{todayCritical > 1 ? 'es' : ''} crítica{todayCritical > 1 ? 's' : ''} registrada{todayCritical > 1 ? 's' : ''} hoy.
                     </span>
                 </div>
             )}
@@ -233,7 +233,7 @@ export function AuditLog() {
                                     </TableCell>
                                     <TableCell className="text-sm text-slate-600 max-w-xs">
                                         <p className="truncate">{e.detail}</p>
-                                        {!e.success && <span className="text-xs text-red-500 font-medium">✗ Fallido</span>}
+                                        {!e.success && <span className="text-xs text-red-500 font-medium">Fallido</span>}
                                     </TableCell>
                                     <TableCell className="text-center">
                                         <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${sev.cls}`}>

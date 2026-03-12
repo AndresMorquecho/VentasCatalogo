@@ -6,6 +6,8 @@ export interface DeliveryFilters {
     startDate?: string;
     endDate?: string;
     brandId?: string;
+    clientId?: string;
+    orderNumber?: string;
     searchText?: string;
 }
 
@@ -13,29 +15,21 @@ export const useOrderDeliveryList = (filters?: DeliveryFilters) => {
     return useQuery({
         queryKey: ['orders', 'delivery-list', filters],
         queryFn: async () => {
-            const deliveryOrders = await orderApi.getDeliveryList();
-            let filtered = [...deliveryOrders];
-
-            if (!filters) return filtered;
-
-            if (filters.startDate) {
-                filtered = filtered.filter(o => o.receptionDate! >= filters.startDate!);
-            }
-            if (filters.endDate) {
-                filtered = filtered.filter(o => o.receptionDate! <= filters.endDate!);
-            }
-            if (filters.brandId && filters.brandId !== 'all') {
-                filtered = filtered.filter(o => o.brandId === filters.brandId);
-            }
-            if (filters.searchText) {
-                const lower = filters.searchText!.toLowerCase();
-                filtered = filtered.filter(o =>
-                    o.clientName.toLowerCase().includes(lower) ||
-                    o.receiptNumber.toLowerCase().includes(lower)
-                );
-            }
-
-            return filtered.sort((a, b) => new Date(a.receptionDate!).getTime() - new Date(b.receptionDate!).getTime());
+            // Using getAll with status RECIBIDO_EN_BODEGA for server-side filtering
+            const response = await orderApi.getAll({
+                status: 'RECIBIDO_EN_BODEGA',
+                startDate: filters?.startDate,
+                endDate: filters?.endDate,
+                brandId: filters?.brandId === 'ALL' ? undefined : filters?.brandId,
+                clientId: filters?.clientId,
+                search: filters?.searchText || filters?.orderNumber, // Backend 'search' typically covers multi-fields
+                limit: 100 // reasonable limit for now
+            });
+            
+            // If the backend search doesn't cover orderNumber specifically, we might need extra local filter
+            // but for now let's assume 'search' handles basic text match as per orderApi definition
+            
+            return response.data.sort((a, b) => new Date(a.receptionDate!).getTime() - new Date(b.receptionDate!).getTime());
         }
     });
 }
@@ -44,29 +38,18 @@ export const useOrderDeliveryHistory = (filters?: DeliveryFilters) => {
     return useQuery({
         queryKey: ['orders', 'delivery-history', filters],
         queryFn: async () => {
-            const history = await orderApi.getDeliveryHistory();
-            let filtered = [...history];
+             // Using getAll with status ENTREGADO
+             const response = await orderApi.getAll({
+                status: 'ENTREGADO',
+                startDate: filters?.startDate,
+                endDate: filters?.endDate,
+                brandId: filters?.brandId === 'ALL' ? undefined : filters?.brandId,
+                clientId: filters?.clientId,
+                search: filters?.searchText || filters?.orderNumber,
+                limit: 100
+            });
 
-            if (!filters) return filtered;
-
-            if (filters.startDate) {
-                filtered = filtered.filter(o => o.deliveryDate! >= filters.startDate!);
-            }
-            if (filters.endDate) {
-                filtered = filtered.filter(o => o.deliveryDate! <= filters.endDate!);
-            }
-            if (filters.brandId && filters.brandId !== 'all') {
-                filtered = filtered.filter(o => o.brandId === filters.brandId);
-            }
-            if (filters.searchText) {
-                const lower = filters.searchText!.toLowerCase();
-                filtered = filtered.filter(o =>
-                    o.clientName.toLowerCase().includes(lower) ||
-                    o.receiptNumber.toLowerCase().includes(lower)
-                );
-            }
-
-            return filtered.sort((a, b) => new Date(b.deliveryDate!).getTime() - new Date(a.deliveryDate!).getTime());
+            return response.data.sort((a, b) => new Date(b.deliveryDate!).getTime() - new Date(a.deliveryDate!).getTime());
         }
     });
 }

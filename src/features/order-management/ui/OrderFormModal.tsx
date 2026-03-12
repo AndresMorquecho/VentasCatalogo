@@ -14,10 +14,11 @@ import { Button } from "@/shared/ui/button"
 import { AsyncButton } from "@/shared/ui/async-button"
 import { Label } from "@/shared/ui/label"
 import { Separator } from "@/shared/ui/separator"
+import { X } from "lucide-react"
 
 import { useBankAccountList } from "@/features/bank-accounts/api/hooks"
-import { useCreateOrder, useUpdateOrder, useBatchCreateOrder } from "@/entities/order/model/hooks"
-import type { Order, SalesChannel, OrderType, PaymentMethod, OrderStatus } from "@/entities/order/model/types"
+import { useUpdateOrder, useBatchCreateOrder } from "@/entities/order/model/hooks"
+import type { Order, SalesChannel, OrderType, PaymentMethod } from "@/entities/order/model/types"
 import { orderApi } from "@/entities/order/model/api"
 import { useClientList } from "@/features/clients/api/hooks"
 import { useBrandList } from "@/features/brands/api/hooks"
@@ -25,7 +26,6 @@ import { getActiveBrands } from "@/entities/brand/model/model"
 import { useNotifications } from "@/shared/lib/notifications"
 import { pdf } from "@react-pdf/renderer"
 import { OrderReceiptDocument } from "@/features/order-receipt/ui/OrderReceiptDocument"
-import { validateTransaction } from "@/features/transactions/lib/validateTransaction"
 import { useClientCredits } from "@/features/transactions/model/hooks"
 import { useAuth } from "@/shared/auth"
 
@@ -180,7 +180,6 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
     const clients = clientsResponse?.data || []
     const bankAccounts = bankAccountsResponse?.data || []
     const brands = brandsResponse?.data || []
-    const createOrder = useCreateOrder()
     const batchCreate = useBatchCreateOrder()
     const updateOrder = useUpdateOrder()
     const { notifySuccess, notifyError } = useNotifications()
@@ -412,7 +411,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                             />
                             {totalCredit > 0 && (
                                 <div className="text-xs font-semibold text-green-600 mt-1 flex items-center gap-1">
-                                    <span>💰 Saldo a favor disponible:</span>
+                                    <span>Saldo a favor disponible:</span>
                                     <span className="text-sm">${totalCredit.toFixed(2)}</span>
                                 </div>
                             )}
@@ -433,7 +432,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                                         disabled={isLoadingReceiptNumber}
                                         className="h-6 text-xs"
                                     >
-                                        {isLoadingReceiptNumber ? 'Generando...' : '🔄 Regenerar'}
+                                        {isLoadingReceiptNumber ? 'Generando...' : 'Regenerar'}
                                     </Button>
                                 )}
                             </div>
@@ -504,7 +503,8 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                                             formik.setFieldValue("brandItems", items);
                                         }}
                                     >
-                                        ✕
+                                        <span className="sr-only">Cerrar</span>
+                                        <X className="h-4 w-4" />
                                     </Button>
                                 )}
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
