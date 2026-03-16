@@ -20,7 +20,8 @@ const OrderDeliveryHistoryPage = lazy(() => import('@/features/order-delivery').
 const CashClosurePage = lazy(() => import('@/features/cash-closure/ui/CashClosurePage').then(m => ({ default: m.CashClosurePage })));
 const TransactionsPage = lazy(() => import('@/features/transactions').then(m => ({ default: m.TransactionsPage })));
 const PaymentsPage = lazy(() => import('@/features/payments/ui/PaymentsPage').then(m => ({ default: m.PaymentsPage })));
-const ClientCreditsPage = lazy(() => import('@/features/client-credits/ui/ClientCreditsPage').then(m => ({ default: m.ClientCreditsPage })));
+const WalletPage = lazy(() => import('@/features/wallet/ui/ClientCreditsPage').then(m => ({ default: m.ClientCreditsPage })));
+const WalletValidationPage = lazy(() => import('@/features/wallet-validations/ui/WalletValidationPage').then(m => ({ default: m.WalletValidationPage })));
 const CallsPage = lazy(() => import('@/features/calls').then(m => ({ default: m.CallsPage })));
 const LoyaltyPage = lazy(() => import('@/features/loyalty').then(m => ({ default: m.LoyaltyPage })));
 const AdminUsersPage = lazy(() => import('@/features/users').then(m => ({ default: m.AdminUsersPage })));
@@ -56,7 +57,10 @@ const protectedChildren = [
     { path: 'auditoria/financiera', element: <ProtectedRoute adminOnly><FinancialAuditPage /></ProtectedRoute> },
     { path: 'cash-closure', element: <ProtectedRoute permission="cash_closure.view"><CashClosurePage /></ProtectedRoute> },
     { path: 'payments', element: <ProtectedRoute permission="payments.view"><PaymentsPage /></ProtectedRoute> },
-    { path: 'client-credits', element: <ProtectedRoute permission="clients.view"><ClientCreditsPage /></ProtectedRoute> },
+    { path: 'wallet', element: <ProtectedRoute permission="clients.view"><WalletPage /></ProtectedRoute> },
+    { path: 'wallet-validations', element: <ProtectedRoute adminOnly><WalletValidationPage /></ProtectedRoute> },
+    { path: 'wallet/validation', element: <Navigate to="/wallet-validations" replace /> },
+    { path: 'client-credits', element: <Navigate to="/wallet" replace /> },
     { path: 'calls', element: <ProtectedRoute permission="calls.view"><CallsPage /></ProtectedRoute> },
     { path: 'rewards', element: <ProtectedRoute permission="loyalty.view"><LoyaltyPage /></ProtectedRoute> },
     {

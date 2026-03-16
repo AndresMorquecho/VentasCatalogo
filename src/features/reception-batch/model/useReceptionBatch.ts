@@ -20,10 +20,13 @@ export const useReceptionBatch = () => {
         queryFn: () => orderApi.getByStatus('POR_RECIBIR'),
     });
 
-    const { data: batches = [], isLoading: isLoadingBatches } = useQuery({
+    const { data: batchesData = [], isLoading: isLoadingBatches } = useQuery({
         queryKey: ['reception-batches'],
         queryFn: () => orderApi.getReceptionBatches(),
     });
+
+    // Ensure batches is always an array
+    const batches = Array.isArray(batchesData) ? batchesData : [];
 
     // Mutations
     const saveBatch = useMutation({

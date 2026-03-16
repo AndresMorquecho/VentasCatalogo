@@ -24,7 +24,7 @@ export function AdminUsersPage() {
     if (!isAdmin()) return <Navigate to="/" replace />;
 
     return (
-        <div className="p-6 space-y-6 bg-white min-h-screen">
+        <div className="space-y-6">
             <PageHeader 
                 title="Usuarios y Roles" 
                 description="Administra el acceso y los permisos del sistema"

@@ -110,7 +110,7 @@ export function InventoryPage() {
     const hasFilters = debouncedSearch || startDate || endDate || receiptNumber || orderNumber || statusFilter !== 'ALL' || brandFilter;
 
     return (
-        <div className="space-y-6 container mx-auto py-8 px-4 animate-in fade-in duration-500">
+        <div className="space-y-6">
             <PageHeader 
                 title="Inventario de Pedidos" 
                 description="Control físico, financiero y trazabilidad de paquetes"

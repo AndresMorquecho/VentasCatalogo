@@ -146,17 +146,22 @@ export const SelectContent: React.FC<{ children: React.ReactNode; searchable?: b
   )
 }
 
-export const SelectItem: React.FC<{ value: string; children: React.ReactNode }> = ({ value, children }) => {
+export const SelectItem: React.FC<{ value: string; children: React.ReactNode; label?: string }> = ({ 
+  value, 
+  children,
+  label: explicitLabel 
+}) => {
   const { value: selectedValue, onValueChange, setOpen, registerLabel, searchValue } = React.useContext(SelectContext)
   const isSelected = selectedValue === value
   
   const label = React.useMemo(() => {
+    if (explicitLabel) return explicitLabel
     if (typeof children === "string") return children
     // Fallback simple para elementos que contienen texto
     return React.Children.toArray(children)
       .filter(child => typeof child === "string" || typeof child === "number")
       .join("")
-  }, [children])
+  }, [children, explicitLabel])
 
   React.useEffect(() => {
     registerLabel(value, label)

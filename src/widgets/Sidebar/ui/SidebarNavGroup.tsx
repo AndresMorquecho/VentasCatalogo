@@ -1,7 +1,6 @@
 
 import { ChevronRight } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
-import { useState, useEffect } from "react"
 import { Link, useLocation } from "react-router-dom"
 import {
     SidebarMenuButton,
@@ -27,40 +26,20 @@ export type NavGroup = {
 
 interface SidebarNavGroupProps {
     group: NavGroup
+    isOpen: boolean
+    onToggle: () => void
 }
 
-export function SidebarNavGroup({ group }: SidebarNavGroupProps) {
+export function SidebarNavGroup({ group, isOpen, onToggle }: SidebarNavGroupProps) {
     const location = useLocation()
-    const storageKey = `sidebar-group-${group.title.toLowerCase().replace(/\s+/g, '-')}`
 
     // Check if any child is active to auto-expand
     const isChildActive = group.items.some(item => location.pathname === item.url || location.pathname.startsWith(item.url + '/'))
 
-    const [isOpen, setIsOpen] = useState(() => {
-        const saved = localStorage.getItem(storageKey)
-        // Default to open if child is active, otherwise respect storage or default false
-        if (isChildActive) return true
-        return saved ? JSON.parse(saved) : false
-    })
-
-    // Update storage when state changes
-    useEffect(() => {
-        localStorage.setItem(storageKey, JSON.stringify(isOpen))
-    }, [isOpen, storageKey])
-
-    // Auto-expand if navigating to a child (optional, but good UX)
-    useEffect(() => {
-        if (isChildActive && !isOpen) {
-            setIsOpen(true)
-        }
-    }, [isChildActive]) // eslint-disable-line react-hooks/exhaustive-deps
-
-    const toggle = () => setIsOpen((prev: boolean) => !prev)
-
     return (
         <SidebarMenuItem>
             <SidebarMenuButton
-                onClick={toggle}
+                onClick={onToggle}
                 tooltip={group.title}
                 isActive={isChildActive}
                 className="font-medium"

@@ -6,7 +6,7 @@ import { ClientForm } from "./ClientForm";
 import { ClientDetailModal } from "./ClientDetailModal";
 import { Input } from "@/shared/ui/input";
 import { Button } from "@/shared/ui/button";
-import { AlertCircle, Plus, RotateCw, Search } from "lucide-react";
+import { AlertCircle, Plus, RotateCw, Search, Users } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
 import {
     Dialog,
@@ -31,6 +31,7 @@ import { Card, CardContent } from "@/shared/ui/card";
 import { Filter, X, Download, Loader2 } from "lucide-react";
 import { clientApi } from "@/shared/api/clientApi";
 import { exportClientsToExcel } from "../lib/exportUtils";
+import { PageHeader } from "@/shared/ui/PageHeader";
 
 export function ClientList() {
     const [page, setPage] = useState(1);
@@ -119,6 +120,8 @@ export function ClientList() {
 
     const handleConfirmDelete = async () => {
         if (!deleteTarget) return;
+        const targetName = deleteTarget.firstName;
+        const targetId = deleteTarget.identificationNumber;
         try {
             await deleteClientMutation.mutateAsync(deleteTarget.id);
             if (user) {
@@ -127,20 +130,23 @@ export function ClientList() {
                     userName: user.username,
                     action: 'DELETE_CLIENT',
                     module: 'clients',
-                    detail: `Eliminó empresaria: ${deleteTarget.firstName} (ID: ${deleteTarget.identificationNumber})`
+                    detail: `Eliminó empresaria: ${targetName} (ID: ${targetId})`
                 });
             }
-            notifySuccess(`Empresaria "${deleteTarget.firstName}" eliminada correctamente`);
+            notifySuccess(`Empresaria "${targetName}" eliminada correctamente`);
             setDeleteTarget(null);
         } catch (error: any) {
-            // Handle specific referential integrity error from backend if possible
-            const errorMsg = error?.response?.data?.error?.message || error?.message || "";
-            if (errorMsg.includes("foreign key constraint") || errorMsg.includes("pedidos asociados")) {
-                setDeleteError(`No se puede eliminar a "${deleteTarget.firstName}" porque tiene pedidos asociados. Primero debe eliminar o reasignar sus pedidos.`);
+            // Extraer el mensaje limpio del backend (nunca mostrar texto técnico de Prisma)
+            const backendMsg = error?.response?.data?.error?.message;
+            const errorCode = error?.response?.data?.error?.code;
+
+            if (backendMsg && (errorCode === 'REFERENTIAL_INTEGRITY' || errorCode === 'INTERNAL_ERROR')) {
+                // El backend ya devolvió un mensaje legible
+                setDeleteError(backendMsg);
             } else {
-                notifyError(error, "Ocurrió un error al eliminar. Intente de nuevo.");
+                // Fallback genérico amigable
+                setDeleteError(`No se pudo eliminar a "${targetName}". Si el problema persiste, desactívela en su lugar.`);
             }
-        } finally {
             setDeleteTarget(null);
         }
     };
@@ -175,11 +181,6 @@ export function ClientList() {
     if (isError) {
         return (
             <div className="space-y-3 sm:space-y-4">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
-                    <h2 className="text-base font-medium text-muted-foreground tracking-tight">
-                        Listado de Empresarias
-                    </h2>
-                </div>
                 <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
                     <AlertTitle>Error</AlertTitle>
@@ -202,33 +203,17 @@ export function ClientList() {
 
     return (
         <div className="space-y-3 sm:space-y-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
-                <h2 className="text-base font-medium text-muted-foreground tracking-tight">
-                    Listado de Empresarias
-                </h2>
-                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                    <Button 
-                        variant="outline" 
-                        onClick={handleExportAll} 
-                        disabled={isExporting || isLoading}
-                        className="w-full sm:w-auto border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
-                    >
-                        {isExporting ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                            <Download className="mr-2 h-4 w-4" />
-                        )}
-                        Exportar Excel
-                    </Button>
-                    <Button onClick={handleCreate} className="w-full sm:w-auto">
-                        <Plus className="mr-2 h-4 w-4" /> Nueva Empresaria
-                    </Button>
-                </div>
-            </div>
 
             {/* Filters Bar */}
             <Card className="border-slate-200 bg-slate-50/30">
                 <CardContent className="p-3 sm:p-4 space-y-4">
+                    <div className="flex justify-between items-center gap-3">
+                        <h3 className="text-sm font-bold text-slate-700">Filtros de Búsqueda</h3>
+                        <Button onClick={handleCreate} size="sm" className="bg-monchito-purple hover:bg-monchito-purple/90">
+                            <Plus className="mr-2 h-4 w-4" /> Nueva Empresaria
+                        </Button>
+                    </div>
+                    
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -355,7 +340,7 @@ export function ClientList() {
             <Dialog
                 open={!!deleteTarget}
                 onOpenChange={(open: boolean) => {
-                    if (!open) setDeleteTarget(null);
+                    if (!open && !deleteClientMutation.isPending) setDeleteTarget(null);
                 }}
             >
                 <DialogContent className="sm:max-w-md w-[95vw] max-w-[95vw] sm:w-full">
@@ -371,12 +356,22 @@ export function ClientList() {
                         <Button
                             variant="outline"
                             onClick={() => setDeleteTarget(null)}
+                            disabled={deleteClientMutation.isPending}
                             className="w-full sm:w-auto"
                         >
                             Cancelar
                         </Button>
-                        <Button variant="destructive" onClick={handleConfirmDelete} className="w-full sm:w-auto">
-                            Eliminar
+                        <Button 
+                            variant="destructive" 
+                            onClick={handleConfirmDelete} 
+                            disabled={deleteClientMutation.isPending}
+                            className="w-full sm:w-auto"
+                        >
+                            {deleteClientMutation.isPending ? (
+                                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Eliminando...</>
+                            ) : (
+                                'Eliminar'
+                            )}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

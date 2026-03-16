@@ -5,7 +5,7 @@ import { PageHeader } from '@/shared/ui/PageHeader';
 
 export function LoyaltyPage() {
     return (
-        <div className="p-6 space-y-6 bg-white min-h-screen">
+        <div className="space-y-6">
             <PageHeader 
                 title="Fidelización de Clientes" 
                 description="Gestiona reglas, premios y canjes del programa de lealtad"

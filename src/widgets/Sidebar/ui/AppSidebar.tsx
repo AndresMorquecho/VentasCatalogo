@@ -17,12 +17,12 @@ import {
     Heart,
     Store,
     Settings2,
-    Gift,
+    CheckCircle,
 } from "lucide-react"
-import { Link } from "react-router-dom"
+import { Link, useLocation } from "react-router-dom"
 import { useAuth } from "@/shared/auth"
 import { LogoutDialog } from "@/shared/components/LogoutDialog"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
 import {
     Sidebar,
@@ -113,8 +113,9 @@ const groupedItems = [
         items: [
             { title: "Transacciones", url: "/transactions", icon: DollarSign },
             { title: "Abonos", url: "/payments", icon: DollarSign },
-            { title: "Saldos a Favor", url: "/client-credits", icon: Gift },
-            { title: "Cuentas", url: "/bank-accounts", icon: Wallet },
+            { title: "Billetera Virtual", url: "/wallet", icon: Wallet },
+            { title: "Validación de Pagos", url: "/wallet-validations", icon: CheckCircle },
+            { title: "Cuentas Bancarias", url: "/bank-accounts", icon: Store },
             { title: "Cierre de Caja", url: "/cash-closure", icon: Calculator },
         ]
     },
@@ -158,8 +159,28 @@ const getAvatarColor = (name: string) => {
 
 export function AppSidebar() {
     const { user, logout, isAdmin } = useAuth();
+    const location = useLocation();
     const adminMode = isAdmin();
     const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+    
+    // Track which group is open (null means all closed)
+    // Initial state: try to find the group that contains the current location
+    const [openGroupTitle, setOpenGroupTitle] = useState<string | null>(() => {
+        const activeGroup = groupedItems.find(group => 
+            group.items.some(item => location.pathname === item.url || location.pathname.startsWith(item.url + '/'))
+        );
+        return activeGroup ? activeGroup.title : null;
+    });
+
+    // Auto-expand if navigating to a child
+    useEffect(() => {
+        const activeGroup = groupedItems.find(group => 
+            group.items.some(item => location.pathname === item.url || location.pathname.startsWith(item.url + '/'))
+        );
+        if (activeGroup && activeGroup.title !== openGroupTitle) {
+            setOpenGroupTitle(activeGroup.title);
+        }
+    }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleLogout = () => {
         logout();
@@ -201,7 +222,12 @@ export function AppSidebar() {
                     <SidebarGroupContent>
                         <SidebarMenu>
                             {groupedItems.map((group) => (
-                                <SidebarNavGroup key={group.title} group={group} />
+                                <SidebarNavGroup 
+                                    key={group.title} 
+                                    group={group} 
+                                    isOpen={openGroupTitle === group.title}
+                                    onToggle={() => setOpenGroupTitle(prev => prev === group.title ? null : group.title)}
+                                />
                             ))}
                         </SidebarMenu>
                     </SidebarGroupContent>

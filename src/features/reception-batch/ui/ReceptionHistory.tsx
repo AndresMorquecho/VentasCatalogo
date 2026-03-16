@@ -54,7 +54,10 @@ export function ReceptionHistory({ batches, onEdit, onDelete, isDeleting }: Prop
 
     // 1. Filter Logic
     const filteredBatches = useMemo(() => {
-        return batches.filter(b => {
+        // Defensive check: ensure batches is an array
+        const batchesArray = Array.isArray(batches) ? batches : [];
+        
+        return batchesArray.filter(b => {
             // Date Range Filter
             if (startDate || endDate) {
                 const bDate = new Date(b.receptionDate);

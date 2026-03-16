@@ -333,7 +333,7 @@ export function ClientDetailModal({ client: initialClient, open, onOpenChange }:
                                                 onChange={(e) => setSearch(e.target.value)}
                                             />
                                         </div>
-                                        
+
                                         <div className="relative">
                                             <p className="text-[9px] font-black text-slate-400 uppercase mb-1 ml-1">Estado Gestión</p>
                                             <Select value={status} onValueChange={setStatus}>
@@ -412,7 +412,7 @@ export function ClientDetailModal({ client: initialClient, open, onOpenChange }:
                                     </table>
                                 </div>
                             </div>
-                            
+
                             {/* PAGINACIÓN */}
                             {pagination && pagination.pages > 1 && (
                                 <div className="mt-2 flex justify-end">

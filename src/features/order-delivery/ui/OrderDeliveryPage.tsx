@@ -252,23 +252,23 @@ export function OrderDeliveryPage() {
     const selectedOrders = orders.filter(o => selectedOrderIds.includes(o.id))
 
     return (
-        <div className="container mx-auto py-8 space-y-6 px-4">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-2">
-                <PageHeader 
-                    title="Entrega al Cliente" 
-                    description="Gestión de entregas finales y cobro de saldos pendientes"
-                    icon={Truck}
-                />
-                <div className="flex gap-3">
-                    <Button variant="outline" onClick={() => navigate('/orders/delivery/history')} className="gap-2 rounded-xl h-10 border-slate-200">
-                        <History className="h-4 w-4" />
-                        Historial
-                    </Button>
-                    <Button variant="outline" onClick={clearFilters} title="Limpiar todos los filtros" className="h-10 w-10 p-0 rounded-xl border-slate-200 text-slate-400 hover:text-orange-500">
-                        <RotateCcw className="h-4 w-4" />
-                    </Button>
-                </div>
-            </div>
+        <div className="space-y-6">
+            <PageHeader 
+                title="Entrega al Cliente" 
+                description="Gestión de entregas finales y cobro de saldos pendientes"
+                icon={Truck}
+                actions={
+                    <div className="flex gap-3">
+                        <Button variant="outline" onClick={() => navigate('/orders/delivery/history')} className="gap-2 rounded-xl h-10 border-slate-200">
+                            <History className="h-4 w-4" />
+                            Historial
+                        </Button>
+                        <Button variant="outline" onClick={clearFilters} title="Limpiar todos los filtros" className="h-10 w-10 p-0 rounded-xl border-slate-200 text-slate-400 hover:text-orange-500">
+                            <RotateCcw className="h-4 w-4" />
+                        </Button>
+                    </div>
+                }
+            />
 
             {/* Premium Filter Panel */}
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xl shadow-slate-200/50">
