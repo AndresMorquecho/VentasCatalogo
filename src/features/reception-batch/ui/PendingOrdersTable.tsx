@@ -105,17 +105,17 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
     return (
         <div className="space-y-4 h-full flex flex-col">
             {/* Filters Section */}
-            <div className="bg-amber-50/50 p-1.5 rounded-lg border border-amber-100 shrink-0">
+            <div className="bg-monchito-purple/5 p-3 rounded-lg border border-monchito-purple/10 shrink-0">
                 <div className="flex flex-col sm:flex-row gap-2 items-center justify-between">
                     <div className="flex flex-1 gap-2 items-center w-full">
                         {/* Search Input (Client) */}
                         <div className="relative w-44">
-                            <Search className="absolute left-2 top-1.5 h-3.5 w-3.5 text-amber-600/50" />
+                            <Search className="absolute left-2 top-1.5 h-3.5 w-3.5 text-monchito-purple/50" />
                             <Input
                                 placeholder="Empresaria..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-7 bg-white border-amber-200 focus-visible:ring-amber-500 h-7 text-[10px]"
+                                className="pl-7 bg-white border-monchito-purple/20 focus-visible:ring-monchito-purple/20 h-7 text-[10px]"
                             />
                         </div>
 
@@ -125,7 +125,7 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
                                 placeholder="N° Recibo..."
                                 value={receiptFilter}
                                 onChange={(e) => setReceiptFilter(e.target.value)}
-                                className="bg-white border-amber-200 focus-visible:ring-amber-500 h-7 text-[10px] px-2"
+                                className="bg-white border-monchito-purple/20 focus-visible:ring-monchito-purple/20 h-7 text-[10px] px-2"
                             />
                         </div>
 
@@ -135,17 +135,17 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
                                 placeholder="N° Pedido..."
                                 value={orderNumberFilter}
                                 onChange={(e) => setOrderNumberFilter(e.target.value)}
-                                className="bg-white border-amber-200 focus-visible:ring-amber-500 h-7 text-[10px] px-2"
+                                className="bg-white border-monchito-purple/20 focus-visible:ring-monchito-purple/20 h-7 text-[10px] px-2"
                             />
                         </div>
 
                         {/* Brand Select */}
                         <div className="relative w-36">
-                            <Tag className="absolute left-2 top-1.5 h-3.5 w-3.5 text-amber-600/50" />
+                            <Tag className="absolute left-2 top-1.5 h-3.5 w-3.5 text-monchito-purple/50" />
                             <select
                                 value={brandFilter}
                                 onChange={(e) => setBrandFilter(e.target.value)}
-                                className="w-full h-7 pl-7 pr-3 text-[10px] bg-white border border-amber-200 rounded-md focus:border-amber-500 focus:outline-none appearance-none font-medium"
+                                className="w-full h-7 pl-7 pr-3 text-[10px] bg-white border border-monchito-purple/20 rounded-md focus:border-monchito-purple focus:outline-none appearance-none font-medium"
                             >
                                 <option value="">Todos Catálogos</option>
                                 {availableBrands.map(b => (
@@ -160,13 +160,13 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
                                 type="date"
                                 value={dateFilter}
                                 onChange={(e) => setDateFilter(e.target.value)}
-                                className="h-7 w-full bg-white border-amber-200 focus-visible:ring-amber-500 text-[10px] px-2"
+                                className="h-7 w-full bg-white border-monchito-purple/20 focus-visible:ring-monchito-purple/20 text-[10px] px-2"
                             />
                         </div>
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-1 rounded-md">
+                        <span className="text-[10px] font-bold text-monchito-purple bg-monchito-purple/10 px-2 py-1 rounded-md">
                             {filteredOrders.length}
                         </span>
                         {(searchTerm || receiptFilter || orderNumberFilter || brandFilter || dateFilter) && (
@@ -187,7 +187,7 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
                             size="sm"
                             onClick={handleMove}
                             disabled={selected.size === 0}
-                            className="bg-amber-600 hover:bg-amber-700 text-white shadow-sm transition-all active:scale-95 h-7 text-xs px-3 ml-2"
+                            className="bg-monchito-purple hover:bg-monchito-purple/90 text-white shadow-sm transition-all active:scale-95 h-7 text-xs px-3 ml-2"
                         >
                             Mover ({selected.size}) <ArrowRight className="ml-1 h-3 w-3" />
                         </Button>
@@ -196,27 +196,27 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
             </div>
 
             {/* Table */}
-            <div className="border rounded-md overflow-hidden flex-1 flex flex-col bg-white shadow-sm ring-1 ring-amber-100/50">
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm flex flex-col h-80">
                 <div className="flex-1 overflow-y-auto">
                     <Table className="min-w-[1000px] w-full">
-                        <TableHeader className="bg-amber-50/80 sticky top-0 z-10 backdrop-blur-sm">
-                            <TableRow className="h-8">
+                        <TableHeader>
+                            <TableRow className="bg-monchito-purple/5 hover:bg-monchito-purple/5 border-b border-monchito-purple/10 h-12 sticky top-0 z-10">
                                 <TableHead className="w-[30px] p-1 text-center">
                                     <input
                                         type="checkbox"
                                         checked={areAllFilteredSelected}
                                         onChange={toggleAll}
-                                        className="accent-amber-600 h-3 w-3 cursor-pointer rounded"
+                                        className="accent-monchito-purple h-3 w-3 cursor-pointer rounded"
                                     />
                                 </TableHead>
-                                <TableHead className="py-1 px-2 whitespace-nowrap text-xs text-muted-foreground font-normal">Recibo</TableHead>
-                                <TableHead className="py-1 px-2 whitespace-nowrap text-xs text-muted-foreground font-normal">Empresaria</TableHead>
-                                <TableHead className="py-1 px-2 whitespace-nowrap text-xs text-muted-foreground font-normal">N° de Pedido</TableHead>
-                                <TableHead className="py-1 px-2 whitespace-nowrap text-xs text-muted-foreground font-normal">Tipo</TableHead>
-                                <TableHead className="py-1 px-2 whitespace-nowrap text-xs text-muted-foreground font-normal">Catálogo</TableHead>
-                                <TableHead className="py-1 px-2 whitespace-nowrap text-xs text-muted-foreground font-normal text-right">Valor Pedido</TableHead>
-                                <TableHead className="py-1 px-2 whitespace-nowrap text-xs text-muted-foreground font-normal text-right">Abono</TableHead>
-                                <TableHead className="py-1 px-2 whitespace-nowrap text-xs text-muted-foreground font-normal">Fecha Posible Entrega</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Recibo</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Empresaria</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">N° de Pedido</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Tipo</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Catálogo</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right">Valor Pedido</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right">Abono</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Fecha Posible Entrega</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -232,7 +232,7 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
                                     return (
                                         <TableRow
                                             key={order.id}
-                                            className={`cursor-pointer transition-colors h-10 ${selected.has(order.id) ? "bg-amber-50" : "hover:bg-slate-50"}`}
+                                            className={`cursor-pointer transition-colors border-b border-slate-50 hover:bg-monchito-purple/5 ${selected.has(order.id) ? "bg-monchito-purple/10" : ""}`}
                                             onClick={() => toggle(order.id)}
                                         >
                                             <TableCell className="p-1 w-[30px] text-center">
@@ -240,20 +240,20 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
                                                     type="checkbox"
                                                     checked={selected.has(order.id)}
                                                     onChange={() => toggle(order.id)}
-                                                    className="accent-amber-600 h-3 w-3 cursor-pointer rounded"
+                                                    className="accent-monchito-purple h-3 w-3 cursor-pointer rounded"
                                                     onClick={(e) => e.stopPropagation()}
                                                 />
                                             </TableCell>
-                                            <TableCell className="py-1 px-2 font-mono text-xs">#{order.receiptNumber}</TableCell>
-                                            <TableCell className="py-1 px-2 text-xs font-medium">{order.clientName}</TableCell>
-                                            <TableCell className="py-1 px-2 text-xs">{order.orderNumber || '---'}</TableCell>
-                                            <TableCell className="py-1 px-2 text-[10px]">
+                                            <TableCell className="py-2 px-2 font-mono text-xs font-medium">#{order.receiptNumber}</TableCell>
+                                            <TableCell className="py-2 px-2 text-xs font-bold">{order.clientName}</TableCell>
+                                            <TableCell className="py-2 px-2 text-xs font-medium">{order.orderNumber || '---'}</TableCell>
+                                            <TableCell className="py-2 px-2 text-[10px]">
                                                 <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 font-bold uppercase">{order.type}</span>
                                             </TableCell>
-                                            <TableCell className="py-1 px-2 text-xs">{order.brandName}</TableCell>
-                                            <TableCell className="py-1 px-2 text-right font-mono text-xs font-bold">${order.total.toFixed(2)}</TableCell>
-                                            <TableCell className="py-1 px-2 text-right font-mono text-xs text-emerald-600">${paid.toFixed(2)}</TableCell>
-                                            <TableCell className="py-1 px-2 text-xs text-muted-foreground italic">
+                                            <TableCell className="py-2 px-2 text-xs font-medium">{order.brandName}</TableCell>
+                                            <TableCell className="py-2 px-2 text-right font-mono text-xs font-bold">${order.total.toFixed(2)}</TableCell>
+                                            <TableCell className="py-2 px-2 text-right font-mono text-xs font-bold text-emerald-600">${paid.toFixed(2)}</TableCell>
+                                            <TableCell className="py-2 px-2 text-xs text-muted-foreground italic">
                                                 {order.possibleDeliveryDate ? new Date(order.possibleDeliveryDate).toLocaleDateString() : '---'}
                                             </TableCell>
                                         </TableRow>

@@ -56,17 +56,23 @@ export function ReceptionBatchPage() {
                                 Cancelar Edición
                             </Button>
                         )}
-                        <div className="bg-slate-100 p-1 rounded-lg flex shadow-inner border border-slate-200/50">
+                        <div className="flex gap-2">
                             <Button
-                                variant={activeTab === "reception" ? "default" : "ghost"}
-                                className={`${activeTab === "reception" ? "bg-white text-slate-900 shadow-sm hover:bg-white" : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"} h-8 px-4 rounded-md text-xs font-bold transition-all`}
+                                variant={activeTab === "reception" ? "default" : "outline"}
+                                className={activeTab === "reception" 
+                                    ? "bg-monchito-purple hover:bg-monchito-purple/90 text-white" 
+                                    : "border-monchito-purple/20 text-monchito-purple/60 hover:bg-monchito-purple/5 hover:text-monchito-purple"
+                                }
                                 onClick={() => setActiveTab("reception")}
                             >
                                 {editingBatchId ? 'Zona de Edición' : 'Nueva Recepción'}
                             </Button>
                             <Button
-                                variant={activeTab === "history" ? "default" : "ghost"}
-                                className={`${activeTab === "history" ? "bg-white text-slate-900 shadow-sm hover:bg-white" : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"} h-8 px-4 rounded-md text-xs font-bold transition-all`}
+                                variant={activeTab === "history" ? "default" : "outline"}
+                                className={activeTab === "history" 
+                                    ? "bg-monchito-purple hover:bg-monchito-purple/90 text-white" 
+                                    : "border-monchito-purple/20 text-monchito-purple/60 hover:bg-monchito-purple/5 hover:text-monchito-purple"
+                                }
                                 onClick={() => setActiveTab("history")}
                             >
                                 Historial
@@ -79,26 +85,47 @@ export function ReceptionBatchPage() {
             <div className="flex-1 overflow-hidden text-sm">
                 {activeTab === "reception" ? (
                     <div className="flex flex-col gap-6 h-full overflow-hidden">
-                        {/* Panel Superior: Pedidos Pendientes */}
-                        <div className="flex-1 min-h-0">
-                            <PendingOrdersTable orders={allOrders} onMove={addOrders} />
-                        </div>
+                        {/* Panel Superior: Pedidos Pendientes - Se colapsa si no hay datos */}
+                        {allOrders.length > 0 && (
+                            <div className={selectedOrders.length > 0 ? "h-96" : "flex-1"}>
+                                <div className="mb-3">
+                                    <h3 className="text-sm font-bold text-monchito-purple flex items-center gap-2">
+                                        <span className="bg-monchito-purple/10 text-monchito-purple w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">1</span>
+                                        Pedidos Pendientes de Recepción
+                                    </h3>
+                                </div>
+                                <PendingOrdersTable orders={allOrders} onMove={addOrders} />
+                            </div>
+                        )}
 
-                        {/* Panel Inferior: Zona de Recepción Actual */}
-                        <div className="flex-1 min-h-0">
-                            <ReceptionZone
-                                selectedOrders={selectedOrders}
-                                onRemove={removeOrder}
-                                onConfirm={handleSaveBatch}
-                                isProcessing={isSaving}
-                                packingNumber={packingNumber}
-                                packingTotal={packingTotal}
-                                setPackingNumber={setPackingNumber}
-                                setPackingTotal={setPackingTotal}
-                                onUpdateOrder={updateOrderItem}
-                                isEditing={!!editingBatchId}
-                            />
-                        </div>
+                        {/* Panel Inferior: Zona de Recepción Actual - Se colapsa si no hay datos */}
+                        {selectedOrders.length > 0 && (
+                            <div className={allOrders.length > 0 ? "h-96" : "flex-1"}>
+                                <ReceptionZone
+                                    selectedOrders={selectedOrders}
+                                    onRemove={removeOrder}
+                                    onConfirm={handleSaveBatch}
+                                    isProcessing={isSaving}
+                                    packingNumber={packingNumber}
+                                    packingTotal={packingTotal}
+                                    setPackingNumber={setPackingNumber}
+                                    setPackingTotal={setPackingTotal}
+                                    onUpdateOrder={updateOrderItem}
+                                    isEditing={!!editingBatchId}
+                                />
+                            </div>
+                        )}
+
+                        {/* Mensaje cuando no hay datos en ninguna tabla */}
+                        {allOrders.length === 0 && selectedOrders.length === 0 && (
+                            <div className="flex-1 flex items-center justify-center">
+                                <div className="text-center p-8 border-2 border-dashed border-slate-200 rounded-lg bg-slate-50 text-slate-400">
+                                    <Truck className="mx-auto h-12 w-12 mb-4 text-slate-300" />
+                                    <p className="text-lg font-medium mb-2">No hay pedidos disponibles</p>
+                                    <p className="text-sm">Los pedidos aparecerán aquí cuando estén listos para recepción</p>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <ReceptionHistory

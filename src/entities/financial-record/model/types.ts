@@ -1,8 +1,8 @@
 // Financial Record Entity - Unified model matching backend
 // Replaces FinancialTransaction and FinancialMovement
 
-export type FinancialRecordType = 'PAYMENT' | 'ADJUSTMENT' | 'EXPENSE';
-export type FinancialSource = 'ORDER_PAYMENT' | 'MANUAL' | 'ADJUSTMENT';
+export type FinancialRecordType = 'PAYMENT' | 'ADJUSTMENT' | 'EXPENSE' | 'CREDIT_GENERATION' | 'CREDIT_APPLICATION';
+export type FinancialSource = 'ORDER_PAYMENT' | 'MANUAL' | 'ADJUSTMENT' | 'RECEPTION_OVERPAYMENT' | 'CREDIT_DISTRIBUTION';
 export type MovementType = 'INCOME' | 'EXPENSE';
 
 export interface FinancialRecord {
@@ -27,7 +27,7 @@ export interface FinancialRecord {
 
   // Bank Account
   bankAccountId: string;
-  paymentMethod?: 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE' | 'CREDITO_CLIENTE';
+  paymentMethod?: 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE' | 'CREDITO_CLIENTE' | 'SALDO_A_FAVOR';
 
   // Metadata
   createdAt: string;
@@ -47,11 +47,47 @@ export interface CreateFinancialRecordPayload {
   createdBy: string;
   notes?: string;
   bankAccountId: string;
-  paymentMethod?: 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE' | 'CREDITO_CLIENTE';
+  paymentMethod?: 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE' | 'CREDITO_CLIENTE' | 'SALDO_A_FAVOR';
 }
 
 export interface UpdateFinancialRecordPayload {
   amount?: number;
   notes?: string;
   date?: string;
+}
+
+// ============================================================================
+// CREDIT DISTRIBUTION TYPES
+// ============================================================================
+
+export interface CreditDistribution {
+  sourceOrderId: string;
+  totalCreditAmount: number;
+  distributions: CreditDistributionItem[];
+}
+
+export interface CreditDistributionItem {
+  targetOrderId?: string; // null = billetera virtual
+  amount: number;
+  description: string;
+  isCashReturn?: boolean; // true = devolución en efectivo
+}
+
+export interface CreditDistributionModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  sourceOrder: {
+    id: string;
+    receiptNumber: string;
+    clientId: string;
+    clientName: string;
+  };
+  creditAmount: number;
+  availableOrders: Array<{
+    id: string;
+    receiptNumber: string;
+    clientName: string;
+    pendingAmount: number;
+  }>;
+  onDistribute: (distribution: CreditDistribution) => void;
 }

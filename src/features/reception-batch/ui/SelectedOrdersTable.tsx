@@ -1,7 +1,12 @@
+import { useState } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table"
 import { Input } from "@/shared/ui/input"
+import { Button } from "@/shared/ui/button"
 import type { Order } from "@/entities/order/model/types"
-import { X, CheckCircle, AlertCircle } from "lucide-react"
+import type { CreditDistribution } from "@/entities/financial-record/model/types"
+import { X, CheckCircle, AlertCircle, DollarSign, ArrowRight } from "lucide-react"
+import { CreditActionSelectorModal } from "./CreditActionSelectorModal"
+import { CreditDistributionModal } from "./CreditDistributionModal"
 
 export interface SelectedOrderState {
     order: Order
@@ -9,6 +14,7 @@ export interface SelectedOrderState {
     finalInvoiceNumber: string
     documentType: string
     entryDate: string
+    creditDistribution?: CreditDistribution // NUEVO: Para distribución de saldos a favor
 }
 
 interface Props {
@@ -18,6 +24,7 @@ interface Props {
     onUpdateInvoiceNumber: (id: string, val: string) => void
     onUpdateDocumentType: (id: string, val: string) => void
     onUpdateEntryDate: (id: string, val: string) => void
+    onUpdateCreditDistribution?: (id: string, distribution: CreditDistribution) => void // NUEVO
 }
 
 export function SelectedOrdersTable({
@@ -26,11 +33,115 @@ export function SelectedOrdersTable({
     onUpdateInvoiceTotal,
     onUpdateInvoiceNumber,
     onUpdateDocumentType,
-    onUpdateEntryDate
+    onUpdateEntryDate,
+    onUpdateCreditDistribution
 }: Props) {
+    const [creditModalState, setCreditModalState] = useState<{
+        selectorOpen: boolean
+        distributionOpen: boolean
+        sourceOrder?: SelectedOrderState
+        creditAmount: number
+    }>({
+        selectorOpen: false,
+        distributionOpen: false,
+        creditAmount: 0
+    })
     const totalEstimate = orders.reduce((sum, o) => sum + Number(o.order.total || 0), 0)
     const totalInvoice = orders.reduce((sum, o) => sum + Number(o.finalTotal || 0), 0)
     // const totalAbono = orders.reduce((sum, o) => sum + (o.abonoRecepcion || 0), 0)
+
+    // Función para calcular saldo a favor
+    const calculateCreditAmount = (orderState: SelectedOrderState) => {
+        const initialPaid = (orderState.order.payments || []).reduce((acc: number, p: any) => acc + Number(p.amount || 0), 0);
+        const finalBalance = Number(orderState.finalTotal || 0) - initialPaid;
+        return finalBalance < -0.01 ? Math.abs(finalBalance) : 0;
+    }
+
+    // Función para abrir modal de distribución
+    const handleOpenCreditDistribution = (orderState: SelectedOrderState) => {
+        const creditAmount = calculateCreditAmount(orderState);
+        if (creditAmount > 0) {
+            setCreditModalState({
+                selectorOpen: true,
+                distributionOpen: false,
+                sourceOrder: orderState,
+                creditAmount
+            });
+        }
+    }
+
+    // Funciones para manejar las acciones del selector
+    const handleMoveToWallet = () => {
+        if (creditModalState.sourceOrder && onUpdateCreditDistribution) {
+            const distribution: CreditDistribution = {
+                sourceOrderId: creditModalState.sourceOrder.order.id,
+                totalCreditAmount: creditModalState.creditAmount,
+                distributions: [{
+                    amount: creditModalState.creditAmount,
+                    description: `Saldo completo guardado en billetera virtual - Origen: Pedido ${creditModalState.sourceOrder.order.receiptNumber}`
+                }]
+            }
+            onUpdateCreditDistribution(creditModalState.sourceOrder.order.id, distribution);
+        }
+        setCreditModalState({ selectorOpen: false, distributionOpen: false, creditAmount: 0 });
+    }
+
+    const handleReturnToClient = () => {
+        if (creditModalState.sourceOrder && onUpdateCreditDistribution) {
+            const distribution: CreditDistribution = {
+                sourceOrderId: creditModalState.sourceOrder.order.id,
+                totalCreditAmount: creditModalState.creditAmount,
+                distributions: [{
+                    amount: creditModalState.creditAmount,
+                    description: `Devolución completa en efectivo - Origen: Pedido ${creditModalState.sourceOrder.order.receiptNumber}`,
+                    isCashReturn: true
+                }]
+            }
+            onUpdateCreditDistribution(creditModalState.sourceOrder.order.id, distribution);
+        }
+        setCreditModalState({ selectorOpen: false, distributionOpen: false, creditAmount: 0 });
+    }
+
+    const handleDistributeToOrders = () => {
+        setCreditModalState(prev => ({
+            ...prev,
+            selectorOpen: false,
+            distributionOpen: true
+        }));
+    }
+
+    // Función para manejar la distribución
+    const handleCreditDistribution = (distribution: CreditDistribution) => {
+        if (creditModalState.sourceOrder && onUpdateCreditDistribution) {
+            onUpdateCreditDistribution(creditModalState.sourceOrder.order.id, distribution);
+        }
+        setCreditModalState({ selectorOpen: false, distributionOpen: false, creditAmount: 0 });
+    }
+
+    // Obtener pedidos disponibles para distribución (mismo cliente, excluyendo el origen)
+    const getAvailableOrdersForDistribution = (sourceOrderState: SelectedOrderState) => {
+        return orders
+            .filter(o => 
+                o.order.id !== sourceOrderState.order.id && 
+                o.order.clientId === sourceOrderState.order.clientId
+            )
+            .map(o => {
+                const initialPaid = (o.order.payments || []).reduce((acc: number, p: any) => acc + Number(p.amount || 0), 0);
+                const pendingAmount = Math.max(0, Number(o.finalTotal || 0) - initialPaid);
+                return {
+                    id: o.order.id,
+                    receiptNumber: o.order.receiptNumber,
+                    orderNumber: o.order.orderNumber,
+                    clientName: o.order.clientName,
+                    orderType: o.order.type || 'NORMAL',
+                    pendingAmount,
+                    totalAmount: Number(o.finalTotal || 0), // Valor total del pedido
+                    paidAmount: initialPaid,  // Abonos previos
+                    brandName: o.order.brandName   // Catálogo
+                };
+            })
+            .filter(o => o.pendingAmount > 0.01); // Solo pedidos con saldo pendiente
+    }
 
     if (orders.length === 0) {
         return (
@@ -44,32 +155,35 @@ export function SelectedOrdersTable({
         <div className="space-y-4 h-full flex flex-col">
 
 
-            <div className="border rounded-md overflow-hidden flex-1 flex flex-col bg-white shadow-sm ring-1 ring-emerald-100/50">
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm flex-1 flex flex-col">
                 <div className="flex-1 overflow-auto">
-                    <Table className="min-w-[1300px] w-full">
-                        <TableHeader className="bg-emerald-50 sticky top-0 z-10 shadow-sm">
-                            <TableRow className="h-8 border-b border-emerald-100">
-                                <TableHead className="w-[30px] p-1 bg-emerald-50 text-center">#</TableHead>
-                                <TableHead className="py-1 px-2 whitespace-nowrap text-xs text-muted-foreground font-normal">Recibo</TableHead>
-                                <TableHead className="py-1 px-2 whitespace-nowrap text-xs text-muted-foreground font-normal">Empresaria</TableHead>
-                                <TableHead className="py-1 px-2 whitespace-nowrap text-xs text-muted-foreground font-normal">N° de pedido</TableHead>
-                                <TableHead className="py-1 px-2 whitespace-nowrap text-xs text-muted-foreground font-normal">Catálogo</TableHead>
-                                <TableHead className="py-1 px-2 whitespace-nowrap text-xs text-muted-foreground font-normal text-right">Valor pedido</TableHead>
-                                <TableHead className="py-1 px-2 whitespace-nowrap text-xs font-medium text-blue-700 text-right">Abono</TableHead>
-                                <TableHead className="py-1 px-2 whitespace-nowrap text-xs text-muted-foreground font-normal">Tipo documento</TableHead>
-                                <TableHead className="py-1 px-2 whitespace-nowrap text-xs text-muted-foreground font-normal">Factura</TableHead>
-                                <TableHead className="py-1 px-2 whitespace-nowrap text-xs font-bold text-emerald-800 text-right">Valor factura</TableHead>
-                                <TableHead className="py-1 px-2 whitespace-nowrap text-xs text-muted-foreground font-normal">Fecha ingreso</TableHead>
-                                <TableHead className="py-1 px-2 whitespace-nowrap text-xs font-bold text-slate-800 text-right">Saldo</TableHead>
-                                <TableHead className="w-[30px] p-1 bg-emerald-50"></TableHead>
+                    <Table className="min-w-[1200px] w-full">
+                        <TableHeader>
+                            <TableRow className="bg-monchito-purple/5 hover:bg-monchito-purple/5 border-b border-monchito-purple/10 h-12 sticky top-0 z-10">
+                                <TableHead className="w-[30px] p-1 text-center text-[10px] font-black text-monchito-purple uppercase tracking-widest">#</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Recibo</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Empresaria</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">N° de pedido</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Catálogo</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right">Valor pedido</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right">Abono</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Tipo documento</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Factura</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right">Valor factura</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Fecha ingreso</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right">Saldo</TableHead>
+                                <TableHead className="w-[30px] p-1"></TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {orders.map(({ order, finalTotal, finalInvoiceNumber, documentType, entryDate }) => {
+                            {orders.map((orderState) => {
+                                const { order, finalTotal, finalInvoiceNumber, documentType, entryDate } = orderState;
                                 const initialPaid = (order.payments || []).reduce((acc: number, p: any) => acc + Number(p.amount || 0), 0);
                                 
                                 // Current pending based on actual invoice value vs initial paid
                                 const finalBalance = Number(finalTotal || 0) - initialPaid;
+                                const creditAmount = calculateCreditAmount(orderState);
+                                const hasCreditDistribution = !!orderState.creditDistribution;
 
                                 const fmt = (n: number) => `$${Math.abs(n).toFixed(2)}`;
                                 
@@ -77,29 +191,29 @@ export function SelectedOrdersTable({
                                 const mismatch = Math.abs(Number(order.total || 0) - Number(finalTotal || 0)) > 0.01;
 
                                 return (
-                                    <TableRow key={order.id} className={`group hover:bg-emerald-50/20 transition-colors h-10 border-b border-slate-100 ${mismatch ? 'bg-amber-50/30' : ''}`}>
-                                        <TableCell className="p-1 w-[30px] text-center">
+                                    <TableRow key={order.id} className={`group hover:bg-monchito-purple/5 transition-colors border-b border-slate-50 ${mismatch ? 'bg-amber-50/30' : ''}`}>
+                                        <TableCell className="p-1 w-[30px] text-center py-4">
                                             <CheckCircle className="h-3.5 w-3.5 text-emerald-500 mx-auto" />
                                         </TableCell>
-                                        <TableCell className="py-1 px-2 font-mono text-xs">#{order.receiptNumber}</TableCell>
-                                        <TableCell className="py-1 px-2 text-xs font-medium">{order.clientName}</TableCell>
-                                        <TableCell className="py-1 px-2 text-xs">{order.orderNumber || '---'}</TableCell>
-                                        <TableCell className="py-1 px-2 text-xs">{order.brandName}</TableCell>
+                                        <TableCell className="py-4 px-2 font-mono text-xs font-medium">#{order.receiptNumber}</TableCell>
+                                        <TableCell className="py-4 px-2 text-xs font-bold">{order.clientName}</TableCell>
+                                        <TableCell className="py-4 px-2 text-xs font-medium">{order.orderNumber || '---'}</TableCell>
+                                        <TableCell className="py-4 px-2 text-xs font-medium">{order.brandName}</TableCell>
                                         
                                         {/* Valor Pedido (Esimated) */}
-                                        <TableCell className="py-1 px-2 text-right font-mono text-xs">${Number(order.total || 0).toFixed(2)}</TableCell>
+                                        <TableCell className="py-4 px-2 text-right font-mono text-xs font-bold">${Number(order.total || 0).toFixed(2)}</TableCell>
 
                                         {/* Abono Anterior (Read Only) */}
-                                        <TableCell className="py-1 px-2 text-right font-mono text-xs text-blue-600">
+                                        <TableCell className="py-4 px-2 text-right font-mono text-xs font-bold text-blue-600">
                                             ${initialPaid.toFixed(2)}
                                         </TableCell>
 
                                         {/* Document Type */}
-                                        <TableCell className="py-1 px-2">
+                                        <TableCell className="py-4 px-2">
                                             <select
                                                 value={documentType}
                                                 onChange={(e) => onUpdateDocumentType(order.id, e.target.value)}
-                                                className="h-7 text-[10px] w-24 bg-white border border-slate-200 rounded px-1 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                                                className="h-7 text-[10px] w-24 bg-white border border-monchito-purple/20 rounded px-1 focus:outline-none focus:ring-1 focus:ring-monchito-purple/20"
                                             >
                                                 <option value="FACTURA">FACTURA</option>
                                                 <option value="TICKET">TICKET</option>
@@ -109,17 +223,17 @@ export function SelectedOrdersTable({
                                         </TableCell>
 
                                         {/* Invoice Number */}
-                                        <TableCell className="py-1 px-2">
+                                        <TableCell className="py-4 px-2">
                                             <Input
                                                 value={finalInvoiceNumber}
                                                 onChange={(e) => onUpdateInvoiceNumber(order.id, e.target.value)}
-                                                className="h-7 text-xs bg-white border-slate-200 px-2 min-w-[80px]"
+                                                className="h-7 text-xs bg-white border-monchito-purple/20 px-2 w-16 focus:ring-monchito-purple/20"
                                                 placeholder="#"
                                             />
                                         </TableCell>
 
                                         {/* Valor Factura (Real) */}
-                                        <TableCell className="py-1 px-2">
+                                        <TableCell className="py-4 px-2">
                                             <Input
                                                 type="number"
                                                 min={0}
@@ -128,31 +242,45 @@ export function SelectedOrdersTable({
                                                     const val = parseFloat(e.target.value);
                                                     onUpdateInvoiceTotal(order.id, isNaN(val) ? 0 : val);
                                                 }}
-                                                className={`h-7 text-xs px-2 text-right font-mono bg-white border-emerald-200 focus:ring-emerald-500 font-bold ${mismatch ? 'text-amber-700 bg-amber-50' : 'text-emerald-700'}`}
+                                                className={`h-7 text-xs px-2 text-right font-mono bg-white border-monchito-purple/20 focus:ring-monchito-purple/20 font-bold w-20 ${mismatch ? 'text-amber-700 bg-amber-50' : 'text-monchito-purple'}`}
                                             />
                                         </TableCell>
 
                                         {/* Fecha Ingreso */}
-                                        <TableCell className="py-1 px-2">
+                                        <TableCell className="py-4 px-2">
                                             <Input
                                                 type="date"
                                                 value={entryDate}
                                                 onChange={(e) => onUpdateEntryDate(order.id, e.target.value)}
-                                                className="h-7 text-[10px] px-1 w-28 bg-white border-slate-200"
+                                                className="h-7 text-[10px] px-1 w-24 bg-white border-monchito-purple/20 focus:ring-monchito-purple/20"
                                             />
                                         </TableCell>
 
                                         {/* Final Saldo */}
-                                        <TableCell className={`py-1 px-2 text-right font-mono font-bold text-xs`}>
-                                            <span className={finalBalance < -0.01 ? 'text-emerald-600' : finalBalance > 0.01 ? 'text-amber-600' : 'text-slate-400'}>
-                                                {finalBalance < -0.01 ? 'Favor: ' : ''}{fmt(finalBalance)}
-                                            </span>
+                                        <TableCell className={`py-4 px-2 text-right font-mono font-bold text-xs`}>
+                                            <div className="flex items-center justify-end gap-2">
+                                                <span className={finalBalance < -0.01 ? 'text-emerald-600' : finalBalance > 0.01 ? 'text-amber-600' : 'text-slate-400'}>
+                                                    {finalBalance < -0.01 ? 'Favor: ' : ''}{fmt(finalBalance)}
+                                                </span>
+                                                {creditAmount > 0 && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() => handleOpenCreditDistribution(orderState)}
+                                                        className="h-6 px-2 text-[10px] border-emerald-200 text-emerald-700 hover:bg-emerald-50 flex items-center gap-1"
+                                                        title={`Distribuir $${creditAmount.toFixed(2)} de saldo a favor`}
+                                                    >
+                                                        <DollarSign className="h-3 w-3" />
+                                                        {hasCreditDistribution ? 'Editado' : 'Distribuir'}
+                                                    </Button>
+                                                )}
+                                            </div>
                                         </TableCell>
 
-                                        <TableCell className="p-1 w-[30px] text-center">
+                                        <TableCell className="p-1 w-[30px] text-center py-4">
                                             <button
                                                 onClick={() => onRemove([order.id])}
-                                                className="text-slate-300 hover:text-red-500 transition-colors p-1 hover:bg-red-50 rounded"
+                                                className="text-slate-300 hover:text-red-500 transition-colors p-1 hover:bg-red-50 rounded-lg"
                                             >
                                                 <X className="h-3.5 w-3.5" />
                                             </button>
@@ -164,14 +292,14 @@ export function SelectedOrdersTable({
                     </Table>
                 </div>
                 {/* Summary Footer */}
-                <div className="bg-emerald-50/50 border-t p-2 flex justify-end gap-12 pr-16 shrink-0 overflow-x-auto">
+                <div className="bg-monchito-purple/5 border-t border-monchito-purple/10 p-3 flex justify-end gap-12 pr-16 shrink-0 overflow-x-auto">
                     <div className="flex items-center gap-2">
-                        <span className="text-[10px] uppercase font-bold text-slate-500">Total Pedidos:</span>
-                        <span className="font-mono font-medium text-amber-700">${totalEstimate.toFixed(2)}</span>
+                        <span className="text-[10px] uppercase font-black text-monchito-purple tracking-widest">Total Pedidos:</span>
+                        <span className="font-mono font-bold text-amber-700">${totalEstimate.toFixed(2)}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <span className="text-[10px] uppercase font-bold text-slate-500">Total Packing (Facturas):</span>
-                        <span className="font-mono font-bold text-emerald-800">${totalInvoice.toFixed(2)}</span>
+                        <span className="text-[10px] uppercase font-black text-monchito-purple tracking-widest">Total Packing (Facturas):</span>
+                        <span className="font-mono font-bold text-monchito-purple">${totalInvoice.toFixed(2)}</span>
                     </div>
                     {Math.abs(totalEstimate - totalInvoice) > 0.01 && (
                         <div className="flex items-center gap-1.5 px-2 py-0.5 bg-amber-100 rounded text-amber-800 border border-amber-200">
@@ -181,6 +309,44 @@ export function SelectedOrdersTable({
                     )}
                 </div>
             </div>
+
+            {/* Credit Action Selector Modal */}
+            {creditModalState.sourceOrder && (
+                <CreditActionSelectorModal
+                    isOpen={creditModalState.selectorOpen}
+                    onClose={() => setCreditModalState({ selectorOpen: false, distributionOpen: false, creditAmount: 0 })}
+                    sourceOrder={{
+                        id: creditModalState.sourceOrder.order.id,
+                        receiptNumber: creditModalState.sourceOrder.order.receiptNumber,
+                        orderNumber: creditModalState.sourceOrder.order.orderNumber,
+                        clientName: creditModalState.sourceOrder.order.clientName,
+                        orderType: creditModalState.sourceOrder.order.type || 'NORMAL'
+                    }}
+                    creditAmount={creditModalState.creditAmount}
+                    onMoveToWallet={handleMoveToWallet}
+                    onReturnToClient={handleReturnToClient}
+                    onDistributeToOrders={handleDistributeToOrders}
+                />
+            )}
+
+            {/* Credit Distribution Modal */}
+            {creditModalState.sourceOrder && (
+                <CreditDistributionModal
+                    isOpen={creditModalState.distributionOpen}
+                    onClose={() => setCreditModalState({ selectorOpen: false, distributionOpen: false, creditAmount: 0 })}
+                    sourceOrder={{
+                        id: creditModalState.sourceOrder.order.id,
+                        receiptNumber: creditModalState.sourceOrder.order.receiptNumber,
+                        orderNumber: creditModalState.sourceOrder.order.orderNumber,
+                        clientId: creditModalState.sourceOrder.order.clientId,
+                        clientName: creditModalState.sourceOrder.order.clientName,
+                        orderType: creditModalState.sourceOrder.order.type || 'NORMAL'
+                    }}
+                    creditAmount={creditModalState.creditAmount}
+                    availableOrders={getAvailableOrdersForDistribution(creditModalState.sourceOrder)}
+                    onDistribute={handleCreditDistribution}
+                />
+            )}
         </div>
     )
 }

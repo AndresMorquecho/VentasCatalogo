@@ -282,18 +282,18 @@ export function ReceptionHistory({ batches, onEdit, onDelete, isDeleting }: Prop
                 </div>
             </div>
 
-            <div className="border rounded-xl overflow-hidden flex-1 bg-white shadow-sm overflow-y-auto">
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm flex-1 overflow-y-auto">
                 <Table>
-                    <TableHeader className="bg-slate-50/80 backdrop-blur-sm sticky top-0 z-20">
-                        <TableRow className="hover:bg-transparent border-b border-slate-100">
-                            <TableHead className="w-[160px] text-slate-900 font-bold">Fecha / Hora</TableHead>
-                            <TableHead className="text-slate-900 font-bold">N° Packing</TableHead>
-                            <TableHead className="text-slate-900 font-bold">Registrado Por</TableHead>
-                            <TableHead className="text-center text-slate-900 font-bold">Pedidos</TableHead>
-                            <TableHead className="text-right text-slate-900 font-bold">Valor Packing</TableHead>
-                            <TableHead className="text-right text-slate-900 font-bold">Facturas</TableHead>
-                            <TableHead className="text-right text-slate-900 font-bold">Dif.</TableHead>
-                            <TableHead className="text-right text-slate-900 font-bold">Acciones</TableHead>
+                    <TableHeader>
+                        <TableRow className="bg-monchito-purple/5 hover:bg-monchito-purple/5 border-b border-monchito-purple/10 sticky top-0 z-20">
+                            <TableHead className="w-[160px] text-[10px] font-black text-monchito-purple uppercase tracking-widest h-12">Fecha / Hora</TableHead>
+                            <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">N° Packing</TableHead>
+                            <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Registrado Por</TableHead>
+                            <TableHead className="text-center text-[10px] font-black text-monchito-purple uppercase tracking-widest">Pedidos</TableHead>
+                            <TableHead className="text-right text-[10px] font-black text-monchito-purple uppercase tracking-widest">Valor Packing</TableHead>
+                            <TableHead className="text-right text-[10px] font-black text-monchito-purple uppercase tracking-widest">Facturas</TableHead>
+                            <TableHead className="text-right text-[10px] font-black text-monchito-purple uppercase tracking-widest">Dif.</TableHead>
+                            <TableHead className="text-right text-[10px] font-black text-monchito-purple uppercase tracking-widest">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -321,20 +321,20 @@ export function ReceptionHistory({ batches, onEdit, onDelete, isDeleting }: Prop
 
                                 return (
                                     <React.Fragment key={batch.id}>
-                                        <TableRow className={`hover:bg-slate-50/50 cursor-pointer transition-colors border-b border-slate-50 ${isExpanded ? 'bg-emerald-50/20' : ''}`} onClick={() => setExpandedBatch(isExpanded ? null : batch.id)}>
-                                            <TableCell>
+                                        <TableRow className={`hover:bg-monchito-purple/5 cursor-pointer transition-colors border-b border-slate-50 ${isExpanded ? 'bg-monchito-purple/10' : ''}`} onClick={() => setExpandedBatch(isExpanded ? null : batch.id)}>
+                                            <TableCell className="py-4">
                                                 <div className="flex flex-col">
                                                     <span className="text-xs font-bold text-slate-800">{formattedDate}</span>
                                                     <span className="text-[10px] text-slate-500 font-mono">{formattedTime}</span>
                                                 </div>
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell className="py-4">
                                                 <div className="flex flex-col">
                                                     <span className="font-bold text-slate-700">{batch.packingNumber}</span>
                                                     {batch.notes && <span className="text-[9px] text-slate-400 truncate max-w-[150px]">{batch.notes}</span>}
                                                 </div>
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell className="py-4">
                                                 <div className="flex items-center gap-1.5">
                                                     <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-400 border border-slate-200">
                                                         {batch.receivedByName?.charAt(0).toUpperCase() || "S"}
@@ -344,26 +344,26 @@ export function ReceptionHistory({ batches, onEdit, onDelete, isDeleting }: Prop
                                                     </span>
                                                 </div>
                                             </TableCell>
-                                            <TableCell className="text-center">
+                                            <TableCell className="text-center py-4">
                                                 <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-[10px] font-bold">
                                                     {batch.orders?.length || 0}
                                                 </span>
                                             </TableCell>
-                                            <TableCell className="text-right font-mono font-bold text-emerald-700">
+                                            <TableCell className="text-right font-mono font-bold text-emerald-700 py-4">
                                                 ${Number(batch.packingTotal).toFixed(2)}
                                             </TableCell>
-                                            <TableCell className="text-right font-mono text-xs text-slate-600">
+                                            <TableCell className="text-right font-mono text-xs text-slate-600 py-4">
                                                 ${totalInvoices.toFixed(2)}
                                             </TableCell>
-                                            <TableCell className={`text-right font-mono text-[10px] ${Math.abs(diff) > 0.1 ? 'text-amber-600 font-bold' : 'text-slate-400'}`}>
+                                            <TableCell className={`text-right font-mono text-[10px] py-4 ${Math.abs(diff) > 0.1 ? 'text-amber-600 font-bold' : 'text-slate-400'}`}>
                                                 ${diff.toFixed(2)}
                                             </TableCell>
-                                            <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                                            <TableCell className="text-right py-4" onClick={(e) => e.stopPropagation()}>
                                                 <div className="flex justify-end gap-1">
                                                     <Button 
                                                         variant="ghost" 
                                                         size="icon" 
-                                                        className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                        className="h-8 w-8 rounded-lg text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-all"
                                                         onClick={() => onEdit(batch)}
                                                         disabled={!canModify}
                                                         title={canModify ? "Editar Packing" : "No se puede editar: Pedidos ya entregados"}
@@ -373,7 +373,7 @@ export function ReceptionHistory({ batches, onEdit, onDelete, isDeleting }: Prop
                                                     <Button 
                                                         variant="ghost" 
                                                         size="icon" 
-                                                        className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                        className="h-8 w-8 rounded-lg text-red-600 hover:text-red-700 hover:bg-red-50 transition-all"
                                                         onClick={() => { 
                                                             if (confirm('¿Estás seguro de ELIMINAR todo este packing? Todos los pedidos regresarán a estado PENDIENTE.')) {
                                                                 onDelete(batch.id);
@@ -387,7 +387,7 @@ export function ReceptionHistory({ batches, onEdit, onDelete, isDeleting }: Prop
                                                     <Button 
                                                         variant="ghost" 
                                                         size="icon" 
-                                                        className={`h-8 w-8 ${isExpanded ? 'text-emerald-600 bg-emerald-50' : ''}`}
+                                                        className={`h-8 w-8 rounded-lg transition-all ${isExpanded ? 'text-monchito-purple bg-monchito-purple/10' : 'text-slate-600 hover:text-monchito-purple hover:bg-monchito-purple/10'}`}
                                                         onClick={() => setExpandedBatch(isExpanded ? null : batch.id)}
                                                     >
                                                         <Filter className="h-3.5 w-3.5" />
