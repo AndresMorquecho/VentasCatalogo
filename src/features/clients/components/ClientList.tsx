@@ -6,7 +6,7 @@ import { ClientForm } from "./ClientForm";
 import { ClientDetailModal } from "./ClientDetailModal";
 import { Input } from "@/shared/ui/input";
 import { Button } from "@/shared/ui/button";
-import { AlertCircle, Plus, RotateCw, Search, Users } from "lucide-react";
+import { AlertCircle, RotateCw, Search } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
 import {
     Dialog,
@@ -28,12 +28,12 @@ import {
     SelectValue,
 } from "@/shared/ui/select";
 import { Card, CardContent } from "@/shared/ui/card";
-import { Filter, X, Download, Loader2 } from "lucide-react";
-import { clientApi } from "@/shared/api/clientApi";
-import { exportClientsToExcel } from "../lib/exportUtils";
-import { PageHeader } from "@/shared/ui/PageHeader";
+import { Filter, X, Loader2 } from "lucide-react";
 
-export function ClientList() {
+export function ClientList({ triggerCreate, onTriggerHandled }: { 
+    triggerCreate?: boolean;
+    onTriggerHandled?: () => void;
+}) {
     const [page, setPage] = useState(1);
     const [limit] = useState(25);
     const [searchQuery, setSearchQuery] = useState("");
@@ -60,7 +60,6 @@ export function ClientList() {
     // Remove the limit: 500 fetch which causes slow loading
     // We will let the backend handle referential integrity during delete
     const deleteClientMutation = useDeleteClient();
-    const [isExporting, setIsExporting] = useState(false);
 
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
     const [viewingClient, setViewingClient] = useState<Client | null>(null);
@@ -77,6 +76,19 @@ export function ClientList() {
         setPage(1);
     }, [debouncedSearch, status, debouncedCity, startDate, endDate]);
 
+    // Handle external trigger to open create form
+    useEffect(() => {
+        if (triggerCreate) {
+            if (hasPermission('clients.create')) {
+                setSelectedClient(null);
+                setIsFormOpen(true);
+            } else {
+                notifyError({ message: 'No tienes permiso para crear empresarias' });
+            }
+            onTriggerHandled?.();
+        }
+    }, [triggerCreate]);
+
     const resetFilters = () => {
         setSearchQuery("");
         setStatus("ALL");
@@ -84,15 +96,6 @@ export function ClientList() {
         setStartDate("");
         setEndDate("");
         setPage(1);
-    };
-
-    const handleCreate = () => {
-        if (!hasPermission('clients.create')) {
-            notifyError({ message: 'No tienes permiso para crear empresarias' });
-            return;
-        }
-        setSelectedClient(null);
-        setIsFormOpen(true);
     };
 
     const handleEdit = (client: Client) => {
@@ -151,33 +154,6 @@ export function ClientList() {
         }
     };
 
-    const handleExportAll = async () => {
-        try {
-            setIsExporting(true);
-            // Fetch all filtered data with a high limit (2000 is supported now)
-            const response = await clientApi.getAll({
-                limit: 2000,
-                search: debouncedSearch.length >= 3 ? debouncedSearch : undefined,
-                status: status === "ALL" ? undefined : status,
-                city: debouncedCity || undefined,
-                startDate: startDate || undefined,
-                endDate: endDate || undefined,
-            });
-
-            if (response.data && response.data.length > 0) {
-                exportClientsToExcel(response.data);
-                notifySuccess(`Exportación de ${response.data.length} empresarias completada`);
-            } else {
-                notifyError(null, "No hay datos para exportar con los filtros actuales");
-            }
-        } catch (error) {
-            console.error("Export error:", error);
-            notifyError(error, "Error al generar el archivo Excel");
-        } finally {
-            setIsExporting(false);
-        }
-    };
-
     if (isError) {
         return (
             <div className="space-y-3 sm:space-y-4">
@@ -207,13 +183,6 @@ export function ClientList() {
             {/* Filters Bar */}
             <Card className="border-slate-200 bg-slate-50/30">
                 <CardContent className="p-3 sm:p-4 space-y-4">
-                    <div className="flex justify-between items-center gap-3">
-                        <h3 className="text-sm font-bold text-slate-700">Filtros de Búsqueda</h3>
-                        <Button onClick={handleCreate} size="sm" className="bg-monchito-purple hover:bg-monchito-purple/90">
-                            <Plus className="mr-2 h-4 w-4" /> Nueva Empresaria
-                        </Button>
-                    </div>
-                    
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

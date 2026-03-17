@@ -4,19 +4,18 @@ import { Input } from "@/shared/ui/input";
 import { Search, DollarSign, Wallet, FileText, Printer, Plus } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import { PaymentsHistoryTable } from "./PaymentsHistoryTable";
-import { PaymentFormModal } from "./PaymentFormModal";
+import { PaymentModal, type PaymentModalData } from "@/shared/ui/PaymentModal";
 import { useToast } from "@/shared/ui/use-toast";
 import { Badge } from "@/shared/ui/badge";
 import { generatePaymentReceipt } from "@/features/payment-receipt/lib/generatePaymentReceipt";
 import { useAuth } from "@/shared/auth";
 import { PageHeader } from "@/shared/ui/PageHeader";
-
 import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import { ConfirmDialog } from "@/shared/ui/confirm-dialog";
 
 export function PaymentsPage() {
     const { orders, searchOrders, loading } = usePaymentSearch();
-    const { revertPayment } = usePaymentOperations();
+    const { revertPayment, registerMultiplePayments } = usePaymentOperations();
     const { showToast } = useToast();
     const { hasPermission, user } = useAuth();
 
@@ -57,6 +56,30 @@ export function PaymentsPage() {
         setIsPaymentModalOpen(false);
     };
 
+    const handlePaymentSubmit = async (data: PaymentModalData) => {
+        if (!selectedOrder) return;
+
+        try {
+            const payload = {
+                orderId: selectedOrder.id,
+                payments: data.payments.map(payment => ({
+                    amount: payment.amount,
+                    method: payment.method,
+                    transactionReference: payment.transactionReference,
+                    bankAccountId: payment.bankAccountId,
+                    notes: payment.notes
+                }))
+            };
+
+            console.log('Sending payment payload:', payload); // Debug log
+            await registerMultiplePayments.mutateAsync(payload);
+            handlePaymentSuccess();
+        } catch (error) {
+            console.error("Error processing payments:", error);
+            showToast("Error al procesar los pagos", "error");
+        }
+    };
+
     const handleDeletePayment = (paymentId: string) => {
         if (!hasPermission('payments.delete')) {
             showToast("No tienes permiso para eliminar abonos", "error");
@@ -84,11 +107,6 @@ export function PaymentsPage() {
                 title="Gestión de Abonos" 
                 description="Registro de pagos, historial y estados de cuenta"
                 icon={Wallet}
-                actions={
-                    <Button onClick={() => setIsPaymentModalOpen(true)}>
-                        <Plus className="mr-2 h-4 w-4" /> Registrar Abono
-                    </Button>
-                }
             />
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -215,7 +233,7 @@ export function PaymentsPage() {
                                     </Button>
                                     <Button
                                         size="default"
-                                        className="gap-2 bg-emerald-600 hover:bg-emerald-700 shadow-md transform hover:scale-105 transition-all"
+                                        className="gap-2 bg-monchito-purple hover:bg-monchito-purple/90"
                                         onClick={() => {
                                             if (!hasPermission('payments.create')) {
                                                 showToast("No tienes permiso para registrar abonos", "error");
@@ -274,12 +292,20 @@ export function PaymentsPage() {
                             </div>
 
                             {/* Modals */}
-                            {isPaymentModalOpen && (
-                                <PaymentFormModal
-                                    order={selectedOrder}
-                                    isOpen={isPaymentModalOpen}
-                                    onClose={() => setIsPaymentModalOpen(false)}
-                                    onSuccess={handlePaymentSuccess}
+                            {isPaymentModalOpen && selectedOrder && (
+                                <PaymentModal
+                                    open={isPaymentModalOpen}
+                                    onOpenChange={setIsPaymentModalOpen}
+                                    onSubmit={handlePaymentSubmit}
+                                    paymentContext={{
+                                        type: "ABONO",
+                                        clientId: selectedOrder.clientId,
+                                        clientName: selectedOrder.clientName,
+                                        referenceNumber: selectedOrder.receiptNumber,
+                                        description: "Abono a pedido"
+                                    }}
+                                    expectedAmount={Math.max(0, (selectedOrder.realInvoiceTotal || selectedOrder.total) - ((selectedOrder.payments || []).reduce((acc, p) => acc + p.amount, 0)))}
+                                    allowMultiplePayments={true}
                                 />
                             )}
                             

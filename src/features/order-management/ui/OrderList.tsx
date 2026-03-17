@@ -1,8 +1,6 @@
 import { useState, useMemo, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { Skeleton } from "@/shared/ui/skeleton"
-import { Button } from "@/shared/ui/button"
-import { Plus } from "lucide-react"
 import { useOrderList, useDeleteOrder } from "@/entities/order/model/hooks"
 import { useOrderFilters } from "../model/useOrderFilters"
 import { OrderFilters } from "./OrderFilters"
@@ -19,7 +17,10 @@ import { useDebounce } from "@/shared/lib/hooks"
 import { Pagination } from "@/shared/ui/pagination"
 import { useCashClosures } from "@/features/cash-closure/api/hooks"
 
-export function OrderList() {
+export function OrderList({ triggerCreate, onTriggerHandled }: {
+    triggerCreate?: boolean;
+    onTriggerHandled?: () => void;
+}) {
     const [page, setPage] = useState(1)
     const [limit] = useState(25)
 
@@ -56,6 +57,14 @@ export function OrderList() {
     useEffect(() => {
         setPage(1)
     }, [statusFilter, debouncedSearch])
+
+    // Handle external trigger to open create
+    useEffect(() => {
+        if (triggerCreate) {
+            handleCreate()
+            onTriggerHandled?.()
+        }
+    }, [triggerCreate])
 
     // Local filtering for quick results while typing < 3 chars or as a second layer
     const filteredOrders = useMemo(() => {
@@ -162,15 +171,6 @@ export function OrderList() {
 
     return (
         <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
-                <h2 className="text-base font-medium text-muted-foreground tracking-tight">
-                    Listado de Pedidos
-                </h2>
-                <Button onClick={handleCreate} className="w-full sm:w-auto">
-                    <Plus className="mr-2 h-4 w-4" /> Nuevo Pedido
-                </Button>
-            </div>
-
             <OrderFilters
                 statusFilter={statusFilter}
                 onStatusChange={setStatusFilter}

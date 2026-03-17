@@ -80,7 +80,13 @@ export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
 
         const totalToPay = amount + creditToUse;
         
-        // Strict check: cannot pay more than pending balance (user request)
+        // No permitir montos negativos o cero, pero sí permitir abonos parciales
+        if (totalToPay <= 0) {
+            notifyError({ message: "El monto total debe ser mayor a cero." });
+            return;
+        }
+
+        // Solo validar que no exceda el saldo pendiente (permitir abonos parciales)
         if (totalToPay > (pendingBalance + 0.01)) {
             notifyError({ message: `El abono ($${totalToPay.toFixed(2)}) no puede superar el saldo pendiente ($${pendingBalance.toFixed(2)}).` });
             return;

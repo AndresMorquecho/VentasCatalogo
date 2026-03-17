@@ -11,6 +11,17 @@ export interface PaymentPayload {
     creditAmount?: number;
 }
 
+export interface MultiplePaymentPayload {
+    orderId: string;
+    payments: Array<{
+        amount: number;
+        method: string;
+        transactionReference?: string;
+        bankAccountId?: string;
+        notes?: string;
+    }>;
+}
+
 /**
  * Payment API - Transport Layer
  * 
@@ -18,6 +29,10 @@ export interface PaymentPayload {
  */
 export const paymentApi = {
     registerPayment: async (payload: PaymentPayload): Promise<any> => {
+        return httpClient.post<any>('/payments', payload);
+    },
+
+    registerMultiplePayments: async (payload: MultiplePaymentPayload): Promise<any> => {
         return httpClient.post<any>('/payments', payload);
     },
 

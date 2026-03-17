@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { orderApi } from "@/entities/order/model/api";
 import { useClients } from "@/entities/client/model/hooks";
-import { paymentApi } from "@/shared/api/paymentApi";
+import { paymentApi, type MultiplePaymentPayload } from "@/shared/api/paymentApi";
 
 export const usePaymentSearch = () => {
     // 1️⃣ Fetch Orders
@@ -37,7 +37,7 @@ export const usePaymentSearch = () => {
 export const usePaymentOperations = () => {
     const queryClient = useQueryClient();
 
-    // 1️⃣ Register Payment Mutation
+    // 1️⃣ Register Payment Mutation (legacy single payment)
     const registerPayment = useMutation({
         mutationFn: paymentApi.registerPayment,
         onSuccess: () => {
@@ -45,7 +45,15 @@ export const usePaymentOperations = () => {
         },
     });
 
-    // 2️⃣ Delete Payment Mutation
+    // 2️⃣ Register Multiple Payments Mutation (new)
+    const registerMultiplePayments = useMutation({
+        mutationFn: paymentApi.registerMultiplePayments,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["orders"] }); // Refetch all orders to update balances
+        },
+    });
+
+    // 3️⃣ Delete Payment Mutation
     const revertPayment = useMutation({
         mutationFn: ({ orderId, paymentId }: { orderId: string; paymentId: string }) =>
             paymentApi.revertPayment(orderId, paymentId),
@@ -56,6 +64,7 @@ export const usePaymentOperations = () => {
 
     return {
         registerPayment,
+        registerMultiplePayments,
         revertPayment,
     };
 };

@@ -3,7 +3,7 @@ import { useFormik } from "formik"
 import { useNavigate, useParams } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
 import * as Yup from "yup"
-import { ArrowLeft, Plus, X, RotateCw, RefreshCw, Edit2, Trash2, Printer } from "lucide-react"
+import { ArrowLeft, Plus, X, RotateCw, RefreshCw, Edit2, Trash2, Printer, FileText } from "lucide-react"
 
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
@@ -14,10 +14,10 @@ import { Separator } from "@/shared/ui/separator"
 import { ConfirmDialog } from "@/shared/ui/confirm-dialog"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/ui/dialog"
 import { Badge } from "@/shared/ui/badge"
+import { PageHeader } from "@/shared/ui/PageHeader"
 
-import { useBankAccountList } from "@/features/bank-accounts/api/hooks"
 import { useCreateOrder, useUpdateOrder, useOrder, useReceiptOrders } from "@/entities/order/model/hooks"
-import type { SalesChannel, OrderType, PaymentMethod } from "@/entities/order/model/types"
+import type { SalesChannel, OrderType } from "@/entities/order/model/types"
 import { getPaidAmount } from "@/entities/order/model/model"
 import { orderApi } from "@/entities/order/model/api"
 import { useClientList } from "@/features/clients/api/hooks"
@@ -29,6 +29,7 @@ import { OrderReceiptDocument } from "@/features/order-receipt/ui/OrderReceiptDo
 import { useClientCredits } from "@/features/transactions/model/hooks"
 import { useAuth } from "@/shared/auth"
 import { useCashClosurePreview } from "@/features/cash-closure/api/hooks"
+import { PaymentModal, type PaymentModalData } from "@/shared/ui/PaymentModal"
 
 /* --- Validation Schema --- */
 const validationSchema = Yup.object({
@@ -48,28 +49,6 @@ const validationSchema = Yup.object({
     deposit: Yup.number()
         .min(0, "No negativo")
         .required("Requerido"),
-    paymentMethod: Yup.string().required("La forma de pago es requerida"),
-    bankAccountId: Yup.string().test(
-        'is-bank-required',
-        "Cuenta bancaria requerida para este método",
-        function (value) {
-            const { deposit, paymentMethod } = this.parent;
-            if (deposit > 0 && paymentMethod !== 'EFECTIVO' && !value) {
-                return false;
-            }
-            return true;
-        }
-    ),
-    transactionDate: Yup.string().when("paymentMethod", {
-        is: (val: string) => ['TRANSFERENCIA', 'DEPOSITO', 'CHEQUE'].includes(val),
-        then: (schema) => schema.required("Fecha requerida"),
-        otherwise: (schema) => schema.notRequired()
-    }),
-    transactionReference: Yup.string().when("paymentMethod", {
-        is: (val: string) => ['TRANSFERENCIA', 'DEPOSITO', 'CHEQUE'].includes(val),
-        then: (schema) => schema.required("Referencia / N° cheque requerido"),
-        otherwise: (schema) => schema.notRequired()
-    }),
     createdAt: Yup.string().required("Fecha de registro requerida"),
 })
 
@@ -181,11 +160,9 @@ export function OrderFormPage() {
     const { data: order, isLoading: isLoadingOrder } = useOrder(id || "")
     
     const { data: clientsResponse } = useClientList({ limit: 1000 })
-    const { data: bankAccountsResponse } = useBankAccountList({ limit: 500 })
     const { data: brandsResponse } = useBrandList({ limit: 500 })
 
     const clients = clientsResponse?.data || []
-    const bankAccounts = bankAccountsResponse?.data || []
     const brands = brandsResponse?.data || []
     const createOrder = useCreateOrder()
     const { notifySuccess, notifyError } = useNotifications()
@@ -205,6 +182,9 @@ export function OrderFormPage() {
     const [orderToDelete, setOrderToDelete] = useState<any>(null)
     const [lastClosureDate, setLastClosureDate] = useState<Date | null>(null)
 
+    // Estados para modal de pago
+    const [paymentModalOpen, setPaymentModalOpen] = useState(false)
+
     // State for the item being added
     const [currentItem, setCurrentItem] = useState({
         brandId: "",
@@ -220,6 +200,120 @@ export function OrderFormPage() {
 
 
 
+    // Función para procesar el pago y crear el recibo
+    const handlePaymentSubmit = async (paymentData: PaymentModalData) => {
+        setIsSubmitting(true);
+        try {
+            const client = clients.find(c => c.id === formik.values.clientId);
+
+            // Calcular totales de los pagos
+            const totalAmount = paymentData.payments.reduce((sum, p) => sum + p.amount, 0);
+            const walletCreditUsed = paymentData.payments
+                .filter(p => p.method === 'BILLETERA_VIRTUAL')
+                .reduce((sum, p) => sum + p.amount, 0);
+
+            // Usar Batch Create para crear todos los pedidos en 1 sola llamada
+            const batchPayload = {
+                receipt_number: formik.values.receiptNumber,
+                client_id: formik.values.clientId,
+                sales_channel: formik.values.salesChannel,
+                created_at: new Date().toISOString(),
+                // Usar el primer método de pago como principal (para compatibilidad)
+                payment_method: paymentData.payments[0]?.method || "EFECTIVO",
+                bank_account_id: paymentData.payments[0]?.bankAccountId || "",
+                transaction_date: new Date().toISOString().split('T')[0],
+                transaction_reference: paymentData.payments[0]?.transactionReference || "",
+                deposit: totalAmount,
+                credit_to_use: walletCreditUsed,
+                notes: paymentData.payments[0]?.notes || formik.values.notes,
+                // Agregar información completa de múltiples métodos de pago
+                payment_data: {
+                    payments: paymentData.payments.map(p => ({
+                        method: p.method,
+                        amount: p.amount,
+                        bankAccountId: p.bankAccountId,
+                        transactionDate: new Date().toISOString().split('T')[0],
+                        transactionReference: p.transactionReference,
+                        notes: p.notes
+                    })),
+                    walletCreditUsed: walletCreditUsed,
+                    totalAmount: totalAmount
+                },
+                orders: formik.values.brandItems.map((item) => {
+                    const unitPrice = item.quantity > 0 ? item.total / item.quantity : 0;
+                    return {
+                        brand_id: item.brandId,
+                        brand_name: item.brandName,
+                        total: item.total,
+                        deposit: Number(item.deposit) || 0,
+                        type: item.type,
+                        possible_delivery_date: item.possibleDeliveryDate,
+                        order_number: item.orderNumber || "",
+                        items: [{
+                            product_name: item.brandName,
+                            quantity: item.quantity,
+                            unit_price: unitPrice
+                        }]
+                    };
+                })
+            };
+
+            const createdOrders = await orderApi.batchCreate(batchPayload);
+
+            // Invalidate ALL order related queries to ensure consistency
+            await queryClient.invalidateQueries({ queryKey: ['orders'] });
+            await queryClient.invalidateQueries({ queryKey: ['financial-records'] });
+            await queryClient.invalidateQueries({ queryKey: ['transactions'] });
+
+            // Map orderNumbers from original form values back to the created orders
+            const ordersWithNumbers = createdOrders.map((createdOrder: any, index: number) => {
+                const originalItem = formik.values.brandItems[index];
+                return {
+                    ...createdOrder,
+                    orderNumber: originalItem.orderNumber
+                };
+            });
+
+            try {
+                const blob = await pdf(
+                    <OrderReceiptDocument
+                        order={ordersWithNumbers[0]}
+                        childOrders={ordersWithNumbers.slice(1)}
+                        client={client}
+                        user={{
+                            id: user?.id || '1',
+                            name: user?.username || 'Vendedor',
+                            role: 'OPERATOR',
+                            email: '',
+                            status: 'ACTIVE',
+                            createdAt: new Date().toISOString()
+                        } as any}
+                    />
+                ).toBlob()
+
+                const url = URL.createObjectURL(blob)
+                const link = document.createElement('a')
+                link.href = url
+                link.download = `Recibo_${createdOrders[0].receiptNumber}.pdf`
+                document.body.appendChild(link)
+                link.click()
+                document.body.removeChild(link)
+                URL.revokeObjectURL(url)
+            } catch (pdfError) {
+                console.error("Error generating PDF", pdfError)
+                notifyError(pdfError, "Error al generar el recibo PDF.")
+            }
+            
+            notifySuccess(`Se han creado ${createdOrders.length} pedidos exitosamente.`);
+            navigate('/orders');
+        } catch (error: any) {
+            console.error("Error saving order", error)
+            notifyError(error, "Error al guardar el pedido.");
+        } finally {
+            setIsSubmitting(false);
+        }
+    }
+
     const formik = useFormik({
         initialValues: {
             clientId: "",
@@ -228,118 +322,14 @@ export function OrderFormPage() {
             brandItems: [] as any[],
             deposit: 0,
             creditToUse: 0,
-            paymentMethod: "EFECTIVO" as PaymentMethod,
-            bankAccountId: "",
-            transactionDate: new Date().toISOString().split('T')[0],
-            transactionReference: "",
             createdAt: new Date().toISOString().split('T')[0],
             notes: "",
         },
         validationSchema,
         enableReinitialize: true,
-        onSubmit: async (values) => {
-            if (values.brandItems.length === 0) {
-                notifyError(null, "Debe agregar al menos una marca al pedido.");
-                return;
-            }
-            setIsSubmitting(true);
-            try {
-                if (!isEditing) {
-                    const isValidReceipt = await validateReceiptNumber(values.receiptNumber);
-                    if (!isValidReceipt) {
-                        setIsSubmitting(false);
-                        return;
-                    }
-                }
-
-                const client = clients.find(c => c.id === values.clientId);
-                const creditAmount = Number(values.creditToUse) || 0;
-
-                // Usar Batch Create para crear todos los pedidos en 1 sola llamada
-                const batchPayload = {
-                    receipt_number: values.receiptNumber,
-                    client_id: values.clientId,
-                    sales_channel: values.salesChannel,
-                    created_at: new Date().toISOString(), // Use full ISO string instead of just date
-                    payment_method: values.paymentMethod,
-                    bank_account_id: values.bankAccountId,
-                    transaction_date: values.transactionDate,
-                    transaction_reference: values.transactionReference,
-                    deposit: values.brandItems.reduce((sum, item) => sum + (Number(item.deposit) || 0), 0),
-                    credit_to_use: creditAmount,
-                    orders: values.brandItems.map((item) => {
-                        const unitPrice = item.quantity > 0 ? item.total / item.quantity : 0;
-                        return {
-                            brand_id: item.brandId,
-                            brand_name: item.brandName,
-                            total: item.total,
-                            deposit: Number(item.deposit) || 0,
-                            type: item.type,
-                            possible_delivery_date: item.possibleDeliveryDate,
-                            order_number: item.orderNumber || "",
-                            items: [{
-                                product_name: item.brandName,
-                                quantity: item.quantity,
-                                unit_price: unitPrice
-                            }]
-                        };
-                    })
-                };
-
-                const createdOrders = await orderApi.batchCreate(batchPayload);
-
-                // Invalidate ALL order related queries to ensure consistency
-                await queryClient.invalidateQueries({ queryKey: ['orders'] });
-                await queryClient.invalidateQueries({ queryKey: ['financial-records'] });
-                await queryClient.invalidateQueries({ queryKey: ['transactions'] });
-
-                // Map orderNumbers from original form values back to the created orders
-                const ordersWithNumbers = createdOrders.map((createdOrder: any, index: number) => {
-                    const originalItem = values.brandItems[index];
-                    return {
-                        ...createdOrder,
-                        orderNumber: originalItem.orderNumber // Restaurar el orderNumber
-                    };
-                });
-
-                try {
-                    const blob = await pdf(
-                        <OrderReceiptDocument
-                            order={ordersWithNumbers[0]}
-                            childOrders={ordersWithNumbers.slice(1)}
-                            client={client}
-                            user={{
-                                id: user?.id || '1',
-                                name: user?.username || 'Vendedor',
-                                role: 'OPERATOR',
-                                email: '',
-                                status: 'ACTIVE',
-                                createdAt: new Date().toISOString()
-                            } as any}
-                        />
-                    ).toBlob()
-
-                    const url = URL.createObjectURL(blob)
-                    const link = document.createElement('a')
-                    link.href = url
-                    link.download = `Recibo_${createdOrders[0].receiptNumber}.pdf`
-                    document.body.appendChild(link)
-                    link.click()
-                    document.body.removeChild(link)
-                    URL.revokeObjectURL(url)
-                } catch (pdfError) {
-                    console.error("Error generating PDF", pdfError)
-                    notifyError(pdfError, "Error al generar el recibo PDF.")
-                }
-                
-                notifySuccess(`Se han creado ${createdOrders.length} pedidos exitosamente.`);
-                navigate('/orders');
-            } catch (error: any) {
-                console.error("Error saving order", error)
-                notifyError(error, "Error al guardar el pedido.");
-            } finally {
-                setIsSubmitting(false);
-            }
+        onSubmit: async () => {
+            // Esta función ya no se usa directamente, el procesamiento se hace en handlePaymentSubmit
+            // Se mantiene para compatibilidad con formik
         }
     })
 
@@ -441,12 +431,10 @@ export function OrderFormPage() {
     // Función para validar si se puede agregar un nuevo item
     const canAddNewItem = (): { canEdit: boolean; reason?: string } => {
         // En modo edición, validar contra la fecha de creación del recibo (createdAt)
-        // En modo creación, validar contra la fecha de transacción
+        // En modo creación, validar contra la fecha actual
         const dateToCheck = isEditing && formik.values.createdAt 
             ? new Date(formik.values.createdAt)
-            : formik.values.transactionDate 
-                ? new Date(formik.values.transactionDate)
-                : null
+            : new Date()
 
         if (lastClosureDate && dateToCheck) {
             if (dateToCheck <= lastClosureDate) {
@@ -565,10 +553,6 @@ export function OrderFormPage() {
                             })),
                             deposit: 0,
                             creditToUse: 0,
-                            paymentMethod: (firstOrder.paymentMethod === 'CREDITO_CLIENTE' ? 'EFECTIVO' : firstOrder.paymentMethod) as PaymentMethod || "EFECTIVO",
-                            bankAccountId: firstOrder.bankAccountId || "",
-                            transactionDate: firstOrder.transactionDate ? new Date(firstOrder.transactionDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-                            transactionReference: "",
                             createdAt: firstOrder.createdAt ? new Date(firstOrder.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
                             notes: firstOrder.notes || "",
                         });
@@ -621,10 +605,6 @@ export function OrderFormPage() {
                         })),
                         deposit: 0,
                         creditToUse: 0,
-                        paymentMethod: (order.paymentMethod === 'CREDITO_CLIENTE' ? 'EFECTIVO' : order.paymentMethod) as PaymentMethod || "EFECTIVO",
-                        bankAccountId: order.bankAccountId || "",
-                        transactionDate: order.transactionDate ? new Date(order.transactionDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-                        transactionReference: "",
                         createdAt: order.createdAt ? new Date(order.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
                         notes: order.notes || "",
                     });
@@ -668,19 +648,6 @@ export function OrderFormPage() {
 
 
     const clientOptions = clients.map(c => ({ id: c.id, label: c.firstName, subLabel: c.identificationNumber }))
-    const filteredBankAccounts = bankAccounts.filter(acc => {
-        const method = formik.values.paymentMethod;
-        if (method === 'EFECTIVO') return acc.type === 'CASH';
-        if (['TRANSFERENCIA', 'DEPOSITO'].includes(method)) return acc.type === 'BANK';
-        if (method === 'CHEQUE') return true;
-        return true;
-    });
-
-    const bankOptions = filteredBankAccounts.map(b => ({
-        id: b.id,
-        label: b.name,
-        subLabel: b.type === 'CASH' ? '(Efectivo)' : `${b.bankName || ""} ${b.accountNumber || ""}`
-    }));
     const brandOptions = getActiveBrands(brands).map(b => ({ id: b.id, label: b.name, subLabel: "" }))
 
     const handleAddItem = async () => {
@@ -747,10 +714,6 @@ export function OrderFormPage() {
                         }],
                         deposit: 0, // Nuevo pedido sin abono inicial
                         creditToUse: 0,
-                        paymentMethod: formik.values.paymentMethod,
-                        bankAccountId: formik.values.bankAccountId,
-                        transactionDate: formik.values.transactionDate,
-                        transactionReference: formik.values.transactionReference,
                         parentOrderId: parentOrderId || undefined,
                         orderNumber: itemToCreate.orderNumber?.trim() || undefined
                     }
@@ -893,6 +856,12 @@ export function OrderFormPage() {
     }
 
     const handleMainSave = async () => {
+        // Validar que hay items agregados
+        if (formik.values.brandItems.length === 0) {
+            notifyError(null, "Debe agregar al menos una marca al pedido.");
+            return;
+        }
+
         // Mostrar errores de validación si existen
         if (Object.keys(formik.errors).length > 0) {
             const firstError = Object.values(formik.errors)[0]
@@ -911,29 +880,43 @@ export function OrderFormPage() {
             return
         }
 
-        await formik.submitForm()
+        // Validar número de recibo
+        if (!isEditing) {
+            const isValidReceipt = await validateReceiptNumber(formik.values.receiptNumber);
+            if (!isValidReceipt) {
+                return;
+            }
+        }
+
+        // Abrir modal de pago
+        setPaymentModalOpen(true)
     }
 
     return (
-        <div className="max-w-7xl mx-auto space-y-4 pb-12 px-4">
+        <div className="space-y-4 pb-12">
             {/* Header Toolbar */}
-            <div className="flex items-center justify-between bg-white px-4 py-3 rounded-lg border shadow-sm">
-                <div className="flex items-center gap-3">
-                    <Button type="button" variant="ghost" size="icon" onClick={() => navigate('/orders')} className="h-8 w-8">
-                        <ArrowLeft className="h-4 w-4" />
+            <PageHeader
+                title={isEditing ? "Editar Pedido" : "Registro de Pedidos"}
+                description={isEditing ? "Modifica los datos del pedido existente" : "Crea un nuevo recibo con uno o varios catálogos"}
+                icon={FileText}
+                actions={
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => navigate('/orders')}
+                        className="text-monchito-purple hover:bg-monchito-purple/10 rounded-lg font-bold text-sm"
+                    >
+                        <ArrowLeft className="h-4 w-4 mr-2" /> Volver a Pedidos
                     </Button>
-                    <h1 className="text-lg font-bold text-slate-800">
-                        {isEditing ? "Editar Pedido" : "Registro de Pedidos"}
-                    </h1>
-                </div>
-            </div>
+                }
+            />
 
             {/* Main Layout Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
                 {/* Column 1: Client & General Info */}
-                <Card className="lg:col-span-3 shadow-sm border-slate-200">
-                    <CardHeader className="py-2 px-4 bg-slate-50/50 border-b">
-                        <CardTitle className="text-sm font-bold uppercase text-slate-500">Encabezado Recibo</CardTitle>
+                <Card className="lg:col-span-3 shadow-sm border-slate-200 bg-white rounded-2xl">
+                    <CardHeader className="py-2 px-4 bg-monchito-purple/5 border-b border-monchito-purple/10 rounded-t-2xl">
+                        <CardTitle className="text-[10px] font-black uppercase tracking-widest text-monchito-purple">Encabezado Recibo</CardTitle>
                     </CardHeader>
                     <CardContent className="p-3">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -943,7 +926,7 @@ export function OrderFormPage() {
                                     <Input
                                         {...formik.getFieldProps('receiptNumber')}
                                         disabled={isLoadingReceiptNumber || isEditing}
-                                        className="h-8 text-sm font-mono font-bold text-indigo-700 bg-indigo-50/30"
+                                        className="h-8 text-sm font-mono font-bold text-monchito-purple bg-monchito-purple/5"
                                     />
                                     {!isEditing && (
                                         <Button
@@ -952,7 +935,7 @@ export function OrderFormPage() {
                                             size="icon"
                                             onClick={generateNextReceiptNumber}
                                             disabled={isLoadingReceiptNumber}
-                                            className="h-8 w-8"
+                                            className="h-8 w-8 text-monchito-purple hover:bg-monchito-purple/10 rounded-lg"
                                         >
                                             <RotateCw className={`h-3 w-3 ${isLoadingReceiptNumber ? 'animate-spin' : ''}`} />
                                         </Button>
@@ -986,9 +969,9 @@ export function OrderFormPage() {
                 </Card>
 
                 {/* Column 2: Quick Summary Totals */}
-                <Card className="shadow-sm border-slate-200 bg-slate-50">
-                    <CardHeader className="py-2 px-4 border-b">
-                        <CardTitle className="text-sm font-bold uppercase text-slate-500">Valores</CardTitle>
+                <Card className="shadow-sm border-slate-200 bg-white rounded-2xl">
+                    <CardHeader className="py-2 px-4 bg-monchito-purple/5 border-b border-monchito-purple/10 rounded-t-2xl">
+                        <CardTitle className="text-[10px] font-black uppercase tracking-widest text-monchito-purple">Valores</CardTitle>
                     </CardHeader>
                     <CardContent className="p-3 space-y-2">
                         <div className="flex justify-between items-center text-sm">
@@ -1011,8 +994,8 @@ export function OrderFormPage() {
             </div>
 
             {/* Item Entry Bar & Table */}
-            <Card className="shadow-sm border-slate-200">
-                <div className="p-3 bg-slate-50 border-b flex flex-wrap lg:flex-nowrap gap-3 items-end">
+            <Card className="shadow-sm border-slate-200 rounded-2xl">
+                <div className="p-3 bg-monchito-purple/5 border-b border-monchito-purple/10 flex flex-wrap lg:flex-nowrap gap-3 items-end">
                     <div className="w-full sm:w-[110px] space-y-1 shrink-0">
                         <Label className="text-xs font-bold uppercase text-slate-500">Pedido por:</Label>
                         <select
@@ -1055,7 +1038,7 @@ export function OrderFormPage() {
                             onChange={(e) => setCurrentItem({ ...currentItem, quantity: Number(e.target.value) })}
                         />
                     </div>
-                    <div className="w-full sm:flex-1 min-w-[180px] space-y-1">
+                    <div className="w-full sm:flex-1 min-w-[140px] space-y-1">
                         <Label className="text-xs font-bold uppercase text-slate-500">Catálogo / Marca:</Label>
                         <SearchableSelect
                             options={brandOptions}
@@ -1086,38 +1069,38 @@ export function OrderFormPage() {
                             onChange={(e) => setCurrentItem({ ...currentItem, possibleDeliveryDate: e.target.value })}
                         />
                     </div>
-                    <div className="w-full sm:w-[80px] shrink-0">
+                    <div className="w-full sm:w-[130px] shrink-0">
                         <Button
                             type="button"
                             onClick={handleAddItem}
-                            className="h-8 w-full bg-slate-900 hover:bg-black px-2 text-xs font-bold transition-all"
+                            className="h-8 w-full bg-monchito-purple hover:bg-monchito-purple/90 px-3 text-xs font-bold transition-all rounded-lg"
                         >
-                            <Plus className="h-3 w-3 mr-1" /> Agregar
+                            <Plus className="h-3 w-3 mr-1.5" /> Agregar
                         </Button>
                     </div>
                 </div>
 
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto rounded-2xl border border-slate-200 shadow-sm bg-white">
                     <table className="w-full text-xs text-left border-collapse">
-                        <thead className="bg-slate-100 text-slate-600 border-b uppercase font-bold text-[10px]">
-                            <tr>
-                                <th className="px-2 py-2 border-r text-center w-8">N°</th>
-                                <th className="px-2 py-2 border-r">Pedido Por</th>
-                                <th className="px-2 py-2 border-r">N° Pedido</th>
-                                <th className="px-2 py-2 border-r">Tipo</th>
-                                <th className="px-2 py-2 border-r">Catálogo</th>
-                                <th className="px-2 py-2 border-r text-center">Cant</th>
-                                <th className="px-2 py-2 border-r text-right">Valor Pedido</th>
-                                <th className="px-2 py-2 border-r text-right">Abono</th>
-                                <th className="px-2 py-2 border-r text-right">Saldo</th>
-                                <th className="px-2 py-2 border-r">Posible Entrega</th>
-                                <th className="px-2 py-2 text-center w-20">Acciones</th>
+                        <thead>
+                            <tr className="bg-monchito-purple/5 border-b border-monchito-purple/10">
+                                <th className="px-2 py-3 border-r border-monchito-purple/10 text-center w-8 text-[10px] font-black text-monchito-purple uppercase tracking-widest">N°</th>
+                                <th className="px-2 py-3 border-r border-monchito-purple/10 text-[10px] font-black text-monchito-purple uppercase tracking-widest">Pedido Por</th>
+                                <th className="px-2 py-3 border-r border-monchito-purple/10 text-[10px] font-black text-monchito-purple uppercase tracking-widest">N° Pedido</th>
+                                <th className="px-2 py-3 border-r border-monchito-purple/10 text-[10px] font-black text-monchito-purple uppercase tracking-widest">Tipo</th>
+                                <th className="px-2 py-3 border-r border-monchito-purple/10 text-[10px] font-black text-monchito-purple uppercase tracking-widest">Catálogo</th>
+                                <th className="px-2 py-3 border-r border-monchito-purple/10 text-center text-[10px] font-black text-monchito-purple uppercase tracking-widest">Cant</th>
+                                <th className="px-2 py-3 border-r border-monchito-purple/10 text-right text-[10px] font-black text-monchito-purple uppercase tracking-widest">Valor Pedido</th>
+                                <th className="px-2 py-3 border-r border-monchito-purple/10 text-right text-[10px] font-black text-monchito-purple uppercase tracking-widest">Abono</th>
+                                <th className="px-2 py-3 border-r border-monchito-purple/10 text-right text-[10px] font-black text-monchito-purple uppercase tracking-widest">Saldo</th>
+                                <th className="px-2 py-3 border-r border-monchito-purple/10 text-[10px] font-black text-monchito-purple uppercase tracking-widest">Posible Entrega</th>
+                                <th className="px-2 py-3 text-center w-20 text-[10px] font-black text-monchito-purple uppercase tracking-widest">Acciones</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100">
+                        <tbody className="divide-y divide-slate-50">
                             {formik.values.brandItems.length === 0 ? (
                                 <tr>
-                                    <td colSpan={11} className="px-4 py-8 text-center text-slate-400 italic">No hay marcas agregadas en este recibo</td>
+                                    <td colSpan={11} className="px-4 py-8 text-center text-slate-400 italic text-xs">No hay marcas agregadas en este recibo</td>
                                 </tr>
                             ) : (
                                 formik.values.brandItems.map((item, idx) => {
@@ -1127,19 +1110,19 @@ export function OrderFormPage() {
                                     return (
                                         <tr 
                                             key={item.id || item.tempId || idx} 
-                                            className="hover:bg-indigo-50/20 transition-colors border-b last:border-0"
+                                            className="hover:bg-monchito-purple/5 transition-all duration-200 border-b border-slate-50 last:border-0"
                                         >
-                                            <td className="px-2 py-1.5 border-r text-center font-bold text-slate-400">{idx + 1}</td>
+                                            <td className="px-2 py-2 border-r border-slate-50 text-center text-xs font-bold text-slate-400">{idx + 1}</td>
                                             
                                             {/* Pedido por */}
-                                            <td className="px-2 py-1.5 border-r text-[10px] text-slate-600">
-                                                <Badge variant="outline" className="text-[9px] font-bold px-1 py-0 border-slate-200 text-slate-500 uppercase">
+                                            <td className="px-2 py-2 border-r border-slate-50">
+                                                <Badge variant="outline" className="text-[9px] font-black px-2 py-0.5 border-slate-200 text-slate-500 uppercase tracking-wider rounded-lg">
                                                     {item.salesChannel || "OFICINA"}
                                                 </Badge>
                                             </td>
 
                                             {/* N° Pedido */}
-                                            <td className="px-2 py-1.5 border-r font-mono text-[10px] text-slate-600">
+                                            <td className="px-2 py-2 border-r border-slate-50">
                                                 {!isEditing ? (
                                                     <Input
                                                         value={item.orderNumber || ''}
@@ -1149,16 +1132,16 @@ export function OrderFormPage() {
                                                             formik.setFieldValue('brandItems', newItems)
                                                         }}
                                                         placeholder="---"
-                                                        className="h-7 text-[10px] font-mono px-1 border-slate-200"
+                                                        className="h-7 text-xs font-mono px-1 border-slate-200"
                                                     />
                                                 ) : (
-                                                    <span className="font-bold text-indigo-600">{item.orderNumber || '---'}</span>
+                                                    <span className="text-xs font-bold text-monchito-purple">{item.orderNumber || '---'}</span>
                                                 )}
                                             </td>
 
                                             {/* Tipo */}
-                                            <td className="px-2 py-1.5 border-r text-[10px] text-slate-600">
-                                                <span className={`px-1 rounded text-[9px] font-bold ${
+                                            <td className="px-2 py-2 border-r border-slate-50">
+                                                <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider ${
                                                     item.type === 'NORMAL' ? 'bg-blue-50 text-blue-600' :
                                                     item.type === 'PREVENTA' ? 'bg-amber-50 text-amber-600' :
                                                     'bg-purple-50 text-purple-600'
@@ -1168,23 +1151,23 @@ export function OrderFormPage() {
                                             </td>
 
                                             {/* Catálogo */}
-                                            <td className="px-2 py-1.5 border-r font-medium text-slate-700">
-                                                <span className="truncate block" title={item.brandName}>{item.brandName}</span>
+                                            <td className="px-2 py-2 border-r border-slate-50">
+                                                <span className="text-xs font-bold text-slate-800 truncate block" title={item.brandName}>{item.brandName}</span>
                                             </td>
 
                                             {/* Cantidad */}
-                                            <td className="px-2 py-1.5 border-r text-center font-bold text-slate-600">
+                                            <td className="px-2 py-2 border-r border-slate-50 text-center text-xs font-bold text-slate-700">
                                                 {item.quantity}
                                             </td>
 
-                                            <td className="px-2 py-1.5 border-r text-right">
+                                            <td className="px-2 py-2 border-r border-slate-50 text-right">
                                                 {!isEditing ? (
                                                     <div className="flex justify-end items-center gap-1">
-                                                        <span className="text-slate-400 text-[10px]">$</span>
+                                                        <span className="text-slate-400 text-xs">$</span>
                                                         <input
                                                             type="number"
                                                             step="0.01"
-                                                            className="h-7 w-16 text-right font-bold border rounded px-1 focus:ring-1 focus:ring-indigo-500 outline-none text-[10px] border-slate-200"
+                                                            className="h-7 w-16 text-right text-xs font-bold border border-slate-200 rounded-lg px-1 focus:ring-1 focus:ring-monchito-purple outline-none"
                                                             value={item.total}
                                                             onChange={(e) => {
                                                                 const newItems = [...formik.values.brandItems]
@@ -1194,18 +1177,18 @@ export function OrderFormPage() {
                                                         />
                                                     </div>
                                                 ) : (
-                                                    <span className="text-slate-800 font-bold">${Number(item.total).toFixed(2)}</span>
+                                                    <span className="text-xs font-bold text-slate-800">${Number(item.total).toFixed(2)}</span>
                                                 )}
                                             </td>
 
-                                            <td className="px-2 py-1.5 border-r text-right">
+                                            <td className="px-2 py-2 border-r border-slate-50 text-right">
                                                 {!isEditing ? (
                                                     <div className="flex justify-end items-center gap-1">
-                                                        <span className="text-emerald-500 text-[10px]">$</span>
+                                                        <span className="text-emerald-500 text-xs">$</span>
                                                         <input
                                                             type="number"
                                                             step="0.01"
-                                                            className="h-7 w-16 text-right font-bold border rounded px-1 focus:ring-1 focus:ring-emerald-500 outline-none text-[10px] border-slate-200 text-emerald-600"
+                                                            className="h-7 w-16 text-right text-xs font-bold border border-slate-200 rounded-lg px-1 focus:ring-1 focus:ring-emerald-500 outline-none text-emerald-600"
                                                             value={item.deposit || ''}
                                                             onChange={(e) => {
                                                                 const newItems = [...formik.values.brandItems]
@@ -1215,21 +1198,21 @@ export function OrderFormPage() {
                                                         />
                                                     </div>
                                                 ) : (
-                                                    <span className="text-green-600 font-bold text-[10px]">${distributedAbono.toFixed(2)}</span>
+                                                    <span className="text-xs font-bold text-emerald-600">${distributedAbono.toFixed(2)}</span>
                                                 )}
                                             </td>
 
-                                            <td className="px-2 py-1.5 border-r text-right">
-                                                <span className={`font-bold ${rowSaldo > 0 ? 'text-red-500' : 'text-slate-400'}`}>
+                                            <td className="px-2 py-2 border-r border-slate-50 text-right">
+                                                <span className={`text-xs font-bold ${rowSaldo > 0 ? 'text-red-500' : 'text-slate-400'}`}>
                                                     ${rowSaldo.toFixed(2)}
                                                 </span>
                                             </td>
 
-                                            <td className="px-2 py-1.5 border-r">
+                                            <td className="px-2 py-2 border-r border-slate-50">
                                                 {!isEditing ? (
                                                     <input
                                                         type="date"
-                                                        className="h-7 w-full text-[10px] border rounded px-1 border-slate-200"
+                                                        className="h-7 w-full text-xs border border-slate-200 rounded-lg px-1"
                                                         value={item.possibleDeliveryDate}
                                                         onChange={(e) => {
                                                             const newItems = [...formik.values.brandItems]
@@ -1238,7 +1221,7 @@ export function OrderFormPage() {
                                                         }}
                                                     />
                                                 ) : (
-                                                    <span className="text-slate-500">{new Date(item.possibleDeliveryDate).toLocaleDateString()}</span>
+                                                    <span className="text-xs font-medium text-slate-600">{new Date(item.possibleDeliveryDate).toLocaleDateString()}</span>
                                                 )}
                                             </td>
 
@@ -1285,103 +1268,37 @@ export function OrderFormPage() {
                 </div>
             </Card>
 
-            {/* Bottom Section: Payment & Observations */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <Card className="lg:col-span-2 shadow-sm border-slate-200">
-                    <CardHeader className="py-2 px-4 bg-slate-50 border-b">
-                        <CardTitle className="text-sm font-bold uppercase text-slate-500">Información del Pago</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-3">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                            <div className="space-y-1">
-                                <Label className="text-xs font-bold">Forma de Pago:</Label>
-                                <select
-                                    {...formik.getFieldProps('paymentMethod')}
-                                    className="h-8 w-full rounded-md border border-input text-xs"
-                                >
-                                    <option value="EFECTIVO">EFECTIVO</option>
-                                    <option value="TRANSFERENCIA">TRANSFERENCIA</option>
-                                    <option value="DEPOSITO">DEPÓSITO</option>
-                                    <option value="CHEQUE">CHEQUE</option>
-                                </select>
-                            </div>
-                            <div className="space-y-1">
-                                <Label className="text-xs font-bold">Cuenta Bancaria:</Label>
-                                <SearchableSelect
-                                    options={bankOptions}
-                                    value={formik.values.bankAccountId}
-                                    onChange={(val) => formik.setFieldValue('bankAccountId', val)}
-                                    placeholder="Seleccione cuenta..."
-                                />
-                            </div>
-                            <div className="space-y-1">
-                                <Label className="text-xs font-bold">Fecha Trans.:</Label>
-                                <Input type="date" {...formik.getFieldProps('transactionDate')} className="h-8 text-xs" />
-                            </div>
-                            <div className="space-y-1">
-                                <Label className="text-xs font-bold">No Documento / Ref:</Label>
-                                <Input {...formik.getFieldProps('transactionReference')} className="h-8 text-xs" placeholder="Referencia..." />
-                            </div>
-                        </div>
-
-                        {totalCredit > 0 && (
-                            <div className="mt-3 pt-3 border-t">
-                                <div className="bg-green-50 border border-green-100 rounded-md py-1 px-3 flex items-center justify-between">
-                                    <span className="text-xs font-bold text-green-700">Usar Saldo Favor:</span>
-                                    <div className="flex items-center gap-2">
-                                        <Input
-                                            type="number"
-                                            className="h-7 w-24 bg-white text-xs"
-                                            value={formik.values.creditToUse}
-                                            onChange={(e) => {
-                                                const val = Math.min(Number(e.target.value), totalCredit, totalOrderValue - Number(totalRowDeposit));
-                                                formik.setFieldValue('creditToUse', val > 0 ? val : 0);
-                                            }}
-                                        />
-                                        <p className="text-xs text-slate-500">Disponible: ${totalCredit.toFixed(2)}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-
-                <Card className="shadow-sm border-slate-200">
-                    <CardHeader className="py-2 px-4 bg-slate-50 border-b">
-                        <CardTitle className="text-sm font-bold uppercase text-slate-500">Observación / Notas</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-3">
+            {/* Bottom Section: Notes + Save */}
+            <Card className="shadow-sm border-slate-200 rounded-2xl">
+                <CardContent className="p-3">
+                    <div className="flex flex-col sm:flex-row gap-3 items-end">
                         <textarea
                             {...formik.getFieldProps('notes')}
-                            className="w-full h-24 p-2 text-sm rounded-md border border-input focus:ring-1 focus:ring-indigo-500 outline-none resize-none"
-                            placeholder="Ingrese notas adicionales sobre el pedido..."
+                            className="flex-1 h-12 p-2 text-xs rounded-lg border border-slate-200 focus:ring-1 focus:ring-monchito-purple outline-none resize-none"
+                            placeholder="Notas adicionales sobre el pedido..."
                         />
-                    </CardContent>
-                    {!isEditing ? (
-                        <div className="p-2 border-t bg-slate-50 flex gap-2">
+                        {!isEditing ? (
                             <AsyncButton
                                 type="button"
                                 onClick={handleMainSave}
-                                className="w-full bg-slate-800"
+                                className="shrink-0 bg-monchito-purple hover:bg-monchito-purple/90 font-bold px-8"
                                 isLoading={isSubmitting}
                             >
                                 <Plus className="h-4 w-4 mr-2" /> Guardar Recibo
                             </AsyncButton>
-                        </div>
-                    ) : (
-                        <div className="p-2 border-t bg-slate-50 flex gap-2">
+                        ) : (
                             <AsyncButton
                                 type="button"
                                 onClick={handlePrintReceipt}
-                                className="w-full bg-indigo-600 hover:bg-indigo-700"
+                                className="shrink-0 bg-monchito-purple hover:bg-monchito-purple/90 font-bold px-8"
                                 isLoading={isSubmitting}
                             >
                                 <Printer className="h-4 w-4 mr-2" /> Imprimir Recibo
                             </AsyncButton>
-                        </div>
-                    )}
-                </Card>
-            </div>
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
 
             {/* Diálogo de confirmación de eliminación */}
             <ConfirmDialog
@@ -1407,6 +1324,23 @@ export function OrderFormPage() {
                     </div>
                 )}
             </ConfirmDialog>
+
+            {/* Modal de Pago */}
+            <PaymentModal
+                open={paymentModalOpen}
+                onOpenChange={setPaymentModalOpen}
+                onSubmit={handlePaymentSubmit}
+                paymentContext={{
+                    type: "PEDIDO",
+                    clientId: formik.values.clientId,
+                    clientName: clients.find(c => c.id === formik.values.clientId)?.firstName || "Cliente",
+                    referenceNumber: formik.values.receiptNumber,
+                    description: "Pago inicial de recibo"
+                }}
+                expectedAmount={totalOrderValue}
+                allowMultiplePayments={true}
+                initialAmount={totalRowDeposit}
+            />
 
             {/* Modal de edición de pedido individual */}
             {editModalOpen && orderToEdit && (
