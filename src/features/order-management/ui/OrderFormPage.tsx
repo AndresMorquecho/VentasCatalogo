@@ -24,12 +24,13 @@ import { useClientList } from "@/features/clients/api/hooks"
 import { useBrandList } from "@/features/brands/api/hooks"
 import { getActiveBrands } from "@/entities/brand/model/model"
 import { useNotifications } from "@/shared/lib/notifications"
-import { pdf } from "@react-pdf/renderer"
-import { OrderReceiptDocument } from "@/features/order-receipt/ui/OrderReceiptDocument"
+import { prepareOrderReceiptForPreview } from "@/features/order-receipt/lib/prepareOrderReceiptForPreview"
 import { useClientCredits } from "@/features/transactions/model/hooks"
 import { useAuth } from "@/shared/auth"
 import { useCashClosurePreview } from "@/features/cash-closure/api/hooks"
 import { PaymentModal, type PaymentModalData } from "@/shared/ui/PaymentModal"
+import { usePDFPreview } from "@/shared/hooks/usePDFPreview"
+import { PDFPreviewModal } from "@/shared/ui/PDFPreviewModal"
 
 /* --- Validation Schema --- */
 const validationSchema = Yup.object({
@@ -185,6 +186,20 @@ export function OrderFormPage() {
     // Estados para modal de pago
     const [paymentModalOpen, setPaymentModalOpen] = useState(false)
 
+    // PDF Preview state
+    const [pdfTitle, setPdfTitle] = useState('')
+    const [pdfFileName, setPdfFileName] = useState('')
+    const pdfPreview = usePDFPreview({
+        fileName: pdfFileName,
+        onDownloadComplete: () => {
+            notifySuccess('PDF descargado correctamente')
+        },
+        onError: (error) => {
+            notifyError({ message: 'Error al procesar el PDF' })
+            console.error('PDF Error:', error)
+        }
+    })
+
     // State for the item being added
     const [currentItem, setCurrentItem] = useState({
         brandId: "",
@@ -275,37 +290,33 @@ export function OrderFormPage() {
             });
 
             try {
-                const blob = await pdf(
-                    <OrderReceiptDocument
-                        order={ordersWithNumbers[0]}
-                        childOrders={ordersWithNumbers.slice(1)}
-                        client={client}
-                        user={{
-                            id: user?.id || '1',
-                            name: user?.username || 'Vendedor',
-                            role: 'OPERATOR',
-                            email: '',
-                            status: 'ACTIVE',
-                            createdAt: new Date().toISOString()
-                        } as any}
-                    />
-                ).toBlob()
-
-                const url = URL.createObjectURL(blob)
-                const link = document.createElement('a')
-                link.href = url
-                link.download = `Recibo_${createdOrders[0].receiptNumber}.pdf`
-                document.body.appendChild(link)
-                link.click()
-                document.body.removeChild(link)
-                URL.revokeObjectURL(url)
+                const { document, fileName, title } = await prepareOrderReceiptForPreview(
+                    ordersWithNumbers[0],
+                    {
+                        id: user?.id || '1',
+                        name: user?.username || 'Vendedor',
+                        role: 'OPERATOR',
+                        email: '',
+                        status: 'ACTIVE',
+                        createdAt: new Date().toISOString()
+                    } as any
+                )
+                
+                setPdfTitle(title)
+                setPdfFileName(fileName)
+                pdfPreview.openPreview(document)
+                
+                notifySuccess(`Se han creado ${createdOrders.length} pedidos exitosamente.`);
+                
+                // NO navegar automáticamente - dejar que el usuario vea el PDF primero
+                // El usuario puede cerrar el modal y luego navegar manualmente
             } catch (pdfError) {
-                console.error("Error generating PDF", pdfError)
-                notifyError(pdfError, "Error al generar el recibo PDF.")
+                console.error("Error preparing PDF", pdfError)
+                notifyError(pdfError, "Error al preparar el recibo PDF.")
+                // Si falla el PDF, navegar de todos modos
+                notifySuccess(`Se han creado ${createdOrders.length} pedidos exitosamente.`);
+                navigate('/orders');
             }
-            
-            notifySuccess(`Se han creado ${createdOrders.length} pedidos exitosamente.`);
-            navigate('/orders');
         } catch (error: any) {
             console.error("Error saving order", error)
             notifyError(error, "Error al guardar el pedido.");
@@ -810,34 +821,29 @@ export function OrderFormPage() {
                 return
             }
 
-            // Generar el PDF
-            const blob = await pdf(
-                <OrderReceiptDocument
-                    order={allOrders[0]}
-                    childOrders={allOrders.slice(1)}
-                    client={client}
-                    receiptNumber={formik.values.receiptNumber}
-                    user={{
+            // Generar el PDF Preview
+            try {
+                const { document, fileName, title } = await prepareOrderReceiptForPreview(
+                    allOrders[0],
+                    {
                         id: user?.id || '1',
                         name: user?.username || 'Vendedor',
                         role: 'OPERATOR',
                         email: '',
                         status: 'ACTIVE',
                         createdAt: new Date().toISOString()
-                    } as any}
-                />
-            ).toBlob()
-
-            const url = URL.createObjectURL(blob)
-            const link = document.createElement('a')
-            link.href = url
-            link.download = `Recibo_${formik.values.receiptNumber}.pdf`
-            document.body.appendChild(link)
-            link.click()
-            document.body.removeChild(link)
-            URL.revokeObjectURL(url)
-
-            notifySuccess('Recibo descargado correctamente.')
+                    } as any
+                )
+                
+                setPdfTitle(title)
+                setPdfFileName(fileName)
+                pdfPreview.openPreview(document)
+                
+                notifySuccess('Recibo preparado para visualización.')
+            } catch (pdfError) {
+                console.error('Error preparing PDF:', pdfError)
+                notifyError(pdfError, 'Error al preparar el recibo.')
+            }
         } catch (error: any) {
             console.error('Error generating PDF:', error)
             notifyError(error, 'Error al generar el recibo.')
@@ -888,7 +894,7 @@ export function OrderFormPage() {
             }
         }
 
-        // Abrir modal de pago
+        // Abrir modal de pago (sin validación de distribución)
         setPaymentModalOpen(true)
     }
 
@@ -1188,12 +1194,16 @@ export function OrderFormPage() {
                                                         <input
                                                             type="number"
                                                             step="0.01"
+                                                            min="0"
+                                                            max={item.total}
+                                                            placeholder="0.00"
                                                             className="h-7 w-16 text-right text-xs font-bold border border-slate-200 rounded-lg px-1 focus:ring-1 focus:ring-emerald-500 outline-none text-emerald-600"
-                                                            value={item.deposit || ''}
+                                                            value={item.deposit === 0 ? '0' : (item.deposit || '')}
                                                             onChange={(e) => {
-                                                                const newItems = [...formik.values.brandItems]
-                                                                newItems[idx] = { ...newItems[idx], deposit: Number(e.target.value) }
-                                                                formik.setFieldValue('brandItems', newItems)
+                                                                const newItems = [...formik.values.brandItems];
+                                                                const value = e.target.value === '' ? 0 : Number(e.target.value);
+                                                                newItems[idx] = { ...newItems[idx], deposit: value };
+                                                                formik.setFieldValue('brandItems', newItems);
                                                             }}
                                                         />
                                                     </div>
@@ -1284,7 +1294,8 @@ export function OrderFormPage() {
                                 className="shrink-0 bg-monchito-purple hover:bg-monchito-purple/90 font-bold px-8"
                                 isLoading={isSubmitting}
                             >
-                                <Plus className="h-4 w-4 mr-2" /> Guardar Recibo
+                                <Plus className="h-4 w-4 mr-2" /> 
+                                Guardar Recibo
                             </AsyncButton>
                         ) : (
                             <AsyncButton
@@ -1340,6 +1351,13 @@ export function OrderFormPage() {
                 expectedAmount={totalOrderValue}
                 allowMultiplePayments={true}
                 initialAmount={totalRowDeposit}
+                orderItems={formik.values.brandItems.map((item, idx) => ({
+                    id: item.tempId || `item-${idx}`,
+                    brandName: item.brandName,
+                    total: Number(item.total),
+                    currentDeposit: Number(item.deposit || 0)
+                }))}
+                lockAmount={formik.values.brandItems.length > 1}
             />
 
             {/* Modal de edición de pedido individual */}
@@ -1369,6 +1387,25 @@ export function OrderFormPage() {
                         }
                     }}
                     lastClosureDate={lastClosureDate}
+                />
+            )}
+
+            {/* PDF Preview Modal */}
+            {pdfPreview.pdfDocument && (
+                <PDFPreviewModal
+                    open={pdfPreview.isOpen}
+                    onOpenChange={(open) => {
+                        pdfPreview.closePreview()
+                        // Cuando se cierra el modal después de crear un pedido, navegar a la lista
+                        if (!open && !isEditing) {
+                            navigate('/orders')
+                        }
+                    }}
+                    title={pdfTitle}
+                    pdfDocument={pdfPreview.pdfDocument}
+                    fileName={pdfFileName}
+                    onDownload={pdfPreview.downloadPDF}
+                    onPrint={pdfPreview.printPDF}
                 />
             )}
         </div>

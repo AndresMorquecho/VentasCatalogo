@@ -117,6 +117,7 @@ const groupedItems = [
             { title: "Validación de Pagos", url: "/wallet-validations", icon: CheckCircle },
             { title: "Cuentas Bancarias", url: "/bank-accounts", icon: Store },
             { title: "Cierre de Caja", url: "/cash-closure", icon: Calculator },
+            { title: "Análisis de Cartera", url: "/cartera", icon: Activity },
         ]
     },
     {

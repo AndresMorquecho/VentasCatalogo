@@ -18,6 +18,7 @@ const ReceptionBatchPage = lazy(() => import('@/features/reception-batch').then(
 const OrderDeliveryPage = lazy(() => import('@/features/order-delivery').then(m => ({ default: m.OrderDeliveryPage })));
 const OrderDeliveryHistoryPage = lazy(() => import('@/features/order-delivery').then(m => ({ default: m.OrderDeliveryHistoryPage })));
 const CashClosurePage = lazy(() => import('@/features/cash-closure/ui/CashClosurePage').then(m => ({ default: m.CashClosurePage })));
+const PortfolioRecoveryPage = lazy(() => import('@/features/portfolio-recovery').then(m => ({ default: m.PortfolioRecoveryPage })));
 const TransactionsPage = lazy(() => import('@/features/transactions').then(m => ({ default: m.TransactionsPage })));
 const PaymentsPage = lazy(() => import('@/features/payments/ui/PaymentsPage').then(m => ({ default: m.PaymentsPage })));
 const WalletPage = lazy(() => import('@/features/wallet/ui/ClientCreditsPage').then(m => ({ default: m.ClientCreditsPage })));
@@ -58,6 +59,7 @@ const protectedChildren = [
     { path: 'dashboard/financiero', element: <ProtectedRoute adminOnly><FinancialDashboardPage /></ProtectedRoute> },
     { path: 'auditoria/financiera', element: <ProtectedRoute adminOnly><FinancialAuditPage /></ProtectedRoute> },
     { path: 'cash-closure', element: <ProtectedRoute permission="cash_closure.view"><CashClosurePage /></ProtectedRoute> },
+    { path: 'cartera', element: <ProtectedRoute permission="orders.view"><PortfolioRecoveryPage /></ProtectedRoute> },
     { path: 'payments', element: <ProtectedRoute permission="payments.view"><PaymentsPage /></ProtectedRoute> },
     { path: 'wallet', element: <ProtectedRoute permission="clients.view"><WalletPage /></ProtectedRoute> },
     { path: 'wallet-validations', element: <ProtectedRoute adminOnly><WalletValidationPage /></ProtectedRoute> },

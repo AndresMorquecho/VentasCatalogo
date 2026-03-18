@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useCreateCashClosure, useCashClosures, useCashClosurePreview } from '@/features/cash-closure/api/hooks';
 import { CashClosureHistory } from './CashClosureHistory';
+import { CashClosureConfirmModal } from './CashClosureConfirmModal';
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Loader2, Info, HelpCircle, Wallet, CheckCircle2, FileText, AlertCircle, Calendar, Banknote, Calculator } from "lucide-react";
@@ -9,25 +10,29 @@ import { useNotifications } from "@/shared/lib/notifications";
 import { logAction } from "@/shared/lib/auditService";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/shared/ui/card";
 import { Badge } from "@/shared/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/ui/dialog";
 import { generateCashClosurePDF } from '../lib/generateCashClosurePDF';
 import { useAuth } from '@/shared/auth';
 import { Pagination } from '@/shared/ui/pagination';
 import { PageHeader } from '@/shared/ui/PageHeader';
+import { useScrollIndicator } from '../hooks/useScrollIndicator';
 
 export function CashClosurePage() {
     // 1. Estados Locales
     const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
     const [actualAmount, setActualAmount] = useState<number>(0);
-    const [notes, setNotes] = useState<string>("");
     const [page, setPage] = useState(1);
     const [limit] = useState(25);
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
 
     // 2. Hooks de Datos UI
     const { data: response, refetch: refetchClosures } = useCashClosures({ page, limit });
     const closures = response?.data || [];
     const pagination = response?.pagination;
+
+    // 3. Scroll Indicators
+    const { scrollRef: saldosScrollRef, showBottomShadow: showSaldosBottomShadow } = useScrollIndicator();
+    const { scrollRef: movimientosScrollRef, showBottomShadow: showMovimientosBottomShadow } = useScrollIndicator();
 
 
     // 3. Mutación
@@ -46,11 +51,20 @@ export function CashClosurePage() {
     } = useCashClosurePreview(endOfDay.toISOString());
 
     // 5. Handlers
-    const handleConfirmClosure = async () => {
+    const handleOpenConfirmModal = () => {
         if (!hasPermission('cash_closure.close')) {
             notifyError({ message: "No tienes permiso para realizar cierres de caja" });
             return;
         }
+        if (!previewData || previewData.isAlreadyClosed) return;
+        if (actualAmount === 0) {
+            notifyError({ message: "Debes ingresar el monto de efectivo contado" });
+            return;
+        }
+        setShowConfirmModal(true);
+    };
+
+    const handleConfirmClosure = async (notes: string) => {
         if (!previewData) return;
 
         try {
@@ -92,7 +106,7 @@ export function CashClosurePage() {
             }
 
             setActualAmount(0);
-            setNotes("");
+            setShowConfirmModal(false);
             refetchClosures();
             await refetchPreview(); // Force refresh the preview so it resets to 0
         } catch (error: any) {
@@ -113,14 +127,37 @@ export function CashClosurePage() {
         return d.toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' });
     };
 
+    const [activeTab, setActiveTab] = useState<'closure' | 'history'>('closure');
+
     return (
-        <div className="space-y-6">
+        <div className="h-[calc(100vh-4rem)] flex flex-col overflow-hidden">
             <PageHeader 
+                className="shrink-0"
                 title="Control de Caja" 
                 description="Gestión de saldos, auditoría y cierres de periodo"
                 icon={Calculator}
                 actions={
                     <>
+                        <div className="flex gap-2">
+                            <Button 
+                                variant={activeTab === 'closure' ? 'default' : 'outline'} 
+                                size="sm" 
+                                onClick={() => setActiveTab('closure')}
+                                className="gap-2 font-bold h-8 text-xs"
+                            >
+                                <CheckCircle2 className="h-4 w-4" />
+                                Realizar Cierre
+                            </Button>
+                            <Button 
+                                variant={activeTab === 'history' ? 'default' : 'outline'} 
+                                size="sm" 
+                                onClick={() => setActiveTab('history')}
+                                className="gap-2 font-bold h-8 text-xs"
+                            >
+                                <FileText className="h-4 w-4" />
+                                Historial
+                            </Button>
+                        </div>
                         <Dialog>
                             <DialogTrigger asChild>
                                 <Button variant="outline" size="sm" className="gap-2 font-bold border-2 hover:bg-slate-50 h-8 text-xs">
@@ -180,49 +217,47 @@ export function CashClosurePage() {
                 }
             />
 
-            <Tabs defaultValue="closure" className="flex-1 flex flex-col min-h-0">
-                <TabsList className="grid w-[400px] grid-cols-2 h-9 p-1 bg-slate-100 mb-2 shrink-0">
-                    <TabsTrigger value="closure" className="text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Realizar Cierre</TabsTrigger>
-                    <TabsTrigger value="history" className="text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Historial</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="closure" className="flex-1 min-h-0 outline-none">
-                    <div className="grid gap-2 lg:grid-cols-12 h-full">
+            {activeTab === 'closure' ? (
+                <div className="grid gap-2 lg:grid-cols-12 flex-1 min-h-0 mt-2">
                         {/* Panel de Auditoría (Izquierda) */}
-                        <div className="lg:col-span-4 flex flex-col min-h-0">
-                            <Card className="shadow-lg border-none ring-1 ring-slate-200 overflow-hidden flex flex-col h-full">
+                        <div className="lg:col-span-4 flex flex-col min-h-0" data-testid="saldos-panel-wrapper">
+                            <Card className="shadow-lg border-none ring-1 ring-slate-200 overflow-hidden flex flex-col h-full relative" data-testid="saldos-card">
                                 <div className="h-2 bg-primary w-full shrink-0" />
-                                <CardHeader className="bg-slate-50/50 pb-2 pt-3 shrink-0">
+                                <CardHeader className="bg-slate-50/50 pb-2 pt-3 shrink-0 sticky top-0 z-10" data-testid="saldos-header">
                                     <CardTitle className="text-sm font-black text-slate-800 flex items-center gap-2">
                                         <Wallet className="h-4 w-4 text-primary" />
                                         Saldos del Sistema
                                     </CardTitle>
                                 </CardHeader>
-                                <CardContent className="space-y-3 pt-3 flex-1 overflow-y-auto pb-4">
-                                    <div className="grid grid-cols-2 gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                                        <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> Inicio</span>
-                                        <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> Fin</span>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-2 items-center">
-                                        <div className="p-2 bg-slate-100 rounded-md text-xs font-bold text-slate-600 border border-slate-200 truncate flex items-center h-8">
-                                            {formatStartDate(previewData?.fromDate)}
+                                <CardContent ref={saldosScrollRef} className="space-y-3 pt-3 flex-1 overflow-y-auto pb-4 min-h-0" data-testid="saldos-content">
+                                    <div className="shrink-0">
+                                        <div className="grid grid-cols-2 gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                                            <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> Inicio</span>
+                                            <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> Fin</span>
                                         </div>
-                                        <Input
-                                            type="date"
-                                            value={date}
-                                            onChange={(e) => setDate(e.target.value)}
-                                            className="h-8 border-primary/20 focus:border-primary font-bold text-slate-900 text-xs px-2"
-                                        />
+                                        <div className="grid grid-cols-2 gap-2 items-center mt-3">
+                                            <div className="p-2 bg-slate-100 rounded-md text-xs font-bold text-slate-600 border border-slate-200 truncate flex items-center h-8">
+                                                {formatStartDate(previewData?.fromDate)}
+                                            </div>
+                                            <Input
+                                                type="date"
+                                                value={date}
+                                                onChange={(e) => setDate(e.target.value)}
+                                                className="h-8 border-primary/20 focus:border-primary font-bold text-slate-900 text-xs px-2"
+                                            />
+                                        </div>
                                     </div>
 
                                     {previewData?.isAlreadyClosed && (
-                                        <Alert className="bg-amber-50 border-amber-200 text-amber-800">
-                                            <AlertCircle className="h-4 w-4" />
-                                            <AlertTitle className="font-black">Periodo Cerrado</AlertTitle>
-                                            <AlertDescription className="text-xs">
-                                                Ya se realizó un cierre para este periodo. No se pueden duplicar los cierres.
-                                            </AlertDescription>
-                                        </Alert>
+                                        <div className="shrink-0">
+                                            <Alert className="bg-amber-50 border-amber-200 text-amber-800">
+                                                <AlertCircle className="h-4 w-4" />
+                                                <AlertTitle className="font-black">Periodo Cerrado</AlertTitle>
+                                                <AlertDescription className="text-xs">
+                                                    Ya se realizó un cierre para este periodo. No se pueden duplicar los cierres.
+                                                </AlertDescription>
+                                            </Alert>
+                                        </div>
                                     )}
 
                                     <div className="grid grid-cols-1 gap-2 pt-2 border-t border-slate-100">
@@ -244,7 +279,7 @@ export function CashClosurePage() {
                                         ))}
                                     </div>
 
-                                    <div className="space-y-3 pt-2">
+                                    <div className="shrink-0 space-y-3 pt-2">
                                         <div className="space-y-1">
                                             <label className="text-[10px] font-bold text-slate-700 uppercase flex items-center gap-1">
                                                 <Banknote className="h-3 w-3" /> Efectivo Físico
@@ -278,36 +313,26 @@ export function CashClosurePage() {
                                             </div>
                                         )}
 
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-bold uppercase text-slate-400 flex items-center gap-1">
-                                                <FileText className="h-3 w-3" /> Notas
-                                            </label>
-                                            <Input
-                                                value={notes}
-                                                onChange={(e) => setNotes(e.target.value)}
-                                                placeholder="Auditoría/Justificación..."
-                                                className="bg-slate-50 border-slate-200 h-8 text-xs px-2"
-                                            />
-                                        </div>
-
                                         <Button
-                                            onClick={handleConfirmClosure}
-                                            disabled={!previewData || previewData.isAlreadyClosed || createClosure.isPending || isCalculating}
-                                            className="w-full h-10 text-sm font-bold shadow-md rounded-lg transition-all active:scale-95"
-                                            variant={isDifferenceSignificant ? "secondary" : "default"}
+                                            onClick={handleOpenConfirmModal}
+                                            disabled={!previewData || previewData.isAlreadyClosed || createClosure.isPending || isCalculating || actualAmount === 0}
+                                            className="w-full h-11 px-8 rounded-xl bg-monchito-purple hover:bg-monchito-purple/90 text-white font-semibold shadow-lg transition-all active:scale-95"
                                         >
                                             {createClosure.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
                                             {previewData?.isAlreadyClosed ? "Periodo ya Cerrado" : "Generar Cierre"}
                                         </Button>
                                     </div>
                                 </CardContent>
+                                {showSaldosBottomShadow && (
+                                    <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white via-white/50 to-transparent pointer-events-none z-20" />
+                                )}
                             </Card>
                         </div>
 
                         {/* Detalle de Movimientos (Derecha) */}
-                        <div className="lg:col-span-8 flex flex-col min-h-0">
-                            <Card className="shadow-sm border-none ring-1 ring-slate-200 h-full flex flex-col overflow-hidden">
-                                <CardHeader className="bg-white border-b sticky top-0 z-10 p-2 shrink-0">
+                        <div className="lg:col-span-8 flex flex-col min-h-0" data-testid="movimientos-panel-wrapper">
+                            <Card className="shadow-sm border-none ring-1 ring-slate-200 h-full flex flex-col overflow-hidden relative" data-testid="movimientos-card">
+                                <CardHeader className="bg-white border-b sticky top-0 z-10 p-2 shrink-0" data-testid="movimientos-header">
                                     <div className="flex justify-between items-center">
                                         <CardTitle className="text-sm font-black text-slate-800 flex items-center gap-2">
                                             <FileText className="h-4 w-4 text-blue-500" />
@@ -317,7 +342,7 @@ export function CashClosurePage() {
                                     </div>
                                     <CardDescription className="text-[10px]">Movimientos de la cuenta de EFECTIVO desde el último cierre.</CardDescription>
                                 </CardHeader>
-                                <CardContent className="p-0 overflow-y-auto flex-grow bg-slate-50/50 min-h-0">
+                                <CardContent ref={movimientosScrollRef} className="p-0 overflow-y-auto flex-1 bg-slate-50/50 min-h-0" data-testid="movimientos-content">
                                     {isCalculating ? (
                                         <div className="flex flex-col items-center justify-center p-20 space-y-4">
                                             <Loader2 className="h-10 w-10 text-primary animate-spin" />
@@ -377,7 +402,7 @@ export function CashClosurePage() {
                                         </div>
                                     )}
                                 </CardContent>
-                                <div className="p-2 bg-slate-50 border-t shrink-0 flex flex-col gap-1">
+                                <div className="p-2 bg-slate-50 border-t shrink-0 sticky bottom-0 z-10 flex flex-col gap-1" data-testid="movimientos-footer">
                                     <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-slate-400">
                                         <div className="flex gap-4">
                                             <div className="flex items-center gap-1">
@@ -397,13 +422,15 @@ export function CashClosurePage() {
                                         * El Neto solo incluye movimientos de "Efectivo" que afectan el conteo físico.
                                     </p>
                                 </div>
+                                {showMovimientosBottomShadow && (
+                                    <div className="absolute bottom-12 left-0 right-0 h-8 bg-gradient-to-t from-slate-50 via-slate-50/50 to-transparent pointer-events-none z-20" />
+                                )}
                             </Card>
                         </div>
                     </div>
-                </TabsContent>
-
-                <TabsContent value="history" className="flex-1 min-h-0 outline-none">
-                    <div className="h-full bg-white rounded-lg shadow-sm border border-slate-200 p-2 overflow-y-auto flex flex-col">
+            ) : (
+                <div className="h-full bg-white rounded-lg shadow-sm border border-slate-200 p-2 overflow-y-auto flex flex-col mt-2">
+                    <>
                         <CashClosureHistory
                             closures={closures}
                             onDeleteSuccess={() => {
@@ -422,10 +449,20 @@ export function CashClosurePage() {
                                 />
                             </div>
                         )}
-                    </div>
-                </TabsContent>
+                    </>
+                </div>
+            )}
 
-            </Tabs>
-        </div >
+            <CashClosureConfirmModal
+                open={showConfirmModal}
+                onOpenChange={setShowConfirmModal}
+                previewData={previewData}
+                actualAmount={actualAmount}
+                expectedAmount={expected}
+                difference={difference}
+                onConfirm={handleConfirmClosure}
+                isLoading={createClosure.isPending}
+            />
+        </div>
     )
 }

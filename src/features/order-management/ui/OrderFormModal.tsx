@@ -24,10 +24,11 @@ import { useClientList } from "@/features/clients/api/hooks"
 import { useBrandList } from "@/features/brands/api/hooks"
 import { getActiveBrands } from "@/entities/brand/model/model"
 import { useNotifications } from "@/shared/lib/notifications"
-import { pdf } from "@react-pdf/renderer"
-import { OrderReceiptDocument } from "@/features/order-receipt/ui/OrderReceiptDocument"
+import { prepareOrderReceiptForPreview } from "@/features/order-receipt/lib/prepareOrderReceiptForPreview"
 import { useClientCredits } from "@/features/transactions/model/hooks"
 import { useAuth } from "@/shared/auth"
+import { usePDFPreview } from "@/shared/hooks/usePDFPreview"
+import { PDFPreviewModal } from "@/shared/ui/PDFPreviewModal"
 
 interface OrderFormModalProps {
     order?: Order | null
@@ -187,6 +188,20 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isLoadingReceiptNumber, setIsLoadingReceiptNumber] = useState(false)
 
+    // PDF Preview state
+    const [pdfTitle, setPdfTitle] = useState('')
+    const [pdfFileName, setPdfFileName] = useState('')
+    const pdfPreview = usePDFPreview({
+        fileName: pdfFileName,
+        onDownloadComplete: () => {
+            notifySuccess('PDF descargado correctamente')
+        },
+        onError: (error) => {
+            notifyError({ message: 'Error al procesar el PDF' })
+            console.error('PDF Error:', error)
+        }
+    })
+
     const isEditing = !!order
 
     // Generate receipt number when opening form for new order
@@ -327,39 +342,40 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
 
                     const createdOrders = await batchCreate.mutateAsync(payload);
 
-                    // 3. Generate PDF with the FINAL order state (including payments)
+                    // 3. Generate PDF Preview with the FINAL order state (including payments)
                     try {
-                        const blob = await pdf(
-                            <OrderReceiptDocument
-                                order={createdOrders[0]}
-                                childOrders={createdOrders.slice(1)}
-                                client={client as any}
-                                user={{
-                                    id: user?.id || '1',
-                                    name: user?.username || 'Vendedor',
-                                    role: 'OPERATOR',
-                                    email: '',
-                                    status: 'ACTIVE',
-                                    createdAt: new Date().toISOString()
-                                } as any}
-                            />
-                        ).toBlob()
-
-                        const url = URL.createObjectURL(blob)
-                        const link = document.createElement('a')
-                        link.href = url
-                        link.download = `Recibo_${createdOrders[0].receiptNumber}.pdf`
-                        document.body.appendChild(link)
-                        link.click()
-                        document.body.removeChild(link)
-                        URL.revokeObjectURL(url)
+                        const { document, fileName, title } = await prepareOrderReceiptForPreview(
+                            createdOrders[0],
+                            {
+                                id: user?.id || '1',
+                                name: user?.username || 'Vendedor',
+                                role: 'OPERATOR',
+                                email: '',
+                                status: 'ACTIVE',
+                                createdAt: new Date().toISOString()
+                            } as any
+                        )
+                        
+                        setPdfTitle(title)
+                        setPdfFileName(fileName)
+                        pdfPreview.openPreview(document)
+                        
+                        // NO cerrar el modal del formulario inmediatamente
+                        // Dejar que el usuario vea el PDF primero
                     } catch (pdfError) {
                         console.error("Error generating PDF", pdfError)
                         notifyError(pdfError, "Error al generar PDF.");
+                        // Si falla el PDF, cerrar el modal de todos modos
+                        onOpenChange(false)
+                        formik.resetForm()
                     }
                 }
-                onOpenChange(false)
-                formik.resetForm()
+                
+                // Si es edición, cerrar normalmente
+                if (isEditing) {
+                    onOpenChange(false)
+                    formik.resetForm()
+                }
             } catch (error: any) {
                 console.error("Error saving order", error)
                 notifyError(error, "Error al guardar el pedido.");
@@ -392,6 +408,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
     const brandOptions = getActiveBrands(brands).map(b => ({ id: b.id, label: b.name, subLabel: "" }))
 
     return (
+        <>
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto w-[95vw] max-w-[95vw] sm:w-full">
                 <DialogHeader>
@@ -706,5 +723,26 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                 </form>
             </DialogContent>
         </Dialog>
+
+        {/* PDF Preview Modal */}
+        {pdfPreview.pdfDocument && (
+            <PDFPreviewModal
+                open={pdfPreview.isOpen}
+                onOpenChange={(open) => {
+                    pdfPreview.closePreview()
+                    // Cuando se cierra el modal del PDF después de crear un pedido, cerrar también el formulario
+                    if (!open && !isEditing) {
+                        onOpenChange(false)
+                        formik.resetForm()
+                    }
+                }}
+                title={pdfTitle}
+                pdfDocument={pdfPreview.pdfDocument}
+                fileName={pdfFileName}
+                onDownload={pdfPreview.downloadPDF}
+                onPrint={pdfPreview.printPDF}
+            />
+        )}
+        </>
     )
 }

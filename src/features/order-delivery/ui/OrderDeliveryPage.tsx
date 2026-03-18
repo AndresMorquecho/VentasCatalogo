@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom"
 import { useOrderDeliveryList } from "../model/useOrderDelivery"
 import type { DeliveryFilters } from "../model/useOrderDelivery"
 import { OrderDeliveryTable } from "./OrderDeliveryTable"
-import { DeliverOrderModal } from "./DeliverOrderModal"
+import { DeliverOrderModalNew } from "./DeliverOrderModalNew"
 import type { Order } from "@/entities/order/model/types"
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
@@ -41,7 +41,7 @@ function SearchableClientSelect({
     return (
         <div className="relative" ref={wrapperRef}>
             <div 
-                className="flex h-10 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm items-center justify-between cursor-pointer hover:border-emerald-500/50 transition-colors"
+                className="flex h-10 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm items-center justify-between cursor-pointer hover:border-monchito-purple/50 transition-colors"
                 onClick={() => setIsOpen(!isOpen)}
             >
                 <span className={selectedClient ? "text-slate-900 font-bold" : "text-slate-400 font-medium"}>
@@ -66,7 +66,7 @@ function SearchableClientSelect({
                     </div>
                     <div className="max-h-[250px] overflow-auto p-1 py-1.5">
                         <div 
-                            className="px-3 py-2 text-sm font-bold text-emerald-600 hover:bg-emerald-50 rounded-lg cursor-pointer flex items-center gap-2"
+                            className="px-3 py-2 text-sm font-bold text-monchito-purple hover:bg-monchito-purple/5 rounded-lg cursor-pointer flex items-center gap-2"
                             onClick={() => { onSelect(""); setIsOpen(false); }}
                         >
                             Todas las empresarias
@@ -77,7 +77,7 @@ function SearchableClientSelect({
                             clients.map((c) => (
                                 <div 
                                     key={c.id}
-                                    className={`px-3 py-2.5 text-sm hover:bg-slate-50 transition-colors cursor-pointer rounded-lg flex flex-col ${c.id === value ? "bg-emerald-50 text-emerald-900" : "text-slate-700"}`}
+                                    className={`px-3 py-2.5 text-sm hover:bg-slate-50 transition-colors cursor-pointer rounded-lg flex flex-col ${c.id === value ? "bg-monchito-purple/5 text-monchito-purple" : "text-slate-700"}`}
                                     onClick={() => {
                                         onSelect(c.id)
                                         setIsOpen(false)
@@ -86,7 +86,7 @@ function SearchableClientSelect({
                                     <span className="font-bold">{c.firstName}</span>
                                     <span className="text-[10px] text-slate-400 flex justify-between">
                                         <span>ID: {c.identificationNumber}</span>
-                                        <span className="text-emerald-500 font-black">{c.city}</span>
+                                        <span className="text-monchito-purple font-black">{c.city}</span>
                                     </span>
                                 </div>
                             ))
@@ -133,7 +133,7 @@ function SearchableBrandSelect({
         <div className="relative" ref={wrapperRef}>
             <div 
                 onClick={() => setIsOpen(!isOpen)}
-                className="bg-white border-slate-200 h-10 px-4 flex items-center justify-between cursor-pointer text-sm font-bold rounded-xl border focus:ring-2 focus:ring-emerald-500/20 shadow-sm transition-all"
+                className="bg-white border-slate-200 h-10 px-4 flex items-center justify-between cursor-pointer text-sm font-bold rounded-xl border focus:ring-2 focus:ring-monchito-purple/20 shadow-sm transition-all"
             >
                 <span className={selectedBrand ? "text-slate-900" : "text-slate-400"}>
                     {selectedBrand ? selectedBrand.name : "Todas las marcas"}
@@ -166,7 +166,7 @@ function SearchableBrandSelect({
                             <div 
                                 key={brand.id}
                                 onClick={() => { onSelect(brand.id); setIsOpen(false); setSearch(""); }}
-                                className={`px-4 py-2 text-xs font-bold hover:bg-emerald-50 hover:text-emerald-700 cursor-pointer transition-colors ${value === brand.id ? 'bg-emerald-50 text-emerald-700' : 'text-slate-600'}`}
+                                className={`px-4 py-2 text-xs font-bold hover:bg-monchito-purple/5 hover:text-monchito-purple cursor-pointer transition-colors ${value === brand.id ? 'bg-monchito-purple/5 text-monchito-purple' : 'text-slate-600'}`}
                             >
                                 {brand.name}
                             </div>
@@ -287,14 +287,14 @@ export function OrderDeliveryPage() {
                                 type="date"
                                 value={startDate}
                                 onChange={(e) => setStartDate(e.target.value)}
-                                className="bg-white border-slate-200 h-10 text-xs font-bold rounded-xl focus:ring-emerald-500/20 shadow-sm transition-all flex-1"
+                                className="bg-white border-slate-200 h-10 text-xs font-bold rounded-xl focus:ring-monchito-purple/20 shadow-sm transition-all flex-1"
                             />
                             <span className="text-slate-400 text-[10px] font-black uppercase tracking-tighter shrink-0">al</span>
                             <Input
                                 type="date"
                                 value={endDate}
                                 onChange={(e) => setEndDate(e.target.value)}
-                                className="bg-white border-slate-200 h-10 text-xs font-bold rounded-xl focus:ring-emerald-500/20 shadow-sm transition-all flex-1"
+                                className="bg-white border-slate-200 h-10 text-xs font-bold rounded-xl focus:ring-monchito-purple/20 shadow-sm transition-all flex-1"
                             />
                         </div>
                     </div>
@@ -313,7 +313,7 @@ export function OrderDeliveryPage() {
                     <div className="lg:col-span-2 flex items-end">
                         <Button 
                             variant="ghost" 
-                            className={`h-10 w-full rounded-xl border ${showFilters ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'border-slate-100 text-slate-500'}`}
+                            className={`h-10 w-full rounded-xl border ${showFilters ? 'bg-monchito-purple/5 border-monchito-purple/20 text-monchito-purple' : 'border-slate-100 text-slate-500'}`}
                             onClick={() => setShowFilters(!showFilters)}
                         >
                             <Filter className="h-4 w-4 mr-2" />
@@ -349,77 +349,82 @@ export function OrderDeliveryPage() {
                 </div>
             </div>
 
-            {/* Batch Info Bar - Integrated into the flow */}
-            {selectedOrderIds.length > 0 && (
-                <div className="bg-slate-900 px-6 py-4 rounded-3xl shadow-2xl flex items-center justify-between border border-slate-800 animate-in fade-in zoom-in-95 duration-300">
-                    <div className="flex items-center gap-4">
-                        <div className="bg-emerald-500/10 p-2.5 rounded-2xl">
-                            <Truck className="h-5 w-5 text-emerald-500" />
-                        </div>
-                        <div>
-                            <p className="text-white font-black text-sm uppercase tracking-widest leading-none mb-1">{selectedOrderIds.length} pedidos para entrega</p>
-                            <p className="text-slate-400 text-xs font-bold truncate max-w-[300px]">{selectedOrders[0]?.clientName}</p>
-                        </div>
+            {/* Batch Info Bar - Always visible, disabled when empty */}
+            <div className={`bg-white border border-slate-200 px-6 py-4 rounded-2xl shadow-sm flex items-center justify-between transition-all ${selectedOrderIds.length === 0 ? 'opacity-50' : ''}`}>
+                <div className="flex items-center gap-4">
+                    <div className="bg-monchito-purple/10 p-2.5 rounded-xl">
+                        <Truck className="h-5 w-5 text-monchito-purple" />
                     </div>
-                    <div className="flex items-center gap-4">
-                        <button 
-                            className="text-slate-500 hover:text-white px-2 py-1 text-[10px] font-black uppercase tracking-widest transition-colors"
-                            onClick={() => setSelectedOrderIds([])}
-                        >
-                            Cancelar Selección
-                        </button>
-                        <Button 
-                            className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-8 rounded-2xl h-11 border-none shadow-lg shadow-emerald-900/40 uppercase tracking-widest text-[11px]"
-                            onClick={handleBatchDeliver}
-                        >
-                            Proceder con Entrega de Lote
-                        </Button>
+                    <div>
+                        <p className="text-slate-900 font-bold text-sm leading-none mb-1">
+                            {selectedOrderIds.length > 0 ? `${selectedOrderIds.length} pedidos para entrega` : 'Selecciona pedidos para entregar'}
+                        </p>
+                        {selectedOrders.length > 0 && (
+                            <p className="text-slate-500 text-xs font-medium truncate max-w-[300px]">{selectedOrders[0]?.clientName}</p>
+                        )}
                     </div>
                 </div>
-            )}
+                <div className="flex items-center gap-3">
+                    <Button 
+                        variant="outline"
+                        className="text-slate-500 hover:text-slate-700 border-slate-200 h-9 px-4 text-xs font-medium rounded-xl"
+                        onClick={() => setSelectedOrderIds([])}
+                        disabled={selectedOrderIds.length === 0}
+                    >
+                        Cancelar Selección
+                    </Button>
+                    <Button 
+                        className="bg-monchito-purple hover:bg-monchito-purple/90 text-white font-medium px-6 rounded-xl h-9 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={handleBatchDeliver}
+                        disabled={selectedOrderIds.length === 0}
+                    >
+                        Proceder con Entrega
+                    </Button>
+                </div>
+            </div>
 
 
             {/* Tags / Quick Selection */}
             <div className="flex items-center justify-between px-1">
-                <div className="flex flex-wrap gap-3 text-[10px] font-black uppercase tracking-widest">
+                <div className="flex flex-wrap gap-2 text-xs font-medium">
                     <button
                         onClick={() => setDateCategoryFilter('ALL')}
-                        className={`px-4 py-2 rounded-xl border transition-all ${dateCategoryFilter === 'ALL' ? 'bg-slate-900 border-slate-900 text-white shadow-lg' : 'bg-white border-slate-200 text-slate-400 hover:border-emerald-500 hover:text-emerald-500'}`}
+                        className={`px-4 py-2 rounded-xl border transition-all ${dateCategoryFilter === 'ALL' ? 'bg-monchito-purple border-monchito-purple text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-monchito-purple/30 hover:text-monchito-purple'}`}
                     >
                         Todos
                     </button>
                     <button
                         onClick={() => setDateCategoryFilter('RECENT')}
-                        className={`px-4 py-2 rounded-xl border transition-all flex items-center gap-2 ${dateCategoryFilter === 'RECENT' ? 'bg-emerald-100 border-emerald-300 text-emerald-800' : 'bg-white border-slate-200 text-slate-400 hover:bg-emerald-50'}`}
+                        className={`px-4 py-2 rounded-xl border transition-all flex items-center gap-2 ${dateCategoryFilter === 'RECENT' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-emerald-50/50'}`}
                     >
-                        <div className="w-2 h-2 bg-emerald-400 rounded-full shadow-sm shadow-emerald-200" />
+                        <div className="w-2 h-2 bg-emerald-500 rounded-full" />
                         Reciente
                     </button>
                     <button
                         onClick={() => setDateCategoryFilter('WARN')}
-                        className={`px-4 py-2 rounded-xl border transition-all flex items-center gap-2 ${dateCategoryFilter === 'WARN' ? 'bg-amber-100 border-amber-300 text-amber-800' : 'bg-white border-slate-200 text-slate-400 hover:bg-amber-50'}`}
+                        className={`px-4 py-2 rounded-xl border transition-all flex items-center gap-2 ${dateCategoryFilter === 'WARN' ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-amber-50/50'}`}
                     >
-                        <div className="w-2 h-2 bg-amber-400 rounded-full shadow-sm shadow-amber-200" />
+                        <div className="w-2 h-2 bg-amber-500 rounded-full" />
                         5+ Días
                     </button>
                     <button
                         onClick={() => setDateCategoryFilter('CRITICAL')}
-                        className={`px-4 py-2 rounded-xl border transition-all flex items-center gap-2 ${dateCategoryFilter === 'CRITICAL' ? 'bg-red-100 border-red-300 text-red-800' : 'bg-white border-slate-200 text-slate-400 hover:bg-red-50'}`}
+                        className={`px-4 py-2 rounded-xl border transition-all flex items-center gap-2 ${dateCategoryFilter === 'CRITICAL' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-red-50/50'}`}
                     >
-                        <div className="w-2 h-2 bg-red-400 rounded-full shadow-sm shadow-red-200" />
+                        <div className="w-2 h-2 bg-red-500 rounded-full" />
                         Crítico (+15)
                     </button>
                 </div>
 
-                <div className="text-xs font-bold text-slate-400">
-                    Mostrando <span className="text-slate-900 font-black">{displayedOrders.length}</span> entregas pendientes
+                <div className="text-xs font-medium text-slate-500">
+                    Mostrando <span className="text-monchito-purple font-bold">{displayedOrders.length}</span> entregas pendientes
                 </div>
             </div>
 
             <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden min-h-[400px]">
                 {isLoading ? (
                     <div className="p-20 flex flex-col items-center justify-center gap-4 text-slate-400">
-                        <div className="h-10 w-10 border-4 border-slate-100 border-t-emerald-500 rounded-full animate-spin" />
+                        <div className="h-10 w-10 border-4 border-slate-100 border-t-monchito-purple rounded-full animate-spin" />
                         <span className="font-bold text-sm">Cargando lista de entregas...</span>
                     </div>
                 ) : (
@@ -431,7 +436,7 @@ export function OrderDeliveryPage() {
                 )}
             </div>
 
-            <DeliverOrderModal
+            <DeliverOrderModalNew
                 order={isBatchMode ? null : selectedOrder}
                 orders={isBatchMode ? selectedOrders : []}
                 open={isDeliverModalOpen}

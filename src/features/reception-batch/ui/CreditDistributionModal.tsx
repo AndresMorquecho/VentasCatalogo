@@ -2,7 +2,6 @@ import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/ui/dialog"
 import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
-import { Label } from "@/shared/ui/label"
 import { Checkbox } from "@/shared/ui/checkbox"
 import { Receipt, ArrowRight } from "lucide-react"
 import type { CreditDistribution, CreditDistributionItem } from "@/entities/financial-record/model/types"
@@ -126,32 +125,31 @@ export function CreditDistributionModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
-        <DialogHeader className="shrink-0">
+      <DialogContent className="max-w-5xl h-[85vh] flex flex-col">
+        <DialogHeader className="shrink-0 pb-2">
           <DialogTitle className="flex items-center gap-2 text-monchito-purple">
             <Receipt className="h-5 w-5" />
             Distribuir Saldo: ${creditAmount.toFixed(2)}
           </DialogTitle>
-          <p className="text-sm text-slate-600">
-            Recibo: <span className="font-mono font-bold">#{sourceOrder.receiptNumber}</span> | 
-            Pedido: <span className="font-mono font-bold">#{sourceOrder.orderNumber}</span> | 
-            Tipo: <span className="font-medium">{sourceOrder.orderType}</span>
-            <br />
-            Cliente: <span className="font-medium">{sourceOrder.clientName}</span>
-          </p>
+          <div className="space-y-1">
+            <p className="text-sm text-slate-600">
+              Recibo: <span className="font-mono font-bold">#{sourceOrder.receiptNumber}</span> | 
+              Pedido: <span className="font-mono font-bold">#{sourceOrder.orderNumber}</span> | 
+              Tipo: <span className="font-medium">{sourceOrder.orderType}</span> | 
+              Cliente: <span className="font-medium">{sourceOrder.clientName}</span>
+            </p>
+            <p className="text-xs font-semibold text-monchito-purple">
+              Selecciona pedidos y montos a aplicar
+            </p>
+          </div>
         </DialogHeader>
 
         {/* Distribution Section */}
-        <div className="flex-1 min-h-0 space-y-4">
-          <div>
-            <Label className="text-sm font-bold text-monchito-purple">
-              Selecciona pedidos y montos a aplicar
-            </Label>
-          </div>
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
 
           {availableOrders.length > 0 ? (
-            <div className="border rounded-lg border-slate-200 overflow-hidden">
-              <div className="h-48 overflow-y-auto">
+            <div className="border rounded-lg border-slate-200 overflow-hidden flex-1 min-h-0">
+              <div className="h-full overflow-y-auto">
                 <div className="space-y-2 p-2">
                   {availableOrders.map(order => {
                     const distribution = distributions.find(d => d.targetOrderId === order.id)
@@ -217,32 +215,36 @@ export function CreditDistributionModal({
               </div>
             </div>
           ) : (
-            <div className="flex items-center justify-center border-2 border-dashed border-slate-200 rounded-2xl h-32">
+            <div className="flex items-center justify-center border-2 border-dashed border-slate-200 rounded-lg h-32 shrink-0">
               <div className="text-center text-slate-400">
                 <Receipt className="h-8 w-8 mx-auto mb-2 opacity-50" />
                 <p className="text-sm">No hay otros pedidos del mismo cliente</p>
               </div>
             </div>
           )}
+        </div>
 
-          {/* Summary when there are distributions */}
+        {/* Summary and Actions - Always visible at bottom */}
+        <div className="shrink-0 space-y-3 pt-3 border-t">
           {totalDistributed > 0 && (
-            <div className="shrink-0 border rounded-lg p-3 space-y-3">
-              <div className="flex justify-between text-sm">
-                <span>Distribuido a pedidos:</span>
-                <span className="font-mono font-bold">${totalDistributed.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span>Saldo restante:</span>
-                <span className="font-mono font-bold text-monchito-purple">${remaining.toFixed(2)}</span>
+            <div className="border rounded-lg p-3 space-y-2 bg-slate-50">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Distribuido a pedidos:</span>
+                  <span className="font-mono font-bold">${totalDistributed.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Saldo restante:</span>
+                  <span className="font-mono font-bold text-monchito-purple">${remaining.toFixed(2)}</span>
+                </div>
               </div>
               
               {remaining > 0.01 && (
-                <div className="pt-2 border-t space-y-2">
+                <div className="pt-2 border-t">
                   <p className="text-sm text-slate-600 mb-2">
                     ¿Qué hacer con el restante ${remaining.toFixed(2)}?
                   </p>
-                  <div className="space-y-2">
+                  <div className="flex gap-4">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="radio"
@@ -268,23 +270,24 @@ export function CreditDistributionModal({
                   </div>
                 </div>
               )}
+            </div>
+          )}
 
+          {/* Action Buttons */}
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={onClose} className="flex-1">
+              Cancelar
+            </Button>
+            {totalDistributed > 0 && (
               <Button
                 onClick={handleConfirm}
-                className="w-full bg-monchito-purple hover:bg-monchito-purple/90"
+                className="flex-1 bg-monchito-purple hover:bg-monchito-purple/90"
               >
                 <ArrowRight className="h-4 w-4 mr-2" />
                 Aplicar Distribución
               </Button>
-            </div>
-          )}
-        </div>
-
-        {/* Cancel Action */}
-        <div className="shrink-0">
-          <Button variant="outline" onClick={onClose} className="w-full">
-            Cancelar
-          </Button>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
