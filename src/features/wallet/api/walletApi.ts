@@ -48,5 +48,30 @@ export const walletApi = {
     rejectRecharge: async (id: string, reason: string) => {
         // Match backend route: /recharge/:id/reject
         return httpClient.post(`/wallet/recharge/${id}/reject`, { reason });
+    },
+
+    getClientWalletHistory: async (clientId: string): Promise<WalletHistoryResponse> => {
+        // Match backend route: /client/:clientId/history
+        return httpClient.get(`/wallet/client/${clientId}/history`);
     }
 };
+
+export interface WalletHistoryItem {
+    id: string;
+    type: string;
+    movementType: string;
+    amount: number;
+    date: string;
+    createdBy: string;
+    notes: string | null;
+    orderId: string | null;
+    orderReceiptNumber: string | null;
+    orderNumber: string | null;
+    brandName: string | null;
+    balance: number;
+}
+
+export interface WalletHistoryResponse {
+    history: WalletHistoryItem[];
+    currentBalance: number;
+}

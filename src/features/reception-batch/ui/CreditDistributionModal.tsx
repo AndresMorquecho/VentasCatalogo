@@ -150,69 +150,65 @@ export function CreditDistributionModal({
           </div>
 
           {availableOrders.length > 0 ? (
-            <div className="border rounded-2xl border-slate-200 overflow-hidden">
+            <div className="border rounded-lg border-slate-200 overflow-hidden">
               <div className="h-48 overflow-y-auto">
-                <div className="space-y-1 p-2">
+                <div className="space-y-2 p-2">
                   {availableOrders.map(order => {
                     const distribution = distributions.find(d => d.targetOrderId === order.id)
                     const isSelected = !!distribution
                     const newBalance = (order.pendingAmount || 0) - (distribution?.amount || 0)
                     
                     return (
-                      <div key={order.id} className={`border rounded-lg transition-all ${
+                      <div key={order.id} className={`border rounded-lg transition-colors ${
                         isSelected ? 'bg-monchito-purple/5 border-monchito-purple/20' : 'bg-white border-slate-200'
                       }`}>
-                        <div className="p-2">
-                          <div className="flex items-center gap-2">
+                        <div className="px-3 py-2">
+                          <div className="flex items-center gap-3">
                             <Checkbox
                               checked={isSelected}
                               onCheckedChange={(checked) => handleOrderToggle(order.id, !!checked)}
                             />
-                            <div className="flex-1 grid grid-cols-5 gap-2 items-center text-xs">
+                            <div className="flex-1 grid grid-cols-5 gap-3 items-center text-sm">
                               <div>
-                                <p className="font-mono font-bold text-monchito-purple">#{order.receiptNumber}</p>
-                                <p className="text-slate-500 text-[10px]">Pedido: #{order.orderNumber || 'N/A'}</p>
-                                <p className="text-slate-500 text-[10px]">{order.orderType || 'NORMAL'}</p>
-                                <p className="text-slate-500 text-[10px]">{order.brandName || 'Sin catálogo'}</p>
+                                <p className="font-mono font-semibold text-monchito-purple text-sm">#{order.receiptNumber}</p>
+                                <p className="text-slate-500 text-xs">Pedido: #{order.orderNumber || 'N/A'}</p>
+                                <p className="text-slate-500 text-xs">{order.orderType || 'NORMAL'}</p>
+                                <p className="text-slate-500 text-xs">{order.brandName || 'Sin catálogo'}</p>
                               </div>
                               <div className="text-center">
-                                <p className="text-slate-500 text-[10px]">Total</p>
-                                <p className="font-mono font-medium">${(order.totalAmount || 0).toFixed(2)}</p>
+                                <p className="text-slate-500 text-xs font-medium">Total</p>
+                                <p className="font-mono font-semibold text-sm">${(order.totalAmount || 0).toFixed(2)}</p>
                               </div>
                               <div className="text-center">
-                                <p className="text-slate-500 text-[10px]">Pendiente</p>
-                                <p className="font-mono font-medium text-amber-600">${order.pendingAmount.toFixed(2)}</p>
+                                <p className="text-slate-500 text-xs font-medium">Pendiente</p>
+                                <p className="font-mono font-semibold text-amber-600 text-sm">${order.pendingAmount.toFixed(2)}</p>
                               </div>
                               <div className="text-center">
-                                <p className="text-slate-500 text-[10px]">Nuevo saldo</p>
-                                <p className={`font-mono font-medium ${newBalance <= 0.01 ? 'text-green-600' : 'text-amber-600'}`}>
+                                <p className="text-slate-500 text-xs font-medium">Nuevo saldo</p>
+                                <p className={`font-mono font-semibold text-sm ${newBalance <= 0.01 ? 'text-emerald-600' : 'text-amber-600'}`}>
                                   ${newBalance.toFixed(2)}
                                 </p>
                               </div>
-                              {isSelected && (
-                                <div className="flex items-center gap-1">
-                                  <span className="text-slate-600">$</span>
-                                  <Input
-                                    type="number"
-                                    value={distribution.amount}
-                                    onChange={(e) => handleAmountChange(order.id, Number(e.target.value))}
-                                    className="h-6 text-xs border-monchito-purple/20 focus:ring-monchito-purple/20 px-1"
-                                    min={0}
-                                    max={Math.min(order.pendingAmount, remaining + distribution.amount)}
-                                    step={0.01}
-                                  />
-                                </div>
-                              )}
+                              <div className="flex items-center gap-1 justify-end">
+                                {isSelected ? (
+                                  <>
+                                    <span className="text-slate-600 text-sm font-medium">$</span>
+                                    <Input
+                                      type="number"
+                                      value={distribution.amount}
+                                      onChange={(e) => handleAmountChange(order.id, Number(e.target.value))}
+                                      className="h-8 text-sm border-monchito-purple/20 focus:ring-monchito-purple/20 px-2 w-24"
+                                      min={0}
+                                      max={Math.min(order.pendingAmount, remaining + distribution.amount)}
+                                      step={0.01}
+                                    />
+                                  </>
+                                ) : (
+                                  <div className="h-8 w-24"></div>
+                                )}
+                              </div>
                             </div>
                           </div>
-                          
-                          {isSelected && (
-                            <div className="mt-1 text-center">
-                              <span className="text-[10px] text-slate-500">
-                                máx: ${Math.min(order.pendingAmount, remaining + distribution.amount).toFixed(2)}
-                              </span>
-                            </div>
-                          )}
                         </div>
                       </div>
                     )
