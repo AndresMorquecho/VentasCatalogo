@@ -1,9 +1,10 @@
 import type { CallReason, CallResult } from './types';
 
-export const CALL_REASONS: CallReason[] = ['COBRO', 'SEGUIMIENTO_PEDIDO', 'VENTA', 'RECORDATORIO', 'OTRO'];
+export const CALL_REASONS: CallReason[] = ['REACTIVACION', 'COBRO', 'SEGUIMIENTO_PEDIDO', 'VENTA', 'RECORDATORIO', 'OTRO'];
 export const CALL_RESULTS: CallResult[] = ['CONTESTA', 'NO_CONTESTA', 'OCUPADO', 'EQUIVOCADO', 'PAGO_PROMETIDO', 'INTERESADO', 'NO_INTERESADO'];
 
 export const callReasonsMap: Record<CallReason, string> = {
+    REACTIVACION: 'Reactivación',
     COBRO: 'Cobro de saldo',
     SEGUIMIENTO_PEDIDO: 'Seguimiento de pedido',
     VENTA: 'Venta / Catálogo',

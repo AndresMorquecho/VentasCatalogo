@@ -12,6 +12,9 @@ export const clientApi = {
         city?: string;
         startDate?: string;
         endDate?: string;
+        excludeCalledToday?: boolean;
+        callReason?: string;
+        withPendingPayments?: boolean;
     }): Promise<PaginatedResponse<Client>> => {
         const queryParams = new URLSearchParams();
         if (params?.page) queryParams.append('page', params.page.toString());
@@ -22,6 +25,9 @@ export const clientApi = {
         if (params?.city) queryParams.append('city', params.city);
         if (params?.startDate) queryParams.append('startDate', params.startDate);
         if (params?.endDate) queryParams.append('endDate', params.endDate);
+        if (params?.excludeCalledToday) queryParams.append('excludeCalledToday', 'true');
+        if (params?.callReason) queryParams.append('callReason', params.callReason);
+        if (params?.withPendingPayments) queryParams.append('withPendingPayments', 'true');
 
         return httpClient.get<PaginatedResponse<Client>>(`/clients?${queryParams.toString()}`);
     },
@@ -46,3 +52,4 @@ export const clientApi = {
         await httpClient.delete<void>(`/clients/${id}`);
     },
 };
+

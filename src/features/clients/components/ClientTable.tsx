@@ -85,15 +85,18 @@ export function ClientTable({ clients, isLoading, onEdit, onView, onDelete }: Cl
                     <TableBody>
                         {clients.map((client) => {
                             const lastOrder = client.lastOrderDate ? new Date(client.lastOrderDate) : null;
-                            // Active if ordered in the last 30 days
-                            const isInactive = !lastOrder || differenceInDays(new Date(), lastOrder) > 30;
+                            // NEW: never ordered | ACTIVE: ordered in last 30 days | INACTIVE: ordered > 30 days ago
+                            const isNew = !lastOrder;
+                            const isActive = !isNew && differenceInDays(new Date(), lastOrder!) <= 30;
+                            const isInactive = !isNew && !isActive;
 
                             return (
                                 <TableRow
                                     key={client.id}
                                     className={cn(
                                         "border-b border-slate-50 hover:bg-monchito-purple/5 transition-all duration-200",
-                                        isInactive && "bg-red-50/30 hover:bg-red-50/50"
+                                        isInactive && "bg-red-50/30 hover:bg-red-50/50",
+                                        isNew && "bg-blue-50/20 hover:bg-blue-50/40"
                                     )}
                                 >
                                     <TableCell className="py-4">
@@ -118,13 +121,17 @@ export function ClientTable({ clients, isLoading, onEdit, onView, onDelete }: Cl
                                             <Badge variant="destructive" className="text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg">
                                                 Bloqueada
                                             </Badge>
+                                        ) : isNew ? (
+                                            <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200 text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg">
+                                                Nueva
+                                            </Badge>
                                         ) : isInactive ? (
                                             <Badge variant="outline" className="bg-slate-50 text-slate-500 border-slate-200 text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg">
-                                                Inactivo
+                                                Inactiva
                                             </Badge>
                                         ) : (
                                             <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200 text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg">
-                                                Activo
+                                                Activa
                                             </Badge>
                                         )}
                                     </TableCell>

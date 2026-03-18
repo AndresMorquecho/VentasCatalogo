@@ -5,6 +5,7 @@ import type { CallPayload } from './types';
 const KEYS = {
     all: ['calls'] as const,
     list: (params?: CallQueryParams) => [...KEYS.all, 'list', params] as const,
+    grouped: (params?: CallQueryParams) => [...KEYS.all, 'grouped', params] as const,
     detail: (id: string) => [...KEYS.all, 'detail', id] as const
 };
 
@@ -12,6 +13,14 @@ export function useCalls(params?: CallQueryParams) {
     return useQuery({
         queryKey: KEYS.list(params),
         queryFn: () => callApi.getAll(params),
+        placeholderData: (prev) => prev
+    });
+}
+
+export function useGroupedCalls(params?: CallQueryParams) {
+    return useQuery({
+        queryKey: KEYS.grouped(params),
+        queryFn: () => callApi.getGrouped(params),
         placeholderData: (prev) => prev
     });
 }

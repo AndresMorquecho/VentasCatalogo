@@ -1,5 +1,15 @@
 export type IdentificationType = 'CEDULA' | 'CEDULA_EXTRANJERA' | 'RUC';
 
+export interface ClientDebt {
+    orderId: string;
+    receiptNumber: string;
+    brandName: string;
+    total: number;
+    paid: number;
+    pending: number;
+    transactionDate: string;
+}
+
 export interface Client {
     id: string;
     identificationType: IdentificationType;
@@ -36,6 +46,10 @@ export interface Client {
         rewardLevel: string;
         totalCreditAvailable: number;
     };
+
+    // Debt information (only when withPendingPayments=true)
+    totalDebt?: number;
+    debts?: ClientDebt[];
 }
 
 export interface ClientPayload {

@@ -1,4 +1,4 @@
-export type CallReason = 'COBRO' | 'SEGUIMIENTO_PEDIDO' | 'VENTA' | 'RECORDATORIO' | 'OTRO';
+export type CallReason = 'REACTIVACION' | 'COBRANZA' | 'SEGUIMIENTO_PEDIDO' | 'VENTA' | 'RECORDATORIO' | 'OTRO';
 export type CallResult = 'CONTESTA' | 'NO_CONTESTA' | 'OCUPADO' | 'EQUIVOCADO' | 'PAGO_PROMETIDO' | 'INTERESADO' | 'NO_INTERESADO';
 
 export interface Call {

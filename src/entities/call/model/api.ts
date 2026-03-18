@@ -12,6 +12,14 @@ export interface CallQueryParams {
     limit?: number;
 }
 
+export interface CallGroup {
+    date: string;
+    reason: string;
+    createdBy: string;
+    callCount: number;
+    calls: Call[];
+}
+
 export const callApi = {
     getAll: async (params?: CallQueryParams): Promise<PaginatedResponse<Call>> => {
         const queryParams = new URLSearchParams();
@@ -22,6 +30,17 @@ export const callApi = {
         }
         const url = `/calls${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
         return httpClient.get<PaginatedResponse<Call>>(url);
+    },
+
+    getGrouped: async (params?: CallQueryParams): Promise<CallGroup[]> => {
+        const queryParams = new URLSearchParams();
+        if (params) {
+            Object.entries(params).forEach(([key, value]) => {
+                if (value !== undefined) queryParams.append(key, value.toString());
+            });
+        }
+        const url = `/calls/grouped${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+        return httpClient.get<CallGroup[]>(url);
     },
 
     getByClient: async (clientId: string): Promise<PaginatedResponse<Call>> => {
@@ -40,3 +59,4 @@ export const callApi = {
         return httpClient.delete<void>(`/calls/${id}`);
     }
 };
+

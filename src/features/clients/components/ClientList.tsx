@@ -201,6 +201,7 @@ export function ClientList({ triggerCreate, onTriggerHandled }: {
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="ALL">Cualquier Estado</SelectItem>
+                                <SelectItem value="NEW">Nuevas (Sin pedidos)</SelectItem>
                                 <SelectItem value="ACTIVE">Activas (Pedido {"<"} 30 días)</SelectItem>
                                 <SelectItem value="INACTIVE">Inactivas (Pedido {">"} 30 días)</SelectItem>
                             </SelectContent>
