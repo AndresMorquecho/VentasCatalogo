@@ -20,6 +20,7 @@ export type {
 // Hooks
 export { useBrandRecovery } from './hooks/useBrandRecovery';
 export { usePortfolioFilters } from './hooks/usePortfolioFilters';
+export { useRecoveryTrends } from './hooks/useRecoveryTrends';
 
 // API
 export { portfolioRecoveryApi } from './api/portfolioRecoveryApi';

@@ -7,7 +7,7 @@
  * Requirements: 5.7, 5.8, 5.9
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { RecoveryFilters, FilterState } from '@/features/portfolio-recovery/types';
 import { filterStateToRecoveryFilters } from '@/features/portfolio-recovery/types';
@@ -24,13 +24,16 @@ function parseFiltersFromURL(searchParams: URLSearchParams): FilterState {
   const dateTo = searchParams.get('dateTo');
   if (dateTo) filters.dateTo = dateTo;
 
-  const brandIds = searchParams.get('brandIds');
-  if (brandIds) filters.brandIds = brandIds.split(',');
+  // Use brand name in URL instead of IDs for cleaner URLs
+  const brand = searchParams.get('marca');
+  if (brand) {
+    filters.brandName = brand;
+  }
 
   const clientIds = searchParams.get('clientIds');
   if (clientIds) filters.clientIds = clientIds.split(',');
 
-  const recoveryStatus = searchParams.get('recoveryStatus');
+  const recoveryStatus = searchParams.get('estado');
   if (recoveryStatus) filters.recoveryStatus = recoveryStatus as any;
 
   const minDaysInWarehouse = searchParams.get('minDaysInWarehouse');
@@ -44,15 +47,26 @@ function parseFiltersFromURL(searchParams: URLSearchParams): FilterState {
 
 /**
  * Serialize filter state to URL search params
+ * Uses friendly names instead of IDs for cleaner URLs
  */
 function serializeFiltersToURL(filters: FilterState): URLSearchParams {
   const params = new URLSearchParams();
 
   if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
   if (filters.dateTo) params.set('dateTo', filters.dateTo);
-  if (filters.brandIds?.length) params.set('brandIds', filters.brandIds.join(','));
+  
+  // Use brand name in URL instead of IDs for cleaner, shareable URLs
+  if (filters.brandName) {
+    params.set('marca', filters.brandName);
+  }
+  
   if (filters.clientIds?.length) params.set('clientIds', filters.clientIds.join(','));
-  if (filters.recoveryStatus) params.set('recoveryStatus', filters.recoveryStatus);
+  
+  // Use Spanish parameter name for recovery status
+  if (filters.recoveryStatus && filters.recoveryStatus !== 'ALL') {
+    params.set('estado', filters.recoveryStatus);
+  }
+  
   if (filters.minDaysInWarehouse) params.set('minDaysInWarehouse', filters.minDaysInWarehouse);
   if (filters.minAmount) params.set('minAmount', filters.minAmount);
 
@@ -72,33 +86,21 @@ export function usePortfolioFilters() {
     parseFiltersFromURL(searchParams)
   );
 
-  // Debounce timer ref
-  const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(null);
-
-  // Sync filters to URL (debounced for text inputs)
-  useEffect(() => {
-    if (debounceTimer) {
-      clearTimeout(debounceTimer);
-    }
-
-    const timer = setTimeout(() => {
-      const params = serializeFiltersToURL(filterState);
-      setSearchParams(params, { replace: true });
-    }, 300); // 300ms debounce
-
-    setDebounceTimer(timer);
-
-    return () => {
-      if (timer) clearTimeout(timer);
-    };
-  }, [filterState]);
-
   /**
-   * Update filters (immediate for non-text inputs)
+   * Update filters (debounced for text inputs)
    */
   const updateFilters = useCallback((updates: Partial<FilterState>) => {
     setFilterState(prev => ({ ...prev, ...updates }));
-  }, []);
+    
+    // Debounced URL sync
+    setTimeout(() => {
+      setFilterState(current => {
+        const params = serializeFiltersToURL(current);
+        setSearchParams(params, { replace: true });
+        return current;
+      });
+    }, 300);
+  }, [setSearchParams]);
 
   /**
    * Update filters with immediate URL sync (for dropdowns, dates, etc.)
@@ -123,7 +125,10 @@ export function usePortfolioFilters() {
   /**
    * Convert filter state to RecoveryFilters for API calls
    */
-  const filters: RecoveryFilters = filterStateToRecoveryFilters(filterState);
+  const filters: RecoveryFilters = useMemo(
+    () => filterStateToRecoveryFilters(filterState),
+    [filterState]
+  );
 
   return {
     filterState,

@@ -33,7 +33,7 @@ export function PortfolioRecoveryPage() {
       />
 
       {/* Main Content */}
-      <div className="p-6 space-y-6">
+      <div className="px-6 pt-4 pb-6 space-y-3">
         {/* Global Filters */}
         <GlobalFilters
           filterState={filterState}

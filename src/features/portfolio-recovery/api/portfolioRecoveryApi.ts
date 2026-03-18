@@ -41,11 +41,15 @@ function serializeFilters(filters: RecoveryFilters): URLSearchParams {
     params.append('brandIds', filters.brandIds.join(','));
   }
 
+  if (filters.brandName) {
+    params.append('brandName', filters.brandName);
+  }
+
   if (filters.clientIds && filters.clientIds.length > 0) {
     params.append('clientIds', filters.clientIds.join(','));
   }
 
-  if (filters.recoveryStatus) {
+  if (filters.recoveryStatus && filters.recoveryStatus !== 'ALL') {
     params.append('recoveryStatus', filters.recoveryStatus);
   }
 
@@ -190,5 +194,25 @@ export const portfolioRecoveryApi = {
     console.log('[PortfolioRecoveryApi] PATCH', endpoint, { status });
 
     await httpClient.patch(endpoint, { status });
+  },
+
+  /**
+   * Get list of brands with orders in warehouse (for filter dropdowns)
+   * 
+   * @returns Array of brands with id and name
+   */
+  getBrandsList: async (): Promise<Array<{ id: string; name: string }>> => {
+    const endpoint = '/portfolio/brands/list';
+
+    console.log('[PortfolioRecoveryApi] GET', endpoint);
+
+    const response = await httpClient.get<{ success: boolean; data: Array<{ id: string; name: string }> }>(endpoint);
+
+    // Handle response structure
+    if (response && typeof response === 'object' && 'data' in response) {
+      return response.data;
+    }
+
+    return response as unknown as Array<{ id: string; name: string }>;
   },
 };

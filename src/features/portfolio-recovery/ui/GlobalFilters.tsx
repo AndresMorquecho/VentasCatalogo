@@ -1,168 +1,173 @@
 /**
- * Portfolio Recovery Analysis - GlobalFilters Component
- * 
- * Global filters for portfolio recovery with URL sync and debouncing.
- * Includes date range, brand, client, status, days, and amount filters.
- * 
- * Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.8
+ * Filtros Globales Simplificados y Compactos
+ * Solo marca (con selector y búsqueda) y estado de recuperación
  */
 
-import { Card } from '@/shared/ui/card';
-import { Input } from '@/shared/ui/input';
-import { Label } from '@/shared/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
+import { useState, useMemo } from 'react';
+import { X, Search } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
-import { X, Filter } from 'lucide-react';
+import { Input } from '@/shared/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
+import { useBrandsList } from '../hooks/useBrandsList';
 import type { FilterState } from '@/features/portfolio-recovery/types';
 
 interface GlobalFiltersProps {
   filterState: FilterState;
-  onFiltersChange: (updates: Partial<FilterState>) => void;
-  onFiltersChangeImmediate: (updates: Partial<FilterState>) => void;
+  onFiltersChange: (filters: Partial<FilterState>) => void;
+  onFiltersChangeImmediate: (filters: Partial<FilterState>) => void;
   onClearFilters: () => void;
 }
 
-/**
- * Global filters component with debouncing for text inputs
- */
-export function GlobalFilters({ 
-  filterState, 
-  onFiltersChange, 
+// Helper para obtener el label del estado de recuperación
+const getRecoveryStatusLabel = (status?: string) => {
+  switch (status) {
+    case 'HEALTHY':
+      return '● Saludable (>50%)';
+    case 'WARNING':
+      return '● Advertencia (30-50%)';
+    case 'CRITICAL':
+      return '● Crítico (<30%)';
+    default:
+      return 'Todos los estados';
+  }
+};
+
+export function GlobalFilters({
+  filterState,
   onFiltersChangeImmediate,
-  onClearFilters 
+  onClearFilters,
 }: GlobalFiltersProps) {
-  const hasActiveFilters = Object.keys(filterState).length > 0;
+  const { data: brands } = useBrandsList();
+  const [brandSearch, setBrandSearch] = useState('');
+
+  // Encontrar la marca seleccionada por nombre
+  const selectedBrand = useMemo(() => {
+    if (!filterState.brandName || !brands) return null;
+    return brands.find(b => b.name === filterState.brandName);
+  }, [filterState.brandName, brands]);
+
+  // Obtener el nombre de la marca seleccionada
+  const selectedBrandName = selectedBrand?.name || 'Todas las marcas';
+
+  // Filtrar marcas según búsqueda
+  const filteredBrands = brands?.filter(brand => 
+    brand.name.toLowerCase().includes(brandSearch.toLowerCase())
+  ) || [];
+
+  // Verificar si hay filtros activos
+  const hasActiveFilters = 
+    (filterState.recoveryStatus && filterState.recoveryStatus !== 'ALL') ||
+    (filterState.brandName !== undefined);
 
   return (
-    <Card className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Filter className="h-5 w-5 text-monchito-purple" />
-          <h3 className="text-sm font-bold text-slate-900">Filtros Globales</h3>
+    <div className="bg-white rounded-lg border border-slate-200 p-3 shadow-sm">
+      <div className="flex items-center gap-4">
+        {/* Selector de Marca con Búsqueda */}
+        <div className="flex-1">
+          <Select
+            value={selectedBrand?.id || 'ALL'}
+            onValueChange={(value) => {
+              if (value === 'ALL') {
+                // Limpiar filtro de marca
+                onFiltersChangeImmediate({ brandIds: undefined, brandName: undefined });
+              } else {
+                // Encontrar la marca seleccionada y guardar su nombre
+                const brand = brands?.find(b => b.id === value);
+                if (brand) {
+                  onFiltersChangeImmediate({ 
+                    brandIds: [value], 
+                    brandName: brand.name, // Guardar nombre para URL limpia
+                    recoveryStatus: undefined // Limpiar estado cuando se selecciona marca
+                  });
+                }
+              }
+              setBrandSearch('');
+            }}
+          >
+            <SelectTrigger className="h-9 text-sm rounded-lg border-slate-200 focus:ring-2 focus:ring-monchito-purple/20">
+              <SelectValue placeholder="Todas las marcas">
+                {selectedBrandName}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <div className="sticky top-0 bg-white p-2 border-b border-slate-200 z-10">
+                <div className="relative">
+                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Input
+                    placeholder="Buscar marca..."
+                    value={brandSearch}
+                    onChange={(e) => setBrandSearch(e.target.value)}
+                    className="h-8 pl-8 text-sm"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
+              </div>
+              
+              <div className="max-h-[300px] overflow-y-auto">
+                <SelectItem value="ALL">Todas las marcas</SelectItem>
+                {filteredBrands.length > 0 ? (
+                  filteredBrands.map((brand) => (
+                    <SelectItem key={brand.id} value={brand.id}>
+                      {brand.name}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <div className="p-2 text-sm text-slate-500 text-center">
+                    No se encontraron marcas
+                  </div>
+                )}
+              </div>
+            </SelectContent>
+          </Select>
         </div>
+
+        {/* Estado de Recuperación */}
+        <div className="w-64">
+          <Select
+            value={filterState.recoveryStatus || 'ALL'}
+            onValueChange={(value) => {
+              if (value === 'ALL') {
+                // Limpiar solo recoveryStatus
+                onFiltersChangeImmediate({ recoveryStatus: undefined });
+              } else {
+                // Al seleccionar un estado, limpiar el filtro de marca
+                onFiltersChangeImmediate({ 
+                  recoveryStatus: value as any,
+                  brandIds: undefined, // Limpiar marca cuando se selecciona estado
+                  brandName: undefined
+                });
+              }
+            }}
+          >
+            <SelectTrigger className="h-9 text-sm rounded-lg border-slate-200 focus:ring-2 focus:ring-monchito-purple/20">
+              <SelectValue placeholder="Todos los estados">
+                {getRecoveryStatusLabel(filterState.recoveryStatus)}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Todos los estados</SelectItem>
+              <SelectItem value="HEALTHY">● Saludable (&gt;50%)</SelectItem>
+              <SelectItem value="WARNING">● Advertencia (30-50%)</SelectItem>
+              <SelectItem value="CRITICAL">● Crítico (&lt;30%)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Botón Limpiar */}
         {hasActiveFilters && (
           <Button
             variant="ghost"
             size="sm"
             onClick={onClearFilters}
-            className="h-8 px-3 text-xs font-semibold text-slate-500 hover:text-slate-700"
+            className="h-9 px-3 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100"
           >
             <X className="h-4 w-4 mr-1" />
             Limpiar
           </Button>
         )}
       </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        {/* Date From */}
-        <div className="space-y-2">
-          <Label htmlFor="dateFrom" className="text-xs font-semibold text-slate-700">
-            Fecha Desde
-          </Label>
-          <Input
-            id="dateFrom"
-            type="date"
-            value={filterState.dateFrom || ''}
-            onChange={(e) => onFiltersChangeImmediate({ dateFrom: e.target.value || undefined })}
-            className="h-11 rounded-xl text-sm"
-          />
-        </div>
-
-        {/* Date To */}
-        <div className="space-y-2">
-          <Label htmlFor="dateTo" className="text-xs font-semibold text-slate-700">
-            Fecha Hasta
-          </Label>
-          <Input
-            id="dateTo"
-            type="date"
-            value={filterState.dateTo || ''}
-            onChange={(e) => onFiltersChangeImmediate({ dateTo: e.target.value || undefined })}
-            className="h-11 rounded-xl text-sm"
-          />
-        </div>
-
-        {/* Recovery Status */}
-        <div className="space-y-2">
-          <Label htmlFor="recoveryStatus" className="text-xs font-semibold text-slate-700">
-            Estado de Recuperación
-          </Label>
-          <Select
-            value={filterState.recoveryStatus || 'ALL'}
-            onValueChange={(value) => onFiltersChangeImmediate({ 
-              recoveryStatus: value === 'ALL' ? undefined : value as any 
-            })}
-          >
-            <SelectTrigger className="h-11 rounded-xl">
-              <SelectValue placeholder="Todos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">Todos</SelectItem>
-              <SelectItem value="HEALTHY">Saludable (&gt;50%)</SelectItem>
-              <SelectItem value="WARNING">Advertencia (30-50%)</SelectItem>
-              <SelectItem value="CRITICAL">Crítico (&lt;30%)</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Min Days in Warehouse */}
-        <div className="space-y-2">
-          <Label htmlFor="minDaysInWarehouse" className="text-xs font-semibold text-slate-700">
-            Días Mínimos en Bodega
-          </Label>
-          <Input
-            id="minDaysInWarehouse"
-            type="number"
-            min="0"
-            placeholder="Ej: 30"
-            value={filterState.minDaysInWarehouse || ''}
-            onChange={(e) => onFiltersChange({ 
-              minDaysInWarehouse: e.target.value || undefined 
-            })}
-            className="h-11 rounded-xl text-sm"
-          />
-        </div>
-
-        {/* Min Amount */}
-        <div className="space-y-2">
-          <Label htmlFor="minAmount" className="text-xs font-semibold text-slate-700">
-            Monto Mínimo
-          </Label>
-          <Input
-            id="minAmount"
-            type="number"
-            min="0"
-            step="0.01"
-            placeholder="Ej: 1000"
-            value={filterState.minAmount || ''}
-            onChange={(e) => onFiltersChange({ 
-              minAmount: e.target.value || undefined 
-            })}
-            className="h-11 rounded-xl text-sm"
-          />
-        </div>
-
-        {/* Brand IDs - Simplified for MVP */}
-        <div className="space-y-2">
-          <Label htmlFor="brandIds" className="text-xs font-semibold text-slate-700">
-            IDs de Marcas (separados por coma)
-          </Label>
-          <Input
-            id="brandIds"
-            type="text"
-            placeholder="Ej: id1,id2,id3"
-            value={filterState.brandIds?.join(',') || ''}
-            onChange={(e) => onFiltersChange({ 
-              brandIds: e.target.value ? e.target.value.split(',').map(s => s.trim()) : undefined 
-            })}
-            className="h-11 rounded-xl text-sm"
-          />
-        </div>
-      </div>
-
-      <p className="text-xs text-slate-500 mt-3 italic">
-        * Los filtros de texto se aplican automáticamente después de 300ms de inactividad
-      </p>
-    </Card>
+    </div>
   );
 }
+
+

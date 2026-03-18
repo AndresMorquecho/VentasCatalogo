@@ -6,11 +6,15 @@
 
 import { useState, useMemo } from 'react';
 import { useBrandRecovery } from '../hooks/useBrandRecovery';
+import { useRecoveryTrends } from '../hooks/useRecoveryTrends';
 import { LoadingSpinner } from './LoadingSpinner';
 import { ErrorDisplay } from './ErrorDisplay';
 import { EmptyState } from './EmptyState';
+import { DonutChart } from './DonutChart';
+import { LineChart } from './LineChart';
+import { SpeedometerChart } from './SpeedometerChart';
 import { formatCurrency, formatPercentage } from '@/features/portfolio-recovery/types';
-import { TrendingUp, TrendingDown, DollarSign, Package, AlertCircle } from 'lucide-react';
+import { TrendingUp, TrendingDown, Package, AlertCircle } from 'lucide-react';
 import type { RecoveryFilters } from '@/features/portfolio-recovery/types';
 
 interface BrandAnalyticsTabProps {
@@ -22,11 +26,16 @@ interface BrandAnalyticsTabProps {
  */
 export function BrandAnalyticsTab({ filters }: BrandAnalyticsTabProps) {
   const [page] = useState(1);
-  const pageSize = 100; // Traer más datos para el dashboard
+  const pageSize = 100;
 
   const { data, isLoading, error, refetch } = useBrandRecovery(
     filters,
     { page, pageSize }
+  );
+
+  const { data: trendsData, isLoading: trendsLoading } = useRecoveryTrends(
+    filters,
+    'WEEK'
   );
 
   // Calcular métricas totales
@@ -39,7 +48,6 @@ export function BrandAnalyticsTab({ filters }: BrandAnalyticsTabProps) {
     const avgRecoveryRate = totalInWarehouse > 0 ? (totalRecovered / totalInWarehouse) * 100 : 0;
     const totalOrders = data.items.reduce((sum, b) => sum + b.orderCount, 0);
 
-    // Contar marcas por estado
     const healthy = data.items.filter(b => b.recoveryStatus === 'HEALTHY').length;
     const warning = data.items.filter(b => b.recoveryStatus === 'WARNING').length;
     const critical = data.items.filter(b => b.recoveryStatus === 'CRITICAL').length;
@@ -83,7 +91,6 @@ export function BrandAnalyticsTab({ filters }: BrandAnalyticsTabProps) {
     <div className="space-y-6">
       {/* Métricas Generales */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total en Bodega */}
         <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold text-slate-500 uppercase">Total en Bodega</span>
@@ -93,7 +100,6 @@ export function BrandAnalyticsTab({ filters }: BrandAnalyticsTabProps) {
           <div className="text-xs text-slate-500 mt-1">{totals.totalOrders} órdenes</div>
         </div>
 
-        {/* Total Recuperado */}
         <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold text-slate-500 uppercase">Total Recuperado</span>
@@ -103,7 +109,6 @@ export function BrandAnalyticsTab({ filters }: BrandAnalyticsTabProps) {
           <div className="text-xs text-slate-500 mt-1">{formatPercentage(totals.avgRecoveryRate)} de recuperación</div>
         </div>
 
-        {/* Total Pendiente */}
         <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold text-slate-500 uppercase">Total Pendiente</span>
@@ -113,7 +118,6 @@ export function BrandAnalyticsTab({ filters }: BrandAnalyticsTabProps) {
           <div className="text-xs text-slate-500 mt-1">{totals.totalBrands} marcas</div>
         </div>
 
-        {/* Estado de Marcas */}
         <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold text-slate-500 uppercase">Estado de Marcas</span>
@@ -136,59 +140,101 @@ export function BrandAnalyticsTab({ filters }: BrandAnalyticsTabProps) {
         </div>
       </div>
 
-      {/* Gráfico de Recuperación (Donut Chart con SVG) */}
-      <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-        <h3 className="text-lg font-bold text-slate-900 mb-4">Distribución de Recuperación</h3>
-        <div className="flex items-center justify-center gap-8">
-          {/* Donut Chart SVG */}
-          <div className="relative">
-            <svg width="200" height="200" viewBox="0 0 200 200" className="transform -rotate-90">
-              {/* Background circle */}
-              <circle
-                cx="100"
-                cy="100"
-                r="80"
-                fill="none"
-                stroke="#e2e8f0"
-                strokeWidth="30"
-              />
-              {/* Recovered segment */}
-              <circle
-                cx="100"
-                cy="100"
-                r="80"
-                fill="none"
-                stroke="#10b981"
-                strokeWidth="30"
-                strokeDasharray={`${(totals.avgRecoveryRate / 100) * 502.65} 502.65`}
-                strokeLinecap="round"
-              />
-            </svg>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center">
-                <div className="text-3xl font-black text-slate-900">{formatPercentage(totals.avgRecoveryRate)}</div>
-                <div className="text-xs text-slate-500 font-semibold">Recuperado</div>
-              </div>
-            </div>
-          </div>
+      {/* Gráficos Principales - Layout 2 Columnas */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Columna Izquierda - 3 Gráficos Apilados con Altura Fija Igual */}
+        <div className="lg:col-span-4 space-y-4">
+          {/* Gráfico de Anillo */}
+          <DonutChart
+            recovered={totals.totalRecovered}
+            outstanding={totals.totalOutstanding}
+            title="Distribución de Recuperación"
+          />
 
-          {/* Leyenda */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="w-4 h-4 rounded-full bg-green-500"></div>
-              <div>
-                <div className="text-sm font-bold text-slate-900">Recuperado</div>
-                <div className="text-xs text-slate-500">{formatCurrency(totals.totalRecovered)}</div>
+          {/* Gráfico de Velocímetro */}
+          <SpeedometerChart
+            recoveryRate={totals.avgRecoveryRate}
+            title="Nivel de Riesgo"
+          />
+
+          {/* Resumen Ejecutivo */}
+          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm h-[240px] flex flex-col">
+            <h3 className="text-sm font-bold text-slate-900 mb-3 uppercase tracking-wider">Resumen Ejecutivo</h3>
+            <div className="space-y-2 flex-1">
+              {/* Fila Superior - Tasa y Días en 2 columnas */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <div className="text-xs text-slate-500 font-semibold mb-1">Tasa de Recuperación</div>
+                  <div className="text-xl font-black text-monchito-purple">{formatPercentage(totals.avgRecoveryRate)}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-slate-500 font-semibold mb-1">Promedio Días en Bodega</div>
+                  <div className="text-xl font-black text-slate-900">
+                    {Math.round(data.items.reduce((sum, b) => sum + b.avgDaysInWarehouse, 0) / data.items.length)} días
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="w-4 h-4 rounded-full bg-slate-300"></div>
-              <div>
-                <div className="text-sm font-bold text-slate-900">Pendiente</div>
-                <div className="text-xs text-slate-500">{formatCurrency(totals.totalOutstanding)}</div>
+              
+              {/* Distribución por Estado */}
+              <div className="pt-2 border-t border-slate-200">
+                <div className="text-xs text-slate-500 font-semibold mb-1.5">Distribución por Estado</div>
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-600">Saludable</span>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-16 h-1 bg-slate-100 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-green-500 rounded-full"
+                          style={{ width: `${(totals.healthy / totals.totalBrands) * 100}%` }}
+                        ></div>
+                      </div>
+                      <span className="text-xs font-bold text-slate-900 w-5 text-right">{totals.healthy}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-600">Advertencia</span>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-16 h-1 bg-slate-100 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-yellow-500 rounded-full"
+                          style={{ width: `${(totals.warning / totals.totalBrands) * 100}%` }}
+                        ></div>
+                      </div>
+                      <span className="text-xs font-bold text-slate-900 w-5 text-right">{totals.warning}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-600">Crítico</span>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-16 h-1 bg-slate-100 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-red-500 rounded-full"
+                          style={{ width: `${(totals.critical / totals.totalBrands) * 100}%` }}
+                        ></div>
+                      </div>
+                      <span className="text-xs font-bold text-slate-900 w-5 text-right">{totals.critical}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Columna Derecha - Gráfico de Línea (Más Grande) */}
+        <div className="lg:col-span-8">
+          {trendsLoading ? (
+            <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm h-full">
+              <div className="flex items-center justify-center h-full min-h-[600px]">
+                <LoadingSpinner message="Cargando tendencias..." />
+              </div>
+            </div>
+          ) : (
+            <LineChart
+              data={trendsData || []}
+              title="Trazabilidad de Recuperación en el Tiempo"
+            />
+          )}
         </div>
       </div>
 

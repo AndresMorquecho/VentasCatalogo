@@ -165,6 +165,7 @@ export interface RecoveryFilters {
   dateFrom?: Date;
   dateTo?: Date;
   brandIds?: string[];
+  brandName?: string;
   clientIds?: string[];
   recoveryStatus?: RecoveryStatus | 'ALL';
   minDaysInWarehouse?: number;
@@ -178,6 +179,7 @@ export interface FilterState {
   dateFrom?: string; // YYYY-MM-DD format
   dateTo?: string; // YYYY-MM-DD format
   brandIds?: string[];
+  brandName?: string;
   clientIds?: string[];
   recoveryStatus?: RecoveryStatus | 'ALL';
   minDaysInWarehouse?: string;
@@ -233,6 +235,7 @@ export function filterStateToRecoveryFilters(state: FilterState): RecoveryFilter
     dateFrom: state.dateFrom ? new Date(state.dateFrom) : undefined,
     dateTo: state.dateTo ? new Date(state.dateTo) : undefined,
     brandIds: state.brandIds,
+    brandName: state.brandName,
     clientIds: state.clientIds,
     recoveryStatus: state.recoveryStatus,
     minDaysInWarehouse: state.minDaysInWarehouse ? parseInt(state.minDaysInWarehouse) : undefined,
@@ -248,6 +251,7 @@ export function recoveryFiltersToFilterState(filters: RecoveryFilters): FilterSt
     dateFrom: filters.dateFrom ? filters.dateFrom.toISOString().split('T')[0] : undefined,
     dateTo: filters.dateTo ? filters.dateTo.toISOString().split('T')[0] : undefined,
     brandIds: filters.brandIds,
+    brandName: filters.brandName,
     clientIds: filters.clientIds,
     recoveryStatus: filters.recoveryStatus,
     minDaysInWarehouse: filters.minDaysInWarehouse?.toString(),
@@ -319,9 +323,9 @@ export function getAlertSeverityColor(severity: AlertSeverity): {
  * Format currency for display
  */
 export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('es-DO', {
+  return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: 'DOP',
+    currency: 'USD',
   }).format(amount);
 }
 
