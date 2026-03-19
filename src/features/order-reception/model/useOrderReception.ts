@@ -1,44 +1,40 @@
 import { useQuery } from '@tanstack/react-query';
 import { orderApi } from '@/entities/order/model/api';
-import type { Order } from '@/entities/order/model/types';
 
 export interface ReceptionFilters {
     startDate?: string;
     endDate?: string;
     brandId?: string;
     searchText?: string;
+    page?: number;
+    limit?: number;
 }
 
 export const useOrderReceptionList = (filters?: ReceptionFilters) => {
     return useQuery({
         queryKey: ['orders', 'reception-list', filters],
         queryFn: async () => {
-            const response = await orderApi.getAll();
-            const orders = response.data || [];
-            let filtered = orders.filter((o: Order) =>
-                o.status === 'POR_RECIBIR' || (o.status === 'RECIBIDO_EN_BODEGA' && !o.deliveryDate)
-            );
+            const page = filters?.page || 1;
+            const limit = filters?.limit || 25;
 
-            if (!filters) return filtered;
-
-            if (filters.startDate) {
-                filtered = filtered.filter(o => o.possibleDeliveryDate >= filters.startDate!);
-            }
-            if (filters.endDate) {
-                filtered = filtered.filter(o => o.possibleDeliveryDate <= filters.endDate!);
-            }
-            if (filters.brandId && filters.brandId !== 'all') {
-                filtered = filtered.filter(o => o.brandId === filters.brandId);
-            }
-            if (filters.searchText) {
-                const lower = filters.searchText.toLowerCase();
-                filtered = filtered.filter(o =>
-                    o.clientName.toLowerCase().includes(lower) ||
-                    o.receiptNumber.toLowerCase().includes(lower)
-                );
-            }
-
-            return filtered;
+            // Using getAll with statuses for pending reception
+            // We pass multiple statuses or the backend might handle 'POR_RECIBIR' 
+            // but the original logic was: POR_RECIBIR || (RECIBIDO_EN_BODEGA && !deliveryDate)
+            // The backend 'getAll' with status 'POR_RECIBIR' should be enough if the flow is correct.
+            const response = await orderApi.getAll({
+                status: 'POR_RECIBIR',
+                startDate: filters?.startDate,
+                endDate: filters?.endDate,
+                brandId: filters?.brandId === 'all' ? undefined : filters?.brandId,
+                search: filters?.searchText,
+                page,
+                limit
+            });
+            
+            return {
+                data: response.data,
+                pagination: response.pagination
+            };
         }
     });
 }
@@ -48,37 +44,25 @@ export const useOrderReceptionHistory = (filters?: ReceptionFilters) => {
     return useQuery({
         queryKey: ['orders', 'reception-history', filters],
         queryFn: async () => {
-            const response = await orderApi.getAll();
-            const orders = response.data || [];
-            // History: Recibidos en bodega o entregados (ya pasaron por recepción)
-            // Y que tengan fecha de recepción
-            let filtered = orders.filter((o: Order) =>
-                (o.status === 'RECIBIDO_EN_BODEGA' || o.status === 'ENTREGADO') &&
-                o.receptionDate
-            );
+            const page = filters?.page || 1;
+            const limit = filters?.limit || 25;
 
-            if (!filters) return filtered;
+             // History: Recibidos en bodega o entregados
+             // We use a custom search or the backend might need to handle 'RECIBIDO_EN_BODEGA'
+             const response = await orderApi.getAll({
+                status: 'RECIBIDO_EN_BODEGA', // This usually covers history of receptions
+                startDate: filters?.startDate,
+                endDate: filters?.endDate,
+                brandId: filters?.brandId === 'all' ? undefined : filters?.brandId,
+                search: filters?.searchText,
+                page,
+                limit
+            });
 
-            if (filters.startDate) {
-                filtered = filtered.filter(o => o.receptionDate! >= filters.startDate!);
-            }
-            if (filters.endDate) {
-                filtered = filtered.filter(o => o.receptionDate! <= filters.endDate!);
-            }
-            if (filters.brandId && filters.brandId !== 'all') {
-                filtered = filtered.filter(o => o.brandId === filters.brandId);
-            }
-            if (filters.searchText) {
-                const lower = filters.searchText.toLowerCase();
-                filtered = filtered.filter(o =>
-                    o.clientName.toLowerCase().includes(lower) ||
-                    o.receiptNumber.toLowerCase().includes(lower) ||
-                    (o.invoiceNumber && o.invoiceNumber.toLowerCase().includes(lower))
-                );
-            }
-
-            // Sort by reception date desc
-            return filtered.sort((a, b) => new Date(b.receptionDate!).getTime() - new Date(a.receptionDate!).getTime());
+            return {
+                data: response.data,
+                pagination: response.pagination
+            };
         }
     });
 }

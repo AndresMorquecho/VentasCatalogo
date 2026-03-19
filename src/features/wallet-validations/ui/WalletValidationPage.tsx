@@ -134,7 +134,7 @@ export function WalletValidationPage() {
                     <Button
                         disabled={selectedIds.length === 0 || validateMutation.isPending}
                         onClick={handleBatchValidateClick}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-[10px] tracking-widest h-11 px-8 shadow-lg shadow-emerald-200"
+                        className="bg-monchito-purple hover:bg-monchito-purple/90 text-white font-black uppercase text-[10px] tracking-widest h-11 px-8 shadow-lg shadow-monchito-purple/20"
                     >
                         {validateMutation.isPending ? (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -221,7 +221,7 @@ export function WalletValidationPage() {
                                                         setConfirmDialogOpen(true);
                                                     }}
                                                     title="Validar"
-                                                    className="h-8 w-8 text-emerald-600 hover:bg-emerald-50"
+                                                    className="h-8 w-8 text-monchito-purple hover:bg-monchito-purple/5"
                                                 >
                                                     <CheckCircle className="h-5 w-5" />
                                                 </Button>
@@ -271,13 +271,13 @@ export function WalletValidationPage() {
                 confirmText={`Validar Pagos`}
             >
                 <div className="space-y-4">
-                    <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl flex items-start gap-3">
-                        <div className="bg-emerald-100 p-2 rounded-xl text-emerald-600">
+                    <div className="bg-monchito-purple/5 border border-monchito-purple/10 p-4 rounded-2xl flex items-start gap-3">
+                        <div className="bg-monchito-purple/10 p-2 rounded-xl text-monchito-purple">
                             <Info className="h-5 w-5" />
                         </div>
                         <div>
-                            <p className="text-emerald-900 font-black text-sm uppercase tracking-tight">Resumen de Validación</p>
-                            <p className="text-emerald-700 text-xs font-medium">Se acreditará el saldo a los clientes y se registrarán los movimientos financieros.</p>
+                            <p className="text-monchito-purple font-black text-sm uppercase tracking-tight">Resumen de Validación</p>
+                            <p className="text-monchito-purple/70 text-xs font-medium">Se acreditará el saldo a los clientes y se registrarán los movimientos financieros.</p>
                         </div>
                     </div>
 

@@ -79,6 +79,9 @@ export const orderApi = {
     generateOrderNumber: async (): Promise<{ orderNumber: string }> => {
         return httpClient.get<{ orderNumber: string }>('/orders/generate-order-number');
     },
+    generatePackingNumber: async (): Promise<{ packingNumber: string }> => {
+        return httpClient.get<{ packingNumber: string }>('/orders/generate-packing-number');
+    },
 
     /**
      * Check if receipt number exists
@@ -294,10 +297,26 @@ export const orderApi = {
     },
 
     /**
-     * Get all reception batches
+     * Get all reception batches with pagination and filters
      * @endpoint GET /api/orders/reception-batches
      */
-    getReceptionBatches: async (): Promise<any[]> => {
-        return httpClient.get<any[]>('/orders/reception-batches');
+    getReceptionBatches: async (params?: { 
+        page?: number, 
+        limit?: number, 
+        startDate?: string, 
+        endDate?: string,
+        brandId?: string,
+        packingNumber?: string,
+        search?: string
+    }): Promise<PaginatedResponse<any>> => {
+        const queryParams = new URLSearchParams();
+        if (params) {
+            Object.entries(params).forEach(([key, value]) => {
+                if (value !== undefined) {
+                    queryParams.append(key, value.toString());
+                }
+            });
+        }
+        return httpClient.get<PaginatedResponse<any>>(`/orders/reception-batches${queryParams.toString() ? `?${queryParams.toString()}` : ''}`);
     }
 };

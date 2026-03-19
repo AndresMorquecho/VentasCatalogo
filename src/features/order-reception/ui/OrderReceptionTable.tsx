@@ -30,10 +30,11 @@ function formatCurrency(amount: number) {
 
 export function OrderReceptionTable({ orders, onReceive, onReverse, isProcessing }: OrderReceptionTableProps) {
     return (
-        <div className="rounded-md border bg-white overflow-hidden">
-            <Table>
-                <TableHeader className="bg-slate-50">
-                    <TableRow>
+        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+            <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-380px)] min-h-[400px]">
+                <Table>
+                    <TableHeader className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-sm">
+                        <TableRow className="hover:bg-transparent">
                         <TableHead>Fecha</TableHead>
                         <TableHead>N° Recibo</TableHead>
                         <TableHead>Cliente</TableHead>
@@ -100,5 +101,6 @@ export function OrderReceptionTable({ orders, onReceive, onReverse, isProcessing
                 </TableBody>
             </Table>
         </div>
-    )
+    </div>
+)
 }

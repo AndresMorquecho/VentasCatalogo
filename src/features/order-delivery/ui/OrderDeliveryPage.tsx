@@ -11,6 +11,7 @@ import { Search, History, Truck, RotateCcw, Filter, ChevronDown } from "lucide-r
 import { PageHeader } from "@/shared/ui/PageHeader"
 import { useBrandList } from "@/features/brands/api/hooks"
 import { useClientList } from "@/features/clients/api/hooks"
+import { Pagination } from "@/shared/ui/pagination"
 
 /* --- Searchable Select for Clients --- */
 function SearchableClientSelect({ 
@@ -54,7 +55,7 @@ function SearchableClientSelect({
                 <div className="absolute z-50 mt-2 w-full max-w-[300px] rounded-xl border border-slate-200 bg-white shadow-xl animate-in fade-in zoom-in duration-200">
                     <div className="p-3 border-b border-slate-100">
                         <div className="relative">
-                            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                            <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-slate-400" />
                             <Input 
                                 autoFocus
                                 placeholder="Nombre o Cédula..."
@@ -185,6 +186,8 @@ export function OrderDeliveryPage() {
     const navigate = useNavigate()
 
     // Filter State
+    const [page, setPage] = useState(1);
+    const [limit] = useState(25);
     const [brandId, setBrandId] = useState<string>("ALL")
     const [clientId, setClientId] = useState<string>("")
     const [startDate, setStartDate] = useState<string>("")
@@ -195,6 +198,11 @@ export function OrderDeliveryPage() {
     const [showFilters, setShowFilters] = useState(false)
     const [dateCategoryFilter, setDateCategoryFilter] = useState<'ALL' | 'RECENT' | 'WARN' | 'CRITICAL'>('ALL')
 
+    // Reset page on filter change
+    useEffect(() => {
+        setPage(1);
+    }, [brandId, clientId, startDate, endDate, orderNumber, searchTerm, dateCategoryFilter]);
+
     // Memoized filters for the hook
     const filters = useMemo((): DeliveryFilters => ({
         startDate,
@@ -202,10 +210,15 @@ export function OrderDeliveryPage() {
         brandId,
         clientId,
         orderNumber,
-        searchText: searchTerm
-    }), [startDate, endDate, brandId, clientId, orderNumber, searchTerm])
+        searchText: searchTerm,
+        page,
+        limit
+    }), [startDate, endDate, brandId, clientId, orderNumber, searchTerm, page, limit])
 
-    const { data: orders = [], isLoading, isError, refetch } = useOrderDeliveryList(filters)
+    const { data: response, isLoading, isError, refetch } = useOrderDeliveryList(filters)
+    const orders = response?.data || []
+    const pagination = response?.pagination
+    
     const { data: brandsResponse } = useBrandList()
     const brands = brandsResponse ? (Array.isArray(brandsResponse) ? brandsResponse : brandsResponse.data) : []
 
@@ -224,9 +237,12 @@ export function OrderDeliveryPage() {
         setSearchTerm("")
         setDateCategoryFilter("ALL")
         setSelectedOrderIds([])
+        setPage(1)
     }
 
     const displayedOrders = useMemo(() => {
+        // Here we still apply the dateCategoryFilter locally as it's a dynamic visual filter 
+        // that's not necessarily handled by the backend's explicit from/to dates.
         return orders.filter(order => {
             const now = new Date();
             const reception = order.receptionDate ? new Date(order.receptionDate) : new Date(order.createdAt);
@@ -428,11 +444,24 @@ export function OrderDeliveryPage() {
                         <span className="font-bold text-sm">Cargando lista de entregas...</span>
                     </div>
                 ) : (
-                    <OrderDeliveryTable 
-                        orders={displayedOrders} 
-                        selectedOrderIds={selectedOrderIds}
-                        onSelectionChange={setSelectedOrderIds}
-                    />
+                    <>
+                        <OrderDeliveryTable 
+                            orders={displayedOrders} 
+                            selectedOrderIds={selectedOrderIds}
+                            onSelectionChange={setSelectedOrderIds}
+                        />
+                         {pagination && pagination.pages > 1 && (
+                            <div className="p-4 border-t border-slate-100">
+                                <Pagination
+                                    currentPage={page}
+                                    totalPages={pagination.pages}
+                                    onPageChange={setPage}
+                                    totalItems={pagination.total}
+                                    itemsPerPage={limit}
+                                />
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
 

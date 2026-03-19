@@ -14,26 +14,15 @@ export const useReceptionBatch = () => {
     const [lastSavedOrders, setLastSavedOrders] = useState<Order[] | null>(null);
     const [lastSavedBatch, setLastSavedBatch] = useState<any | null>(null);
 
-    const generateNextPackingNumber = (currentBatches: any[]) => {
-        const currentYear = new Date().getFullYear();
-        const yearPrefix = `PK-${currentYear}-`;
-        
-        const currentYearBatches = currentBatches.filter(b => b.packingNumber?.startsWith(yearPrefix));
-        
-        let maxIndex = 0;
-        currentYearBatches.forEach(b => {
-            const parts = b.packingNumber.split('-');
-            if (parts.length === 3) {
-                const index = parseInt(parts[2], 10);
-                if (!isNaN(index) && index > maxIndex) {
-                    maxIndex = index;
-                }
-            }
-        });
-        
-        const nextIndex = (maxIndex + 1).toString().padStart(3, '0');
-        return `${yearPrefix}${nextIndex}`;
-    };
+    const [historyPage, setHistoryPage] = useState(1);
+    const [historyLimit] = useState(15);
+    const [historyFilters, setHistoryFilters] = useState({
+        search: '',
+        startDate: '',
+        endDate: '',
+        brandId: 'ALL',
+        packingNumber: ''
+    });
 
     // Queries
     const { data: allOrders = [], isLoading: isLoadingOrders } = useQuery({
@@ -41,20 +30,30 @@ export const useReceptionBatch = () => {
         queryFn: () => orderApi.getByStatus('POR_RECIBIR'),
     });
 
-    const { data: batchesData = [], isLoading: isLoadingBatches } = useQuery({
-        queryKey: ['reception-batches'],
-        queryFn: () => orderApi.getReceptionBatches(),
+    const { data: batchesResponse, isLoading: isLoadingBatches } = useQuery({
+        queryKey: ['reception-batches', historyPage, historyLimit, historyFilters],
+        queryFn: () => orderApi.getReceptionBatches({
+            page: historyPage,
+            limit: historyLimit,
+            ...historyFilters
+        }),
     });
 
-    // Ensure batches is always an array
-    const batches = Array.isArray(batchesData) ? batchesData : [];
+    const batches = batchesResponse?.data || [];
+    const pagination = batchesResponse?.pagination;
 
     // Auto-generate on load (if not editing)
     useEffect(() => {
-        if (!editingBatchId && batches.length > 0 && !packingNumber) {
-            setPackingNumber(generateNextPackingNumber(batches));
+        if (!editingBatchId && !packingNumber) {
+            orderApi.generatePackingNumber().then(res => {
+                setPackingNumber(res.packingNumber);
+            }).catch(err => {
+                console.error('Error generating packing number:', err);
+                // Fallback to manual if API fails
+                setPackingNumber(`PK-${new Date().getFullYear()}-001`);
+            });
         }
-    }, [batches, editingBatchId]);
+    }, [editingBatchId]);
 
     // Mutations
     const saveBatch = useMutation({
@@ -66,12 +65,13 @@ export const useReceptionBatch = () => {
             }),
         onSuccess: (data: any) => {
             queryClient.invalidateQueries({ queryKey: ['orders-pending-reception'] });
-            queryClient.invalidateQueries({ queryKey: ['reception-batches'] }).then((newBatchesData: any) => {
-                const updatedBatches = Array.isArray(newBatchesData) ? newBatchesData : batches;
-                if (!editingBatchId) {
-                    setPackingNumber(generateNextPackingNumber(updatedBatches));
-                }
-            });
+            queryClient.invalidateQueries({ queryKey: ['reception-batches'] });
+            
+            if (!editingBatchId) {
+                orderApi.generatePackingNumber().then(res => {
+                    setPackingNumber(res.packingNumber);
+                });
+            }
             
             // Invalidate full orders and financial records cache to reflect distributive payments
             queryClient.invalidateQueries({ queryKey: ['orders'] });
@@ -149,7 +149,9 @@ export const useReceptionBatch = () => {
     const cancelEdit = () => {
         setEditingBatchId(null);
         setSelectedOrders([]);
-        setPackingNumber(generateNextPackingNumber(batches));
+        orderApi.generatePackingNumber().then(res => {
+            setPackingNumber(res.packingNumber);
+        });
         setPackingTotal(0);
     };
 
@@ -225,6 +227,13 @@ export const useReceptionBatch = () => {
         clearLastSaved: () => {
             setLastSavedOrders(null);
             setLastSavedBatch(null);
-        }
+        },
+        // Pagination & Filters
+        historyPage,
+        setHistoryPage,
+        historyLimit,
+        historyFilters,
+        setHistoryFilters,
+        pagination
     };
 };

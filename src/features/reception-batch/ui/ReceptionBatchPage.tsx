@@ -29,7 +29,13 @@ export function ReceptionBatchPage() {
         updateOrderItem,
         lastSavedOrders,
         lastSavedBatch,
-        clearLastSaved
+        clearLastSaved,
+        // Pagination & Filters
+        historyPage,
+        setHistoryPage,
+        historyFilters,
+        setHistoryFilters,
+        pagination
     } = useReceptionBatch();
 
     const [activeTab, setActiveTab] = useState("reception");
@@ -130,10 +136,14 @@ export function ReceptionBatchPage() {
                 ) : (
                     <ReceptionHistory
                         batches={batches}
-                        clients={[]}
+                        pagination={pagination}
                         onEdit={onEditBatch}
                         onDelete={deleteBatch}
                         isDeleting={isDeleting}
+                        page={historyPage}
+                        onPageChange={setHistoryPage}
+                        filters={historyFilters}
+                        onFilterChange={setHistoryFilters}
                     />
                 )}
             </div>

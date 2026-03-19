@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from "react"
-import { Search, RotateCcw, Edit, Trash2, AlertCircle, Filter } from "lucide-react"
+import React, { useState } from "react"
+import { Search, RotateCcw, Edit, Trash2, AlertCircle, Filter, ChevronRight } from "lucide-react"
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
 import {
@@ -14,7 +14,6 @@ import { orderApi } from "@/entities/order/model/api"
 import { useToast } from "@/shared/ui/use-toast"
 import { useQueryClient } from "@tanstack/react-query"
 import { getPendingAmount } from "@/entities/order/model/model"
-import type { Client } from "@/entities/client/model/types"
 import {
     Select,
     SelectContent,
@@ -24,24 +23,37 @@ import {
 } from "@/shared/ui/select"
 import { useBrandList } from "@/features/brands/api/hooks"
 import { ConfirmDialog } from "@/shared/ui/confirm-dialog"
+import { Pagination } from "@/shared/ui/Pagination"
 
 interface Props {
     batches: any[]
-    clients: Client[]
+    pagination?: any
     onEdit: (batch: any) => void
     onDelete: (batchId: string) => void
     isDeleting?: boolean
+    page: number
+    onPageChange: (page: number) => void
+    filters: {
+        search: string;
+        startDate: string;
+        endDate: string;
+        brandId: string;
+        packingNumber: string;
+    }
+    onFilterChange: (filters: any) => void
 }
 
-export function ReceptionHistory({ batches, onEdit, onDelete, isDeleting }: Props) {
-    const [searchTerm, setSearchTerm] = useState("")
-    const [startDate, setStartDate] = useState("")
-    const [endDate, setEndDate] = useState("")
-    const [clientFilter, setClientFilter] = useState("")
-    const [brandId, setBrandId] = useState("ALL")
-    const [packingFilter, setPackingFilter] = useState("")
-    const [receiptFilter, setReceiptFilter] = useState("")
-    
+export function ReceptionHistory({ 
+    batches, 
+    pagination, 
+    onEdit, 
+    onDelete, 
+    isDeleting,
+    page,
+    onPageChange,
+    filters,
+    onFilterChange
+}: Props) {
     const [isProcessing, setIsProcessing] = useState<string | null>(null)
     const [expandedBatch, setExpandedBatch] = useState<string | null>(null)
     const [showFilters, setShowFilters] = useState(false)
@@ -61,71 +73,6 @@ export function ReceptionHistory({ batches, onEdit, onDelete, isDeleting }: Prop
     const { data: brandsData } = useBrandList({ limit: 100 });
     const brands = brandsData?.data || [];
 
-    // 1. Filter Logic
-    const filteredBatches = useMemo(() => {
-        // Defensive check: ensure batches is an array
-        const batchesArray = Array.isArray(batches) ? batches : [];
-        
-        return batchesArray.filter(b => {
-            // Date Range Filter
-            if (startDate || endDate) {
-                const bDate = new Date(b.receptionDate);
-                if (startDate) {
-                    const startArr = startDate.split('-').map(Number);
-                    const start = new Date(startArr[0], startArr[1] - 1, startArr[2], 0, 0, 0);
-                    if (bDate < start) return false;
-                }
-                if (endDate) {
-                    const endArr = endDate.split('-').map(Number);
-                    const end = new Date(endArr[0], endArr[1] - 1, endArr[2], 23, 59, 59, 999);
-                    if (bDate > end) return false;
-                }
-            }
-
-            // Client Filter
-            if (clientFilter && clientFilter.trim() !== "") {
-                const lowerClient = clientFilter.toLowerCase();
-                const hasClient = b.orders?.some((o: any) => 
-                    o.clientName?.toLowerCase().includes(lowerClient)
-                );
-                if (!hasClient) return false;
-            }
-
-            // Brand Filter
-            if (brandId !== "ALL") {
-                const hasBrand = b.orders?.some((o: any) => o.brandId === brandId);
-                if (!hasBrand) return false;
-            }
-
-            // Packing Number Filter
-            if (packingFilter && packingFilter.trim() !== "") {
-                if (!b.packingNumber?.toLowerCase().includes(packingFilter.toLowerCase())) return false;
-            }
-
-            // Receipt Number Filter
-            if (receiptFilter && receiptFilter.trim() !== "") {
-                const hasReceipt = b.orders?.some((o: any) => 
-                    o.receiptNumber?.toLowerCase().includes(receiptFilter.toLowerCase())
-                );
-                if (!hasReceipt) return false;
-            }
-
-            // General Search
-            if (searchTerm && searchTerm.trim() !== "") {
-                const lowerSearch = searchTerm.toLowerCase();
-                const matchesPacking = b.packingNumber?.toLowerCase().includes(lowerSearch);
-                const matchesOrders = (b.orders || []).some((o: any) => 
-                    o.clientName?.toLowerCase().includes(lowerSearch) ||
-                    o.receiptNumber?.toLowerCase().includes(lowerSearch) ||
-                    o.brandName?.toLowerCase().includes(lowerSearch)
-                );
-                if (!matchesPacking && !matchesOrders) return false;
-            }
-
-            return true;
-        });
-    }, [batches, startDate, endDate, clientFilter, brandId, packingFilter, receiptFilter, searchTerm]);
-
     const handleReverseIndividual = async (orderId: string) => {
         setIsProcessing(orderId)
         try {
@@ -140,23 +87,24 @@ export function ReceptionHistory({ batches, onEdit, onDelete, isDeleting }: Prop
         }
     }
 
-    const totalGrandReception = filteredBatches.reduce((sum, b) => sum + Number(b.packingTotal || 0), 0);
+    const totalGrandReception = batches.reduce((sum, b) => sum + Number(b.packingTotal || 0), 0);
 
     const checkCanModify = (batch: any) => {
         return !batch.orders?.some((o: any) => o.status === 'ENTREGADO');
     };
 
     const clearFilters = () => {
-        setSearchTerm("");
-        setStartDate("");
-        setEndDate("");
-        setClientFilter("");
-        setBrandId("ALL");
-        setPackingFilter("");
-        setReceiptFilter("");
+        onFilterChange({
+            search: '',
+            startDate: '',
+            endDate: '',
+            brandId: 'ALL',
+            packingNumber: ''
+        });
+        onPageChange(1);
     };
 
-    const hasActiveFilters = searchTerm || startDate || endDate || clientFilter || brandId !== "ALL" || packingFilter || receiptFilter;
+    const hasActiveFilters = filters.search || filters.startDate || filters.endDate || filters.brandId !== "ALL" || filters.packingNumber;
 
     return (
         <div className="space-y-4 h-full flex flex-col pt-2">
@@ -196,7 +144,7 @@ export function ReceptionHistory({ batches, onEdit, onDelete, isDeleting }: Prop
                         </Button>
                         <div className="h-10 w-px bg-slate-100 mx-1 hidden md:block" />
                         <div className="text-right px-2">
-                            <p className="text-[10px] text-slate-400 uppercase font-black tracking-tighter leading-none mb-1">Impacto Total</p>
+                            <p className="text-[10px] text-slate-400 uppercase font-black tracking-tighter leading-none mb-1">Impacto Total (Pág)</p>
                             <p className="text-xl font-mono font-black text-emerald-700 leading-none tracking-tighter">${totalGrandReception.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                         </div>
                     </div>
@@ -210,8 +158,11 @@ export function ReceptionHistory({ batches, onEdit, onDelete, isDeleting }: Prop
                             <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
                             <Input
                                 placeholder="Empresaria, N° Recibo..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
+                                value={filters.search}
+                                onChange={(e) => {
+                                    onFilterChange({ ...filters, search: e.target.value });
+                                    onPageChange(1);
+                                }}
                                 className="pl-10 bg-white border-slate-200 focus:ring-emerald-500/20 transition-all h-10 text-sm font-medium rounded-xl shadow-sm"
                             />
                         </div>
@@ -223,15 +174,21 @@ export function ReceptionHistory({ batches, onEdit, onDelete, isDeleting }: Prop
                         <div className="flex items-center gap-2">
                             <Input
                                 type="date"
-                                value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
+                                value={filters.startDate}
+                                onChange={(e) => {
+                                    onFilterChange({ ...filters, startDate: e.target.value });
+                                    onPageChange(1);
+                                }}
                                 className="bg-white border-slate-200 h-10 text-xs font-bold rounded-xl focus:ring-emerald-500/20 shadow-sm transition-all flex-1"
                             />
                             <span className="text-slate-400 text-[10px] font-black uppercase tracking-tighter shrink-0 px-1">al</span>
                             <Input
                                 type="date"
-                                value={endDate}
-                                onChange={(e) => setEndDate(e.target.value)}
+                                value={filters.endDate}
+                                onChange={(e) => {
+                                    onFilterChange({ ...filters, endDate: e.target.value });
+                                    onPageChange(1);
+                                }}
                                 className="bg-white border-slate-200 h-10 text-xs font-bold rounded-xl focus:ring-emerald-500/20 shadow-sm transition-all flex-1"
                             />
                         </div>
@@ -242,8 +199,11 @@ export function ReceptionHistory({ batches, onEdit, onDelete, isDeleting }: Prop
                         <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1">ID Packing</label>
                         <Input
                             placeholder="Ej: PK-123"
-                            value={packingFilter}
-                            onChange={(e) => setPackingFilter(e.target.value)}
+                            value={filters.packingNumber}
+                            onChange={(e) => {
+                                onFilterChange({ ...filters, packingNumber: e.target.value });
+                                onPageChange(1);
+                            }}
                             className="bg-white border-slate-200 h-10 text-sm font-bold rounded-xl focus:ring-emerald-500/20 shadow-sm transition-all"
                         />
                     </div>
@@ -251,7 +211,10 @@ export function ReceptionHistory({ batches, onEdit, onDelete, isDeleting }: Prop
                     {/* Catálogo - 3 cols */}
                     <div className="lg:col-span-3 space-y-2">
                         <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1">Catálogo</label>
-                        <Select value={brandId} onValueChange={setBrandId}>
+                        <Select value={filters.brandId} onValueChange={(val) => {
+                            onFilterChange({ ...filters, brandId: val });
+                            onPageChange(1);
+                        }}>
                             <SelectTrigger className="bg-white border-slate-200 h-10 text-sm font-bold rounded-xl focus:ring-emerald-500/20 shadow-sm transition-all">
                                 <SelectValue placeholder="Todas las marcas" />
                             </SelectTrigger>
@@ -265,29 +228,6 @@ export function ReceptionHistory({ batches, onEdit, onDelete, isDeleting }: Prop
                             </SelectContent>
                         </Select>
                     </div>
-
-                    {showFilters && (
-                        <>
-                            <div className="lg:col-span-4 space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                                <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1">Empresaria</label>
-                                <Input
-                                    placeholder="Nombre de la empresaria..."
-                                    value={clientFilter}
-                                    onChange={(e) => setClientFilter(e.target.value)}
-                                    className="bg-white border-slate-200 h-10 text-sm font-medium rounded-xl shadow-sm"
-                                />
-                            </div>
-                            <div className="lg:col-span-4 space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                                <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1">Número de Recibo</label>
-                                <Input
-                                    placeholder="Buscar por recibo..."
-                                    value={receiptFilter}
-                                    onChange={(e) => setReceiptFilter(e.target.value)}
-                                    className="bg-white border-slate-200 h-10 text-sm font-bold rounded-xl shadow-sm"
-                                />
-                            </div>
-                        </>
-                    )}
                 </div>
             </div>
 
@@ -306,7 +246,7 @@ export function ReceptionHistory({ batches, onEdit, onDelete, isDeleting }: Prop
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {filteredBatches.length === 0 ? (
+                        {batches.length === 0 ? (
                             <TableRow>
                                 <TableCell colSpan={8} className="h-64 text-center">
                                     <div className="flex flex-col items-center justify-center opacity-40">
@@ -317,7 +257,7 @@ export function ReceptionHistory({ batches, onEdit, onDelete, isDeleting }: Prop
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            filteredBatches.map(batch => {
+                            batches.map(batch => {
                                 const totalInvoices = (batch.orders || []).reduce((sum: number, o: any) => sum + Number(o.realInvoiceTotal || 0), 0);
                                 const diff = Number(batch.packingTotal) - totalInvoices;
                                 const isExpanded = expandedBatch === batch.id;
@@ -398,7 +338,7 @@ export function ReceptionHistory({ batches, onEdit, onDelete, isDeleting }: Prop
                                                         className={`h-8 w-8 rounded-lg transition-all ${isExpanded ? 'text-monchito-purple bg-monchito-purple/10' : 'text-slate-600 hover:text-monchito-purple hover:bg-monchito-purple/10'}`}
                                                         onClick={() => setExpandedBatch(isExpanded ? null : batch.id)}
                                                     >
-                                                        <Filter className="h-3.5 w-3.5" />
+                                                        <ChevronRight className={`h-4 w-4 transform transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
                                                     </Button>
                                                 </div>
                                             </TableCell>
@@ -483,6 +423,18 @@ export function ReceptionHistory({ batches, onEdit, onDelete, isDeleting }: Prop
                     </TableBody>
                 </Table>
             </div>
+
+            {pagination && (
+                <div className="mt-auto">
+                    <Pagination
+                        currentPage={page}
+                        totalPages={pagination.pages}
+                        onPageChange={onPageChange}
+                        totalItems={pagination.total}
+                        itemsPerPage={pagination.limit}
+                    />
+                </div>
+            )}
 
             {/* Confirm: Delete Batch */}
             <ConfirmDialog

@@ -61,19 +61,19 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, lastClosur
             <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm border-collapse">
-                        <thead>
+                        <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-sm">
                             <tr className="bg-slate-50/80 border-b border-slate-200 text-[10px] uppercase tracking-wider text-slate-500 font-semibold whitespace-nowrap">
-                                <th className="px-4 py-4 text-left w-[110px]">Origen</th>
-                                <th className="px-4 py-4 text-left w-[140px]">N° Recibo</th>
-                                <th className="px-4 py-4 text-left w-[120px]">N° Pedidos</th>
-                                <th className="px-4 py-4 text-left min-w-[150px]">Cliente</th>
-                                <th className="px-4 py-4 text-left min-w-[120px]">Catalogo</th>
-                                <th className="px-4 py-4 text-right w-[90px]">Total</th>
-                                <th className="px-4 py-4 text-right w-[90px]">Abono</th>
-                                <th className="px-4 py-4 text-right w-[90px]">Saldo</th>
-                                <th className="px-4 py-4 text-left w-[110px]">fecha posible entrega</th>
-                                <th className="px-4 py-4 text-left w-[130px]">Estado</th>
-                                <th className="px-4 py-4 text-center w-[100px]">Acciones</th>
+                                <th className="px-4 py-4 text-left w-[80px]">Origen</th>
+                                <th className="px-4 py-4 text-left w-[160px]">N° Recibo</th>
+                                <th className="px-4 py-4 text-left w-[90px]">N° Ped.</th>
+                                <th className="px-4 py-4 text-left min-w-[160px]">Cliente</th>
+                                <th className="px-4 py-4 text-left min-w-[80px]">Cat.</th>
+                                <th className="px-4 py-4 text-right w-[75px]">Total</th>
+                                <th className="px-4 py-4 text-right w-[75px]">Abono</th>
+                                <th className="px-4 py-4 text-right w-[75px]">Saldo</th>
+                                <th className="px-4 py-4 text-left w-[80px]">Entrega</th>
+                                <th className="px-4 py-4 text-left w-[100px]">Estado</th>
+                                <th className="px-4 py-4 text-center w-[80px]">Acciones</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
