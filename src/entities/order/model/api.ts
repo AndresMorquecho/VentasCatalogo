@@ -76,6 +76,9 @@ export const orderApi = {
     generateReceiptNumber: async (): Promise<{ receiptNumber: string }> => {
         return httpClient.get<{ receiptNumber: string }>('/orders/generate-receipt-number');
     },
+    generateOrderNumber: async (): Promise<{ orderNumber: string }> => {
+        return httpClient.get<{ orderNumber: string }>('/orders/generate-order-number');
+    },
 
     /**
      * Check if receipt number exists

@@ -9,10 +9,10 @@ export function HistoryTab() {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="pb-3">
         <CardTitle className="text-sm font-bold">Historial de Entregas</CardTitle>
       </CardHeader>
-      <CardContent className="p-0">
+      <CardContent className="p-0 pt-0">
         {isLoading ? (
           <div className="flex justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-monchito-purple" />

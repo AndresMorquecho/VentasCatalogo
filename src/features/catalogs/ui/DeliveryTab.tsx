@@ -218,12 +218,12 @@ export function DeliveryTab() {
   return (
     <>
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-3">
           <CardTitle className="text-sm font-bold">Registrar Entrega de Catálogo</CardTitle>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+        <CardContent className="pt-0">
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
               {/* Cliente con búsqueda */}
               <div className="relative">
                 <Label className="text-xs font-medium">Cliente</Label>
@@ -301,7 +301,7 @@ export function DeliveryTab() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               {/* Campaña filtrada por marca */}
               <div>
                 <Label className="text-xs font-medium">Campaña (disponible)</Label>

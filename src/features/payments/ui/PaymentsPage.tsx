@@ -7,11 +7,14 @@ import { PaymentsHistoryTable } from "./PaymentsHistoryTable";
 import { PaymentModal, type PaymentModalData } from "@/shared/ui/PaymentModal";
 import { useToast } from "@/shared/ui/use-toast";
 import { Badge } from "@/shared/ui/badge";
-import { generatePaymentReceipt } from "@/features/payment-receipt/lib/generatePaymentReceipt";
 import { useAuth } from "@/shared/auth";
 import { PageHeader } from "@/shared/ui/PageHeader";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import { ConfirmDialog } from "@/shared/ui/confirm-dialog";
+import { usePDFPreview } from "@/shared/hooks/usePDFPreview";
+import { PDFPreviewModal } from "@/shared/ui/PDFPreviewModal";
+import { preparePaymentReceiptForPreview } from "@/features/payment-receipt/lib/preparePaymentReceiptForPreview";
+import { orderApi } from "@/entities/order/model/api";
 
 export function PaymentsPage() {
     const { orders, searchOrders, loading } = usePaymentSearch();
@@ -25,6 +28,15 @@ export function PaymentsPage() {
     const [activeTab, setActiveTab] = useState("pending");
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const [paymentToDelete, setPaymentToDelete] = useState<string | null>(null);
+
+    // PDF Preview state
+    const [pdfTitle, setPdfTitle] = useState("");
+    const [pdfFileName, setPdfFileName] = useState("");
+    const pdfPreview = usePDFPreview({
+        fileName: pdfFileName,
+        onDownloadComplete: () => showToast("Archivo descargado", "success"),
+        onError: () => showToast("Error al procesar PDF", "error")
+    });
 
     // Filter Logic
     const filteredOrders = useMemo(() => {
@@ -51,9 +63,39 @@ export function PaymentsPage() {
 
     const handleSelectOrder = (id: string) => setSelectedOrderId(id === selectedOrderId ? null : id);
 
-    const handlePaymentSuccess = () => {
+    const handlePreviewAccountStatement = async (order: any) => {
+        try {
+            const payments = (order.payments || []).map((p: any) => ({
+                ...p,
+                date: p.createdAt,
+                method: p.method || 'EFECTIVO'
+            }));
+
+            const { document, fileName, title } = await preparePaymentReceiptForPreview(order, payments, user?.username || 'Sistema');
+            
+            setPdfTitle(title);
+            setPdfFileName(fileName);
+            pdfPreview.openPreview(document);
+        } catch (error) {
+            console.error("Error generating preview:", error);
+            showToast("Error al generar vista previa del estado de cuenta", "error");
+        }
+    };
+
+    const handlePaymentSuccess = async (orderId?: string) => {
         showToast("Abono registrado exitosamente. Caja actualizada.", "success");
         setIsPaymentModalOpen(false);
+
+        // Si tenemos un orderId, mostrar el preview del estado de cuenta actualizado
+        if (orderId) {
+            try {
+                // Pequeño delay para dejar que el invalidateQueries haga su trabajo o forzar fetch
+                const updatedOrder = await orderApi.getById(orderId);
+                await handlePreviewAccountStatement(updatedOrder);
+            } catch (error) {
+                console.error("Error fetching updated order for PDF:", error);
+            }
+        }
     };
 
     const handlePaymentSubmit = async (data: PaymentModalData) => {
@@ -71,9 +113,8 @@ export function PaymentsPage() {
                 }))
             };
 
-            console.log('Sending payment payload:', payload); // Debug log
             await registerMultiplePayments.mutateAsync(payload);
-            handlePaymentSuccess();
+            await handlePaymentSuccess(selectedOrder.id);
         } catch (error) {
             console.error("Error processing payments:", error);
             showToast("Error al procesar los pagos", "error");
@@ -222,11 +263,7 @@ export function PaymentsPage() {
                                         variant="outline"
                                         size="sm"
                                         className="gap-2"
-                                        onClick={() => generatePaymentReceipt(selectedOrder, (selectedOrder.payments || []).map(p => ({
-                                            ...p,
-                                            date: p.createdAt,
-                                            method: p.method || 'EFECTIVO' // Fallback
-                                        })), user?.username || 'Sistema')}
+                                        onClick={() => handlePreviewAccountStatement(selectedOrder)}
                                     >
                                         <Printer className="h-4 w-4" />
                                         <span>Estado Cuenta</span>
@@ -306,6 +343,18 @@ export function PaymentsPage() {
                                     }}
                                     expectedAmount={Math.max(0, (selectedOrder.realInvoiceTotal || selectedOrder.total) - ((selectedOrder.payments || []).reduce((acc, p) => acc + p.amount, 0)))}
                                     allowMultiplePayments={true}
+                                />
+                            )}
+
+                            {pdfPreview.pdfDocument && (
+                                <PDFPreviewModal
+                                    open={pdfPreview.isOpen}
+                                    onOpenChange={pdfPreview.closePreview}
+                                    title={pdfTitle}
+                                    pdfDocument={pdfPreview.pdfDocument}
+                                    fileName={pdfFileName}
+                                    onDownload={pdfPreview.downloadPDF}
+                                    onPrint={pdfPreview.printPDF}
                                 />
                             )}
                             

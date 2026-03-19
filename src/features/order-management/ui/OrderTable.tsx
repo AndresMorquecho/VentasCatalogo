@@ -1,4 +1,4 @@
-import { Eye, Pencil, Trash2, AlertCircle } from "lucide-react"
+import { Eye, Pencil, Trash2 } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import type { Order, OrderStatus } from "@/entities/order/model/types"
 import { getPaidAmount, getPendingAmount } from "@/entities/order/model/model"
@@ -218,12 +218,6 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, lastClosur
                                                     >
                                                         <Trash2 className="h-4 w-4" />
                                                     </Button>
-                                                )}
-
-                                                {!canDeleteReceipt && (
-                                                    <div title="Este recibo o su pedido principal ya tiene movimientos y no puede ser anulado completamente">
-                                                        <AlertCircle className="h-3.5 w-3.5 text-amber-400 opacity-50 ml-1" />
-                                                    </div>
                                                 )}
                                             </div>
                                         </td>

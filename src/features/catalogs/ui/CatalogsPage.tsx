@@ -10,7 +10,7 @@ export function CatalogsPage() {
   const [activeTab, setActiveTab] = useState('inventory');
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <PageHeader 
         title="Catálogos" 
         icon={BookOpen}

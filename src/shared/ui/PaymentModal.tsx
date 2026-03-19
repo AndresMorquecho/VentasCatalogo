@@ -49,6 +49,7 @@ interface Props {
     initialAmount?: number; // Monto precargado desde la página previa
     orderItems?: OrderItem[]; // Lista de pedidos para mostrar información
     lockAmount?: boolean; // Bloquear el campo de monto cuando hay múltiples pedidos
+    forceExactAmount?: boolean; // Forzar que el pago sea exactamente igual al monto esperado
 }
 
 export function PaymentModal({
@@ -60,7 +61,8 @@ export function PaymentModal({
     allowMultiplePayments = true,
     initialAmount,
     orderItems,
-    lockAmount = false
+    lockAmount = false,
+    forceExactAmount = false
 }: Props) {
     const { data: bankAccountsResponse } = useBankAccountList();
     const bankAccounts = bankAccountsResponse?.data || [];
@@ -197,6 +199,12 @@ export function PaymentModal({
         // Validar que no sea negativo (ya está cubierto por el filter >= 0)
         if (totalAmount < 0) {
             alert("El monto total no puede ser negativo.");
+            return;
+        }
+
+        // REGLA FASE 3: Forzar monto exacto si se solicita (Ej. para entregas)
+        if (forceExactAmount && Math.abs(totalAmount - expectedAmount) > 0.01) {
+            alert(`Para este proceso se requiere cancelar el valor exacto del saldo pendiente: ${formatCurrency(expectedAmount)}.\nMonto actual: ${formatCurrency(totalAmount)}`);
             return;
         }
 

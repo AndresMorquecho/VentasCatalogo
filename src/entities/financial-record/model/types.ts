@@ -27,6 +27,7 @@ export interface FinancialRecord {
 
   // Bank Account
   bankAccountId: string;
+  bankAccountName?: string; // Nombre de la cuenta bancaria
   paymentMethod?: 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE' | 'CREDITO_CLIENTE' | 'SALDO_A_FAVOR';
 
   // Metadata

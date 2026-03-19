@@ -71,7 +71,7 @@ export function ReceptionZone({
                                     placeholder="0.00" 
                                     value={packingTotal}
                                     onChange={(e) => setPackingTotal(Number(e.target.value))}
-                                    className="h-8 text-xs w-28 bg-white border-monchito-purple/20 focus:ring-monchito-purple/20 font-mono font-bold text-monchito-purple"
+                                    className="h-8 text-xs w-28 bg-white border-monchito-purple/20 focus:ring-monchito-purple/20 font-mono font-bold text-monchito-purple hide-spinner"
                                 />
                             </div>
                         </div>

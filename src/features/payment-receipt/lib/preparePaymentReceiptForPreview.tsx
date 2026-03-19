@@ -7,9 +7,9 @@ import type { Order } from '@/entities/order/model/types';
  * Esta función NO descarga automáticamente, sino que retorna el elemento React
  * para ser usado con el PDFPreviewModal
  */
-export async function preparePaymentReceiptForPreview(order: Order) {
+export async function preparePaymentReceiptForPreview(order: Order, payments: any[], userName: string) {
     try {
-        const element = createElement(PaymentReceiptDocument, { order } as any);
+        const element = createElement(PaymentReceiptDocument, { order, payments, userName } as any);
         
         return {
             document: element,

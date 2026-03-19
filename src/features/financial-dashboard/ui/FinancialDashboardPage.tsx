@@ -64,16 +64,16 @@ export function FinancialDashboardPage() {
 
     // 2. Invoice Statistics (Donut Chart representation)
     const invoiceStats = useMemo(() => {
-        const total = summary.movementCount || 1;
+        const total = summary.movementCount;
         const paid = summary.bySource.ORDER_PAYMENT.count;
         const manual = summary.bySource.MANUAL.count;
         const adjustments = summary.bySource.ADJUSTMENT.count;
 
         return {
             total: summary.movementCount,
-            paid: { count: paid, percent: Math.round((paid / total) * 100), color: '#3b82f6' },
-            manual: { count: manual, percent: Math.round((manual / total) * 100), color: '#111827' },
-            adjustments: { count: adjustments, percent: Math.round((adjustments / total) * 100), color: '#94a3b8' }
+            paid: { count: paid, percent: total > 0 ? Math.round((paid / total) * 100) : 0, color: '#3b82f6' },
+            manual: { count: manual, percent: total > 0 ? Math.round((manual / total) * 100) : 0, color: '#111827' },
+            adjustments: { count: adjustments, percent: total > 0 ? Math.round((adjustments / total) * 100) : 0, color: '#94a3b8' }
         };
     }, [summary]);
 
@@ -255,8 +255,8 @@ export function FinancialDashboardPage() {
                             {/* Simple Vertical Bar Chart as placeholder for Line Chart without libraries */}
                             <div className="absolute inset-0 flex items-end justify-between gap-1">
                                 {salesData.map((d, i) => {
-                                    const maxVal = Math.max(...salesData.map(v => v.value)) || 1;
-                                    const height = (d.value / maxVal) * 100;
+                                    const maxVal = Math.max(...salesData.map(v => v.value));
+                                    const height = maxVal > 0 ? (d.value / maxVal) * 100 : 0;
                                     return (
                                         <div key={i} className="flex-1 flex flex-col items-center gap-2 group/bar">
                                             <div className="w-full relative">

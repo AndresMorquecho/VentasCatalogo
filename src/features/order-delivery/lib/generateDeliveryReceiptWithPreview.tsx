@@ -27,3 +27,23 @@ export const prepareDeliveryReceiptForPreview = async (order: Order, paymentInfo
         throw error;
     }
 };
+
+export const prepareBatchDeliveryReceiptForPreview = async (orders: Order[], paymentInfo?: any) => {
+    try {
+        console.log("Preparando comprobantes de entrega por lote para preview...", orders.length);
+
+        // Fetch client details once (all orders are for the same client)
+        const client = await clientApi.getById(orders[0].clientId);
+
+        const element = createElement(DeliveryReceiptDocument, { orders, client, paymentInfo } as any);
+
+        return {
+            document: element,
+            fileName: `Entrega-Lote-${orders.length}-${new Date().getTime()}.pdf`,
+            title: `Comprobantes de Entrega (${orders.length} pedidos)`
+        };
+    } catch (error) {
+        console.error("Error preparing batch delivery PDF:", error);
+        throw error;
+    }
+};

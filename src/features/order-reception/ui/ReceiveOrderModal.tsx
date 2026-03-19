@@ -153,7 +153,7 @@ export function ReceiveOrderModal({ order, open, onOpenChange }: ReceiveOrderMod
                             onChange={(e) => setInvoiceTotal(e.target.value)}
                             placeholder="0.00"
                             step="0.01"
-                            className={`font-bold text-lg ${parseFloat(invoiceTotal) !== order.total ? 'bg-orange-50 border-orange-300 text-orange-900' : 'bg-green-50 border-green-300 text-green-900'}`}
+                            className={`font-bold text-lg hide-spinner ${parseFloat(invoiceTotal) !== order.total ? 'bg-orange-50 border-orange-300 text-orange-900' : 'bg-green-50 border-green-300 text-green-900'}`}
                         />
                         <p className="text-xs text-muted-foreground">
                             Valor estimado original: {formatCurrency(order.total)}
@@ -218,6 +218,7 @@ export function ReceiveOrderModal({ order, open, onOpenChange }: ReceiveOrderMod
                                     onChange={(e) => setAbonoRecepcion(e.target.value)}
                                     placeholder="0.00"
                                     step="0.01"
+                                    className="hide-spinner"
                                 />
                             </div>
 

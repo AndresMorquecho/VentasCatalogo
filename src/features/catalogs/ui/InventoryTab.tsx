@@ -58,15 +58,15 @@ export function InventoryTab() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Formulario de ingreso */}
       <Card className="border-monchito-purple/20 bg-monchito-purple/5">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-2 mb-4">
+        <CardContent className="p-3">
+          <div className="flex items-center gap-2 mb-3">
             <Package className="h-5 w-5 text-monchito-purple" />
             <h3 className="text-sm font-bold text-monchito-purple">Registrar Ingreso de Catálogos</h3>
           </div>
-          <form onSubmit={handleSubmit} className="grid grid-cols-4 gap-4">
+          <form onSubmit={handleSubmit} className="grid grid-cols-4 gap-3">
             <div>
               <Label className="text-xs font-medium">Marca</Label>
               <Select value={brandId} onValueChange={setBrandId}>
@@ -123,12 +123,12 @@ export function InventoryTab() {
 
       {/* Filtros */}
       <Card className="border-slate-200 bg-slate-50/30">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-2 mb-3">
+        <CardContent className="p-3">
+          <div className="flex items-center gap-2 mb-2">
             <Filter className="h-4 w-4 text-slate-600" />
             <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Filtros</h3>
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <Label className="text-xs font-medium">Filtrar por Marca</Label>
               <Select value={filterBrand} onValueChange={setFilterBrand}>

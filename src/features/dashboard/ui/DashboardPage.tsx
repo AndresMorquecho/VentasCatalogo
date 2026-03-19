@@ -81,7 +81,7 @@ export function DashboardPage() {
     const oldestOrders = data?.alerts.oldestOrders ?? [];
 
     // Status metrics
-    const totalOrders = Object.values(data?.operational.ordersByStatus || {}).reduce((a: number, b: number) => a + b, 0) || 1;
+    const totalOrders = Object.values(data?.operational.ordersByStatus || {}).reduce((a: number, b: number) => a + b, 0);
     const stats = {
         entregados: { count: data?.operational.ordersByStatus.entregado ?? 0, color: '#3b82f6' }, // Blue
         pendientes: { count: data?.operational.ordersByStatus.recepcionado ?? 0, color: '#111827' }, // Dark
@@ -89,7 +89,7 @@ export function DashboardPage() {
     };
 
     // Calculate percentages for donut
-    const getPercent = (val: number) => Math.round((val / totalOrders) * 100);
+    const getPercent = (val: number) => totalOrders > 0 ? Math.round((val / totalOrders) * 100) : 0;
 
     return (
         <div className="min-h-screen bg-white p-4 lg:p-8 space-y-8 font-sans">

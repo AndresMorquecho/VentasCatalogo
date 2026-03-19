@@ -8,6 +8,8 @@ import { OrderLabelsDocument } from "@/features/order-labels/ui/OrderLabelsDocum
 import { ReceptionBatchReport } from "./ReceptionBatchReport"
 import { clientApi } from "@/shared/api/clientApi"
 import type { Client } from "@/entities/client/model/types"
+import { PDFPreviewModal } from "@/shared/ui/PDFPreviewModal"
+import { useNotifications } from "@/shared/lib/notifications"
 
 interface Props {
     isOpen: boolean
@@ -21,6 +23,19 @@ export function BatchPrintModal({ isOpen, onClose, orders, batchDetails }: Props
     const [isGenerating, setIsGenerating] = useState(false)
     const [isGeneratingReport, setIsGeneratingReport] = useState(false)
     const [clientsMap, setClientsMap] = useState<Record<string, Client>>({})
+    const { notifyError } = useNotifications()
+
+    // Preview state
+    const [previewOpen, setPreviewOpen] = useState(false)
+    const [previewContent, setPreviewContent] = useState<{
+        title: string,
+        fileName: string,
+        document: React.ReactElement | null
+    }>({
+        title: '',
+        fileName: '',
+        document: null
+    })
 
     useEffect(() => {
         if (isOpen && orders.length > 0) {
@@ -71,27 +86,22 @@ export function BatchPrintModal({ isOpen, onClose, orders, batchDetails }: Props
         try {
             const selectedOrders = orders.filter(o => selectedIds.has(o.id));
             
-            // Create the Document component
             const doc = <OrderLabelsDocument 
                 orders={selectedOrders} 
                 clientsMap={clientsMap}
                 user={{ name: localStorage.getItem('user_name') || 'Admin' }}
+                packingNumber={batchDetails?.packingNumber}
             />;
 
-            const blob = await pdf(doc).toBlob();
-            const url = URL.createObjectURL(blob);
-            
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `etiquetas-recepcion-${new Date().getTime()}.pdf`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            
-            setTimeout(() => URL.revokeObjectURL(url), 100);
-            onClose();
+            setPreviewContent({
+                title: 'Etiquetas de Entrega',
+                fileName: `etiquetas-recepcion-${new Date().getTime()}.pdf`,
+                document: doc
+            });
+            setPreviewOpen(true);
         } catch (error) {
             console.error("Error generating PDF:", error);
+            notifyError({ message: 'Error al generar la previsualización de etiquetas' });
         } finally {
             setIsGenerating(false)
         }
@@ -108,21 +118,33 @@ export function BatchPrintModal({ isOpen, onClose, orders, batchDetails }: Props
                 batchId={batchDetails?.id}
             />;
 
-            const blob = await pdf(doc).toBlob();
-            const url = URL.createObjectURL(blob);
-            
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `reporte-packing-${batchDetails?.packingNumber || 'batch'}-${new Date().getTime()}.pdf`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            
-            setTimeout(() => URL.revokeObjectURL(url), 100);
+            setPreviewContent({
+                title: 'Reporte de Recepción (Packing)',
+                fileName: `reporte-packing-${batchDetails?.packingNumber || 'batch'}-${new Date().getTime()}.pdf`,
+                document: doc
+            });
+            setPreviewOpen(true);
         } catch (error) {
             console.error("Error generating report:", error);
+            notifyError({ message: 'Error al generar la previsualización del reporte' });
         } finally {
             setIsGeneratingReport(false)
+        }
+    }
+
+    const downloadPdf = async (pdfDoc: React.ReactElement, fileName: string) => {
+        try {
+            const blob = await pdf(pdfDoc as any).toBlob();
+            const url = URL.createObjectURL(blob);
+            const link = window.document.createElement('a');
+            link.href = url;
+            link.download = fileName;
+            window.document.body.appendChild(link);
+            link.click();
+            window.document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(url), 100);
+        } catch (e) {
+            notifyError({ message: 'Error al descargar el PDF' });
         }
     }
 
@@ -236,6 +258,17 @@ export function BatchPrintModal({ isOpen, onClose, orders, batchDetails }: Props
                     </div>
                 </DialogFooter>
             </DialogContent>
+            
+            {previewContent.document && (
+                <PDFPreviewModal
+                    open={previewOpen}
+                    onOpenChange={setPreviewOpen}
+                    title={previewContent.title}
+                    fileName={previewContent.fileName}
+                    pdfDocument={previewContent.document}
+                    onDownload={() => downloadPdf(previewContent.document!, previewContent.fileName)}
+                />
+            )}
         </Dialog>
     )
 }

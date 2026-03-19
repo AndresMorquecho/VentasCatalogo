@@ -5,9 +5,6 @@ import type { User } from '@/entities/user/model/types';
 import type { Client } from '@/entities/client/model/types';
 import { getPaidAmount } from '@/entities/order/model/model';
 
-// Register a nice font if possible, otherwise use standard fonts effectively
-// Font.register({ family: 'Open Sans', src: '...' }); // Skipped for now to avoid external dependency issues
-
 const styles = StyleSheet.create({
     page: {
         padding: 30,
@@ -17,7 +14,9 @@ const styles = StyleSheet.create({
     },
     // Top Section
     headerContainer: {
-        marginBottom: 10,
+        marginBottom: 15,
+        borderBottom: '1.5pt solid black',
+        paddingBottom: 10,
     },
     logoRow: {
         flexDirection: 'row',
@@ -30,41 +29,37 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     logo: {
-        width: 60,
-        height: 40,
+        width: 140,
+        height: 70,
         objectFit: 'contain',
     },
     logoText: {
-        fontSize: 8,
-        marginLeft: 5,
+        fontSize: 14,
+        marginLeft: 10,
+        fontWeight: 'bold',
         textTransform: 'uppercase',
     },
     receiptGroup: {
         alignItems: 'flex-end',
     },
     receiptLabel: {
-        fontSize: 18,
+        fontSize: 20,
         fontWeight: 'bold',
     },
     receiptNumber: {
-        fontSize: 24,
+        fontSize: 28,
         fontWeight: 'bold',
     },
     
     // Info Rows
     infoRow: {
         flexDirection: 'row',
-        fontSize: 10,
-        marginBottom: 4,
-    },
-    empresariaRow: {
-        flexDirection: 'row',
-        fontSize: 10,
-        alignItems: 'center',
-        marginBottom: 2,
+        fontSize: 11,
+        marginBottom: 5,
     },
     label: {
         width: 60,
+        fontWeight: 'bold',
     },
     divider: {
         borderBottom: '1.5pt solid black',
@@ -74,14 +69,14 @@ const styles = StyleSheet.create({
 
     // Table
     table: {
-        marginTop: 10,
+        marginTop: 5,
         border: '1pt solid black',
         borderBottom: 0,
     },
     tableHeader: {
         flexDirection: 'row',
         borderBottom: '1pt solid black',
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#f3f4f6',
     },
     tableRow: {
         flexDirection: 'row',
@@ -113,28 +108,30 @@ const styles = StyleSheet.create({
     // Financial Summary Row
     financialRow: {
         flexDirection: 'row',
-        fontSize: 10,
+        fontSize: 11,
         fontWeight: 'bold',
         marginTop: 5,
+        borderBottom: '1pt solid black',
+        paddingBottom: 5,
     },
-    finCol1: { width: '47%' }, // Up to Valor pedido
+    finCol1: { width: '47%' },
     finColVal: { width: '14%', textAlign: 'right', paddingRight: 6 },
     finColAbo: { width: '10%', textAlign: 'right', paddingRight: 6 },
     finColSal: { width: '10%', textAlign: 'right', paddingRight: 6 },
 
     // Footer Info
     footerInfo: {
-        marginTop: 5,
+        marginTop: 10,
         fontSize: 10,
     },
     observations: {
         marginTop: 10,
-        marginBottom: 30,
+        marginBottom: 20,
     },
 
     // Legal Notes
     legalSection: {
-        marginTop: 20,
+        marginTop: 15,
         fontSize: 10,
         lineHeight: 1.2,
     },
@@ -144,7 +141,7 @@ const styles = StyleSheet.create({
     },
     notimonchito: {
         fontWeight: 'bold',
-        marginTop: 10,
+        marginTop: 5,
     },
 
     // Signatures
@@ -152,11 +149,11 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-around',
         alignItems: 'flex-end',
-        marginTop: 20,
+        marginTop: 30,
     },
     signatureBlock: {
         alignItems: 'center',
-        width: 200,
+        width: 180,
     },
     signatureLine: {
         width: '100%',
@@ -179,10 +176,11 @@ interface OrderReceiptProps {
     childOrders?: Order[];
     user?: User;
     client?: Client;
-    receiptNumber?: string; // Optional override for the general receipt number
+    bank?: any;
+    receiptNumber?: string;
 }
 
-export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({ order, childOrders = [], user, client, receiptNumber }) => {
+export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({ order, childOrders = [], user, client, bank, receiptNumber }) => {
     const allOrders = [order, ...childOrders];
     
     const totalVal = allOrders.reduce((sum, o) => sum + Number(o.total), 0);
@@ -201,6 +199,16 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({ order, child
     
     const logoUrl = '/images/mochitopng.png';
 
+    const paymentLabels: Record<string, string> = {
+        'TRANSFERENCIA': 'Transferencia Bancaria',
+        'EFECTIVO': 'Efectivo',
+        'DEPOSITO': 'Depósito',
+        'BILLETERA_VIRTUAL': 'Billetera Virtual',
+        'CREDITO_CLIENTE': 'Crédito aplicado'
+    };
+
+    const friendlyPayment = paymentLabels[order.paymentMethod] || order.paymentMethod;
+
     return (
         <Document>
             <Page size="A4" style={styles.page}>
@@ -217,22 +225,26 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({ order, child
                         </View>
                     </View>
 
-                    <View style={styles.infoRow}>
-                        <Text style={styles.label}>Fecha:</Text>
-                        <Text>{formattedDate}</Text>
-                    </View>
-
-                    <View style={styles.empresariaRow}>
-                        <Text style={styles.label}>Empresaria:</Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                            <Text style={{ fontSize: 10 }}>{client?.identificationNumber || order.clientId}</Text>
-                            <Text style={{ fontWeight: 'bold', textTransform: 'uppercase', marginLeft: 20, fontSize: 10 }}>
-                                {order.clientName || client?.firstName}
-                            </Text>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
+                        <View style={{ gap: 2 }}>
+                            <View style={styles.infoRow}>
+                                <Text style={styles.label}>Fecha:</Text>
+                                <Text>{formattedDate}</Text>
+                            </View>
+                            <View style={styles.infoRow}>
+                                <Text style={styles.label}>Cedula:</Text>
+                                <Text style={{ fontWeight: 'bold' }}>{client?.identificationNumber || order.clientId}</Text>
+                            </View>
+                            <View style={styles.infoRow}>
+                                <Text style={styles.label}>Nombre:</Text>
+                                <Text style={{ textTransform: 'uppercase', fontWeight: 'bold' }}>{order.clientName || client?.firstName}</Text>
+                            </View>
                         </View>
-                        <Text style={{ fontSize: 10 }}>Teléfonos:  2787237--</Text>
+                        <View style={{ gap: 2, alignItems: 'flex-end' }}>
+                            <Text style={{ fontSize: 10, fontWeight: 'bold' }}>Teléfonos:  2787237--</Text>
+                            <Text style={{ fontSize: 10 }}>Quito - Ecuador</Text>
+                        </View>
                     </View>
-                    <View style={styles.divider} />
                 </View>
 
                 {/* TABLE */}
@@ -252,7 +264,7 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({ order, child
                         const pending = Number(o.total) - paid;
                         return (
                             <View key={idx} style={styles.tableRow}>
-                                <Text style={[styles.tableCell, styles.colNo]}>{o.orderNumber || idx+1}</Text>
+                                <Text style={[styles.tableCell, styles.colNo]}>{o.orderNumber || idx + 1}</Text>
                                 <Text style={[styles.tableCell, styles.colType]}>{o.type}</Text>
                                 <Text style={[styles.tableCell, styles.colCat]}>{o.brandName}</Text>
                                 <Text style={[styles.tableCell, styles.colVal]}>{Number(o.total).toFixed(2)}</Text>
@@ -269,7 +281,17 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({ order, child
                 {/* FINANCIAL SUMMARY */}
                 <View style={styles.financialRow}>
                     <View style={styles.finCol1}>
-                        <Text>Forma de pago: {order.paymentMethod}</Text>
+                        <Text>Forma de pago: {friendlyPayment}</Text>
+                        {(order.paymentMethod === 'TRANSFERENCIA' || order.paymentMethod === 'DEPOSITO') && bank && (
+                            <Text style={{ fontSize: 9, marginTop: 4, fontWeight: 'bold' }}>
+                                Banco: {bank.name} {bank.accountNumber ? `- Cta: ${bank.accountNumber}` : ''}
+                            </Text>
+                        )}
+                        {((order as any).transactionReference || (order.payments && order.payments[0]?.reference)) && (
+                            <Text style={{ fontSize: 9, marginTop: 2, fontWeight: 'bold' }}>
+                                Ref/Comprobante: {(order as any).transactionReference || (order.payments && order.payments[0]?.reference)}
+                            </Text>
+                        )}
                     </View>
                     <Text style={styles.finColVal}>{totalVal.toFixed(2)}</Text>
                     <Text style={styles.finColAbo}>{totalAbo.toFixed(2)}</Text>

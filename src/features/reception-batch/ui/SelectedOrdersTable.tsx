@@ -143,6 +143,69 @@ export function SelectedOrdersTable({
             .filter(o => o.pendingAmount > 0.01); // Solo pedidos con saldo pendiente
     }
 
+    const handleTableKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, rowIndex: number, fieldName: string) => {
+        const input = e.currentTarget;
+        let selectionStart: number | null = null;
+        
+        try {
+            selectionStart = input.selectionStart;
+        } catch (e) {
+            // type="number" does not support selectionStart in some browsers
+        }
+
+        const valueLength = input.value.length;
+
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            const nextIndex = e.key === 'ArrowDown' ? rowIndex + 1 : rowIndex - 1;
+            const target = document.querySelector(`input[data-row-index="${nextIndex}"][data-field-name="${fieldName}"]`) as HTMLInputElement;
+            if (target) {
+                target.focus();
+                if (target.type !== 'number') {
+                    target.select();
+                }
+            }
+        } else if (e.key === 'ArrowLeft') {
+            // Move to previous column if at start of input (or if numeric input and we can't detect position)
+            if (selectionStart === 0 || input.type === 'number') {
+                const fields = ['finalInvoiceNumber', 'finalTotal'];
+                const currentIndex = fields.indexOf(fieldName);
+                if (currentIndex > 0) {
+                    const prevField = fields[currentIndex - 1];
+                    const targetInput = document.querySelector(
+                        `input[data-row-index="${rowIndex}"][data-field-name="${prevField}"]`
+                    ) as HTMLInputElement;
+                    if (targetInput) {
+                        e.preventDefault();
+                        targetInput.focus();
+                        if (targetInput.type !== 'number') {
+                            targetInput.select();
+                        }
+                    }
+                }
+            }
+        } else if (e.key === 'ArrowRight') {
+            // Move to next column if at end of input
+            if (selectionStart === valueLength || input.type === 'number') {
+                const fields = ['finalInvoiceNumber', 'finalTotal'];
+                const currentIndex = fields.indexOf(fieldName);
+                if (currentIndex < fields.length - 1) {
+                    const nextField = fields[currentIndex + 1];
+                    const targetInput = document.querySelector(
+                        `input[data-row-index="${rowIndex}"][data-field-name="${nextField}"]`
+                    ) as HTMLInputElement;
+                    if (targetInput) {
+                        e.preventDefault();
+                        targetInput.focus();
+                        if (targetInput.type !== 'number') {
+                            targetInput.select();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     if (orders.length === 0) {
         return (
             <div className="h-full flex flex-col items-center justify-center p-8 border-2 border-dashed border-emerald-200 rounded-lg bg-emerald-50 text-emerald-400">
@@ -227,6 +290,9 @@ export function SelectedOrdersTable({
                                             <Input
                                                 value={finalInvoiceNumber}
                                                 onChange={(e) => onUpdateInvoiceNumber(order.id, e.target.value)}
+                                                onKeyDown={(e) => handleTableKeyDown(e, orders.indexOf(orderState), 'finalInvoiceNumber')}
+                                                data-row-index={orders.indexOf(orderState)}
+                                                data-field-name="finalInvoiceNumber"
                                                 className="h-7 text-xs bg-white border-monchito-purple/20 px-2 w-16 focus:ring-monchito-purple/20"
                                                 placeholder="#"
                                             />
@@ -242,7 +308,10 @@ export function SelectedOrdersTable({
                                                     const val = parseFloat(e.target.value);
                                                     onUpdateInvoiceTotal(order.id, isNaN(val) ? 0 : val);
                                                 }}
-                                                className={`h-7 text-xs px-2 text-right font-mono bg-white border-monchito-purple/20 focus:ring-monchito-purple/20 font-bold w-20 ${mismatch ? 'text-amber-700 bg-amber-50' : 'text-monchito-purple'}`}
+                                                onKeyDown={(e) => handleTableKeyDown(e, orders.indexOf(orderState), 'finalTotal')}
+                                                data-row-index={orders.indexOf(orderState)}
+                                                data-field-name="finalTotal"
+                                                className={`h-7 text-xs px-2 text-right font-mono bg-white border-monchito-purple/20 focus:ring-monchito-purple/20 font-bold w-24 hide-spinner ${mismatch ? 'text-amber-700 bg-amber-50' : 'text-monchito-purple'}`}
                                             />
                                         </TableCell>
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { orderApi } from '@/entities/order/model/api';
 import type { Order } from '@/entities/order/model/types';
@@ -14,6 +14,27 @@ export const useReceptionBatch = () => {
     const [lastSavedOrders, setLastSavedOrders] = useState<Order[] | null>(null);
     const [lastSavedBatch, setLastSavedBatch] = useState<any | null>(null);
 
+    const generateNextPackingNumber = (currentBatches: any[]) => {
+        const currentYear = new Date().getFullYear();
+        const yearPrefix = `PK-${currentYear}-`;
+        
+        const currentYearBatches = currentBatches.filter(b => b.packingNumber?.startsWith(yearPrefix));
+        
+        let maxIndex = 0;
+        currentYearBatches.forEach(b => {
+            const parts = b.packingNumber.split('-');
+            if (parts.length === 3) {
+                const index = parseInt(parts[2], 10);
+                if (!isNaN(index) && index > maxIndex) {
+                    maxIndex = index;
+                }
+            }
+        });
+        
+        const nextIndex = (maxIndex + 1).toString().padStart(3, '0');
+        return `${yearPrefix}${nextIndex}`;
+    };
+
     // Queries
     const { data: allOrders = [], isLoading: isLoadingOrders } = useQuery({
         queryKey: ['orders-pending-reception'],
@@ -28,6 +49,13 @@ export const useReceptionBatch = () => {
     // Ensure batches is always an array
     const batches = Array.isArray(batchesData) ? batchesData : [];
 
+    // Auto-generate on load (if not editing)
+    useEffect(() => {
+        if (!editingBatchId && batches.length > 0 && !packingNumber) {
+            setPackingNumber(generateNextPackingNumber(batches));
+        }
+    }, [batches, editingBatchId]);
+
     // Mutations
     const saveBatch = useMutation({
         mutationFn: (data: { items: any[], packingNumber: string, packingTotal: number, id?: string }) => 
@@ -38,7 +66,12 @@ export const useReceptionBatch = () => {
             }),
         onSuccess: (data: any) => {
             queryClient.invalidateQueries({ queryKey: ['orders-pending-reception'] });
-            queryClient.invalidateQueries({ queryKey: ['reception-batches'] });
+            queryClient.invalidateQueries({ queryKey: ['reception-batches'] }).then((newBatchesData: any) => {
+                const updatedBatches = Array.isArray(newBatchesData) ? newBatchesData : batches;
+                if (!editingBatchId) {
+                    setPackingNumber(generateNextPackingNumber(updatedBatches));
+                }
+            });
             
             // Si la API retorna un objeto { batch, orders }
             const orders = data.orders || data;
@@ -50,7 +83,7 @@ export const useReceptionBatch = () => {
             });
 
             setSelectedOrders([]);
-            setPackingNumber('');
+            // setPackingNumber(''); // Don't clear it, wait for refresh
             setPackingTotal(0);
             setEditingBatchId(null);
             showToast(editingBatchId ? 'Packing actualizado' : 'Pedidos recepcionados correctamente', 'success');
@@ -110,7 +143,7 @@ export const useReceptionBatch = () => {
     const cancelEdit = () => {
         setEditingBatchId(null);
         setSelectedOrders([]);
-        setPackingNumber('');
+        setPackingNumber(generateNextPackingNumber(batches));
         setPackingTotal(0);
     };
 

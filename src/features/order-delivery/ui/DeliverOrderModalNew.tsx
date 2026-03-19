@@ -45,16 +45,17 @@ export function DeliverOrderModalNew({ order, orders = [], open, onOpenChange, o
         }
     })
 
-    if (!firstOrder) return null
+    // Keep component mounted if we are showing a PDF even if the orders are cleared
+    if (!firstOrder && !pdfPreview.pdfDocument) return null
 
-    // Calculate totals
+    // Calculate totals safely
     const totalEffective = activeOrders.reduce((sum, o) => sum + (o.realInvoiceTotal ?? o.total), 0)
     const totalPaidBefore = activeOrders.reduce((sum, o) => sum + getPaidAmount(o), 0)
     const totalAmountToCharge = Math.max(0, totalEffective - totalPaidBefore)
     const currentCreditAmount = creditData?.totalCredit || 0
-
+ 
     // Payment context for the modal
-    const paymentContext: PaymentContext = {
+    const paymentContext: PaymentContext | null = firstOrder ? {
         type: "ABONO",
         clientId: firstOrder.clientId,
         clientName: firstOrder.clientName,
@@ -62,12 +63,21 @@ export function DeliverOrderModalNew({ order, orders = [], open, onOpenChange, o
         description: isBatch 
             ? `Entrega de lote (${activeOrders.length} pedidos)` 
             : `Entrega de pedido ${firstOrder.receiptNumber}`
-    }
+    } : null
 
     const handlePaymentSubmit = async (data: PaymentModalData) => {
+        if (!firstOrder) return;
         if (!hasPermission('delivery.confirm')) {
             notifyError({ message: 'No tienes permiso para realizar entregas' })
             throw new Error('No permission')
+        }
+
+        const totalPaid = data.payments.reduce((sum, p) => sum + p.amount, 0)
+        
+        // REGLA FASE 3: En entregas SIEMPRE se debe pagar el total
+        if (Math.abs(totalPaid - totalAmountToCharge) > 0.01) {
+            notifyError({ message: 'Se debe cancelar el monto total pendiente para proceder con la entrega.' })
+            throw new Error('Full payment required')
         }
 
         if (isProcessingRef.current) {
@@ -78,7 +88,6 @@ export function DeliverOrderModalNew({ order, orders = [], open, onOpenChange, o
 
         try {
             // Convert PaymentModal format to API format
-            // Note: PaymentModal uses BILLETERA_VIRTUAL but backend expects CREDITO_CLIENTE
             const paymentsToSend = data.payments.map(p => ({
                 amount: p.amount,
                 paymentMethod: p.method === 'BILLETERA_VIRTUAL' ? 'CREDITO_CLIENTE' : p.method,
@@ -88,16 +97,44 @@ export function DeliverOrderModalNew({ order, orders = [], open, onOpenChange, o
 
             if (isBatch) {
                 await orderApi.batchDeliver(activeOrders.map(o => o.id), paymentsToSend)
+                
+                // RE-FETCH UPDATED ORDERS TO GET NEW BALANCES FOR PDF
+                const updatedOrders = await Promise.all(
+                    activeOrders.map(async (o) => {
+                        return await orderApi.getById(o.id)
+                    })
+                )
+
+                // PDF Preview para el lote
+                try {
+                    const { prepareBatchDeliveryReceiptForPreview } = await import("../lib/generateDeliveryReceiptWithPreview")
+                    const { document, fileName, title } = await prepareBatchDeliveryReceiptForPreview(updatedOrders, {
+                        amountPaidNow: totalPaid,
+                        method: data.payments.length > 1 ? 'MIXTO' : (data.payments[0]?.method || 'EFECTIVO'),
+                        user: user?.username || 'Administrador',
+                        currentCreditAmount: currentCreditAmount,
+                        hasCurrentCredit: currentCreditAmount > 0
+                    })
+                    
+                    setPdfTitle(title)
+                    setPdfFileName(fileName)
+                    pdfPreview.openPreview(document)
+                } catch (pdfError) {
+                    console.error("Error preparando PDF Batch", pdfError)
+                }
+
                 notifySuccess(`Lote de ${activeOrders.length} entregas registrado correctamente`)
             } else {
-                const deliveredOrder = await orderApi.deliverOrder(firstOrder.id, {
+                await orderApi.deliverOrder(firstOrder.id, {
                     payments: paymentsToSend,
                     notes: `Entrega al cliente ${firstOrder.clientName}`
                 });
 
+                // RE-FETCH UPDATED ORDER
+                const deliveredOrder = await orderApi.getById(firstOrder.id);
+
                 // PDF Preview - No descarga automática
                 try {
-                    const totalPaid = data.payments.reduce((sum, p) => sum + p.amount, 0)
                     const { document, fileName, title } = await prepareDeliveryReceiptForPreview(deliveredOrder, {
                         amountPaidNow: totalPaid,
                         method: data.payments.length > 1 ? 'MIXTO' : (data.payments[0]?.method || 'EFECTIVO'),
@@ -121,8 +158,7 @@ export function DeliverOrderModalNew({ order, orders = [], open, onOpenChange, o
             qc.invalidateQueries({ queryKey: ['financial-records'] })
             qc.invalidateQueries({ queryKey: ['client-rewards'] })
 
-            if (user) {
-                const totalPaid = data.payments.reduce((sum, p) => sum + p.amount, 0)
+            if (user && firstOrder) {
                 logAction({
                     userId: user.id,
                     userName: user.username,
@@ -142,15 +178,18 @@ export function DeliverOrderModalNew({ order, orders = [], open, onOpenChange, o
 
     return (
         <>
-            <PaymentModal
-                open={open}
-                onOpenChange={onOpenChange}
-                onSubmit={handlePaymentSubmit}
-                paymentContext={paymentContext}
-                expectedAmount={totalAmountToCharge}
-                allowMultiplePayments={true}
-                initialAmount={totalAmountToCharge}
-            />
+            {firstOrder && paymentContext && (
+                <PaymentModal
+                    open={open}
+                    onOpenChange={onOpenChange}
+                    onSubmit={handlePaymentSubmit}
+                    paymentContext={paymentContext}
+                    expectedAmount={totalAmountToCharge}
+                    allowMultiplePayments={true}
+                    initialAmount={totalAmountToCharge}
+                    forceExactAmount={true}
+                />
+            )}
 
             {pdfPreview.pdfDocument && (
                 <PDFPreviewModal

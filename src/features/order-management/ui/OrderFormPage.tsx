@@ -171,7 +171,9 @@ export function OrderFormPage() {
 
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isLoadingReceiptNumber, setIsLoadingReceiptNumber] = useState(false)
+    const [isLoadingOrderNumber, setIsLoadingOrderNumber] = useState(false)
     const [isLoadingRelated, setIsLoadingRelated] = useState(false)
+    const [globalNextOrderNumber, setGlobalNextOrderNumber] = useState<string>("")
     
     // Estados para modal de edición individual
     const [editModalOpen, setEditModalOpen] = useState(false)
@@ -219,8 +221,6 @@ export function OrderFormPage() {
     const handlePaymentSubmit = async (paymentData: PaymentModalData) => {
         setIsSubmitting(true);
         try {
-            const client = clients.find(c => c.id === formik.values.clientId);
-
             // Calcular totales de los pagos
             const totalAmount = paymentData.payments.reduce((sum, p) => sum + p.amount, 0);
             const walletCreditUsed = paymentData.payments
@@ -299,7 +299,8 @@ export function OrderFormPage() {
                         email: '',
                         status: 'ACTIVE',
                         createdAt: new Date().toISOString()
-                    } as any
+                    } as any,
+                    ordersWithNumbers.slice(1)
                 )
                 
                 setPdfTitle(title)
@@ -358,9 +359,30 @@ export function OrderFormPage() {
             formik.setFieldValue('receiptNumber', receiptNumber);
         } catch (error) {
             console.error('Error generating receipt number:', error);
-            notifyError(error, 'Error al generar número de recibo');
+            // Fallback manual si el backend falla o para previsualizar
+            const year = new Date().getFullYear();
+            formik.setFieldValue('receiptNumber', `OR-${year}-001`);
         } finally {
             setIsLoadingReceiptNumber(false);
+        }
+    };
+
+    const generateNextOrderNumber = async () => {
+        try {
+            setIsLoadingOrderNumber(true);
+            const { orderNumber } = await orderApi.generateOrderNumber();
+            setGlobalNextOrderNumber(orderNumber);
+            
+            // Si el currentItem no tiene número o tiene el valor por defecto, actualizarlo
+            if (!currentItem.orderNumber || currentItem.orderNumber.startsWith(`PD-${new Date().getFullYear()}`)) {
+                setCurrentItem(prev => ({ ...prev, orderNumber: orderNumber }));
+            }
+        } catch (error) {
+            console.error('Error generating order number:', error);
+            const year = new Date().getFullYear();
+            setGlobalNextOrderNumber(`PD-${year}-001`);
+        } finally {
+            setIsLoadingOrderNumber(false);
         }
     };
 
@@ -509,21 +531,63 @@ export function OrderFormPage() {
     }
 
     useEffect(() => {
-        if (currentItem.type === 'REPROGRAMACION') {
-            // Check the locally added items in the current form (prioritize "same receipt" logic)
-            const localItems = [...formik.values.brandItems].reverse();
-            const lastLocalValid = localItems.find(item => item.type === 'NORMAL' || item.type === 'PREVENTA');
+        const year = new Date().getFullYear();
+        const userPrefix = `PD-${year}-`;
 
-            if (lastLocalValid) {
-                setCurrentItem(prev => ({
-                    ...prev,
-                    brandId: lastLocalValid.brandId,
-                    brandName: lastLocalValid.brandName,
-                    orderNumber: lastLocalValid.orderNumber || ""
-                }));
+        // REPROGRAMACION special handling: pre-select last brand and its number
+        if (currentItem.type === 'REPROGRAMACION') {
+            const lastValidItem = [...formik.values.brandItems].reverse().find(
+                item => item.type === 'NORMAL' || item.type === 'PREVENTA'
+            );
+            
+            if (lastValidItem) {
+                // Si ya teníamos una marca pero no era la última válida, o si no teníamos marca, la actualizamos
+                if (currentItem.brandId !== lastValidItem.brandId || currentItem.orderNumber !== lastValidItem.orderNumber) {
+                    setCurrentItem(prev => ({ 
+                        ...prev, 
+                        brandId: lastValidItem.brandId,
+                        brandName: lastValidItem.brandName,
+                        orderNumber: lastValidItem.orderNumber || prev.orderNumber 
+                    }));
+                }
+                return;
             }
         }
-    }, [currentItem.type, formik.values.brandItems.length]);
+
+        // No forzar el mismo número para la misma marca. Cada fila debe tener su propio número correlativo.
+
+
+        // Default: calculate next global number for the current receipt
+        const numbersInList = formik.values.brandItems
+            .map(item => item.orderNumber)
+            .filter(num => num && num.startsWith(userPrefix));
+        
+        const uniqueNumbersCount = new Set(numbersInList).size;
+        
+        let nextNum = "";
+        if (uniqueNumbersCount > 0) {
+            // Incrementar sobre lo que ya hay en la tabla
+            nextNum = `${userPrefix}${String(uniqueNumbersCount + 1).padStart(3, '0')}`;
+        } else if (globalNextOrderNumber) {
+            // Usar el número global del servidor si la tabla está vacía
+            nextNum = globalNextOrderNumber;
+        } else {
+            // Fallback
+            nextNum = `${userPrefix}001`;
+        }
+        
+        // Only update if it's currently empty or has the default pattern but an old count
+        const isCurrentDefault = !currentItem.orderNumber || currentPrefixMatch(currentItem.orderNumber, userPrefix);
+        if (isCurrentDefault && currentItem.orderNumber !== nextNum && currentItem.type !== 'REPROGRAMACION') {
+            setCurrentItem(prev => ({ ...prev, orderNumber: nextNum }));
+        }
+    }, [currentItem.brandId, currentItem.type, formik.values.brandItems.length, globalNextOrderNumber]);
+
+    // Helper to check if a number matches the pattern prefix
+    function currentPrefixMatch(val: string, prefix: string) {
+        return val.startsWith(prefix);
+    }
+
 
     // Update formik when order data is loaded for editing - Load all associated items
     useEffect(() => {
@@ -629,6 +693,7 @@ export function OrderFormPage() {
             // Caso 3: Modo creación
             else if (!isEditing) {
                 generateNextReceiptNumber();
+                generateNextOrderNumber();
             }
         };
 
@@ -653,6 +718,76 @@ export function OrderFormPage() {
 
     // Total deposit is now the sum of manual row deposits
     const totalRowDeposit = formik.values.brandItems.reduce((sum, item) => sum + Number(item.deposit || 0), 0);
+
+    const handleTableKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, rowIndex: number, fieldName: string) => {
+        const input = e.currentTarget;
+        let selectionStart: number | null = null;
+        
+        try {
+            selectionStart = input.selectionStart;
+        } catch (e) {
+            // type="number" does not support selectionStart in some browsers
+        }
+
+        const valueLength = input.value.length;
+
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            const direction = e.key === 'ArrowDown' ? 1 : -1;
+            const targetRowIndex = rowIndex + direction;
+            
+            if (targetRowIndex >= 0 && targetRowIndex < formik.values.brandItems.length) {
+                const targetInput = document.querySelector(
+                    `[data-row-index="${targetRowIndex}"][data-field-name="${fieldName}"]`
+                ) as HTMLInputElement;
+                
+                if (targetInput) {
+                    targetInput.focus();
+                    if (targetInput.type !== 'number') {
+                         targetInput.select();
+                    }
+                }
+            }
+        } else if (e.key === 'ArrowLeft') {
+            // Move to previous column if at start of input (or if numeric input and we can't detect position)
+            if (selectionStart === 0 || input.type === 'number') {
+                const fields = ['orderNumber', 'total', 'deposit'];
+                const currentIndex = fields.indexOf(fieldName);
+                if (currentIndex > 0) {
+                    const prevField = fields[currentIndex - 1];
+                    const targetInput = document.querySelector(
+                        `[data-row-index="${rowIndex}"][data-field-name="${prevField}"]`
+                    ) as HTMLInputElement;
+                    if (targetInput) {
+                        e.preventDefault();
+                        targetInput.focus();
+                        if (targetInput.type !== 'number') {
+                            targetInput.select();
+                        }
+                    }
+                }
+            }
+        } else if (e.key === 'ArrowRight') {
+            // Move to next column if at end of input
+            if (selectionStart === valueLength || input.type === 'number') {
+                const fields = ['orderNumber', 'total', 'deposit'];
+                const currentIndex = fields.indexOf(fieldName);
+                if (currentIndex < fields.length - 1) {
+                    const nextField = fields[currentIndex + 1];
+                    const targetInput = document.querySelector(
+                        `[data-row-index="${rowIndex}"][data-field-name="${nextField}"]`
+                    ) as HTMLInputElement;
+                    if (targetInput) {
+                        e.preventDefault();
+                        targetInput.focus();
+                        if (targetInput.type !== 'number') {
+                            targetInput.select();
+                        }
+                    }
+                }
+            }
+        }
+    };
 
     // Balance calculation
     const balance = totalOrderValue - totalRowDeposit - Number(formik.values.creditToUse);
@@ -830,9 +965,8 @@ export function OrderFormPage() {
                         name: user?.username || 'Vendedor',
                         role: 'OPERATOR',
                         email: '',
-                        status: 'ACTIVE',
-                        createdAt: new Date().toISOString()
-                    } as any
+                    } as any,
+                    allOrders.slice(1)
                 )
                 
                 setPdfTitle(title)
@@ -939,11 +1073,15 @@ export function OrderFormPage() {
                                             type="button"
                                             variant="ghost"
                                             size="icon"
-                                            onClick={generateNextReceiptNumber}
-                                            disabled={isLoadingReceiptNumber}
+                                            onClick={() => {
+                                                generateNextReceiptNumber();
+                                                generateNextOrderNumber();
+                                            }}
+                                            disabled={isLoadingReceiptNumber || isLoadingOrderNumber}
                                             className="h-8 w-8 text-monchito-purple hover:bg-monchito-purple/10 rounded-lg"
+                                            title="Actualizar índices"
                                         >
-                                            <RotateCw className={`h-3 w-3 ${isLoadingReceiptNumber ? 'animate-spin' : ''}`} />
+                                            <RotateCw className={`h-3 w-3 ${isLoadingReceiptNumber || isLoadingOrderNumber ? 'animate-spin' : ''}`} />
                                         </Button>
                                     )}
                                 </div>
@@ -1039,7 +1177,7 @@ export function OrderFormPage() {
                         <Label className="text-xs font-bold uppercase text-slate-500">Cant:</Label>
                         <Input
                             type="number"
-                            className="h-8 w-full text-xs px-2"
+                            className="h-8 w-full text-xs px-2 hide-spinner"
                             value={currentItem.quantity}
                             onChange={(e) => setCurrentItem({ ...currentItem, quantity: Number(e.target.value) })}
                         />
@@ -1060,7 +1198,7 @@ export function OrderFormPage() {
                         <Label className="text-xs font-bold uppercase text-slate-500">Valor:</Label>
                         <Input
                             type="number"
-                            className="h-8 w-full font-bold text-xs px-2"
+                            className="h-8 w-full font-bold text-xs px-2 hide-spinner"
                             value={currentItem.total}
                             onChange={(e) => setCurrentItem({ ...currentItem, total: Number(e.target.value) })}
                             step="0.01"
@@ -1137,6 +1275,9 @@ export function OrderFormPage() {
                                                             newItems[idx] = { ...newItems[idx], orderNumber: e.target.value }
                                                             formik.setFieldValue('brandItems', newItems)
                                                         }}
+                                                        onKeyDown={(e) => handleTableKeyDown(e, idx, 'orderNumber')}
+                                                        data-row-index={idx}
+                                                        data-field-name="orderNumber"
                                                         placeholder="---"
                                                         className="h-7 text-xs font-mono px-1 border-slate-200"
                                                     />
@@ -1173,13 +1314,16 @@ export function OrderFormPage() {
                                                         <input
                                                             type="number"
                                                             step="0.01"
-                                                            className="h-7 w-16 text-right text-xs font-bold border border-slate-200 rounded-lg px-1 focus:ring-1 focus:ring-monchito-purple outline-none"
+                                                            className="h-7 w-16 text-right text-xs font-bold border border-slate-200 rounded-lg px-1 focus:ring-1 focus:ring-monchito-purple outline-none hide-spinner"
                                                             value={item.total}
                                                             onChange={(e) => {
                                                                 const newItems = [...formik.values.brandItems]
                                                                 newItems[idx] = { ...newItems[idx], total: Number(e.target.value) }
                                                                 formik.setFieldValue('brandItems', newItems)
                                                             }}
+                                                            onKeyDown={(e) => handleTableKeyDown(e as any, idx, 'total')}
+                                                            data-row-index={idx}
+                                                            data-field-name="total"
                                                         />
                                                     </div>
                                                 ) : (
@@ -1197,7 +1341,7 @@ export function OrderFormPage() {
                                                             min="0"
                                                             max={item.total}
                                                             placeholder="0.00"
-                                                            className="h-7 w-16 text-right text-xs font-bold border border-slate-200 rounded-lg px-1 focus:ring-1 focus:ring-emerald-500 outline-none text-emerald-600"
+                                                            className="h-7 w-16 text-right text-xs font-bold border border-slate-200 rounded-lg px-1 focus:ring-1 focus:ring-emerald-500 outline-none text-emerald-600 hide-spinner"
                                                             value={item.deposit === 0 ? '0' : (item.deposit || '')}
                                                             onChange={(e) => {
                                                                 const newItems = [...formik.values.brandItems];
@@ -1205,6 +1349,9 @@ export function OrderFormPage() {
                                                                 newItems[idx] = { ...newItems[idx], deposit: value };
                                                                 formik.setFieldValue('brandItems', newItems);
                                                             }}
+                                                            onKeyDown={(e) => handleTableKeyDown(e as any, idx, 'deposit')}
+                                                            data-row-index={idx}
+                                                            data-field-name="deposit"
                                                         />
                                                     </div>
                                                 ) : (
@@ -1542,7 +1689,7 @@ function OrderEditModal({ order, open, onOpenChange, onSuccess, lastClosureDate 
                                             <input
                                                 type="number"
                                                 step="0.01"
-                                                className="h-7 w-20 text-right font-bold border-none focus:ring-0 outline-none text-xs bg-transparent"
+                                                className="h-7 w-20 text-right font-bold border-none focus:ring-0 outline-none text-xs bg-transparent hide-spinner"
                                                 value={formData.total}
                                                 onChange={(e) => setFormData({ ...formData, total: Number(e.target.value) })}
                                                 required
@@ -1555,7 +1702,7 @@ function OrderEditModal({ order, open, onOpenChange, onSuccess, lastClosureDate 
                                             <input
                                                 type="number"
                                                 step="0.01"
-                                                className="h-7 w-20 text-right text-green-600 font-bold rounded border-green-100 focus:ring-1 focus:ring-green-500 outline-none text-xs bg-green-50/30"
+                                                className="h-7 w-20 text-right text-green-600 font-bold rounded border-green-100 focus:ring-1 focus:ring-green-500 outline-none text-xs bg-green-50/30 hide-spinner"
                                                 value={formData.deposit}
                                                 onChange={(e) => setFormData({ ...formData, deposit: Number(e.target.value) })}
                                                 required

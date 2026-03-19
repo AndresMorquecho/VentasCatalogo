@@ -40,14 +40,15 @@ const styles = StyleSheet.create({
         flexDirection: 'column',
     },
     clientName: {
-        fontSize: 9,
-        fontWeight: 'bold',
+        fontSize: 10,
+        fontWeight: 'extrabold',
         textTransform: 'uppercase',
     },
     clientDetails: {
-        fontSize: 7,
-        marginTop: 1,
-        color: '#333',
+        fontSize: 8,
+        marginTop: 2,
+        color: '#1e293b',
+        fontWeight: 'bold',
     },
     // Middle row
     middleRow: {
@@ -79,10 +80,11 @@ const styles = StyleSheet.create({
         marginBottom: 2,
     },
     prendasBox: {
-        width: 30,
-        height: 18,
-        borderWidth: 1,
+        width: 35,
+        height: 20,
+        borderWidth: 1.5,
         borderColor: '#000',
+        marginTop: 2,
     },
     // Removiendo prendasValue para dejarlo vacío para llenado manual si se desea
     // o simplemente para seguir el formato idéntico.
@@ -109,8 +111,12 @@ const styles = StyleSheet.create({
         paddingBottom: 1,
     },
     tableHeaderItem: {
-        fontSize: 7,
+        fontSize: 8,
         fontWeight: 'bold',
+        color: '#475569',
+        borderBottomWidth: 0.5,
+        borderBottomColor: '#cbd5e1',
+        paddingBottom: 2,
     },
     tableValueRow: {
         flexDirection: 'row',
@@ -142,9 +148,10 @@ interface OrderLabelsProps {
     orders: Order[];
     clientsMap?: Record<string, Client>;
     user?: { name: string };
+    packingNumber?: string;
 }
 
-export const OrderLabelsDocument = ({ orders, clientsMap, user }: OrderLabelsProps) => {
+export const OrderLabelsDocument = ({ orders, clientsMap, user, packingNumber }: OrderLabelsProps) => {
     // Labels are small, so 10 per page (2 columns x 5 rows)
     const chunkedOrders = [];
     for (let i = 0; i < orders.length; i += 10) {
@@ -221,7 +228,7 @@ export const OrderLabelsDocument = ({ orders, clientsMap, user }: OrderLabelsPro
                                             <Text style={styles.bold}>Revisado por:</Text> {user?.name || 'Sis'}
                                         </Text>
                                         <Text style={styles.footerItem}>
-                                            <Text style={styles.bold}>EP:</Text> {client?.identificationNumber?.slice(-6) || order.id.slice(0, 6)}
+                                            <Text style={styles.bold}>Packing:</Text> {packingNumber || 'N/A'}
                                         </Text>
                                         <Text style={styles.footerItem}>
                                             <Text style={styles.bold}>Fecha:</Text> {fullDateTime}

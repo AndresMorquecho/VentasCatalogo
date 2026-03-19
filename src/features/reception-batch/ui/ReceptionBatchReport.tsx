@@ -8,51 +8,46 @@ const styles = StyleSheet.create({
         fontFamily: 'Helvetica',
         backgroundColor: '#FFFFFF',
     },
-    headerRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: 20,
-    },
     logoSection: {
         flexDirection: 'row',
         alignItems: 'center',
+        flex: 1,
     },
     logo: {
-        width: 50,
-        height: 40,
+        width: 120,
+        height: 60,
         objectFit: 'contain',
     },
     logoText: {
-        fontSize: 10,
-        marginLeft: 5,
+        fontSize: 12,
+        marginLeft: 10,
         fontWeight: 'bold',
-        color: '#333',
+        textTransform: 'uppercase',
+        color: '#1e293b',
     },
     titleSection: {
-        alignItems: 'center',
+        alignItems: 'flex-end',
         flex: 1,
     },
     title: {
-        fontSize: 14,
+        fontSize: 16,
         fontWeight: 'bold',
         textTransform: 'uppercase',
+        color: '#1e293b',
     },
-    packingBox: {
-        border: '1pt solid #000',
-        padding: 5,
-        width: 120,
-        alignItems: 'center',
-        backgroundColor: '#f0f0f0',
-    },
-    packingBoxLabel: {
-        fontSize: 10,
-        fontWeight: 'bold',
-        marginBottom: 2,
-    },
-    packingBoxValue: {
+    subtitle: {
         fontSize: 12,
         fontWeight: 'bold',
+        marginTop: 4,
+        color: '#475569',
+    },
+    headerRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+        borderBottom: '1pt solid #000',
+        paddingBottom: 10,
     },
     metaData: {
         marginBottom: 15,
@@ -120,10 +115,9 @@ interface Props {
     packingNumber: string;
     packingTotal: number;
     userName: string;
-    batchId?: string;
 }
 
-export const ReceptionBatchReport: React.FC<Props> = ({ orders, packingNumber, packingTotal, userName, batchId }) => {
+export const ReceptionBatchReport: React.FC<Props> = ({ orders, packingNumber, packingTotal, userName }) => {
     const formattedDate = new Date().toLocaleString('es-EC', {
         day: '2-digit', month: '2-digit', year: 'numeric',
         hour: '2-digit', minute: '2-digit', second: '2-digit',
@@ -148,11 +142,8 @@ export const ReceptionBatchReport: React.FC<Props> = ({ orders, packingNumber, p
                         <Text style={styles.logoText}>VENTA POR CATÁLOGO</Text>
                     </View>
                     <View style={styles.titleSection}>
-                        <Text style={styles.title}>INGRESO DE PACKING No {batchId || packingNumber || 'N/A'}</Text>
-                    </View>
-                    <View style={styles.packingBox}>
-                        <Text style={styles.packingBoxLabel}>PACKING No</Text>
-                        <Text style={styles.packingBoxValue}>{packingNumber}</Text>
+                        <Text style={styles.title}>REPORTE DE RECEPCIÓN</Text>
+                        <Text style={styles.subtitle}>PACKING No: {packingNumber || 'N/A'}</Text>
                     </View>
                 </View>
 

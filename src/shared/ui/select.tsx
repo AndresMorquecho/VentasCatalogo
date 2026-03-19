@@ -108,9 +108,10 @@ export const SelectValue: React.FC<{ placeholder?: string }> = ({ placeholder })
   )
 }
 
-export const SelectContent: React.FC<{ children: React.ReactNode; searchable?: boolean }> = ({ 
+export const SelectContent: React.FC<{ children: React.ReactNode; searchable?: boolean; className?: string }> = ({ 
   children, 
-  searchable = false 
+  searchable = false,
+  className
 }) => {
   const { open, setOpen, searchValue, setSearchValue } = React.useContext(SelectContext)
   
@@ -124,7 +125,8 @@ export const SelectContent: React.FC<{ children: React.ReactNode; searchable?: b
       />
       <div className={cn(
         "absolute z-50 mt-1 max-h-96 w-full flex flex-col overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95",
-        "bottom-full mb-1 lg:bottom-auto lg:top-full lg:mt-1"
+        "bottom-full mb-1 lg:bottom-auto lg:top-full lg:mt-1",
+        className
       )}>
         {searchable && (
           <div className="flex items-center border-b px-3 py-2">

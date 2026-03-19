@@ -5,8 +5,11 @@ import type { DeliveryFilters } from "../model/useOrderDelivery"
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
 import { ArrowLeft, Search, Printer } from "lucide-react"
-import { generateDeliveryReceipt } from "../lib/generateDeliveryReceipt"
 import { useAuth } from "@/shared/auth"
+import { usePDFPreview } from "@/shared/hooks/usePDFPreview"
+import { PDFPreviewModal } from "@/shared/ui/PDFPreviewModal"
+import { prepareDeliveryReceiptForPreview } from "../lib/generateDeliveryReceiptWithPreview"
+import { useNotifications } from "@/shared/lib/notifications"
 import {
     Table,
     TableBody,
@@ -21,6 +24,16 @@ export function OrderDeliveryHistoryPage() {
     const { data: orders = [], isLoading } = useOrderDeliveryHistory(filters)
     const navigate = useNavigate()
     const { user } = useAuth()
+    const { notifySuccess, notifyError } = useNotifications()
+
+    const [pdfTitle, setPdfTitle] = useState("")
+    const [pdfFileName, setPdfFileName] = useState("")
+    
+    const pdfPreview = usePDFPreview({
+        fileName: pdfFileName,
+        onDownloadComplete: () => notifySuccess('Comprobante descargado'),
+        onError: () => notifyError({ message: 'Error al procesar el PDF' })
+    })
 
     function formatDate(date: string) {
         if (!date) return '-'
@@ -39,6 +52,23 @@ export function OrderDeliveryHistoryPage() {
         const end = new Date(order.deliveryDate).getTime()
         const diff = Math.ceil((end - start) / (1000 * 60 * 60 * 24))
         return `${diff} días`
+    }
+
+    const handlePrintPreview = async (order: any) => {
+        try {
+            const { document, fileName, title } = await prepareDeliveryReceiptForPreview(order, {
+                amountPaidNow: 0,
+                method: order.paymentMethod || 'N/A',
+                user: order.deliveredByName || user?.username || 'Administrador'
+            })
+            
+            setPdfTitle(title)
+            setPdfFileName(fileName)
+            pdfPreview.openPreview(document)
+        } catch (error) {
+            console.error("Error preparing delivery history PDF:", error)
+            notifyError({ message: 'Error al preparar el comprobante' })
+        }
     }
 
     return (
@@ -123,11 +153,7 @@ export function OrderDeliveryHistoryPage() {
                                             variant="ghost"
                                             size="icon"
                                             title="Imprimir Comprobante"
-                                            onClick={() => generateDeliveryReceipt(order, {
-                                                amountPaidNow: 0,
-                                                method: order.paymentMethod || 'N/A',
-                                                user: order.deliveredByName || user?.username || 'Administrador'
-                                            })}
+                                            onClick={() => handlePrintPreview(order)}
                                         >
                                             <Printer className="h-4 w-4 text-slate-500 hover:text-green-600" />
                                         </Button>
@@ -138,6 +164,18 @@ export function OrderDeliveryHistoryPage() {
                     </TableBody>
                 </Table>
             </div>
+
+            {pdfPreview.pdfDocument && (
+                <PDFPreviewModal
+                    open={pdfPreview.isOpen}
+                    onOpenChange={pdfPreview.closePreview}
+                    title={pdfTitle}
+                    pdfDocument={pdfPreview.pdfDocument}
+                    fileName={pdfFileName}
+                    onDownload={pdfPreview.downloadPDF}
+                    onPrint={pdfPreview.printPDF}
+                />
+            )}
         </div>
     )
 }

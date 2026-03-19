@@ -61,7 +61,7 @@ export function DashboardCharts({ data, loading }: DashboardChartsProps) {
         let currentAngle = 0;
         const total = data.orderStatus.reduce((acc, curr) => acc + curr.count, 0);
         const segments = data.orderStatus.map((status) => {
-            const percentage = (status.count / total) * 100;
+            const percentage = total > 0 ? (status.count / total) * 100 : 0;
             const start = currentAngle;
             const end = currentAngle + percentage;
             currentAngle = end;

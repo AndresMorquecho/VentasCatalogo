@@ -85,9 +85,7 @@ export function GlobalFilters({
             }}
           >
             <SelectTrigger className="h-9 text-sm rounded-lg border-slate-200 focus:ring-2 focus:ring-monchito-purple/20">
-              <SelectValue placeholder="Todas las marcas">
-                {selectedBrandName}
-              </SelectValue>
+              <SelectValue placeholder={selectedBrandName} />
             </SelectTrigger>
             <SelectContent>
               <div className="sticky top-0 bg-white p-2 border-b border-slate-200 z-10">
@@ -140,9 +138,7 @@ export function GlobalFilters({
             }}
           >
             <SelectTrigger className="h-9 text-sm rounded-lg border-slate-200 focus:ring-2 focus:ring-monchito-purple/20">
-              <SelectValue placeholder="Todos los estados">
-                {getRecoveryStatusLabel(filterState.recoveryStatus)}
-              </SelectValue>
+              <SelectValue placeholder={getRecoveryStatusLabel(filterState.recoveryStatus)} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">Todos los estados</SelectItem>
