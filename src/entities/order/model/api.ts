@@ -192,6 +192,16 @@ export const orderApi = {
             paymentMethod?: string;
             bankAccountId?: string;
             referenceNumber?: string;
+            creditDistribution?: {
+                sourceOrderId: string;
+                totalCreditAmount: number;
+                distributions: {
+                    targetOrderId?: string;
+                    amount: number;
+                    description: string;
+                    isCashReturn?: boolean;
+                }[];
+            };
         }[],
         batchDetails?: { packingNumber?: string, packingTotal?: number, id?: string }
     ): Promise<Order[]> => {

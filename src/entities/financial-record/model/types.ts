@@ -28,7 +28,7 @@ export interface FinancialRecord {
   // Bank Account
   bankAccountId: string;
   bankAccountName?: string; // Nombre de la cuenta bancaria
-  paymentMethod?: 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE' | 'CREDITO_CLIENTE' | 'SALDO_A_FAVOR';
+  paymentMethod?: 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE' | 'CREDITO_CLIENTE' | 'SALDO_A_FAVOR' | 'BILLETERA_VIRTUAL';
 
   // Metadata
   createdAt: string;
@@ -48,7 +48,7 @@ export interface CreateFinancialRecordPayload {
   createdBy: string;
   notes?: string;
   bankAccountId: string;
-  paymentMethod?: 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE' | 'CREDITO_CLIENTE' | 'SALDO_A_FAVOR';
+  paymentMethod?: 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE' | 'CREDITO_CLIENTE' | 'SALDO_A_FAVOR' | 'BILLETERA_VIRTUAL';
 }
 
 export interface UpdateFinancialRecordPayload {

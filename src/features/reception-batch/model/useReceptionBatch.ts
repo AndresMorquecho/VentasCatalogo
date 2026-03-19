@@ -73,6 +73,12 @@ export const useReceptionBatch = () => {
                 }
             });
             
+            // Invalidate full orders and financial records cache to reflect distributive payments
+            queryClient.invalidateQueries({ queryKey: ['orders'] });
+            queryClient.invalidateQueries({ queryKey: ['financial-records'] });
+            queryClient.invalidateQueries({ queryKey: ['client-credits'] });
+            queryClient.invalidateQueries({ queryKey: ['wallet-history'] });
+            
             // Si la API retorna un objeto { batch, orders }
             const orders = data.orders || data;
             setLastSavedOrders(Array.isArray(orders) ? orders : null);
@@ -148,6 +154,25 @@ export const useReceptionBatch = () => {
     };
 
     const handleSaveBatch = () => {
+        // 1. Validation: Verify no order has pending distribution
+        const ordersWithPendingCredit = selectedOrders.filter(o => {
+            const finalTotal = (o as any).finalTotal ?? Number(o.total);
+            const paid = (o.payments || []).reduce((sum, p) => sum + Number(p.amount), 0);
+            const abono = (o as any).abonoRecepcion || 0;
+            const balance = finalTotal - (paid + abono);
+            
+            // If balance < -0.01, it has surplus credit. Must have distribution.
+            return balance < -0.01 && !(o as any).creditDistribution;
+        });
+
+        if (ordersWithPendingCredit.length > 0) {
+            showToast(
+                `Distribución pendiente: ${ordersWithPendingCredit.map(o => o.receiptNumber).join(', ')}. Existen saldos a favor sin distribuir.`,
+                "error"
+            );
+            return;
+        }
+
         const items = selectedOrders.map(o => ({
             orderId: o.id,
             finalTotal: (o as any).finalTotal || Number(o.total),
@@ -157,7 +182,8 @@ export const useReceptionBatch = () => {
             bankAccountId: (o as any).bankAccountId,
             paymentMethod: (o as any).paymentMethod || 'EFECTIVO',
             referenceNumber: (o as any).referenceNumber,
-            entryDate: (o as any).entryDate
+            entryDate: (o as any).entryDate,
+            creditDistribution: (o as any).creditDistribution || undefined
         }));
 
         saveBatch.mutate({

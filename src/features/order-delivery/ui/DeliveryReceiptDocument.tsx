@@ -243,10 +243,10 @@ export const DeliveryReceiptDocument = ({ order, orders, client, paymentInfo }: 
                     <View style={[styles.tableRow, styles.tableHeader]}>
                         <View style={[styles.col, { width: '10%' }]}><Text style={styles.headerText}>N° Pedido</Text></View>
                         <View style={[styles.col, { width: '12%' }]}><Text style={styles.headerText}>Marca/Catálogo</Text></View>
-                        <View style={[styles.col, { width: '10%' }]}><Text style={styles.headerText}>N° Factura</Text></View>
-                        <View style={[styles.col, { width: '10%' }]}><Text style={styles.headerText}>Tipo</Text></View>
+                        <View style={[styles.col, { width: '12%' }]}><Text style={styles.headerText}>N° Orden</Text></View>
+                        <View style={[styles.col, { width: '8%' }]}><Text style={styles.headerText}>N° Factura</Text></View>
+                        <View style={[styles.col, { width: '8%' }]}><Text style={styles.headerText}>Tipo</Text></View>
                         <View style={[styles.col, { width: '10%' }]}><Text style={styles.headerText}>Forma Pago</Text></View>
-                        <View style={[styles.col, { width: '8%' }]}><Text style={styles.headerText}>Documento</Text></View>
                         <View style={[styles.col, { width: '10%' }]}><Text style={styles.headerText}>V. Pedido</Text></View>
                         <View style={[styles.col, { width: '10%' }]}><Text style={styles.headerText}>V. Factura</Text></View>
                         <View style={[styles.col, { width: '10%' }]}><Text style={styles.headerText}>Abonado</Text></View>
@@ -261,12 +261,12 @@ export const DeliveryReceiptDocument = ({ order, orders, client, paymentInfo }: 
 
                         return (
                             <View key={o.id || index} style={styles.tableRow}>
-                                <View style={[styles.col, { width: '10%' }]}><Text style={styles.cellText}>{o.orderNumber || 'S/N'}</Text></View>
+                                <View style={[styles.col, { width: '10%' }]}><Text style={styles.cellText}>{o.receiptNumber || 'S/N'}</Text></View>
                                 <View style={[styles.col, { width: '12%' }]}><Text style={styles.cellText}>{o.brandName || 'S/M'}</Text></View>
-                                <View style={[styles.col, { width: '10%' }]}><Text style={styles.cellText}>{o.invoiceNumber || 'S/N'}</Text></View>
-                                <View style={[styles.col, { width: '10%' }]}><Text style={styles.cellText}>{o.type}</Text></View>
+                                <View style={[styles.col, { width: '12%' }]}><Text style={styles.cellText}>{o.orderNumber || 'S/N'}</Text></View>
+                                <View style={[styles.col, { width: '8%' }]}><Text style={styles.cellText}>{o.invoiceNumber || 'S/N'}</Text></View>
+                                <View style={[styles.col, { width: '8%' }]}><Text style={styles.cellText}>{o.type}</Text></View>
                                 <View style={[styles.col, { width: '10%' }]}><Text style={styles.cellText}>{paymentInfo?.method || 'N/A'}</Text></View>
-                                <View style={[styles.col, { width: '8%' }]}><Text style={styles.cellText}>Factura</Text></View>
                                 <View style={[styles.col, { width: '10%', textAlign: 'right' }]}><Text style={styles.cellText}>${estTot.toFixed(2)}</Text></View>
                                 <View style={[styles.col, { width: '10%', textAlign: 'right' }]}><Text style={styles.cellText}>${realTot.toFixed(2)}</Text></View>
                                 <View style={[styles.col, { width: '10%', textAlign: 'right' }]}><Text style={styles.cellText}>${totalPaid.toFixed(2)}</Text></View>

@@ -124,11 +124,23 @@ export const ReceptionBatchReport: React.FC<Props> = ({ orders, packingNumber, p
         hour12: false
     });
 
+    const getBatchAbono = (o: Order) => {
+        const cashAbono = Number((o as any).abonoRecepcion || 0);
+        const payments = o.payments || [];
+        
+        // Sumar pagos hechos en ESTA recepción (Efectivo Packing + Crédito Distributivo)
+        const distributiveAbono = payments
+            .filter(p => 
+                p.method === 'CREDITO_CLIENTE' || 
+                p.description === 'Abono en recepción de bodega (Packing)'
+            )
+            .reduce((sum, p) => sum + Number(p.amount), 0);
+            
+        return distributiveAbono > 0 ? distributiveAbono : cashAbono;
+    };
+
     const totalAbonos = orders.reduce((sum, o) => {
-        // En la respuesta de la API, el pago recién creado suele estar en o.payments
-        // O podríamos usar el valor enviado originalmente si lo tenemos
-        const recentPayment = (o as any).abonoRecepcion || 0;
-        return sum + Number(recentPayment);
+        return sum + getBatchAbono(o);
     }, 0);
 
     const totalInvoices = orders.reduce((sum, o) => sum + Number(o.realInvoiceTotal || o.total || 0), 0);
@@ -183,7 +195,7 @@ export const ReceptionBatchReport: React.FC<Props> = ({ orders, packingNumber, p
                             <Text style={[styles.tableCell, styles.colDocType]}>{o.documentType || 'FACTURA'}</Text>
                             <Text style={[styles.tableCell, styles.colInvNo]}>{o.invoiceNumber || '-'}</Text>
                             <Text style={[styles.tableCell, styles.colAbono]}>
-                                {Number((o as any).abonoRecepcion || 0).toFixed(2)}
+                                {getBatchAbono(o).toFixed(2)}
                             </Text>
                             <Text style={[styles.tableCell, styles.colTotal, styles.tableCellLast]}>
                                 {Number(o.realInvoiceTotal || o.total || 0).toFixed(2)}

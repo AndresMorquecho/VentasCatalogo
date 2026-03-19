@@ -8,7 +8,11 @@ interface UsePDFPreviewOptions {
 }
 
 export function usePDFPreview(options?: UsePDFPreviewOptions) {
-    const { fileName = 'document.pdf', onDownloadComplete, onError } = options || {};
+    const { 
+        fileName = 'document.pdf', 
+        onDownloadComplete, 
+        onError 
+    } = options || {};
     const [isOpen, setIsOpen] = useState(false);
     const [pdfDocument, setPdfDocument] = useState<React.ReactElement | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);

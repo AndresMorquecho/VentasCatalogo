@@ -8,6 +8,7 @@ import { ArrowLeft, Search, RotateCcw } from "lucide-react"
 import { orderApi } from "@/entities/order/model/api"
 import { useToast } from "@/shared/ui/use-toast"
 import { useQueryClient } from "@tanstack/react-query"
+import { ConfirmDialog } from "@/shared/ui/confirm-dialog"
 import {
     Table,
     TableBody,
@@ -25,6 +26,10 @@ export function OrderReceptionHistoryPage() {
     const qc = useQueryClient()
     const [isProcessing, setIsProcessing] = useState<string | null>(null)
 
+    // ConfirmDialog state
+    const [confirmOpen, setConfirmOpen] = useState(false)
+    const [orderToReverse, setOrderToReverse] = useState<string | null>(null)
+
     function formatDate(date: string) {
         if (!date) return '-'
         return new Date(date).toLocaleDateString('es-EC', {
@@ -37,8 +42,6 @@ export function OrderReceptionHistoryPage() {
     }
 
     const handleReverseReception = async (orderId: string) => {
-        if (!confirm('¿Está seguro de regresar la recepción de este pedido? Se revertirán los abonos asociados y el estado volverá a "POR RECIBIR".')) return
-
         setIsProcessing(orderId)
         try {
             await orderApi.reverseReception(orderId)
@@ -139,7 +142,10 @@ export function OrderReceptionHistoryPage() {
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
-                                                onClick={() => handleReverseReception(order.id)}
+                                                onClick={() => {
+                                                    setOrderToReverse(order.id);
+                                                    setConfirmOpen(true);
+                                                }}
                                                 disabled={isProcessing === order.id}
                                                 className="text-amber-700 hover:text-amber-900 hover:bg-amber-50"
                                                 title="Regresar recepción"
@@ -154,6 +160,21 @@ export function OrderReceptionHistoryPage() {
                     </TableBody>
                 </Table>
             </div>
+
+            <ConfirmDialog
+                open={confirmOpen}
+                onOpenChange={setConfirmOpen}
+                onConfirm={() => {
+                    if (orderToReverse) {
+                        handleReverseReception(orderToReverse);
+                        setOrderToReverse(null);
+                    }
+                }}
+                title="Revertir Recepción"
+                description='¿Está seguro de regresar la recepción de este pedido? Se revertirán los abonos asociados y el estado volverá a "POR RECIBIR".'
+                confirmText="Sí, Revertir"
+                variant="destructive"
+            />
         </div>
     )
 }

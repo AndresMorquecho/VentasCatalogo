@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/ui/di
 import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
 import { Checkbox } from "@/shared/ui/checkbox"
-import { Receipt, ArrowRight } from "lucide-react"
+import { Receipt } from "lucide-react"
 import type { CreditDistribution, CreditDistributionItem } from "@/entities/financial-record/model/types"
 
 interface Props {
@@ -30,6 +30,8 @@ interface Props {
     brandName?: string
   }>
   onDistribute: (distribution: CreditDistribution) => void
+  initialDistribution?: CreditDistribution
+  onBack?: () => void
 }
 
 export function CreditDistributionModal({
@@ -38,18 +40,33 @@ export function CreditDistributionModal({
   sourceOrder,
   creditAmount,
   availableOrders,
-  onDistribute
+  onDistribute,
+  initialDistribution,
+  onBack
 }: Props) {
   const [distributions, setDistributions] = useState<CreditDistributionItem[]>([])
   const [remainingAction, setRemainingAction] = useState<'wallet' | 'return'>('wallet')
 
-  // Reset when modal opens
+  // Reset or Initialize when modal opens
   useEffect(() => {
     if (isOpen) {
-      setDistributions([])
-      setRemainingAction('wallet')
+      if (initialDistribution && initialDistribution.distributions.length > 0) {
+        // Separar distribuciones a pedidos de la acción sobre el resto
+        const orderDistributions = initialDistribution.distributions.filter(d => !!d.targetOrderId)
+        const totalOtherDist = initialDistribution.distributions.find(d => !d.targetOrderId)
+        
+        setDistributions(orderDistributions)
+        if (totalOtherDist) {
+          setRemainingAction(totalOtherDist.isCashReturn ? 'return' : 'wallet')
+        } else {
+          setRemainingAction('wallet')
+        }
+      } else {
+        setDistributions([])
+        setRemainingAction('wallet')
+      }
     }
-  }, [isOpen, creditAmount])
+  }, [isOpen, initialDistribution])
 
   const totalDistributed = distributions.reduce((sum, d) => sum + d.amount, 0)
   const remaining = creditAmount - totalDistributed
@@ -98,7 +115,7 @@ export function CreditDistributionModal({
     const finalDistributions: CreditDistributionItem[] = [...distributions]
     
     // Add remaining amount distribution based on user choice
-    if (remaining > 0) {
+    if (remaining > 0.005) {
       if (remainingAction === 'return') {
         finalDistributions.push({
           amount: remaining,
@@ -226,67 +243,70 @@ export function CreditDistributionModal({
 
         {/* Summary and Actions - Always visible at bottom */}
         <div className="shrink-0 space-y-3 pt-3 border-t">
-          {totalDistributed > 0 && (
-            <div className="border rounded-lg p-3 space-y-2 bg-slate-50">
-              <div className="grid grid-cols-2 gap-3 text-sm">
+          {/* Always show summary so user can choose wallet vs cash return */}
+          <div className="border rounded-lg p-3 space-y-2 bg-slate-50">
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              {totalDistributed > 0 && (
                 <div className="flex justify-between">
                   <span className="text-slate-600">Distribuido a pedidos:</span>
-                  <span className="font-mono font-bold">${totalDistributed.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Saldo restante:</span>
-                  <span className="font-mono font-bold text-monchito-purple">${remaining.toFixed(2)}</span>
-                </div>
-              </div>
-              
-              {remaining > 0.01 && (
-                <div className="pt-2 border-t">
-                  <p className="text-sm text-slate-600 mb-2">
-                    ¿Qué hacer con el restante ${remaining.toFixed(2)}?
-                  </p>
-                  <div className="flex gap-4">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="remainingAction"
-                        value="wallet"
-                        checked={remainingAction === 'wallet'}
-                        onChange={(e) => setRemainingAction(e.target.value as 'wallet' | 'return')}
-                        className="text-monchito-purple focus:ring-monchito-purple"
-                      />
-                      <span className="text-sm">Guardar en billetera virtual</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="remainingAction"
-                        value="return"
-                        checked={remainingAction === 'return'}
-                        onChange={(e) => setRemainingAction(e.target.value as 'wallet' | 'return')}
-                        className="text-monchito-purple focus:ring-monchito-purple"
-                      />
-                      <span className="text-sm">Devolver al cliente (efectivo)</span>
-                    </label>
-                  </div>
+                  <span className="font-mono font-bold text-emerald-600">${totalDistributed.toFixed(2)}</span>
                 </div>
               )}
+              <div className="flex justify-between">
+                <span className="text-slate-600">{totalDistributed > 0 ? 'Saldo restante:' : 'Total del saldo a favor:'}:</span>
+                <span className="font-mono font-bold text-monchito-purple">${remaining.toFixed(2)}</span>
+              </div>
             </div>
-          )}
+            
+            {remaining > 0.01 && (
+              <div className="pt-2 border-t">
+                <p className="text-sm text-slate-600 mb-2">
+                  ¿Qué hacer con {totalDistributed > 0 ? `el restante ` : ``}${remaining.toFixed(2)}?
+                </p>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="remainingAction"
+                      value="wallet"
+                      checked={remainingAction === 'wallet'}
+                      onChange={(e) => setRemainingAction(e.target.value as 'wallet' | 'return')}
+                      className="text-monchito-purple focus:ring-monchito-purple"
+                    />
+                    <span className="text-sm">Guardar en billetera virtual</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="remainingAction"
+                      value="return"
+                      checked={remainingAction === 'return'}
+                      onChange={(e) => setRemainingAction(e.target.value as 'wallet' | 'return')}
+                      className="text-monchito-purple focus:ring-monchito-purple"
+                    />
+                    <span className="text-sm">Devolver al cliente (efectivo)</span>
+                  </label>
+                </div>
+              </div>
+            )}
+          </div>
 
-          {/* Action Buttons */}
+          {/* Action Buttons - always show Confirm */}
           <div className="flex gap-3">
+            {onBack && (
+              <Button variant="ghost" onClick={onBack} className="flex-1 text-slate-500 hover:text-slate-700">
+                Regresar
+              </Button>
+            )}
             <Button variant="outline" onClick={onClose} className="flex-1">
               Cancelar
             </Button>
-            {totalDistributed > 0 && (
-              <Button
-                onClick={handleConfirm}
-                className="flex-1 bg-monchito-purple hover:bg-monchito-purple/90"
-              >
-                <ArrowRight className="h-4 w-4 mr-2" />
-                Aplicar Distribución
-              </Button>
-            )}
+            <Button
+              onClick={handleConfirm}
+              className="flex-1 bg-monchito-purple hover:bg-monchito-purple/90"
+            >
+              Aplicar Distribución
+            </Button>
           </div>
         </div>
       </DialogContent>

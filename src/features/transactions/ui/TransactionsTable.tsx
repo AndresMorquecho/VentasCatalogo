@@ -67,10 +67,10 @@ export function TransactionsTable({ transactions, onView }: Props) {
     }
 
     return (
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-            <div className="overflow-x-auto">
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm flex flex-col">
+            <div className="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar">
                 <Table>
-                    <TableHeader>
+                    <TableHeader className="sticky top-0 z-10 bg-white">
                         <TableRow className="bg-monchito-purple/5 hover:bg-monchito-purple/5 border-b border-monchito-purple/10">
                             <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest h-12 w-[50px]"></TableHead>
                             <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Fecha</TableHead>
@@ -89,12 +89,13 @@ export function TransactionsTable({ transactions, onView }: Props) {
                             return (
                                 <TableRow 
                                     key={t.id} 
-                                    className="border-b border-slate-50 hover:bg-monchito-purple/5 transition-all duration-200"
+                                    className="border-b border-slate-50 hover:bg-monchito-purple/5 transition-all duration-200 cursor-pointer group"
+                                    onClick={() => onView(t)}
                                 >
                                     <TableCell className="py-4">
                                         {isIncome
-                                            ? <ArrowDownCircle className="h-5 w-5 text-emerald-600" />
-                                            : <ArrowUpCircle className="h-5 w-5 text-amber-600" />
+                                            ? <ArrowDownCircle className="h-5 w-5 text-emerald-600 transition-transform group-hover:scale-110" />
+                                            : <ArrowUpCircle className="h-5 w-5 text-amber-600 transition-transform group-hover:scale-110" />
                                         }
                                     </TableCell>
                                     <TableCell className="py-4">
@@ -128,14 +129,14 @@ export function TransactionsTable({ transactions, onView }: Props) {
                                             {t.createdBy}
                                         </span>
                                     </TableCell>
-                                    <TableCell className="py-4">
+                                    <TableCell className="py-4" onClick={(e) => e.stopPropagation()}>
                                         <div className="flex justify-end">
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
                                                 onClick={() => onView(t)}
                                                 title="Ver detalles"
-                                                className="h-8 w-8 rounded-lg text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-all"
+                                                className="h-8 w-8 rounded-lg text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-all shadow-sm"
                                             >
                                                 <Eye className="h-4 w-4" />
                                             </Button>

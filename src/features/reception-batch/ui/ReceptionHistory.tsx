@@ -23,6 +23,7 @@ import {
     SelectValue,
 } from "@/shared/ui/select"
 import { useBrandList } from "@/features/brands/api/hooks"
+import { ConfirmDialog } from "@/shared/ui/confirm-dialog"
 
 interface Props {
     batches: any[]
@@ -44,6 +45,14 @@ export function ReceptionHistory({ batches, onEdit, onDelete, isDeleting }: Prop
     const [isProcessing, setIsProcessing] = useState<string | null>(null)
     const [expandedBatch, setExpandedBatch] = useState<string | null>(null)
     const [showFilters, setShowFilters] = useState(false)
+
+    // ConfirmDialog state - delete batch
+    const [deleteBatchConfirmOpen, setDeleteBatchConfirmOpen] = useState(false)
+    const [batchToDelete, setBatchToDelete] = useState<string | null>(null)
+
+    // ConfirmDialog state - reverse individual order
+    const [reverseOrderConfirmOpen, setReverseOrderConfirmOpen] = useState(false)
+    const [orderToReverse, setOrderToReverse] = useState<{ id: string, receiptNumber: string } | null>(null)
 
     const { showToast } = useToast()
     const queryClient = useQueryClient()
@@ -374,10 +383,9 @@ export function ReceptionHistory({ batches, onEdit, onDelete, isDeleting }: Prop
                                                         variant="ghost" 
                                                         size="icon" 
                                                         className="h-8 w-8 rounded-lg text-red-600 hover:text-red-700 hover:bg-red-50 transition-all"
-                                                        onClick={() => { 
-                                                            if (confirm('¿Estás seguro de ELIMINAR todo este packing? Todos los pedidos regresarán a estado PENDIENTE.')) {
-                                                                onDelete(batch.id);
-                                                            }
+                                                        onClick={() => {
+                                                            setBatchToDelete(batch.id);
+                                                            setDeleteBatchConfirmOpen(true);
                                                         }}
                                                         disabled={!canModify || isDeleting}
                                                         title={canModify ? "Eliminar Packing" : "No se puede eliminar"}
@@ -452,9 +460,8 @@ export function ReceptionHistory({ batches, onEdit, onDelete, isDeleting }: Prop
                                                                                 className="h-8 w-8 text-amber-600 border-amber-100 hover:text-amber-700 hover:bg-amber-50 rounded-lg"
                                                                                 onClick={(e) => {
                                                                                     e.stopPropagation();
-                                                                                    if (confirm(`¿Revertir recepción del pedido ${order.receiptNumber}? El pedido regresará a estado POR RECIBIR.`)) {
-                                                                                        handleReverseIndividual(order.id);
-                                                                                    }
+                                                                                    setOrderToReverse({ id: order.id, receiptNumber: order.receiptNumber });
+                                                                                    setReverseOrderConfirmOpen(true);
                                                                                 }}
                                                                                 disabled={isProcessing === order.id || !orderCanModify}
                                                                             >
@@ -476,6 +483,38 @@ export function ReceptionHistory({ batches, onEdit, onDelete, isDeleting }: Prop
                     </TableBody>
                 </Table>
             </div>
+
+            {/* Confirm: Delete Batch */}
+            <ConfirmDialog
+                open={deleteBatchConfirmOpen}
+                onOpenChange={setDeleteBatchConfirmOpen}
+                onConfirm={() => {
+                    if (batchToDelete) {
+                        onDelete(batchToDelete);
+                        setBatchToDelete(null);
+                    }
+                }}
+                title="Eliminar Packing"
+                description="¿Estás seguro de ELIMINAR todo este packing? Todos los pedidos regresarán a estado PENDIENTE. Esta acción no se puede deshacer."
+                confirmText="Sí, Eliminar"
+                variant="destructive"
+            />
+
+            {/* Confirm: Reverse Individual Order */}
+            <ConfirmDialog
+                open={reverseOrderConfirmOpen}
+                onOpenChange={setReverseOrderConfirmOpen}
+                onConfirm={() => {
+                    if (orderToReverse) {
+                        handleReverseIndividual(orderToReverse.id);
+                        setOrderToReverse(null);
+                    }
+                }}
+                title="Revertir Recepción"
+                description={`¿Revertir recepción del pedido ${orderToReverse?.receiptNumber}? El pedido regresará a estado POR RECIBIR.`}
+                confirmText="Sí, Revertir"
+                variant="destructive"
+            />
         </div>
     )
 }

@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/ui/di
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { AsyncButton } from "@/shared/ui/async-button";
-import { X, Plus } from "lucide-react";
+import { X, Plus, AlertTriangle } from "lucide-react";
 import { useBankAccountList } from "@/features/bank-accounts/api/hooks";
 import { useClientCredit } from "@/features/wallet/model/hooks";
 import { formatCurrency } from "@/entities/order/model/financialCalculator";
@@ -69,6 +69,8 @@ export function PaymentModal({
     const { data: creditData } = useClientCredit(paymentContext?.clientId || "");
     const totalCredit = creditData?.totalCredit || 0;
     
+    const [validationError, setValidationError] = useState<string | null>(null);
+
     const [payments, setPayments] = useState<PaymentEntry[]>(() => {
         const cashAccount = bankAccountsResponse?.data?.find(a => a.type === 'CASH');
         return [
@@ -130,6 +132,7 @@ export function PaymentModal({
     };
 
     const updatePayment = (id: string, updates: Partial<PaymentEntry>) => {
+        setValidationError(null);
         setPayments(prev => prev.map(p => {
             if (p.id === id) {
                 const updatedPayment = { ...p, ...updates };
@@ -154,11 +157,13 @@ export function PaymentModal({
     };
 
     const handleSubmit = async () => {
+        setValidationError(null);
+
         // Validaciones básicas - PERMITIR ABONOS DE 0
         const validPayments = payments.filter(p => p.amount >= 0); // Cambio: >= 0 en lugar de > 0
         
         if (validPayments.length === 0) {
-            alert("Debe agregar al menos un método de pago.");
+            setValidationError("Debe agregar al menos un método de pago.");
             return;
         }
 
@@ -166,24 +171,24 @@ export function PaymentModal({
         for (const payment of validPayments) {
             if (payment.amount > 0) { // Solo validar si hay monto
                 if (payment.method !== 'BILLETERA_VIRTUAL' && !payment.bankAccountId) {
-                    alert(`Debe seleccionar una cuenta bancaria para el pago ${payment.method}.`);
+                    setValidationError(`Debe seleccionar una cuenta bancaria para el pago ${payment.method}.`);
                     return;
                 }
                 
                 if (payment.method !== 'EFECTIVO' && payment.method !== 'BILLETERA_VIRTUAL' && !payment.transactionReference?.trim()) {
-                    alert(`Debe ingresar una referencia para el pago ${payment.method}.`);
+                    setValidationError(`Debe ingresar una referencia para el pago ${payment.method}.`);
                     return;
                 }
 
                 // Validar saldo de billetera virtual
                 if (payment.method === 'BILLETERA_VIRTUAL' && payment.amount > totalCredit) {
-                    alert(`Saldo insuficiente en billetera virtual. Disponible: ${formatCurrency(totalCredit)}`);
+                    setValidationError(`Saldo insuficiente en billetera virtual. Disponible: ${formatCurrency(totalCredit)}`);
                     return;
                 }
 
                 // Validar que el monto individual no sea mayor al saldo pendiente (solo si expectedAmount > 0)
                 if (expectedAmount > 0 && payment.amount > expectedAmount) {
-                    alert(`El monto de ${formatCurrency(payment.amount)} excede el saldo pendiente de ${formatCurrency(expectedAmount)}.`);
+                    setValidationError(`El monto de ${formatCurrency(payment.amount)} excede el saldo pendiente de ${formatCurrency(expectedAmount)}.`);
                     return;
                 }
             }
@@ -192,19 +197,19 @@ export function PaymentModal({
         // PERMITIR ABONOS PARCIALES - Validar que el total no exceda el saldo pendiente
         // Si expectedAmount es 0, no validar límite superior (caso de catálogos con precio libre)
         if (expectedAmount > 0 && totalAmount > expectedAmount) {
-            alert(`El monto total de ${formatCurrency(totalAmount)} excede el saldo pendiente de ${formatCurrency(expectedAmount)}.`);
+            setValidationError(`El monto total de ${formatCurrency(totalAmount)} excede el saldo pendiente de ${formatCurrency(expectedAmount)}.`);
             return;
         }
 
         // Validar que no sea negativo (ya está cubierto por el filter >= 0)
         if (totalAmount < 0) {
-            alert("El monto total no puede ser negativo.");
+            setValidationError("El monto total no puede ser negativo.");
             return;
         }
 
         // REGLA FASE 3: Forzar monto exacto si se solicita (Ej. para entregas)
         if (forceExactAmount && Math.abs(totalAmount - expectedAmount) > 0.01) {
-            alert(`Para este proceso se requiere cancelar el valor exacto del saldo pendiente: ${formatCurrency(expectedAmount)}.\nMonto actual: ${formatCurrency(totalAmount)}`);
+            setValidationError(`Se requiere cancelar el valor exacto del saldo pendiente: ${formatCurrency(expectedAmount)}. Monto actual: ${formatCurrency(totalAmount)}`);
             return;
         }
 
@@ -241,6 +246,14 @@ export function PaymentModal({
                         Registrar Pago
                     </DialogTitle>
                 </DialogHeader>
+
+                {/* Validation Error Banner */}
+                {validationError && (
+                    <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2 text-sm font-medium mx-1">
+                        <AlertTriangle className="h-4 w-4 shrink-0 text-red-500" />
+                        <span>{validationError}</span>
+                    </div>
+                )}
 
                 <div className="flex-1 overflow-y-auto">
                     <div className="grid grid-cols-2 gap-3 mb-3">

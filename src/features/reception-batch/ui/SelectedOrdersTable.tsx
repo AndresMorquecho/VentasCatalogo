@@ -61,9 +61,13 @@ export function SelectedOrdersTable({
     const handleOpenCreditDistribution = (orderState: SelectedOrderState) => {
         const creditAmount = calculateCreditAmount(orderState);
         if (creditAmount > 0) {
+            // Si ya existe una distribución compleja (con pedidos destino), vamos directo a ese modal
+            const isComplex = orderState.creditDistribution && 
+                orderState.creditDistribution.distributions.some(d => !!d.targetOrderId);
+
             setCreditModalState({
-                selectorOpen: true,
-                distributionOpen: false,
+                selectorOpen: !isComplex,
+                distributionOpen: !!isComplex,
                 sourceOrder: orderState,
                 creditAmount
             });
@@ -118,6 +122,14 @@ export function SelectedOrdersTable({
         setCreditModalState({ selectorOpen: false, distributionOpen: false, creditAmount: 0 });
     }
 
+    const handleBackToSelector = () => {
+        setCreditModalState(prev => ({
+            ...prev,
+            selectorOpen: true,
+            distributionOpen: false
+        }));
+    }
+
     // Obtener pedidos disponibles para distribución (mismo cliente, excluyendo el origen)
     const getAvailableOrdersForDistribution = (sourceOrderState: SelectedOrderState) => {
         return orders
@@ -127,16 +139,29 @@ export function SelectedOrdersTable({
             )
             .map(o => {
                 const initialPaid = (o.order.payments || []).reduce((acc: number, p: any) => acc + Number(p.amount || 0), 0);
-                const pendingAmount = Math.max(0, Number(o.finalTotal || 0) - initialPaid);
+                
+                // MUY IMPORTANTE: Considerar si otros pedidos de este mismo lote ya le distribuyeron saldo
+                // para no permitir distribuir más del saldo real pendiente.
+                const incomingFromOthers = orders.reduce((sum, other) => {
+                    // Ignorar el pedido que es origen actual de la distribución (sourceOrderState)
+                    // e ignorar pedidos que no tienen distribución
+                    if (other.order.id === sourceOrderState.order.id || !other.creditDistribution) return sum;
+                    
+                    const distToThisOrder = other.creditDistribution.distributions.find(d => d.targetOrderId === o.order.id);
+                    return sum + (distToThisOrder?.amount || 0);
+                }, 0);
+
+                const pendingAmount = Math.max(0, Number(o.finalTotal || 0) - initialPaid - incomingFromOthers);
+                
                 return {
                     id: o.order.id,
                     receiptNumber: o.order.receiptNumber,
-                    orderNumber: o.order.orderNumber,
+                    orderNumber: o.order.orderNumber || '',
                     clientName: o.order.clientName,
-                    orderType: o.order.type || 'NORMAL',
+                    orderType: (o.order.type || 'NORMAL') as any,
                     pendingAmount,
                     totalAmount: Number(o.finalTotal || 0), // Valor total del pedido
-                    paidAmount: initialPaid,  // Abonos previos
+                    paidAmount: initialPaid + incomingFromOthers,  // Abonos totales (previos + batch)
                     brandName: o.order.brandName   // Catálogo
                 };
             })
@@ -243,8 +268,15 @@ export function SelectedOrdersTable({
                                 const { order, finalTotal, finalInvoiceNumber, documentType, entryDate } = orderState;
                                 const initialPaid = (order.payments || []).reduce((acc: number, p: any) => acc + Number(p.amount || 0), 0);
                                 
-                                // Current pending based on actual invoice value vs initial paid
-                                const finalBalance = Number(finalTotal || 0) - initialPaid;
+                                // Calcular abonos distributivos recibidos de otros pedidos en este mismo lote
+                                const incomingDistributiveCredit = orders.reduce((sum, o) => {
+                                    if (!o.creditDistribution) return sum;
+                                    const distToThisOrder = o.creditDistribution.distributions.find(d => d.targetOrderId === order.id);
+                                    return sum + (distToThisOrder?.amount || 0);
+                                }, 0);
+
+                                // Current pending based on actual invoice value vs initial paid AND incoming batch credit
+                                const finalBalance = Number(finalTotal || 0) - initialPaid - incomingDistributiveCredit;
                                 const creditAmount = calculateCreditAmount(orderState);
                                 const hasCreditDistribution = !!orderState.creditDistribution;
 
@@ -266,9 +298,16 @@ export function SelectedOrdersTable({
                                         {/* Valor Pedido (Esimated) */}
                                         <TableCell className="py-4 px-2 text-right font-mono text-xs font-bold">${Number(order.total || 0).toFixed(2)}</TableCell>
 
-                                        {/* Abono Anterior (Read Only) */}
+                                        {/* Abono Anterior + Distributivo (Read Only) */}
                                         <TableCell className="py-4 px-2 text-right font-mono text-xs font-bold text-blue-600">
-                                            ${initialPaid.toFixed(2)}
+                                            <div className="flex flex-col items-end">
+                                                <span>${initialPaid.toFixed(2)}</span>
+                                                {incomingDistributiveCredit > 0 && (
+                                                    <span className="text-[9px] text-emerald-600 flex items-center gap-1">
+                                                        <ArrowRight className="h-2 w-2" /> +${incomingDistributiveCredit.toFixed(2)}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </TableCell>
 
                                         {/* Document Type */}
@@ -336,11 +375,15 @@ export function SelectedOrdersTable({
                                                         size="sm"
                                                         variant="outline"
                                                         onClick={() => handleOpenCreditDistribution(orderState)}
-                                                        className="h-6 px-2 text-[10px] border-emerald-200 text-emerald-700 hover:bg-emerald-50 flex items-center gap-1"
+                                                        className={`h-6 px-2 text-[10px] flex items-center gap-1 ${
+                                                            hasCreditDistribution 
+                                                                ? 'bg-monchito-purple text-white border-monchito-purple hover:bg-monchito-purple/90 shadow-sm' 
+                                                                : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
+                                                        }`}
                                                         title={`Distribuir $${creditAmount.toFixed(2)} de saldo a favor`}
                                                     >
                                                         <DollarSign className="h-3 w-3" />
-                                                        {hasCreditDistribution ? 'Editado' : 'Distribuir'}
+                                                        {hasCreditDistribution ? 'Ver/Editar' : 'Distribuir'}
                                                     </Button>
                                                 )}
                                             </div>
@@ -387,9 +430,9 @@ export function SelectedOrdersTable({
                     sourceOrder={{
                         id: creditModalState.sourceOrder.order.id,
                         receiptNumber: creditModalState.sourceOrder.order.receiptNumber,
-                        orderNumber: creditModalState.sourceOrder.order.orderNumber,
+                        orderNumber: creditModalState.sourceOrder.order.orderNumber || '',
                         clientName: creditModalState.sourceOrder.order.clientName,
-                        orderType: creditModalState.sourceOrder.order.type || 'NORMAL'
+                        orderType: (creditModalState.sourceOrder.order.type || 'NORMAL') as any
                     }}
                     creditAmount={creditModalState.creditAmount}
                     onMoveToWallet={handleMoveToWallet}
@@ -406,7 +449,7 @@ export function SelectedOrdersTable({
                     sourceOrder={{
                         id: creditModalState.sourceOrder.order.id,
                         receiptNumber: creditModalState.sourceOrder.order.receiptNumber,
-                        orderNumber: creditModalState.sourceOrder.order.orderNumber,
+                        orderNumber: creditModalState.sourceOrder.order.orderNumber || '',
                         clientId: creditModalState.sourceOrder.order.clientId,
                         clientName: creditModalState.sourceOrder.order.clientName,
                         orderType: creditModalState.sourceOrder.order.type || 'NORMAL'
@@ -414,6 +457,8 @@ export function SelectedOrdersTable({
                     creditAmount={creditModalState.creditAmount}
                     availableOrders={getAvailableOrdersForDistribution(creditModalState.sourceOrder)}
                     onDistribute={handleCreditDistribution}
+                    initialDistribution={creditModalState.sourceOrder.creditDistribution}
+                    onBack={handleBackToSelector}
                 />
             )}
         </div>

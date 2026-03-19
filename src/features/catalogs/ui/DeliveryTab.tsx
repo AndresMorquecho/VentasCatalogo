@@ -20,6 +20,7 @@ export function DeliveryTab() {
   const [campaign, setCampaign] = useState('');
   const [quantity, setQuantity] = useState('1');
   const [type, setType] = useState<'GRATIS' | 'CON_COSTO'>('GRATIS');
+  const [unitPrice, setUnitPrice] = useState('0');
   const [notes, setNotes] = useState('');
   const [showWarning, setShowWarning] = useState(false);
   const [warningMessage, setWarningMessage] = useState('');
@@ -71,6 +72,13 @@ export function DeliveryTab() {
     return currentStock - qty;
   }, [currentStock, quantity]);
 
+  // Calcular precio total
+  const totalPrice = useMemo(() => {
+    const qty = Number(quantity) || 0;
+    const price = Number(unitPrice) || 0;
+    return qty * price;
+  }, [quantity, unitPrice]);
+
   // Filtrar clientes por búsqueda
   const filteredClients = useMemo(() => {
     if (!clientSearch) return clients;
@@ -111,11 +119,16 @@ export function DeliveryTab() {
       if (validation.warning) {
         setWarningMessage(validation.message || '');
         setShowWarning(true);
+        // El flujo continuaría desde el modal de advertencia
         return;
       }
 
       // Si no hay warning, verificar si es CON_COSTO
       if (type === 'CON_COSTO') {
+        if (totalPrice <= 0) {
+          showToast('El precio total debe ser mayor a 0 para entregas con costo', 'error');
+          return;
+        }
         setShowPaymentModal(true);
       } else {
         await createDelivery();
@@ -149,7 +162,7 @@ export function DeliveryTab() {
           brand_id: brandId,
           brand_name: selectedBrand?.name || '',
         }],
-        total: totalAmount,
+        total: totalPrice, // El total esperado
         transaction_date: new Date().toISOString(),
         possible_delivery_date: new Date().toISOString(),
         payments: paymentData.payments.map(p => ({
@@ -192,6 +205,7 @@ export function DeliveryTab() {
     setCampaign('');
     setQuantity('1');
     setType('GRATIS');
+    setUnitPrice('0');
     setNotes('');
     setShowWarning(false);
     setShowPaymentModal(false);
@@ -353,51 +367,76 @@ export function DeliveryTab() {
               </div>
             )}
 
-            <div>
-              <Label className="text-xs font-medium">Tipo</Label>
+            <div className="flex flex-wrap items-end gap-6 py-2">
               <div className="space-y-2">
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="radio"
-                    id="gratis"
-                    value="GRATIS"
-                    checked={type === 'GRATIS'}
-                    onChange={(e) => setType(e.target.value as any)}
-                    className="h-4 w-4"
-                  />
-                  <Label htmlFor="gratis" className="text-sm cursor-pointer">Gratis</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="radio"
-                    id="con_costo"
-                    value="CON_COSTO"
-                    checked={type === 'CON_COSTO'}
-                    onChange={(e) => setType(e.target.value as any)}
-                    className="h-4 w-4"
-                  />
-                  <Label htmlFor="con_costo" className="text-sm cursor-pointer">Con Costo</Label>
+                <Label className="text-xs font-medium">Tipo de Entrega</Label>
+                <div className="flex gap-4 items-center h-10">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      id="gratis"
+                      value="GRATIS"
+                      checked={type === 'GRATIS'}
+                      onChange={(e) => setType(e.target.value as any)}
+                      className="h-4 w-4 accent-emerald-600"
+                    />
+                    <Label htmlFor="gratis" className="text-sm cursor-pointer">Gratis</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      id="con_costo"
+                      value="CON_COSTO"
+                      checked={type === 'CON_COSTO'}
+                      onChange={(e) => setType(e.target.value as any)}
+                      className="h-4 w-4 accent-emerald-600"
+                    />
+                    <Label htmlFor="con_costo" className="text-sm cursor-pointer">Con Costo</Label>
+                  </div>
                 </div>
               </div>
+
+              {type === 'CON_COSTO' && (
+                <div className="flex items-end gap-4 animate-in fade-in slide-in-from-left-2 duration-300">
+                  <div className="w-32">
+                    <Label className="text-[10px] font-bold text-slate-500 uppercase">Precio Unitario ($)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={unitPrice}
+                      onChange={(e) => setUnitPrice(e.target.value)}
+                      className="h-10 focus:ring-emerald-500"
+                      placeholder="0.00"
+                      autoFocus
+                    />
+                  </div>
+                  <div className="flex flex-col items-end h-10 justify-center">
+                    <span className="text-[10px] uppercase font-bold text-emerald-600">Total</span>
+                    <span className="text-lg font-bold text-slate-900 leading-tight">${totalPrice.toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div>
-              <Label className="text-xs font-medium">Observaciones (opcional)</Label>
+              <Label className="text-xs font-medium text-slate-500">Observaciones (opcional)</Label>
               <Input
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Notas adicionales"
+                placeholder="Notas adicionales sobre la entrega"
+                className="bg-slate-50/50"
               />
             </div>
 
-            <Button type="submit" disabled={createMutation.isPending || validateMutation.isPending} className="w-full">
+            <Button type="submit" disabled={createMutation.isPending || validateMutation.isPending} className="w-full h-11 bg-primary hover:opacity-90 text-white font-bold transition-all shadow-md mt-2">
               {(createMutation.isPending || validateMutation.isPending) ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Procesando...
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Procesando Entrega...
                 </>
               ) : (
-                'Entregar Catálogo'
+                'Confirmar y Entregar Catálogo'
               )}
             </Button>
           </form>
@@ -443,11 +482,11 @@ export function DeliveryTab() {
             clientId: clientId,
             clientName: selectedClient.firstName,
             referenceNumber: `CAT-${Date.now()}`,
-            description: `Venta de catálogo ${selectedBrand.name} - ${campaign}`
+            description: `Venta de catálogo ${selectedBrand.name} - ${campaign} (Total: $${totalPrice.toFixed(2)})`
           }}
-          expectedAmount={0}
+          expectedAmount={totalPrice}
           allowMultiplePayments={true}
-          initialAmount={0}
+          initialAmount={totalPrice}
           lockAmount={false}
         />
       )}

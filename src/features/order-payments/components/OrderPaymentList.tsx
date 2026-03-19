@@ -6,6 +6,7 @@ import { Button } from "@/shared/ui/button"
 import { Pencil, Trash2, Plus } from "lucide-react"
 import type { Order, OrderPayment } from "@/entities/order/model/types"
 import { OrderPaymentForm } from "./OrderPaymentForm"
+import { ConfirmDialog } from "@/shared/ui/confirm-dialog"
 import {
     Table,
     TableBody,
@@ -33,6 +34,11 @@ export function OrderPaymentList({ order, readOnly = false }: OrderPaymentListPr
     const [selectedPayment, setSelectedPayment] = useState<OrderPayment | undefined>(undefined)
     const [isFormOpen, setIsFormOpen] = useState(false)
 
+    // ConfirmDialog state
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+    const [paymentToDelete, setPaymentToDelete] = useState<string | null>(null)
+    const [noBankAccountAlertOpen, setNoBankAccountAlertOpen] = useState(false)
+
     const payments = order.payments || []
     const paidAmount = getPaidAmount(order)
     const pendingAmount = getPendingAmount(order)
@@ -52,26 +58,39 @@ export function OrderPaymentList({ order, readOnly = false }: OrderPaymentListPr
         setIsFormOpen(true)
     }
 
-    const handleDelete = async (paymentId: string) => {
-        if (!confirm("¿Está seguro de eliminar este pago?")) return
-
+    const handleDeleteRequest = (paymentId: string) => {
         const payment = payments.find(p => p.id === paymentId)
         if (!payment) return
 
         const bankAccount = bankAccounts.find(b => b.id === payment.bankAccountId)
         if (!bankAccount) {
-            alert("No se encontró la cuenta bancaria asociada. No se puede revertir el saldo.")
+            setNoBankAccountAlertOpen(true)
             return
         }
+
+        setPaymentToDelete(paymentId)
+        setDeleteConfirmOpen(true)
+    }
+
+    const handleDeleteConfirm = async () => {
+        if (!paymentToDelete) return
+
+        const payment = payments.find(p => p.id === paymentToDelete)
+        if (!payment) return
+
+        const bankAccount = bankAccounts.find(b => b.id === payment.bankAccountId)
+        if (!bankAccount) return
 
         try {
             await removePayment.mutateAsync({
                 order,
-                paymentId,
-                bankAccount // Pass found bank account
+                paymentId: paymentToDelete,
+                bankAccount
             })
         } catch (error) {
             console.error("Error removing payment", error)
+        } finally {
+            setPaymentToDelete(null)
         }
     }
 
@@ -139,7 +158,7 @@ export function OrderPaymentList({ order, readOnly = false }: OrderPaymentListPr
                                                     <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleEdit(payment)}>
                                                         <Pencil className="h-3 w-3" />
                                                     </Button>
-                                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => handleDelete(payment.id)}>
+                                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => handleDeleteRequest(payment.id)}>
                                                         <Trash2 className="h-3 w-3" />
                                                     </Button>
                                                 </div>
@@ -161,6 +180,28 @@ export function OrderPaymentList({ order, readOnly = false }: OrderPaymentListPr
                     onOpenChange={setIsFormOpen}
                 />
             )}
+
+            {/* Confirm: Delete Payment */}
+            <ConfirmDialog
+                open={deleteConfirmOpen}
+                onOpenChange={setDeleteConfirmOpen}
+                onConfirm={handleDeleteConfirm}
+                title="Eliminar Pago"
+                description="¿Está seguro de eliminar este pago? Esta acción revertirá el saldo del pedido y descontará el monto de la cuenta bancaria correspondiente."
+                confirmText="Sí, Eliminar"
+                variant="destructive"
+            />
+
+            {/* Info: No bank account found */}
+            <ConfirmDialog
+                open={noBankAccountAlertOpen}
+                onOpenChange={setNoBankAccountAlertOpen}
+                onConfirm={() => setNoBankAccountAlertOpen(false)}
+                title="Cuenta Bancaria No Encontrada"
+                description="No se encontró la cuenta bancaria asociada a este pago. No se puede revertir el saldo correctamente."
+                confirmText="Entendido"
+                cancelText=""
+            />
         </div>
     )
 }

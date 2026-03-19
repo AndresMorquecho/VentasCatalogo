@@ -12,6 +12,7 @@ import { orderApi } from "@/entities/order/model/api"
 import { useToast } from "@/shared/ui/use-toast"
 import { useQueryClient } from "@tanstack/react-query"
 import { PageHeader } from "@/shared/ui/PageHeader"
+import { ConfirmDialog } from "@/shared/ui/confirm-dialog"
 
 export function OrderReceptionPage() {
     const [filters, setFilters] = useState<ReceptionFilters>({})
@@ -22,24 +23,31 @@ export function OrderReceptionPage() {
     const navigate = useNavigate()
     const { showToast } = useToast()
     const qc = useQueryClient()
+    const [reverseConfirmOpen, setReverseConfirmOpen] = useState(false)
+    const [orderToReverse, setOrderToReverse] = useState<string | null>(null)
 
     const handleReceive = (order: Order) => {
         setSelectedOrder(order)
         setIsReceiveModalOpen(true)
     }
 
-    const handleReverse = async (orderId: string) => {
-        if (!confirm('¿Está seguro de regresar la recepción de este pedido? Se revertirán los abonos asociados y el estado volverá a "POR RECIBIR".')) return
+    const handleReverse = (orderId: string) => {
+        setOrderToReverse(orderId);
+        setReverseConfirmOpen(true);
+    }
 
-        setIsProcessing(orderId)
+    const confirmReverse = async () => {
+        if (!orderToReverse) return;
+        setIsProcessing(orderToReverse)
         try {
-            await orderApi.reverseReception(orderId)
+            await orderApi.reverseReception(orderToReverse)
             showToast("La recepción ha sido revertida correctamente.", "success")
             await qc.invalidateQueries({ queryKey: ['orders'] })
         } catch (error) {
             showToast(error instanceof Error ? error.message : "Error al revertir recepción", "error")
         } finally {
             setIsProcessing(null)
+            setOrderToReverse(null)
         }
     }
 
@@ -57,8 +65,8 @@ export function OrderReceptionPage() {
                         <History className="h-4 w-4" />
                         Historial
                     </Button>
-                </div>
-            </div>
+                }
+            />
 
             {/* Filters Bar */}
             <div className="bg-white p-4 rounded-lg border shadow-sm mb-6 flex flex-wrap gap-4 items-end">
@@ -102,6 +110,16 @@ export function OrderReceptionPage() {
                 order={selectedOrder}
                 open={isReceiveModalOpen}
                 onOpenChange={setIsReceiveModalOpen}
+            />
+
+            <ConfirmDialog
+                open={reverseConfirmOpen}
+                onOpenChange={setReverseConfirmOpen}
+                onConfirm={confirmReverse}
+                title="Revertir Recepción"
+                description='¿Está seguro de regresar la recepción de este pedido? Se revertirán los abonos asociados y el estado volverá a "POR RECIBIR".'
+                confirmText="Sí, Revertir"
+                variant="destructive"
             />
         </div>
     )
