@@ -1,6 +1,5 @@
-
 import { useState } from 'react';
-import { Plus, Edit2, Trash2, Power, Gift, Star } from 'lucide-react';
+import { Plus, Edit2, Trash2, Gift, Star } from 'lucide-react';
 import { useLoyaltyPrizes } from '../model/hooks';
 import type { LoyaltyPrize, LoyaltyPrizeFormData, PrizeType } from '../model/types';
 import { Button } from '@/shared/ui/button';
@@ -11,7 +10,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Skeleton } from '@/shared/ui/skeleton';
 import { useAuth } from '@/shared/auth';
 import { useNotifications } from '@/shared/lib/notifications';
-import { logAction } from '@/shared/lib/auditService';
 
 const PRIZE_TYPE_LABELS: Record<PrizeType, string> = {
     DESCUENTO_PORCENTAJE: 'Descuento %',
@@ -31,31 +29,24 @@ const EMPTY_FORM: LoyaltyPrizeFormData = {
     name: '',
     description: '',
     type: 'ENVIO_GRATIS',
-    pointsRequired: 100,
+    pointsRequired: 0,
     isActive: true,
 };
 
-import { Pagination } from '@/shared/ui/pagination';
-
 export function LoyaltyRewards() {
-    const [page, setPage] = useState(1);
-    const [limit] = useState(12);
-
     const {
         prizes,
-        pagination,
         isLoading,
         createPrize,
         updatePrize,
         deletePrize,
-        togglePrize,
         isCreating,
         isUpdating
-    } = useLoyaltyPrizes({ page, limit });
+    } = useLoyaltyPrizes();
 
-    const { hasPermission, user } = useAuth();
-
+    const { hasPermission } = useAuth();
     const { notifySuccess, notifyError } = useNotifications();
+
     const [modalOpen, setModalOpen] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState<LoyaltyPrize | null>(null);
     const [editTarget, setEditTarget] = useState<LoyaltyPrize | null>(null);
@@ -77,40 +68,24 @@ export function LoyaltyRewards() {
             return;
         }
         setEditTarget(prize);
-        setForm({ name: prize.name, description: prize.description, type: prize.type, pointsRequired: prize.pointsRequired, isActive: prize.isActive });
+        setForm({ 
+            name: prize.name, 
+            description: prize.description || '', 
+            type: prize.type, 
+            pointsRequired: prize.pointsRequired || 0, 
+            isActive: prize.isActive 
+        });
         setModalOpen(true);
     };
 
     const handleSave = async () => {
-        if (!hasPermission('loyalty.manage_prizes')) {
-            notifyError({ message: "No tienes permiso para guardar premios" });
-            return;
-        }
         try {
             if (editTarget) {
                 await updatePrize({ id: editTarget.id, data: form });
                 notifySuccess(`Premio "${form.name}" actualizado correctamente`);
-                if (user) {
-                    logAction({
-                        userId: user.id,
-                        userName: user.username,
-                        action: 'UPDATE_LOYALTY_PRIZE',
-                        module: 'loyalty',
-                        detail: `Editó premio de fidelización: ${form.name}`
-                    });
-                }
             } else {
                 await createPrize(form);
                 notifySuccess(`Premio "${form.name}" creado correctamente`);
-                if (user) {
-                    logAction({
-                        userId: user.id,
-                        userName: user.username,
-                        action: 'CREATE_LOYALTY_PRIZE',
-                        module: 'loyalty',
-                        detail: `Creó premio de fidelización: ${form.name}`
-                    });
-                }
             }
             setModalOpen(false);
         } catch (error) {
@@ -119,24 +94,10 @@ export function LoyaltyRewards() {
     };
 
     const handleDelete = async () => {
-        if (!hasPermission('loyalty.manage_prizes')) {
-            notifyError({ message: "No tienes permiso para eliminar premios" });
-            return;
-        }
         if (deleteTarget) {
             try {
                 await deletePrize(deleteTarget.id);
                 notifySuccess(`Premio "${deleteTarget.name}" eliminado correctamente`);
-                if (user) {
-                    logAction({
-                        userId: user.id,
-                        userName: user.username,
-                        action: 'DELETE_LOYALTY_PRIZE',
-                        module: 'loyalty',
-                        detail: `Eliminó premio de fidelización: ${deleteTarget.name}`,
-                        severity: 'CRITICAL'
-                    });
-                }
                 setDeleteTarget(null);
             } catch (error) {
                 notifyError(error, "Error al eliminar el premio");
@@ -144,145 +105,143 @@ export function LoyaltyRewards() {
         }
     };
 
-    if (isLoading) return <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-40 w-full" />)}</div>;
+    if (isLoading) return <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-44 w-full rounded-3xl" />)}</div>;
 
     return (
         <div className="space-y-4">
             <div className="flex justify-between items-center">
-                <p className="text-sm text-slate-500">Configura los premios canjeables por los clientes.</p>
-                <Button size="sm" onClick={openCreate} className="gap-2">
+                <p className="text-sm text-slate-500">Configura los beneficios que los clientes obtienen al cumplir reglas.</p>
+                <Button size="sm" onClick={openCreate} className="gap-2 rounded-xl bg-monchito-purple hover:bg-monchito-purple/90 text-white font-bold shadow-md shadow-monchito-purple/10">
                     <Plus className="h-4 w-4" /> Nuevo Premio
                 </Button>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {prizes.length === 0 && (
-                    <p className="col-span-full text-center py-10 text-slate-400 text-sm">No hay premios configurados.</p>
+                    <p className="col-span-full text-center py-20 text-slate-400 border rounded-3xl border-dashed">No hay premios configurados.</p>
                 )}
-                {prizes.map(prize => (
-                    <div key={prize.id} className={`rounded-xl border p-4 flex flex-col gap-3 transition-all hover:shadow-md ${prize.isActive ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-100 border-slate-300 opacity-80'}`}>
+                {prizes.map((prize) => (
+                    <div key={prize.id} className={`rounded-3xl border p-6 flex flex-col gap-4 transition-all hover:shadow-lg group ${prize.isActive ? 'bg-white border-slate-200' : 'bg-slate-50 border-slate-200 opacity-75'}`}>
                         <div className="flex justify-between items-start">
-                            <div className="flex items-center gap-3">
-                                <div className={`p-2 rounded-lg ${PRIZE_TYPE_COLORS[prize.type]}`}>
-                                    <Gift className="h-5 w-5" />
-                                </div>
-                                <Badge
-                                    variant={prize.isActive ? "default" : "secondary"}
-                                    className={`text-[10px] uppercase font-bold tracking-wider ${prize.isActive ? 'bg-emerald-500 hover:bg-emerald-600' : 'text-slate-500 bg-slate-200'}`}
-                                >
-                                    {prize.isActive ? 'Activo' : 'Inactivo'}
-                                </Badge>
+                            <div className={`p-4 rounded-2xl ${PRIZE_TYPE_COLORS[prize.type] || 'bg-slate-100 text-slate-600'}`}>
+                                <Gift className="h-6 w-6" />
                             </div>
-                            <div className="flex gap-1">
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={async () => {
-                                    if (!hasPermission('loyalty.manage_prizes')) {
-                                        notifyError({ message: "No tienes permiso para activar/desactivar premios" });
-                                        return;
-                                    }
-                                    try {
-                                        await togglePrize(prize.id);
-                                        notifySuccess(`Premio "${prize.name}" ${!prize.isActive ? 'activado' : 'desactivado'} correctamente`);
-                                        if (user) {
-                                            logAction({
-                                                userId: user.id,
-                                                userName: user.username,
-                                                action: 'UPDATE_LOYALTY_PRIZE',
-                                                module: 'loyalty',
-                                                detail: `${!prize.isActive ? 'Activó' : 'Desactivó'} premio: ${prize.name}`
-                                            });
-                                        }
-                                    } catch (error) {
-                                        notifyError(error, "Error al cambiar estado");
-                                    }
-                                }}>
-                                    <Power className={`h-3.5 w-3.5 ${prize.isActive ? 'text-emerald-600' : 'text-slate-400'}`} />
+                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:bg-blue-50" onClick={() => openEdit(prize)}>
+                                    <Edit2 className="h-4 w-4" />
                                 </Button>
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(prize)}>
-                                    <Edit2 className="h-3.5 w-3.5 text-blue-600" />
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
-                                    if (!hasPermission('loyalty.manage_prizes')) {
-                                        notifyError({ message: "No tienes permiso para eliminar premios" });
-                                        return;
-                                    }
-                                    setDeleteTarget(prize);
-                                }}>
-                                    <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:bg-red-50" onClick={() => setDeleteTarget(prize)}>
+                                    <Trash2 className="h-4 w-4" />
                                 </Button>
                             </div>
                         </div>
+
                         <div>
-                            <h3 className="font-semibold text-slate-800">{prize.name}</h3>
-                            <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{prize.description}</p>
+                            <h3 className="font-bold text-slate-900 text-lg leading-tight">{prize.name}</h3>
+                            <p className="text-sm text-slate-500 mt-1 line-clamp-2">{prize.description || 'Sin descripción detallada'}</p>
                         </div>
-                        <div className="flex items-center justify-between mt-auto pt-2 border-t border-slate-100">
-                            <Badge variant="outline" className={`text-xs ${PRIZE_TYPE_COLORS[prize.type]}`}>
+
+                        <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between">
+                            <Badge variant="outline" className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${PRIZE_TYPE_COLORS[prize.type] || 'bg-slate-100'}`}>
                                 {PRIZE_TYPE_LABELS[prize.type]}
                             </Badge>
-                            <span className="flex items-center gap-1 text-sm font-bold text-amber-600">
-                                <Star className="h-3.5 w-3.5" />
-                                {prize.pointsRequired} pts
-                            </span>
+                            {(prize.pointsRequired || 0) > 0 ? (
+                                <span className="flex items-center gap-1.5 text-sm font-bold text-amber-600 bg-amber-50 px-3 py-1 rounded-xl">
+                                    <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
+                                    {prize.pointsRequired} pts
+                                </span>
+                            ) : (
+                                <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest bg-indigo-50 px-2.5 py-1 rounded-lg">Rule Prize</span>
+                            )}
                         </div>
                     </div>
                 ))}
             </div>
 
-            {pagination && (
-                <Pagination
-                    currentPage={page}
-                    totalPages={pagination.pages}
-                    onPageChange={setPage}
-                    totalItems={pagination.total}
-                    itemsPerPage={limit}
-                />
-            )}
-
-            {/* Create/Edit Modal */}
-
+            {/* Editor Modal */}
             <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-                <DialogContent>
+                <DialogContent className="rounded-3xl max-w-md">
                     <DialogHeader>
-                        <DialogTitle>{editTarget ? 'Editar Premio' : 'Nuevo Premio'}</DialogTitle>
+                        <DialogTitle className="text-xl font-bold">{editTarget ? 'Editar Premio' : 'Nuevo Premio'}</DialogTitle>
                     </DialogHeader>
-                    <div className="space-y-4 py-2">
-                        <div className="space-y-1">
-                            <Label htmlFor="prize-name">Nombre</Label>
-                            <Input id="prize-name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Ej: Envío Gratis Premium" />
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-1.5">
+                            <Label>Nombre</Label>
+                            <Input 
+                                value={form.name} 
+                                onChange={e => setForm(f => ({ ...f, name: e.target.value }))} 
+                                placeholder="Ej: Bono de Descuento 10%" 
+                                className="rounded-xl"
+                            />
                         </div>
-                        <div className="space-y-1">
-                            <Label htmlFor="prize-desc">Descripción</Label>
-                            <Input id="prize-desc" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Describe el beneficio..." />
+                        <div className="space-y-1.5">
+                            <Label>Descripción</Label>
+                            <Input 
+                                value={form.description || ''} 
+                                onChange={e => setForm(f => ({ ...f, description: e.target.value }))} 
+                                placeholder="Breve explicación del premio"
+                                className="rounded-xl"
+                            />
                         </div>
-
-                        <div className="space-y-1">
-                            <Label htmlFor="prize-pts">Puntos Requeridos</Label>
-                            <Input id="prize-pts" type="number" min={1} value={form.pointsRequired} onChange={e => setForm(f => ({ ...f, pointsRequired: Number(e.target.value) }))} />
+                        <div className="space-y-1.5">
+                            <Label>Tipo de Beneficio</Label>
+                            <select 
+                                value={form.type} 
+                                onChange={e => setForm(f => ({ ...f, type: e.target.value as PrizeType }))}
+                                className="w-full h-10 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/5 transition-all"
+                            >
+                                {Object.entries(PRIZE_TYPE_LABELS).map(([val, label]) => (
+                                    <option key={val} value={val}>{label}</option>
+                                ))}
+                            </select>
                         </div>
-                        <div className="flex items-center gap-3">
-                            <input id="prize-active" type="checkbox" checked={form.isActive} onChange={e => setForm(f => ({ ...f, isActive: e.target.checked }))} className="h-4 w-4 rounded border-slate-300" />
-                            <Label htmlFor="prize-active">Premio activo</Label>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                                <Label>Puntos (0 si es de regla)</Label>
+                                <Input 
+                                    type="number" 
+                                    value={form.pointsRequired ?? ''} 
+                                    onChange={e => setForm(f => ({ ...f, pointsRequired: Number(e.target.value) }))} 
+                                    className="rounded-xl"
+                                />
+                            </div>
+                            <div className="flex items-center gap-2 pt-6">
+                                <input 
+                                    type="checkbox" 
+                                    checked={form.isActive} 
+                                    onChange={e => setForm(f => ({ ...f, isActive: e.target.checked }))} 
+                                    className="h-4 w-4 rounded-md border-slate-300 text-slate-900 focus:ring-slate-900" 
+                                />
+                                <Label>Activo</Label>
+                            </div>
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
-                        <Button onClick={handleSave} disabled={!form.name || isCreating || isUpdating}>
-                            {isCreating || isUpdating ? 'Guardando...' : 'Guardar'}
+                        <Button variant="outline" onClick={() => setModalOpen(false)} className="rounded-xl">Cancelar</Button>
+                        <Button 
+                            className="bg-monchito-purple hover:bg-monchito-purple/90 text-white font-bold rounded-xl" 
+                            onClick={handleSave} 
+                            disabled={!form.name || isCreating || isUpdating}
+                        >
+                            {isCreating || isUpdating ? 'Guardando...' : 'Guardar Premio'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
-            {/* Delete Confirm Modal */}
+            {/* Confirm Delete */}
             <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
-                <DialogContent>
+                <DialogContent className="rounded-3xl max-w-sm">
                     <DialogHeader>
-                        <DialogTitle>¿Eliminar premio?</DialogTitle>
+                        <DialogTitle className="text-red-600">¿Eliminar premio?</DialogTitle>
                     </DialogHeader>
-                    <p className="text-sm text-slate-600">Se eliminará permanentemente el premio <span className="font-semibold">"{deleteTarget?.name}"</span>.</p>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
-                        <Button variant="destructive" onClick={handleDelete}>Eliminar</Button>
+                    <p className="text-sm text-slate-500">
+                        Esta acción borrará el premio <span className="font-bold text-slate-800">"{deleteTarget?.name}"</span>. 
+                        No se puede deshacer.
+                    </p>
+                    <DialogFooter className="mt-4 gap-2">
+                        <Button variant="outline" onClick={() => setDeleteTarget(null)} className="rounded-xl flex-1">Cancelar</Button>
+                        <Button variant="destructive" onClick={handleDelete} className="rounded-xl flex-1">Si, eliminar</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
