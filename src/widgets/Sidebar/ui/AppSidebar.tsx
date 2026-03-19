@@ -126,6 +126,7 @@ const groupedItems = [
         items: [
             { title: "Inventario", url: "/inventory", icon: Boxes },
             { title: "Marcas", url: "/brands", icon: Tag },
+            { title: "Catálogos", url: "/catalogs", icon: Inbox },
         ]
     },
     {

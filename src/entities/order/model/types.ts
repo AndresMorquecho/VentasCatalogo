@@ -1,6 +1,6 @@
 export type OrderStatus = 'POR_RECIBIR' | 'RECIBIDO_EN_BODEGA' | 'ENTREGADO';
 export type SalesChannel = 'OFICINA' | 'WHATSAPP' | 'DOMICILIO';
-export type OrderType = 'NORMAL' | 'PREVENTA' | 'REPROGRAMACION';
+export type OrderType = 'NORMAL' | 'PREVENTA' | 'REPROGRAMACION' | 'CATALOGO';
 export type PaymentMethod = 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE' | 'CREDITO_CLIENTE';
 
 export interface OrderItem {

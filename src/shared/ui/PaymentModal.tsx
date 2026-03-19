@@ -179,8 +179,8 @@ export function PaymentModal({
                     return;
                 }
 
-                // Validar que el monto individual no sea mayor al saldo pendiente
-                if (payment.amount > expectedAmount) {
+                // Validar que el monto individual no sea mayor al saldo pendiente (solo si expectedAmount > 0)
+                if (expectedAmount > 0 && payment.amount > expectedAmount) {
                     alert(`El monto de ${formatCurrency(payment.amount)} excede el saldo pendiente de ${formatCurrency(expectedAmount)}.`);
                     return;
                 }
@@ -188,7 +188,8 @@ export function PaymentModal({
         }
 
         // PERMITIR ABONOS PARCIALES - Validar que el total no exceda el saldo pendiente
-        if (totalAmount > expectedAmount) {
+        // Si expectedAmount es 0, no validar límite superior (caso de catálogos con precio libre)
+        if (expectedAmount > 0 && totalAmount > expectedAmount) {
             alert(`El monto total de ${formatCurrency(totalAmount)} excede el saldo pendiente de ${formatCurrency(expectedAmount)}.`);
             return;
         }
@@ -368,13 +369,13 @@ export function PaymentModal({
                                                     type="number"
                                                     step="0.01"
                                                     min="0"
-                                                    max={expectedAmount}
+                                                    max={expectedAmount > 0 ? expectedAmount : undefined}
                                                     value={payment.amount || ''}
                                                     onChange={(e) => {
                                                         if (lockAmount) return; // Bloquear si lockAmount es true
                                                         const value = parseFloat(e.target.value) || 0;
-                                                        // Limitar al saldo pendiente
-                                                        const limitedValue = Math.min(value, expectedAmount);
+                                                        // Limitar al saldo pendiente solo si expectedAmount > 0
+                                                        const limitedValue = expectedAmount > 0 ? Math.min(value, expectedAmount) : value;
                                                         updatePayment(payment.id, { amount: limitedValue });
                                                     }}
                                                     className={`h-8 text-xs font-mono flex-1 ${lockAmount ? 'bg-slate-100 cursor-not-allowed' : ''}`}
@@ -382,7 +383,7 @@ export function PaymentModal({
                                                     disabled={lockAmount}
                                                     readOnly={lockAmount}
                                                 />
-                                                {!lockAmount && (
+                                                {!lockAmount && expectedAmount > 0 && (
                                                     <Button
                                                         type="button"
                                                         variant="outline"

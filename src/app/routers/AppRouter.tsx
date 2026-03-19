@@ -26,6 +26,7 @@ const WalletValidationPage = lazy(() => import('@/features/wallet-validations/ui
 const CallsPage = lazy(() => import('@/features/calls').then(m => ({ default: m.CallsPage })));
 const ReactivationPage = lazy(() => import('@/features/calls').then(m => ({ default: m.ReactivationPage })));
 const CollectionPage = lazy(() => import('@/features/calls').then(m => ({ default: m.CollectionPage })));
+const CatalogsPage = lazy(() => import('@/features/catalogs').then(m => ({ default: m.CatalogsPage })));
 const LoyaltyPage = lazy(() => import('@/features/loyalty').then(m => ({ default: m.LoyaltyPage })));
 const AdminUsersPage = lazy(() => import('@/features/users').then(m => ({ default: m.AdminUsersPage })));
 const LoginPage = lazy(() => import('@/features/auth/ui/LoginPage').then(m => ({ default: m.LoginPage })));
@@ -68,6 +69,7 @@ const protectedChildren = [
     { path: 'calls', element: <ProtectedRoute permission="calls.view"><CallsPage /></ProtectedRoute> },
     { path: 'calls/reactivation', element: <ProtectedRoute permission="calls.view"><ReactivationPage /></ProtectedRoute> },
     { path: 'calls/collection', element: <ProtectedRoute permission="calls.view"><CollectionPage /></ProtectedRoute> },
+    { path: 'catalogs', element: <ProtectedRoute permission="orders.view"><CatalogsPage /></ProtectedRoute> },
     { path: 'rewards', element: <ProtectedRoute permission="loyalty.view"><LoyaltyPage /></ProtectedRoute> },
     {
         path: 'admin/users',
