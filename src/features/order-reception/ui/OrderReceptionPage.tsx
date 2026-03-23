@@ -18,6 +18,8 @@ import { useDebounce } from "@/shared/lib/hooks"
 import { DateRangePicker } from "@/shared/ui/filters"
 import type { DateRange } from "react-day-picker"
 
+// MIGRATED TO DATERANGEPICKER - v2.0
+
 export function OrderReceptionPage() {
     const navigate = useNavigate()
     const { showToast } = useToast()
@@ -128,8 +130,9 @@ export function OrderReceptionPage() {
                         value={dateRange}
                         onChange={setDateRange}
                         label="Rango de Entrega"
-                        placeholder="Seleccionar periodo"
+                        placeholder="Seleccionar fechas"
                         className="h-11"
+                        showLabel={true}
                     />
                 </div>
             </div>

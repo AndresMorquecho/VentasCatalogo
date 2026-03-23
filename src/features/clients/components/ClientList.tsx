@@ -29,6 +29,8 @@ import {
 } from "@/shared/ui/select";
 import { Card, CardContent } from "@/shared/ui/card";
 import { Filter, X, Loader2 } from "lucide-react";
+import { DateRangePicker } from "@/shared/ui/filters";
+import type { DateRange } from "react-day-picker";
 
 export function ClientList({ triggerCreate, onTriggerHandled }: { 
     triggerCreate?: boolean;
@@ -40,9 +42,12 @@ export function ClientList({ triggerCreate, onTriggerHandled }: {
     const debouncedSearch = useDebounce(searchQuery, 1000);
     const [status, setStatus] = useState<string>("ALL");
     const [city, setCity] = useState("");
-    const [startDate, setStartDate] = useState("");
-    const [endDate, setEndDate] = useState("");
+    const [dateRange, setDateRange] = useState<DateRange | undefined>();
     const debouncedCity = useDebounce(city, 500);
+
+    // Convert DateRange to ISO strings for API
+    const startDate = dateRange?.from ? dateRange.from.toISOString().split('T')[0] : undefined;
+    const endDate = dateRange?.to ? dateRange.to.toISOString().split('T')[0] : undefined;
 
     const { data: response, isLoading, isError, refetch } = useClientList({
         page,
@@ -74,7 +79,7 @@ export function ClientList({ triggerCreate, onTriggerHandled }: {
     // Reset page on filter changes
     useEffect(() => {
         setPage(1);
-    }, [debouncedSearch, status, debouncedCity, startDate, endDate]);
+    }, [debouncedSearch, status, debouncedCity, dateRange]);
 
     // Handle external trigger to open create form
     useEffect(() => {
@@ -93,8 +98,7 @@ export function ClientList({ triggerCreate, onTriggerHandled }: {
         setSearchQuery("");
         setStatus("ALL");
         setCity("");
-        setStartDate("");
-        setEndDate("");
+        setDateRange(undefined);
         setPage(1);
     };
 
@@ -225,29 +229,16 @@ export function ClientList({ triggerCreate, onTriggerHandled }: {
                             )}
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2">
-                            <div className="space-y-1">
-                                <Input
-                                    type="date"
-                                    className="h-10 text-xs bg-white"
-                                    value={startDate}
-                                    onChange={(e) => setStartDate(e.target.value)}
-                                    title="Registro Desde"
-                                />
-                            </div>
-                            <div className="space-y-1">
-                                <Input
-                                    type="date"
-                                    className="h-10 text-xs bg-white"
-                                    value={endDate}
-                                    onChange={(e) => setEndDate(e.target.value)}
-                                    title="Registro Hasta"
-                                />
-                            </div>
-                        </div>
+                        <DateRangePicker
+                            value={dateRange}
+                            onChange={setDateRange}
+                            label="Rango de Registro"
+                            placeholder="Seleccionar fechas"
+                            showLabel={false}
+                        />
                     </div>
 
-                    {(searchQuery || status !== "ALL" || city || startDate || endDate) && (
+                    {(searchQuery || status !== "ALL" || city || dateRange) && (
                         <div className="flex justify-end">
                             <Button variant="ghost" size="sm" onClick={resetFilters} className="text-[10px] h-7 uppercase font-bold tracking-wider hover:bg-red-50 hover:text-red-600">
                                 <RotateCw className="h-3 w-3 mr-1.5" /> Limpiar Filtros
