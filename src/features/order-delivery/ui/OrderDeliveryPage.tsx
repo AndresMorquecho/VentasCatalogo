@@ -12,6 +12,8 @@ import { PageHeader } from "@/shared/ui/PageHeader"
 import { useBrandList } from "@/features/brands/api/hooks"
 import { useClientList } from "@/features/clients/api/hooks"
 import { Pagination } from "@/shared/ui/pagination"
+import { DateRangePicker } from "@/shared/ui/filters"
+import type { DateRange } from "react-day-picker"
 
 /* --- Searchable Select for Clients --- */
 function SearchableClientSelect({ 
@@ -190,13 +192,16 @@ export function OrderDeliveryPage() {
     const [limit] = useState(25);
     const [brandId, setBrandId] = useState<string>("ALL")
     const [clientId, setClientId] = useState<string>("")
-    const [startDate, setStartDate] = useState<string>("")
-    const [endDate, setEndDate] = useState<string>("")
+    const [dateRange, setDateRange] = useState<DateRange | undefined>()
     const [orderNumber, setOrderNumber] = useState<string>("")
     const [searchTerm, setSearchTerm] = useState<string>("")
     
     const [showFilters, setShowFilters] = useState(false)
     const [dateCategoryFilter, setDateCategoryFilter] = useState<'ALL' | 'RECENT' | 'WARN' | 'CRITICAL'>('ALL')
+
+    // Convert DateRange to strings for API
+    const startDate = dateRange?.from ? dateRange.from.toISOString().split('T')[0] : ""
+    const endDate = dateRange?.to ? dateRange.to.toISOString().split('T')[0] : ""
 
     // Reset page on filter change
     useEffect(() => {
@@ -231,8 +236,7 @@ export function OrderDeliveryPage() {
     const clearFilters = () => {
         setBrandId("ALL")
         setClientId("")
-        setStartDate("")
-        setEndDate("")
+        setDateRange(undefined)
         setOrderNumber("")
         setSearchTerm("")
         setDateCategoryFilter("ALL")
@@ -297,22 +301,13 @@ export function OrderDeliveryPage() {
 
                     {/* Periodo - 4 cols */}
                     <div className="lg:col-span-4 space-y-2">
-                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1">Rango de Recepción</label>
-                        <div className="flex items-center gap-2">
-                            <Input
-                                type="date"
-                                value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
-                                className="bg-white border-slate-200 h-10 text-xs font-bold rounded-xl focus:ring-monchito-purple/20 shadow-sm transition-all flex-1"
-                            />
-                            <span className="text-slate-400 text-[10px] font-black uppercase tracking-tighter shrink-0">al</span>
-                            <Input
-                                type="date"
-                                value={endDate}
-                                onChange={(e) => setEndDate(e.target.value)}
-                                className="bg-white border-slate-200 h-10 text-xs font-bold rounded-xl focus:ring-monchito-purple/20 shadow-sm transition-all flex-1"
-                            />
-                        </div>
+                        <DateRangePicker
+                            value={dateRange}
+                            onChange={setDateRange}
+                            label="Rango de Recepción"
+                            placeholder="Seleccionar periodo"
+                            className="h-10"
+                        />
                     </div>
 
                     {/* Catálogo - 3 cols */}

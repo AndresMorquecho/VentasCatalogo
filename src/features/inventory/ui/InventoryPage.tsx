@@ -6,6 +6,7 @@ import { useDebounce } from '@/shared/lib/hooks';
 import { Pagination } from '@/shared/ui/pagination';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { useBrandList } from '@/features/brands/api/hooks';
+import type { DateRange } from 'react-day-picker';
 
 import { PackageOpen, Clock, Truck, Boxes, AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
@@ -20,10 +21,13 @@ export function InventoryPage() {
 
     const [statusFilter, setStatusFilter] = useState('ALL');
     const [brandFilter, setBrandFilter] = useState('');
-    const [startDate, setStartDate] = useState('');
-    const [endDate, setEndDate] = useState('');
+    const [dateRange, setDateRange] = useState<DateRange | undefined>();
     const [receiptNumber, setReceiptNumber] = useState('');
     const [orderNumber, setOrderNumber] = useState('');
+
+    // Convert DateRange to strings for API
+    const startDate = dateRange?.from ? dateRange.from.toISOString().split('T')[0] : '';
+    const endDate = dateRange?.to ? dateRange.to.toISOString().split('T')[0] : '';
 
     const { movements, stats, isLoading, pagination, refetch } = useInventory({
         page,
@@ -46,8 +50,7 @@ export function InventoryPage() {
         setSearchTerm('');
         setStatusFilter('ALL');
         setBrandFilter('');
-        setStartDate('');
-        setEndDate('');
+        setDateRange(undefined);
         setReceiptNumber('');
         setOrderNumber('');
     };
@@ -171,10 +174,8 @@ export function InventoryPage() {
                 brandFilter={brandFilter}
                 onBrandChange={setBrandFilter}
                 brands={availableBrands}
-                startDate={startDate}
-                onStartDateChange={setStartDate}
-                endDate={endDate}
-                onEndDateChange={setEndDate}
+                dateRange={dateRange}
+                onDateRangeChange={setDateRange}
                 receiptNumber={receiptNumber}
                 onReceiptNumberChange={setReceiptNumber}
                 orderNumber={orderNumber}

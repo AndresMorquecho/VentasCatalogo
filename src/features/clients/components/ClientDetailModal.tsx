@@ -24,6 +24,8 @@ import { useBrandList } from "@/features/brands/api/hooks";
 import { clientApi } from "@/shared/api/clientApi";
 import { format, differenceInDays } from "date-fns";
 import { es } from "date-fns/locale";
+import { DateRangePicker } from "@/shared/ui/filters";
+import type { DateRange } from "react-day-picker";
 import {
     User,
     ShoppingBag,
@@ -86,8 +88,11 @@ export function ClientDetailModal({ client: initialClient, open, onOpenChange }:
     const [status, setStatus] = useState<string>("ALL");
     const [brandId, setBrandId] = useState<string>("ALL");
     const [search, setSearch] = useState("");
-    const [startDate, setStartDate] = useState("");
-    const [endDate, setEndDate] = useState("");
+    const [dateRange, setDateRange] = useState<DateRange | undefined>();
+
+    // Convertir DateRange a strings para la API
+    const startDate = dateRange?.from ? dateRange.from.toISOString().split('T')[0] : undefined;
+    const endDate = dateRange?.to ? dateRange.to.toISOString().split('T')[0] : undefined;
 
     const { data: client, isLoading: isClientLoading } = useQuery({
         queryKey: ['clients', initialClient?.id],
@@ -149,7 +154,7 @@ export function ClientDetailModal({ client: initialClient, open, onOpenChange }:
     if (!initialClient) return null;
 
     const resetFilters = () => {
-        setStatus("ALL"); setBrandId("ALL"); setSearch(""); setStartDate(""); setEndDate(""); setPage(1);
+        setStatus("ALL"); setBrandId("ALL"); setSearch(""); setDateRange(undefined); setPage(1);
     };
 
     return (
@@ -349,10 +354,15 @@ export function ClientDetailModal({ client: initialClient, open, onOpenChange }:
                                             </Select>
                                         </div>
 
-                                        <div className="flex gap-2">
+                                        <div className="flex gap-2 xl:col-span-2">
                                             <div className="flex-1">
-                                                <p className="text-[9px] font-black text-slate-400 uppercase mb-1 ml-1">Desde</p>
-                                                <Input type="date" className="h-10 text-xs border-slate-200" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                                                <p className="text-[9px] font-black text-slate-400 uppercase mb-1 ml-1">Rango de Fechas</p>
+                                                <DateRangePicker
+                                                    value={dateRange}
+                                                    onChange={setDateRange}
+                                                    placeholder="Seleccionar periodo"
+                                                    showLabel={false}
+                                                />
                                             </div>
                                             <Button variant="outline" size="icon" onClick={resetFilters} className="h-10 w-10 mt-auto border-slate-200 hover:bg-slate-50 shrink-0">
                                                 <RotateCw className="h-4 w-4 text-slate-400" />

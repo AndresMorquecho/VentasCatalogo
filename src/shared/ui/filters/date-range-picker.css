@@ -1,0 +1,184 @@
+/* Custom styles for react-day-picker - FORCE OVERRIDE */
+.date-range-picker.rdp {
+  --rdp-cell-size: 28px !important;
+  --rdp-accent-color: #8b5cf6 !important;
+  --rdp-background-color: #f1f5f9 !important;
+  width: fit-content !important;
+}
+
+/* Asegurar que la tabla no se desborde */
+.date-range-picker .rdp-table,
+.date-range-picker.rdp .rdp-table {
+  margin: 0 auto !important;
+  border-spacing: 0 !important;
+  border-collapse: separate !important;
+}
+
+.date-range-picker .rdp-months,
+.date-range-picker.rdp .rdp-months {
+  width: fit-content !important;
+}
+
+/* Forzar ancho y alto consistente en todas las celdas */
+.date-range-picker .rdp-cell,
+.date-range-picker.rdp .rdp-cell,
+.date-range-picker .rdp-day,
+.date-range-picker.rdp .rdp-day {
+  width: 28px !important;
+  height: 28px !important;
+  padding: 0 !important;
+  min-width: 28px !important;
+  max-width: 28px !important;
+  min-height: 28px !important;
+  max-height: 28px !important;
+}
+
+.date-range-picker .rdp-head_cell,
+.date-range-picker.rdp .rdp-head_cell {
+  width: 28px !important;
+  height: 28px !important;
+  padding: 0 !important;
+  min-width: 28px !important;
+  max-width: 28px !important;
+  text-align: center !important;
+}
+
+/* Forzar tamaño de fuente consistente en todos los días */
+.date-range-picker .rdp-day,
+.date-range-picker.rdp .rdp-day,
+.date-range-picker .rdp-day button,
+.date-range-picker.rdp .rdp-day button {
+  font-size: 0.75rem !important; /* text-xs = 12px */
+  font-weight: 400 !important; /* font-normal */
+  line-height: 1 !important;
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 50% !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+}
+
+/* Mantener el mismo tamaño cuando está seleccionado */
+.date-range-picker .rdp-day_selected,
+.date-range-picker.rdp .rdp-day_selected,
+.date-range-picker .rdp-day_selected button,
+.date-range-picker.rdp .rdp-day_selected button {
+  font-size: 0.75rem !important;
+  font-weight: 400 !important;
+  border-radius: 50% !important;
+  background-color: var(--rdp-accent-color) !important;
+  color: white !important;
+  width: 28px !important;
+  height: 28px !important;
+}
+
+.date-range-picker .rdp-day_range_start,
+.date-range-picker.rdp .rdp-day_range_start,
+.date-range-picker .rdp-day_range_end,
+.date-range-picker.rdp .rdp-day_range_end {
+  font-size: 0.75rem !important;
+  font-weight: 400 !important;
+  background-color: var(--rdp-accent-color) !important;
+  color: white !important;
+  width: 28px !important;
+  height: 28px !important;
+}
+
+.date-range-picker .rdp-day_range_middle,
+.date-range-picker.rdp .rdp-day_range_middle {
+  font-size: 0.75rem !important;
+  font-weight: 400 !important;
+  background-color: rgba(139, 92, 246, 0.15) !important;
+  color: #1e293b !important;
+  border-radius: 0 !important;
+}
+
+/* Solo el día de hoy tiene font-bold */
+.date-range-picker .rdp-day_today,
+.date-range-picker.rdp .rdp-day_today {
+  font-weight: 700 !important;
+}
+
+/* Hacer los días de inicio y fin del rango redondos en los extremos */
+.date-range-picker .rdp-day_range_start:not(.rdp-day_range_end),
+.date-range-picker.rdp .rdp-day_range_start:not(.rdp-day_range_end) {
+  border-radius: 50% 0 0 50% !important;
+}
+
+.date-range-picker .rdp-day_range_end:not(.rdp-day_range_start),
+.date-range-picker.rdp .rdp-day_range_end:not(.rdp-day_range_start) {
+  border-radius: 0 50% 50% 0 !important;
+}
+
+/* Si es el mismo día (inicio y fin) debe ser completamente redondo */
+.date-range-picker .rdp-day_range_start.rdp-day_range_end,
+.date-range-picker.rdp .rdp-day_range_start.rdp-day_range_end {
+  border-radius: 50% !important;
+}
+
+/* Mejorar el rango seleccionado */
+.date-range-picker .rdp-day_range_start,
+.date-range-picker .rdp-day_range_end {
+  background-color: var(--rdp-accent-color) !important;
+  color: white !important;
+  font-weight: 700;
+}
+
+.date-range-picker .rdp-day_range_middle {
+  background-color: rgba(139, 92, 246, 0.15) !important;
+  color: #1e293b !important;
+}
+
+/* Mejorar hover states */
+.date-range-picker .rdp-day:hover:not(.rdp-day_selected):not(.rdp-day_disabled) {
+  background-color: rgba(139, 92, 246, 0.1) !important;
+}
+
+/* Día de hoy */
+.date-range-picker .rdp-day_today {
+  font-weight: 700;
+  position: relative;
+}
+
+.date-range-picker .rdp-day_today::after {
+  content: '';
+  position: absolute;
+  bottom: 1px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background-color: var(--rdp-accent-color);
+}
+
+/* Botones de navegación */
+.date-range-picker .rdp-nav_button {
+  transition: all 0.2s;
+}
+
+.date-range-picker .rdp-nav_button:hover {
+  background-color: rgba(139, 92, 246, 0.1) !important;
+}
+
+/* Animación suave para días */
+.date-range-picker .rdp-day {
+  transition: all 0.15s ease-in-out;
+}
+
+/* Mejorar el rango visual */
+.date-range-picker .rdp-day_range_start {
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+
+.date-range-picker .rdp-day_range_end {
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+}
+
+.date-range-picker .rdp-day_range_middle {
+  border-radius: 0 !important;
+}

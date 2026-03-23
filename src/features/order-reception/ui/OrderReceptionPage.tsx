@@ -15,6 +15,8 @@ import { PageHeader } from "@/shared/ui/PageHeader"
 import { ConfirmDialog } from "@/shared/ui/confirm-dialog"
 import { Pagination } from "@/shared/ui/pagination"
 import { useDebounce } from "@/shared/lib/hooks"
+import { DateRangePicker } from "@/shared/ui/filters"
+import type { DateRange } from "react-day-picker"
 
 export function OrderReceptionPage() {
     const navigate = useNavigate()
@@ -26,8 +28,11 @@ export function OrderReceptionPage() {
     const [limit] = useState(25)
     const [searchText, setSearchText] = useState("")
     const debouncedSearch = useDebounce(searchText, 500)
-    const [startDate, setStartDate] = useState("")
-    const [endDate, setEndDate] = useState("")
+    const [dateRange, setDateRange] = useState<DateRange | undefined>()
+
+    // Convert DateRange to strings for API
+    const startDate = dateRange?.from ? dateRange.from.toISOString().split('T')[0] : ""
+    const endDate = dateRange?.to ? dateRange.to.toISOString().split('T')[0] : ""
 
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
     const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false)
@@ -81,8 +86,7 @@ export function OrderReceptionPage() {
 
     const clearFilters = () => {
         setSearchText("");
-        setStartDate("");
-        setEndDate("");
+        setDateRange(undefined);
         setPage(1);
     }
 
@@ -107,8 +111,8 @@ export function OrderReceptionPage() {
 
             {/* Filters Bar */}
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap gap-4 items-end">
-                <div className="flex-1 min-w-[280px] space-y-2">
-                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Buscar Cliente / Recibo</label>
+                <div className="flex-1 min-w-[280px]">
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1 mb-2 block">Buscar Cliente / Recibo</label>
                     <div className="relative">
                         <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                         <Input
@@ -119,22 +123,13 @@ export function OrderReceptionPage() {
                         />
                     </div>
                 </div>
-                <div className="w-full sm:w-auto space-y-2">
-                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Desde (Entrega)</label>
-                    <Input
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        className="h-11 border-slate-200 rounded-xl"
-                    />
-                </div>
-                <div className="w-full sm:w-auto space-y-2">
-                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Hasta (Entrega)</label>
-                    <Input
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        className="h-11 border-slate-200 rounded-xl"
+                <div className="w-full sm:w-auto min-w-[280px]">
+                    <DateRangePicker
+                        value={dateRange}
+                        onChange={setDateRange}
+                        label="Rango de Entrega"
+                        placeholder="Seleccionar periodo"
+                        className="h-11"
                     />
                 </div>
             </div>

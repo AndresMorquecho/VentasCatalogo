@@ -1,0 +1,143 @@
+/* COMPACT CALENDAR - FORCED STYLES */
+.compact-calendar { 
+  font-size: 12px; 
+  margin: 0 !important;
+  padding: 0 !important;
+}
+.compact-calendar * { 
+  box-sizing: border-box; 
+  margin: 0 !important;
+}
+
+/* MONTH CONTAINER - FIXED SIZE */
+.compact-calendar .rdp-month {
+  width: 196px !important;
+}
+
+.compact-calendar .rdp-months {
+  /* Already covered by * selector */
+}
+
+/* TABLE LAYOUT - FIXED WIDTH */
+.compact-calendar table { 
+  width: 196px !important; 
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  margin: 0 !important;
+  table-layout: fixed !important;
+}
+
+/* CAPTION - NO MARGIN */
+.compact-calendar .rdp-caption {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* HEADERS - EXACT ALIGNMENT */
+.compact-calendar thead th {
+  width: 28px !important;
+  height: 28px !important;
+  padding: 0 !important;
+  text-align: center !important;
+  font-size: 12px !important;
+}
+
+/* ROWS - KEEP TABLE LAYOUT */
+.compact-calendar tbody tr {
+  display: table-row !important;
+}
+
+/* CELLS - EXACT SIZE */
+.compact-calendar tbody td {
+  width: 28px !important;
+  height: 28px !important;
+  padding: 0 !important;
+  text-align: center !important;
+  display: table-cell !important;
+}
+
+/* DAYS - BUTTONS */
+.compact-calendar button {
+  width: 28px !important;
+  height: 28px !important;
+  padding: 0 !important;
+  margin: 0 auto !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  border-radius: 50% !important;
+  border: none !important;
+  background: transparent !important;
+  cursor: pointer !important;
+  display: block !important;
+  line-height: 28px !important;
+}
+
+/* HOVER STATE */
+.compact-calendar button:hover:not(:disabled) {
+  background-color: rgba(139, 92, 246, 0.1) !important;
+}
+
+/* SELECTED DAYS - PURPLE CIRCLE */
+.compact-calendar .rdp-day_selected button,
+.compact-calendar [class*="day_selected"] button {
+  background-color: #8b5cf6 !important;
+  color: white !important;
+  font-weight: 400 !important;
+}
+
+/* RANGE START */
+.compact-calendar .rdp-day_range_start button,
+.compact-calendar [class*="range_start"] button {
+  background-color: #8b5cf6 !important;
+  color: white !important;
+  border-radius: 50% 0 0 50% !important;
+}
+
+/* RANGE END */
+.compact-calendar .rdp-day_range_end button,
+.compact-calendar [class*="range_end"] button {
+  background-color: #8b5cf6 !important;
+  color: white !important;
+  border-radius: 0 50% 50% 0 !important;
+}
+
+/* RANGE MIDDLE - LIGHT PURPLE BACKGROUND ON CELL */
+.compact-calendar .rdp-day_range_middle {
+  background-color: rgba(139, 92, 246, 0.25) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.compact-calendar .rdp-day_range_middle button {
+  background-color: transparent !important;
+  color: #1e293b !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* RANGE START AND END - NO EXTRA MARGIN */
+.compact-calendar .rdp-day_range_start,
+.compact-calendar .rdp-day_range_end {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* TODAY */
+.compact-calendar .rdp-day_today button {
+  font-weight: 700 !important;
+  box-shadow: inset 0 0 0 1px rgba(139, 92, 246, 0.5) !important;
+}
+
+/* OUTSIDE DAYS */
+.compact-calendar .rdp-day_outside button {
+  color: #cbd5e1 !important;
+  opacity: 0.5 !important;
+}
+
+/* DISABLED DAYS */
+.compact-calendar button:disabled {
+  color: #cbd5e1 !important;
+  opacity: 0.3 !important;
+  cursor: not-allowed !important;
+}

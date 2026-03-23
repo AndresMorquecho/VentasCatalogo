@@ -1,26 +1,110 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 import { useCatalogDeliveries } from '../api/hooks';
+import { useBrandList } from '@/features/brands/api/hooks';
+import { useClientList } from '@/features/clients/api/hooks';
 import { Loader2 } from 'lucide-react';
 import { Pagination } from '@/shared/ui/pagination';
+import { Label } from '@/shared/ui/label';
+import { BrandFilter, ClientFilter, FilterContainer } from '@/shared/ui/filters';
 
 export function HistoryTab() {
   const [page, setPage] = useState(1);
   const limit = 20;
+  
+  // Filtros
+  const [selectedBrandId, setSelectedBrandId] = useState<string | undefined>();
+  const [selectedClientId, setSelectedClientId] = useState<string | undefined>();
+  const [madeOrderFilter, setMadeOrderFilter] = useState<string>(''); // '', 'SI', 'NO'
+
+  const { data: brandsData } = useBrandList();
+  const brands = brandsData?.data || [];
+
+  const { data: clientsData } = useClientList();
+  const clients = clientsData?.data || [];
 
   const { data: deliveriesData, isLoading } = useCatalogDeliveries({
     page,
-    limit
+    limit,
+    brandId: selectedBrandId,
+    clientId: selectedClientId
   });
 
   const pagination = deliveriesData?.pagination;
+
+  // Filtrar entregas por "hizo pedido"
+  const filteredDeliveries = useMemo(() => {
+    if (!deliveriesData?.data) return [];
+    if (!madeOrderFilter) return deliveriesData.data;
+    
+    return deliveriesData.data.filter(delivery => {
+      if (madeOrderFilter === 'SI') return delivery.madeOrder === true;
+      if (madeOrderFilter === 'NO') return delivery.madeOrder === false;
+      return true;
+    });
+  }, [deliveriesData?.data, madeOrderFilter]);
+
+  const handleClearFilters = () => {
+    setSelectedBrandId(undefined);
+    setSelectedClientId(undefined);
+    setMadeOrderFilter('');
+    setPage(1);
+  };
+
+  const hasActiveFilters = selectedBrandId || selectedClientId || madeOrderFilter;
 
   return (
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-sm font-bold">Historial de Entregas</CardTitle>
       </CardHeader>
-      <CardContent className="p-0 pt-0">
+      <CardContent className="pt-0">
+        {/* Filtros */}
+        <FilterContainer
+          onClearFilters={handleClearFilters}
+          hasActiveFilters={hasActiveFilters}
+          className="mb-4"
+        >
+          <ClientFilter
+            clients={clients}
+            value={selectedClientId}
+            onChange={(id) => {
+              setSelectedClientId(id);
+              setPage(1);
+            }}
+            className="flex-1"
+          />
+
+          <BrandFilter
+            brands={brands}
+            value={selectedBrandId}
+            onChange={(id) => {
+              setSelectedBrandId(id);
+              setPage(1);
+            }}
+            className="flex-1"
+          />
+
+          <div className="flex-1">
+            <Label className="text-xs font-medium mb-1.5 block text-slate-700">
+              ¿Hizo Pedido?
+            </Label>
+            <select
+              value={madeOrderFilter}
+              onChange={(e) => {
+                setMadeOrderFilter(e.target.value);
+                setPage(1);
+              }}
+              className="w-full h-9 px-3 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-monchito-purple/20 focus:outline-none transition-all"
+            >
+              <option value="">Todos</option>
+              <option value="SI">Sí</option>
+              <option value="NO">No</option>
+            </select>
+          </div>
+        </FilterContainer>
+
+        {/* Tabla */}
         {isLoading ? (
           <div className="flex justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-monchito-purple" />
@@ -55,14 +139,14 @@ export function HistoryTab() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {!deliveriesData?.data || deliveriesData.data.length === 0 ? (
+                  {!filteredDeliveries || filteredDeliveries.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-500">
                         No hay entregas registradas
                       </td>
                     </tr>
                   ) : (
-                    deliveriesData.data.map((delivery) => (
+                    filteredDeliveries.map((delivery) => (
                       <tr key={delivery.id} className="hover:bg-slate-50 transition-colors">
                         <td className="px-4 py-3 text-sm font-semibold text-slate-900">
                           {delivery.clientName || delivery.clientId}

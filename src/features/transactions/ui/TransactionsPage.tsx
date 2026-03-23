@@ -8,6 +8,8 @@ import { Search, Loader2, X, DollarSign } from "lucide-react"
 import { useDebounce } from "@/shared/lib/hooks"
 import { Pagination } from "@/shared/ui/pagination"
 import { PageHeader } from "@/shared/ui/PageHeader"
+import { DateRangePicker } from "@/shared/ui/filters"
+import type { DateRange } from "react-day-picker"
 import type { FinancialRecord } from "@/entities/financial-record/model/types"
 
 export function TransactionsPage() {
@@ -16,9 +18,12 @@ export function TransactionsPage() {
     const [searchTerm, setSearchTerm] = useState("")
     const debouncedSearch = useDebounce(searchTerm, 1000)
 
-    const [startDate, setStartDate] = useState("")
-    const [endDate, setEndDate] = useState("")
+    const [dateRange, setDateRange] = useState<DateRange | undefined>()
     const [viewTx, setViewTx] = useState<FinancialRecord | null>(null)
+
+    // Convert DateRange to strings for API
+    const startDate = dateRange?.from ? dateRange.from.toISOString().split('T')[0] : ""
+    const endDate = dateRange?.to ? dateRange.to.toISOString().split('T')[0] : ""
 
     // Memoize filters to prevent infinite re-render loops from TanStack Query key changes
     const filters = useMemo(() => ({
@@ -41,8 +46,7 @@ export function TransactionsPage() {
 
     const handleClear = () => {
         setSearchTerm("")
-        setStartDate("")
-        setEndDate("")
+        setDateRange(undefined)
     }
 
     return (
@@ -66,23 +70,15 @@ export function TransactionsPage() {
                         />
                     </div>
                 </div>
-                <div className="w-full md:w-40">
-                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Desde</label>
-                    <Input
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
+                <div className="w-full md:w-auto min-w-[280px]">
+                    <DateRangePicker
+                        value={dateRange}
+                        onChange={setDateRange}
+                        label="Rango de Fechas"
+                        placeholder="Seleccionar periodo"
                     />
                 </div>
-                <div className="w-full md:w-40">
-                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Hasta</label>
-                    <Input
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                    />
-                </div>
-                {(searchTerm || startDate || endDate) && (
+                {(searchTerm || dateRange?.from) && (
                     <Button variant="ghost" size="icon" onClick={handleClear} className="mb-0.5" title="Limpiar filtros">
                         <X className="h-4 w-4" />
                     </Button>

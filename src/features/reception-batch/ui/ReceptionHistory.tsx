@@ -24,6 +24,8 @@ import {
 import { useBrandList } from "@/features/brands/api/hooks"
 import { ConfirmDialog } from "@/shared/ui/confirm-dialog"
 import { Pagination } from "@/shared/ui/Pagination"
+import { DateRangePicker } from "@/shared/ui/filters"
+import type { DateRange } from "react-day-picker"
 
 interface Props {
     batches: any[]
@@ -72,6 +74,21 @@ export function ReceptionHistory({
     // Real brands from database
     const { data: brandsData } = useBrandList({ limit: 100 });
     const brands = brandsData?.data || [];
+
+    // Convertir strings de filtros a DateRange
+    const dateRange: DateRange | undefined = filters.startDate && filters.endDate ? {
+        from: new Date(filters.startDate),
+        to: new Date(filters.endDate),
+    } : undefined;
+
+    const handleDateRangeChange = (range: DateRange | undefined) => {
+        onFilterChange({
+            ...filters,
+            startDate: range?.from ? range.from.toISOString().split('T')[0] : '',
+            endDate: range?.to ? range.to.toISOString().split('T')[0] : '',
+        });
+        onPageChange(1);
+    };
 
     const handleReverseIndividual = async (orderId: string) => {
         setIsProcessing(orderId)
@@ -171,27 +188,12 @@ export function ReceptionHistory({
                     {/* Periodo de Tiempo - 4 cols */}
                     <div className="lg:col-span-4 space-y-2">
                         <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1">Periodo de Tiempo</label>
-                        <div className="flex items-center gap-2">
-                            <Input
-                                type="date"
-                                value={filters.startDate}
-                                onChange={(e) => {
-                                    onFilterChange({ ...filters, startDate: e.target.value });
-                                    onPageChange(1);
-                                }}
-                                className="bg-white border-slate-200 h-10 text-xs font-bold rounded-xl focus:ring-emerald-500/20 shadow-sm transition-all flex-1"
-                            />
-                            <span className="text-slate-400 text-[10px] font-black uppercase tracking-tighter shrink-0 px-1">al</span>
-                            <Input
-                                type="date"
-                                value={filters.endDate}
-                                onChange={(e) => {
-                                    onFilterChange({ ...filters, endDate: e.target.value });
-                                    onPageChange(1);
-                                }}
-                                className="bg-white border-slate-200 h-10 text-xs font-bold rounded-xl focus:ring-emerald-500/20 shadow-sm transition-all flex-1"
-                            />
-                        </div>
+                        <DateRangePicker
+                            value={dateRange}
+                            onChange={handleDateRangeChange}
+                            placeholder="Seleccionar rango de fechas"
+                            showLabel={false}
+                        />
                     </div>
 
                     {/* Identificar Packing - 2 cols */}

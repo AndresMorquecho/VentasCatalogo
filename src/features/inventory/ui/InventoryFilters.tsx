@@ -1,6 +1,8 @@
 import { Search, Filter, CalendarDays, MapPin, Tag, ReceiptText, User, ShoppingBag } from "lucide-react";
 import { Input } from "@/shared/ui/input";
 import { Button } from "@/shared/ui/button";
+import { DateRangePicker } from "@/shared/ui/filters";
+import type { DateRange } from "react-day-picker";
 
 interface Props {
     search: string;
@@ -10,11 +12,9 @@ interface Props {
     brandFilter: string;
     onBrandChange: (val: string) => void;
     brands: string[];
-    // New Advanced Filters
-    startDate: string;
-    onStartDateChange: (val: string) => void;
-    endDate: string;
-    onEndDateChange: (val: string) => void;
+    // Date Range Filter
+    dateRange: DateRange | undefined;
+    onDateRangeChange: (range: DateRange | undefined) => void;
     receiptNumber: string;
     onReceiptNumberChange: (val: string) => void;
     orderNumber: string;
@@ -27,8 +27,7 @@ export function InventoryFilters({
     statusFilter, onStatusChange,
     brandFilter, onBrandChange,
     brands,
-    startDate, onStartDateChange,
-    endDate, onEndDateChange,
+    dateRange, onDateRangeChange,
     receiptNumber, onReceiptNumberChange,
     orderNumber, onOrderNumberChange,
     onClear
@@ -84,24 +83,13 @@ export function InventoryFilters({
                 </div>
 
                 <div className="md:col-span-6 space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 ml-1">
-                        <CalendarDays className="h-3 w-3" /> Rango de Fechas (Inicio / Fin)
-                    </label>
-                    <div className="flex items-center gap-2">
-                        <Input
-                            type="date"
-                            value={startDate}
-                            onChange={(e) => onStartDateChange(e.target.value)}
-                            className="rounded-xl border-slate-200 h-10 font-medium text-xs shadow-sm focus-visible:ring-emerald-500/20"
-                        />
-                        <span className="text-slate-300 font-black text-[10px] uppercase">al</span>
-                        <Input
-                            type="date"
-                            value={endDate}
-                            onChange={(e) => onEndDateChange(e.target.value)}
-                            className="rounded-xl border-slate-200 h-10 font-medium text-xs shadow-sm focus-visible:ring-emerald-500/20"
-                        />
-                    </div>
+                    <DateRangePicker
+                        value={dateRange}
+                        onChange={onDateRangeChange}
+                        label="Rango de Fechas"
+                        placeholder="Seleccionar periodo"
+                        className="h-10"
+                    />
                 </div>
 
                 {/* Row 2: No Recibo, Empresaria, No Pedido, BTN */}
