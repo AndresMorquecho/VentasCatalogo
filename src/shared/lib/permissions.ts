@@ -15,6 +15,7 @@ export const MODULES = [
     'calls',
     'loyalty',
     'users',
+    'exchanges',
 ] as const;
 
 export type ModuleKey = typeof MODULES[number];
@@ -35,6 +36,7 @@ export const MODULE_ACTIONS: Record<ModuleKey, string[]> = {
     calls: ['view', 'create'],
     loyalty: ['view', 'manage_rules', 'manage_prizes'],
     users: ['view', 'create', 'edit', 'delete', 'change_password', 'assign_roles'],
+    exchanges: ['view', 'manage'],
 };
 
 // ─── String helper: "module.action" ──────────────────────────────────────────
@@ -56,6 +58,7 @@ export const MODULE_LABELS: Record<ModuleKey, string> = {
     calls: 'Llamadas',
     loyalty: 'Fidelización',
     users: 'Usuarios y Roles',
+    exchanges: 'Cambios',
 };
 
 export const ACTION_LABELS: Record<string, string> = {

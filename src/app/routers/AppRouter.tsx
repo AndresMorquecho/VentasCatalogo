@@ -30,7 +30,7 @@ const CatalogsPage = lazy(() => import('@/features/catalogs').then(m => ({ defau
 const LoyaltyPage = lazy(() => import('@/features/loyalty').then(m => ({ default: m.LoyaltyPage })));
 const AdminUsersPage = lazy(() => import('@/features/users').then(m => ({ default: m.AdminUsersPage })));
 const ExchangesPage = lazy(() => import('@/features/exchanges/ui/ExchangesPage').then(m => ({ default: m.ExchangesPage })));
-const NewExchangeBatchPage = lazy(() => import('@/features/exchanges/ui/NewExchangeBatchPage').then(m => ({ default: m.NewExchangeBatchPage })));
+const NewExchangePage = lazy(() => import('@/features/exchanges/ui/NewExchangePage').then(m => ({ default: m.NewExchangePage })));
 const LoginPage = lazy(() => import('@/features/auth/ui/LoginPage').then(m => ({ default: m.LoginPage })));
 const OrderFormPage = lazy(() => import('@/features/order-management/ui/OrderFormPage').then(m => ({ default: m.OrderFormPage })));
 
@@ -74,7 +74,7 @@ const protectedChildren = [
     { path: 'catalogs', element: <ProtectedRoute permission="orders.view"><CatalogsPage /></ProtectedRoute> },
     { path: 'rewards', element: <ProtectedRoute permission="loyalty.view"><LoyaltyPage /></ProtectedRoute> },
     { path: 'exchanges', element: <ProtectedRoute permission="exchanges.view"><ExchangesPage /></ProtectedRoute> },
-    { path: 'exchanges/new', element: <ProtectedRoute permission="exchanges.manage"><NewExchangeBatchPage /></ProtectedRoute> },
+    { path: 'exchanges/new', element: <ProtectedRoute permission="exchanges.manage"><NewExchangePage /></ProtectedRoute> },
     {
         path: 'admin/users',
         element: <ProtectedRoute adminOnly><AdminUsersPage /></ProtectedRoute>,

@@ -17,6 +17,7 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
     const [receiptFilter, setReceiptFilter] = useState("")
     const [orderNumberFilter, setOrderNumberFilter] = useState("")
     const [brandFilter, setBrandFilter] = useState("")
+    const [typeFilter, setTypeFilter] = useState("")
     const [dateFilter, setDateFilter] = useState("") // YYYY-MM-DD from input type="date"
 
     // Map for faster lookups
@@ -48,7 +49,10 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
             // 4. Brand Filter
             if (brandFilter && o.brandName !== brandFilter) return false;
 
-            // 5. Date Filter
+            // 5. Type Filter
+            if (typeFilter && o.type !== typeFilter) return false;
+
+            // 6. Date Filter
             if (targetDate) {
                 const orderDate = new Date(o.createdAt).toISOString().split('T')[0];
                 if (orderDate !== targetDate) return false;
@@ -56,7 +60,7 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
 
             return true;
         });
-    }, [orders, searchTerm, receiptFilter, orderNumberFilter, brandFilter, dateFilter]);
+    }, [orders, searchTerm, receiptFilter, orderNumberFilter, brandFilter, typeFilter, dateFilter]);
 
     const toggle = (id: string) => {
         setSelected(prev => {
@@ -155,6 +159,22 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
                             </select>
                         </div>
 
+                        {/* Type Filter */}
+                        <div className="relative w-28">
+                            <select
+                                value={typeFilter}
+                                onChange={(e) => setTypeFilter(e.target.value)}
+                                className="w-full h-7 px-2 text-[10px] bg-white border border-monchito-purple/20 rounded-md focus:border-monchito-purple focus:outline-none appearance-none font-medium"
+                            >
+                                <option value="">Toda Clase</option>
+                                <option value="NORMAL">Normal</option>
+                                <option value="CAMBIO">Cambio</option>
+                                <option value="PREVENTA">Preventa</option>
+                                <option value="REPROGRAMACION">Repro</option>
+                                <option value="CATALOGO">Catálogo</option>
+                            </select>
+                        </div>
+
                         {/* Date Input */}
                         <div className="relative w-32">
                             <Input
@@ -170,13 +190,14 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
                         <span className="text-[10px] font-bold text-monchito-purple bg-monchito-purple/10 px-2 py-1 rounded-md">
                             {filteredOrders.length}
                         </span>
-                        {(searchTerm || receiptFilter || orderNumberFilter || brandFilter || dateFilter) && (
+                        {(searchTerm || receiptFilter || orderNumberFilter || brandFilter || typeFilter || dateFilter) && (
                             <button
                                 onClick={() => { 
                                     setSearchTerm(''); 
                                     setReceiptFilter(''); 
                                     setOrderNumberFilter(''); 
                                     setBrandFilter(''); 
+                                    setTypeFilter('');
                                     setDateFilter(''); 
                                 }}
                                 className="text-[10px] text-slate-400 hover:text-red-500 underline"
@@ -249,7 +270,15 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
                                             <TableCell className="py-2 px-2 text-xs font-bold">{order.clientName}</TableCell>
                                             <TableCell className="py-2 px-2 text-xs font-medium">{order.orderNumber || '---'}</TableCell>
                                             <TableCell className="py-2 px-2 text-[10px]">
-                                                <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 font-bold uppercase">{order.type}</span>
+                                                <span className={`px-2 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-tighter shadow-sm ${
+                                                    order.type === 'CAMBIO' ? 'bg-orange-100 text-orange-700 border-orange-200' :
+                                                    order.type === 'REPROGRAMACION' ? 'bg-amber-100 text-amber-700 border-amber-200' :
+                                                    order.type === 'PREVENTA' ? 'bg-purple-100 text-purple-700 border-purple-200' :
+                                                    order.type === 'CATALOGO' ? 'bg-indigo-100 text-indigo-700 border-indigo-200' :
+                                                    'bg-blue-100 text-blue-700 border-blue-200'
+                                                }`}>
+                                                    {order.type}
+                                                </span>
                                             </TableCell>
                                             <TableCell className="py-2 px-2 text-xs font-medium">{order.brandName}</TableCell>
                                             <TableCell className="py-2 px-2 text-right font-mono text-xs font-bold">${order.total.toFixed(2)}</TableCell>

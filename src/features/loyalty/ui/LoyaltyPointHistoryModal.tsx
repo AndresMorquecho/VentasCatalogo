@@ -42,19 +42,45 @@ export function LoyaltyPointHistoryModal({ open, onOpenChange, clientId, clientN
                         {/* ── Progreso actual por regla ── */}
                         {ruleProgress.length > 0 && (
                             <section>
-                          3>
                                 <div className="space-y-3">
                                     {ruleProgress.map((rule: any) => (
-                                        <div key=erald-50/40' : 'border-slate-200 bg-white'}`}>
+                                        <div key={rule.ruleId} className={`p-4 rounded-xl border transition-all ${expandedRule === rule.ruleId ? 'border-emerald-500 bg-emerald-50/40' : 'border-slate-200 bg-white'}`}>
                                             <div className="flex items-start justify-between gap-3 mb-3">
                                                 <div>
                                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{rule.ruleName}</p>
                                                     <p className="font-bold text-slate-800 text-sm">{rule.prizeName || 'Premio'}</p>
-                                            <TableHead className="text-right">Puntos Ganados</TableHead>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+                        )}
+
+                        {/* ── Historial de puntos ── */}
+                        <section>
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                                    <ShoppingBag className="h-4 w-4 text-monchito-purple" />
+                                    Detalle de Puntos Ganados
+                                </h3>
+                                <Badge variant="outline" className="text-[10px] font-bold">
+                                    {pagination?.total || 0} registros
+                                </Badge>
+                            </div>
+
+                            <div className="border rounded-xl overflow-hidden bg-white">
+                                <Table>
+                                    <TableHeader className="bg-slate-50">
+                                        <TableRow>
+                                            <TableHead className="w-[120px]">Fecha</TableHead>
+                                            <TableHead>Orden / Referencia</TableHead>
+                                            <TableHead className="text-right">Valor Total</TableHead>
+                                            <TableHead className="text-right">Puntos</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {history.map((item: any) => (
+                                        {redemptionHistory.map((item: any) => (
                                             <TableRow key={item.id}>
                                                 <TableCell className="text-sm text-slate-600">
                                                     <div className="flex items-center gap-2">
@@ -94,14 +120,13 @@ export function LoyaltyPointHistoryModal({ open, onOpenChange, clientId, clientN
                                     totalPages={pagination.pages}
                                     onPageChange={setPage}
                                     totalItems={pagination.total}
-                                    itemsPerPage={limit}
+                                    itemsPerPage={20}
                                 />
                             )}
-                        </>
-                    )}
-                </div>
+                        </section>
+                    </div>
+                )}
             </DialogContent>
         </Dialog>
-
     );
 }

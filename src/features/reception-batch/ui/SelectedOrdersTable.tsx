@@ -253,6 +253,7 @@ export function SelectedOrdersTable({
                                 <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Recibo</TableHead>
                                 <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Empresaria</TableHead>
                                 <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">N° de pedido</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Tipo</TableHead>
                                 <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Catálogo</TableHead>
                                 <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right">Valor pedido</TableHead>
                                 <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right">Abono</TableHead>
@@ -294,6 +295,17 @@ export function SelectedOrdersTable({
                                         <TableCell className="py-4 px-2 font-mono text-xs font-medium">#{order.receiptNumber}</TableCell>
                                         <TableCell className="py-4 px-2 text-xs font-bold">{order.clientName}</TableCell>
                                         <TableCell className="py-4 px-2 text-xs font-medium">{order.orderNumber || '---'}</TableCell>
+                                        <TableCell className="py-4 px-2 text-[10px]">
+                                            <span className={`px-2 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-tighter shadow-sm ${
+                                                order.type === 'CAMBIO' ? 'bg-orange-100 text-orange-700 border-orange-200' :
+                                                order.type === 'REPROGRAMACION' ? 'bg-amber-100 text-amber-700 border-amber-200' :
+                                                order.type === 'PREVENTA' ? 'bg-purple-100 text-purple-700 border-purple-200' :
+                                                order.type === 'CATALOGO' ? 'bg-indigo-100 text-indigo-700 border-indigo-200' :
+                                                'bg-blue-100 text-blue-700 border-blue-200'
+                                            }`}>
+                                                {order.type}
+                                            </span>
+                                        </TableCell>
                                         <TableCell className="py-4 px-2 text-xs font-medium">{order.brandName}</TableCell>
                                         
                                         {/* Valor Pedido (Esimated) */}

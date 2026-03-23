@@ -229,6 +229,13 @@ export function OrderFormPage() {
             const activePayments = paymentData.payments.filter(p => p.amount > 0);
             const isSplitPayment = activePayments.length > 1;
 
+            // Detectar si el usuario especificó abonos individuales por fila
+            // Si al menos un abono es > 0, significa que el usuario ingresó valores específicos
+            // que deben preservarse sin redistribución automática
+            const hasUserSpecifiedDeposits = formik.values.brandItems.some(item => 
+                Number(item.deposit) > 0
+            );
+
             // Construir el batchPayload — todo en una sola transacción atómica
             const batchPayload = {
                 receipt_number: formik.values.receiptNumber,
@@ -259,12 +266,21 @@ export function OrderFormPage() {
                 }),
                 orders: formik.values.brandItems.map((item) => {
                     const unitPrice = item.quantity > 0 ? item.total / item.quantity : 0;
-                    // Si abono total es 0, todas las filas van con deposit 0 → ctas por cobrar
                     let rowDeposit = Number(item.deposit) || 0;
-                    if (rowDeposit === 0 && totalAmount > 0) {
+                    
+                    // Aplicar redistribución proporcional automática SOLO cuando:
+                    // 1. El usuario NO especificó abonos individuales (todos son $0)
+                    // 2. Hay un monto total de pago mayor que cero
+                    // Esto preserva los valores ingresados por el usuario cuando especifica abonos,
+                    // mientras mantiene la funcionalidad de distribución automática para el caso
+                    // donde todos los abonos son $0 y se ingresa un pago total en el modal
+                    if (!hasUserSpecifiedDeposits && totalAmount > 0) {
                         const proportion = totalOrderValue > 0 ? Number(item.total) / totalOrderValue : 1 / formik.values.brandItems.length;
                         rowDeposit = Math.round(totalAmount * proportion * 100) / 100;
                     }
+                    // Si hasUserSpecifiedDeposits === true, rowDeposit mantiene el valor del usuario
+                    // sin redistribución, preservando exactamente lo que ingresó
+                    
                     return {
                         brand_id: item.brandId,
                         brand_name: item.brandName,
