@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { orderApi } from '@/entities/order/model/api';
 import type { Order } from '@/entities/order/model/types';
 import { useToast } from '@/shared/ui/use-toast';
+import { getPaidAmount } from '@/entities/order/model/model';
 
 export const useReceptionBatch = () => {
     const { showToast } = useToast();
@@ -159,7 +160,7 @@ export const useReceptionBatch = () => {
         // 1. Validation: Verify no order has pending distribution
         const ordersWithPendingCredit = selectedOrders.filter(o => {
             const finalTotal = (o as any).finalTotal ?? Number(o.total);
-            const paid = (o.payments || []).reduce((sum, p) => sum + Number(p.amount), 0);
+            const paid = getPaidAmount(o);
             const abono = (o as any).abonoRecepcion || 0;
             const balance = finalTotal - (paid + abono);
             

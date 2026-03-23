@@ -29,6 +29,7 @@ const CollectionPage = lazy(() => import('@/features/calls').then(m => ({ defaul
 const CatalogsPage = lazy(() => import('@/features/catalogs').then(m => ({ default: m.CatalogsPage })));
 const LoyaltyPage = lazy(() => import('@/features/loyalty').then(m => ({ default: m.LoyaltyPage })));
 const AdminUsersPage = lazy(() => import('@/features/users').then(m => ({ default: m.AdminUsersPage })));
+const ExchangesPage = lazy(() => import('@/features/exchanges/ui/ExchangesPage').then(m => ({ default: m.ExchangesPage })));
 const LoginPage = lazy(() => import('@/features/auth/ui/LoginPage').then(m => ({ default: m.LoginPage })));
 const OrderFormPage = lazy(() => import('@/features/order-management/ui/OrderFormPage').then(m => ({ default: m.OrderFormPage })));
 
@@ -71,6 +72,7 @@ const protectedChildren = [
     { path: 'calls/collection', element: <ProtectedRoute permission="calls.view"><CollectionPage /></ProtectedRoute> },
     { path: 'catalogs', element: <ProtectedRoute permission="orders.view"><CatalogsPage /></ProtectedRoute> },
     { path: 'rewards', element: <ProtectedRoute permission="loyalty.view"><LoyaltyPage /></ProtectedRoute> },
+    { path: 'exchanges', element: <ProtectedRoute permission="exchanges.view"><ExchangesPage /></ProtectedRoute> },
     {
         path: 'admin/users',
         element: <ProtectedRoute adminOnly><AdminUsersPage /></ProtectedRoute>,

@@ -10,6 +10,7 @@ import { RechargeWalletModal } from "./RechargeWalletModal";
 import { Pagination } from "@/shared/ui/pagination";
 import { MonchitoTabs } from "@/shared/ui/MonchitoTabs";
 import { WalletHistory } from "./WalletHistory";
+import { PendingRechargesBanner } from "./PendingRechargesBanner";
 
 export function ClientCreditsPage() {
     const [activeTab, setActiveTab] = useState("saldos");
@@ -70,6 +71,9 @@ export function ClientCreditsPage() {
 
             {activeTab === "saldos" ? (
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    {/* Recargas pendientes de validación */}
+                    <PendingRechargesBanner />
+
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="bg-white px-6 py-5 rounded-2xl border border-emerald-100 shadow-sm flex items-center gap-4">
                             <div className="bg-emerald-50 p-3.5 rounded-2xl text-emerald-600">

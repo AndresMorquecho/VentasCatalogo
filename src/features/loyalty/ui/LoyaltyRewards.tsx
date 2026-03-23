@@ -183,18 +183,6 @@ export function LoyaltyRewards() {
                                 className="rounded-xl"
                             />
                         </div>
-                        <div className="space-y-1.5">
-                            <Label>Tipo de Beneficio</Label>
-                            <select 
-                                value={form.type} 
-                                onChange={e => setForm(f => ({ ...f, type: e.target.value as PrizeType }))}
-                                className="w-full h-10 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/5 transition-all"
-                            >
-                                {Object.entries(PRIZE_TYPE_LABELS).map(([val, label]) => (
-                                    <option key={val} value={val}>{label}</option>
-                                ))}
-                            </select>
-                        </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1.5">
                                 <Label>Puntos (0 si es de regla)</Label>

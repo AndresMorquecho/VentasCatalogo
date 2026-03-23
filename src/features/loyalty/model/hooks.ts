@@ -142,7 +142,8 @@ export const useLoyaltyHistory = (clientId: string | null, params?: { page?: num
         placeholderData: (prev) => prev
     });
     return {
-        history: response?.data || [],
+        ruleProgress: (response?.data as any)?.ruleProgress || [],
+        redemptionHistory: (response?.data as any)?.redemptionHistory || [],
         pagination: response?.pagination,
         isLoading
     };

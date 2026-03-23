@@ -221,46 +221,55 @@ export function OrderFormPage() {
     const handlePaymentSubmit = async (paymentData: PaymentModalData) => {
         setIsSubmitting(true);
         try {
-            // Calcular totales de los pagos
             const totalAmount = paymentData.payments.reduce((sum, p) => sum + p.amount, 0);
             const walletCreditUsed = paymentData.payments
                 .filter(p => p.method === 'BILLETERA_VIRTUAL')
                 .reduce((sum, p) => sum + p.amount, 0);
 
-            // Usar Batch Create para crear todos los pedidos en 1 sola llamada
+            const activePayments = paymentData.payments.filter(p => p.amount > 0);
+            const isSplitPayment = activePayments.length > 1;
+
+            // Construir el batchPayload — todo en una sola transacción atómica
             const batchPayload = {
                 receipt_number: formik.values.receiptNumber,
                 client_id: formik.values.clientId,
                 sales_channel: formik.values.salesChannel,
                 created_at: new Date().toISOString(),
-                // Usar el primer método de pago como principal (para compatibilidad)
-                payment_method: paymentData.payments[0]?.method || "EFECTIVO",
-                bank_account_id: paymentData.payments[0]?.bankAccountId || "",
+                payment_method: activePayments[0]?.method || "EFECTIVO",
+                bank_account_id: activePayments[0]?.bankAccountId || "",
                 transaction_date: new Date().toISOString().split('T')[0],
-                transaction_reference: paymentData.payments[0]?.transactionReference || "",
+                transaction_reference: activePayments[0]?.transactionReference || "",
                 deposit: totalAmount,
                 credit_to_use: walletCreditUsed,
-                notes: paymentData.payments[0]?.notes || formik.values.notes,
-                // Agregar información completa de múltiples métodos de pago
-                payment_data: {
-                    payments: paymentData.payments.map(p => ({
-                        method: p.method,
-                        amount: p.amount,
-                        bankAccountId: p.bankAccountId,
-                        transactionDate: new Date().toISOString().split('T')[0],
-                        transactionReference: p.transactionReference,
-                        notes: p.notes
-                    })),
-                    walletCreditUsed: walletCreditUsed,
-                    totalAmount: totalAmount
-                },
+                notes: activePayments[0]?.notes || formik.values.notes,
+                // Split payment: múltiples métodos de pago
+                ...(isSplitPayment && {
+                    payment_data: {
+                        payments: activePayments.map(p => ({
+                            method: p.method,
+                            amount: p.amount,
+                            bankAccountId: p.bankAccountId,
+                            transactionDate: new Date().toISOString().split('T')[0],
+                            transactionReference: p.transactionReference,
+                            notes: p.notes
+                        })),
+                        walletCreditUsed,
+                        totalAmount
+                    }
+                }),
                 orders: formik.values.brandItems.map((item) => {
                     const unitPrice = item.quantity > 0 ? item.total / item.quantity : 0;
+                    // Si abono total es 0, todas las filas van con deposit 0 → ctas por cobrar
+                    let rowDeposit = Number(item.deposit) || 0;
+                    if (rowDeposit === 0 && totalAmount > 0) {
+                        const proportion = totalOrderValue > 0 ? Number(item.total) / totalOrderValue : 1 / formik.values.brandItems.length;
+                        rowDeposit = Math.round(totalAmount * proportion * 100) / 100;
+                    }
                     return {
                         brand_id: item.brandId,
                         brand_name: item.brandName,
                         total: item.total,
-                        deposit: Number(item.deposit) || 0,
+                        deposit: rowDeposit,
                         type: item.type,
                         possible_delivery_date: item.possibleDeliveryDate,
                         order_number: item.orderNumber || "",
@@ -275,7 +284,7 @@ export function OrderFormPage() {
 
             const createdOrders = await orderApi.batchCreate(batchPayload);
 
-            // Invalidate ALL order related queries to ensure consistency
+            // Invalidar queries
             await queryClient.invalidateQueries({ queryKey: ['orders'] });
             await queryClient.invalidateQueries({ queryKey: ['financial-records'] });
             await queryClient.invalidateQueries({ queryKey: ['transactions'] });
@@ -1495,16 +1504,16 @@ export function OrderFormPage() {
                     referenceNumber: formik.values.receiptNumber,
                     description: "Pago inicial de recibo"
                 }}
-                expectedAmount={totalOrderValue}
+                expectedAmount={totalRowDeposit > 0 ? totalRowDeposit : totalOrderValue}
                 allowMultiplePayments={true}
-                initialAmount={totalRowDeposit}
+                initialAmount={totalRowDeposit > 0 ? totalRowDeposit : 0}
                 orderItems={formik.values.brandItems.map((item, idx) => ({
                     id: item.tempId || `item-${idx}`,
                     brandName: item.brandName,
                     total: Number(item.total),
                     currentDeposit: Number(item.deposit || 0)
                 }))}
-                lockAmount={formik.values.brandItems.length > 1}
+                lockAmount={formik.values.brandItems.length > 1 && totalRowDeposit > 0}
             />
 
             {/* Modal de edición de pedido individual */}

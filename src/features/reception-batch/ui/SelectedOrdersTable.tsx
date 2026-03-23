@@ -7,6 +7,7 @@ import type { CreditDistribution } from "@/entities/financial-record/model/types
 import { X, CheckCircle, AlertCircle, DollarSign, ArrowRight } from "lucide-react"
 import { CreditActionSelectorModal } from "./CreditActionSelectorModal"
 import { CreditDistributionModal } from "./CreditDistributionModal"
+import { getPaidAmount } from "@/entities/order/model/model"
 
 export interface SelectedOrderState {
     order: Order
@@ -52,7 +53,7 @@ export function SelectedOrdersTable({
 
     // Función para calcular saldo a favor
     const calculateCreditAmount = (orderState: SelectedOrderState) => {
-        const initialPaid = (orderState.order.payments || []).reduce((acc: number, p: any) => acc + Number(p.amount || 0), 0);
+        const initialPaid = getPaidAmount(orderState.order);
         const finalBalance = Number(orderState.finalTotal || 0) - initialPaid;
         return finalBalance < -0.01 ? Math.abs(finalBalance) : 0;
     }
@@ -138,7 +139,7 @@ export function SelectedOrdersTable({
                 o.order.clientId === sourceOrderState.order.clientId
             )
             .map(o => {
-                const initialPaid = (o.order.payments || []).reduce((acc: number, p: any) => acc + Number(p.amount || 0), 0);
+                const initialPaid = getPaidAmount(o.order);
                 
                 // MUY IMPORTANTE: Considerar si otros pedidos de este mismo lote ya le distribuyeron saldo
                 // para no permitir distribuir más del saldo real pendiente.
@@ -266,7 +267,7 @@ export function SelectedOrdersTable({
                         <TableBody>
                             {orders.map((orderState) => {
                                 const { order, finalTotal, finalInvoiceNumber, documentType, entryDate } = orderState;
-                                const initialPaid = (order.payments || []).reduce((acc: number, p: any) => acc + Number(p.amount || 0), 0);
+                                const initialPaid = getPaidAmount(order);
                                 
                                 // Calcular abonos distributivos recibidos de otros pedidos en este mismo lote
                                 const incomingDistributiveCredit = orders.reduce((sum, o) => {

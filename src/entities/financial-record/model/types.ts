@@ -3,7 +3,15 @@
 
 export type FinancialRecordType = 'PAYMENT' | 'ADJUSTMENT' | 'EXPENSE' | 'CREDIT_GENERATION' | 'CREDIT_APPLICATION';
 export type FinancialSource = 'ORDER_PAYMENT' | 'MANUAL' | 'ADJUSTMENT' | 'RECEPTION_OVERPAYMENT' | 'CREDIT_DISTRIBUTION';
-export type MovementType = 'INCOME' | 'EXPENSE';
+export type MovementType = 'INCOME' | 'EXPENSE' | 'INTERNAL';
+
+export type AccountType =
+  | 'EXTERNAL'
+  | 'BANK_ACCOUNT'
+  | 'CASH'
+  | 'WALLET'
+  | 'ORDER'
+  | 'VIRTUAL';
 
 export interface FinancialRecord {
   id: string;
@@ -14,7 +22,8 @@ export interface FinancialRecord {
   movementType: MovementType;
 
   // Financial Data
-  referenceNumber: string; // Unique identifier
+  referenceNumber: string; // Unique identifier (internal)
+  userReference?: string;  // Comprobante del usuario (transferencia, depósito, cheque)
   amount: number;
   date: string;
 
@@ -29,6 +38,11 @@ export interface FinancialRecord {
   bankAccountId: string;
   bankAccountName?: string; // Nombre de la cuenta bancaria
   paymentMethod?: 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE' | 'CREDITO_CLIENTE' | 'SALDO_A_FAVOR' | 'BILLETERA_VIRTUAL';
+
+  // Double-entry accounting
+  fromAccountType?: AccountType;
+  toAccountType?: AccountType;
+  transactionGroupId?: string;
 
   // Metadata
   createdAt: string;

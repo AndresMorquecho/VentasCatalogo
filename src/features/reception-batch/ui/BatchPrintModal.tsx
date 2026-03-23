@@ -10,6 +10,7 @@ import { clientApi } from "@/shared/api/clientApi"
 import type { Client } from "@/entities/client/model/types"
 import { PDFPreviewModal } from "@/shared/ui/PDFPreviewModal"
 import { useNotifications } from "@/shared/lib/notifications"
+import { getPaidAmount } from "@/entities/order/model/model"
 
 interface Props {
     isOpen: boolean
@@ -194,7 +195,7 @@ export function BatchPrintModal({ isOpen, onClose, orders, batchDetails }: Props
                                     {orders.map((o) => {
                                         const isSelected = selectedIds.has(o.id);
                                         const total = Number(o.realInvoiceTotal || o.total || 0);
-                                        const paid = (o.payments || []).reduce((sum, p) => sum + Number(p.amount), 0);
+                                        const paid = getPaidAmount(o);
                                         const saldo = total - paid;
 
                                         return (

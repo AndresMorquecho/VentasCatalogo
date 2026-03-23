@@ -4,6 +4,7 @@ import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
 import type { Order } from "@/entities/order/model/types"
 import { ArrowRight, Search, Tag } from "lucide-react"
+import { getPaidAmount } from "@/entities/order/model/model"
 
 interface Props {
     orders: Order[]
@@ -228,7 +229,7 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
                                 </TableRow>
                             ) : (
                                 filteredOrders.map(order => {
-                                    const paid = (order.payments || []).reduce((acc, p) => acc + p.amount, 0);
+                                    const paid = getPaidAmount(order);
                                     return (
                                         <TableRow
                                             key={order.id}

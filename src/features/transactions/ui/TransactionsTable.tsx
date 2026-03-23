@@ -1,6 +1,6 @@
 import { Badge } from "@/shared/ui/badge"
 import { Button } from "@/shared/ui/button"
-import { Eye, ArrowDownCircle, ArrowUpCircle } from "lucide-react"
+import { Eye, ArrowDownCircle, ArrowUpCircle, ArrowRightLeft } from "lucide-react"
 import { format } from "date-fns"
 import type { FinancialRecord } from "@/entities/financial-record/model/types"
 import {
@@ -35,7 +35,19 @@ const METHOD_LABELS: Record<string, string> = {
     SALDO_A_FAVOR: 'Saldo a favor',
 }
 
+const ACCOUNT_LABELS: Record<string, string> = {
+    EXTERNAL: 'Cliente',
+    BANK_ACCOUNT: 'Cuenta bancaria',
+    CASH: 'Caja',
+    WALLET: 'Billetera',
+    ORDER: 'Pedido',
+    VIRTUAL: 'Virtual',
+}
+
 function getTypeBadge(t: FinancialRecord) {
+    if (t.movementType === 'INTERNAL') {
+        return <Badge className="bg-violet-50 text-violet-600 border-violet-200 text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg border">Transferencia interna</Badge>
+    }
     if (t.type === 'CREDIT_GENERATION') {
         return <Badge className="bg-emerald-50 text-emerald-600 border-emerald-200 text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg border">Saldo generado</Badge>
     }
@@ -76,6 +88,7 @@ export function TransactionsTable({ transactions, onView }: Props) {
                             <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Fecha</TableHead>
                             <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Cliente</TableHead>
                             <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Tipo</TableHead>
+                            <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Origen → Destino</TableHead>
                             <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Cuenta</TableHead>
                             <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Comprobante</TableHead>
                             <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right">Monto</TableHead>
@@ -85,17 +98,28 @@ export function TransactionsTable({ transactions, onView }: Props) {
                     </TableHeader>
                     <TableBody>
                         {transactions.map(t => {
+                            const isInternal = t.movementType === 'INTERNAL'
                             const isIncome = t.movementType === 'INCOME'
+                            const rowClass = isInternal
+                                ? "border-b border-slate-50 hover:bg-violet-50/30 transition-all duration-200 cursor-pointer group opacity-75"
+                                : "border-b border-slate-50 hover:bg-monchito-purple/5 transition-all duration-200 cursor-pointer group"
+
+                            const flowLabel = (t.fromAccountType && t.toAccountType)
+                                ? `${ACCOUNT_LABELS[t.fromAccountType] || t.fromAccountType} → ${ACCOUNT_LABELS[t.toAccountType] || t.toAccountType}`
+                                : null
+
                             return (
-                                <TableRow 
-                                    key={t.id} 
-                                    className="border-b border-slate-50 hover:bg-monchito-purple/5 transition-all duration-200 cursor-pointer group"
+                                <TableRow
+                                    key={t.id}
+                                    className={rowClass}
                                     onClick={() => onView(t)}
                                 >
                                     <TableCell className="py-4">
-                                        {isIncome
-                                            ? <ArrowDownCircle className="h-5 w-5 text-emerald-600 transition-transform group-hover:scale-110" />
-                                            : <ArrowUpCircle className="h-5 w-5 text-amber-600 transition-transform group-hover:scale-110" />
+                                        {isInternal
+                                            ? <ArrowRightLeft className="h-5 w-5 text-violet-500 transition-transform group-hover:scale-110" />
+                                            : isIncome
+                                                ? <ArrowDownCircle className="h-5 w-5 text-emerald-600 transition-transform group-hover:scale-110" />
+                                                : <ArrowUpCircle className="h-5 w-5 text-amber-600 transition-transform group-hover:scale-110" />
                                         }
                                     </TableCell>
                                     <TableCell className="py-4">
@@ -112,17 +136,26 @@ export function TransactionsTable({ transactions, onView }: Props) {
                                         {getTypeBadge(t)}
                                     </TableCell>
                                     <TableCell className="py-4">
+                                        {flowLabel
+                                            ? <span className="text-[10px] font-semibold text-slate-500 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100">{flowLabel}</span>
+                                            : <span className="text-xs text-slate-300">—</span>
+                                        }
+                                    </TableCell>
+                                    <TableCell className="py-4">
                                         <span className="text-xs font-semibold text-slate-700">
                                             {t.bankAccountName || 'Sin cuenta'}
                                         </span>
                                     </TableCell>
                                     <TableCell className="py-4">
                                         <span className="font-mono text-xs font-bold text-slate-700">
-                                            {t.referenceNumber}
+                                            {(['TRANSFERENCIA', 'DEPOSITO', 'CHEQUE'].includes(t.paymentMethod || ''))
+                                                ? (t.userReference || '-')
+                                                : '-'
+                                            }
                                         </span>
                                     </TableCell>
-                                    <TableCell className={`py-4 text-right font-black text-sm ${isIncome ? 'text-emerald-700' : 'text-amber-700'}`}>
-                                        {isIncome ? '+' : '-'}${t.amount.toFixed(2)}
+                                    <TableCell className={`py-4 text-right font-black text-sm ${isInternal ? 'text-violet-600' : isIncome ? 'text-emerald-700' : 'text-amber-700'}`}>
+                                        {isInternal ? '↔' : isIncome ? '+' : '-'}${t.amount.toFixed(2)}
                                     </TableCell>
                                     <TableCell className="py-4">
                                         <span className="text-xs font-medium text-slate-600">

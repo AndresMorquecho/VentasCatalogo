@@ -20,7 +20,7 @@ export const usePaymentSearch = (params: PaymentSearchParams = {}) => {
             limit,
             search,
             status: status === 'ALL' ? undefined : status,
-            onlyParents: true
+            // Do NOT filter onlyParents — child orders can also have pending balances
         }),
     });
 

@@ -25,7 +25,7 @@ export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
     const { data: credits = [] } = useClientCredits(order?.clientId || "");
     const [amount, setAmount] = useState<number>(0);
     const [creditToUse, setCreditToUse] = useState<number>(0);
-    const [method, setMethod] = useState<'EFECTIVO' | 'TRANSFERENCIA' | 'CHEQUE' | 'DEPOSITO'>('EFECTIVO');
+    const [method, setMethod] = useState<'EFECTIVO'>('EFECTIVO');
     const [bankAccountId, setBankAccountId] = useState<string>('');
     const [reference, setReference] = useState('');
     const [notes, setNotes] = useState('');
@@ -207,9 +207,6 @@ export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
                                     className="w-full h-10 px-3 rounded-md border border-input bg-background"
                                 >
                                     <option value="EFECTIVO">Efectivo</option>
-                                    <option value="TRANSFERENCIA">Transferencia</option>
-                                    <option value="DEPOSITO">Depósito</option>
-                                    <option value="CHEQUE">Cheque</option>
                                 </select>
                             </div>
                         )}
@@ -228,12 +225,7 @@ export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
                                 >
                                     <option value="">Seleccionar cuenta...</option>
                                     {bankAccounts
-                                        .filter(acc => {
-                                            if (method === 'TRANSFERENCIA' || method === 'DEPOSITO') return acc.type === 'BANK';
-                                            if (method === 'CHEQUE') return true;
-                                            if (method === 'EFECTIVO') return acc.type === 'CASH';
-                                            return true;
-                                        })
+                                        .filter(acc => acc.type === 'CASH')
                                         .map(account => (
                                             <option key={account.id} value={account.id}>
                                                 {account.name} ({account.type === 'CASH' ? 'Efectivo' : 'Banco'})
@@ -241,17 +233,7 @@ export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
                                         ))}
                                 </select>
                             </div>
-                            {method !== 'EFECTIVO' && (
-                                <div className="space-y-1 animate-in fade-in">
-                                    <label className="text-sm font-medium text-blue-600">Referencia / Comprobante</label>
-                                    <Input
-                                        value={reference}
-                                        onChange={(e) => setReference(e.target.value)}
-                                        placeholder="Ref. bancaria obligatoria"
-                                        required
-                                    />
-                                </div>
-                            )}
+                            {/* Reference hidden — only EFECTIVO allowed for order payments */}
                         </>
                     )}
 

@@ -98,6 +98,7 @@ export function RechargeWalletModal({ open, onOpenChange }: RechargeWalletModalP
     // Filtramos cuentas bancarias según el método de pago
     const filteredBankAccounts = bankAccounts.filter(acc => {
         if (formik.values.paymentMethod === "EFECTIVO") return acc.type === "CASH";
+        if (formik.values.paymentMethod === "CHEQUE") return true; // CHEQUE acepta cualquier cuenta
         return acc.type === "BANK";
     });
 
@@ -175,6 +176,7 @@ export function RechargeWalletModal({ open, onOpenChange }: RechargeWalletModalP
                                             <SelectItem value="EFECTIVO" label="EFECTIVO">EFECTIVO</SelectItem>
                                             <SelectItem value="TRANSFERENCIA" label="TRANSFERENCIA">TRANSFERENCIA</SelectItem>
                                             <SelectItem value="DEPOSITO" label="DEPÓSITO">DEPÓSITO</SelectItem>
+                                            <SelectItem value="CHEQUE" label="CHEQUE">CHEQUE</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>

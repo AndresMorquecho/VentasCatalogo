@@ -1,55 +1,55 @@
+import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
-import { ShoppingBag, TrendingUp, Calendar, Info } from 'lucide-react';
+import { ShoppingBag, Trophy, Calendar, Info, CheckCircle2, Clock, TrendingUp, Gift } from 'lucide-react';
 import { Skeleton } from '@/shared/ui/skeleton';
+import { Badge } from '@/shared/ui/badge';
 import { useLoyaltyHistory } from '../model/hooks';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
+import { Pagination } from '@/shared/ui/pagination';
 
-interface LoyaltyPointHistoryModalProps {
+interface Props {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     clientId: string;
     clientName: string;
 }
 
-import { useState } from 'react';
-import { Pagination } from '@/shared/ui/pagination';
-
-export function LoyaltyPointHistoryModal({ open, onOpenChange, clientId, clientName }: LoyaltyPointHistoryModalProps) {
+export function LoyaltyPointHistoryModal({ open, onOpenChange, clientId, clientName }: Props) {
     const [page, setPage] = useState(1);
-    const [limit] = useState(10);
-    const { history, pagination, isLoading } = useLoyaltyHistory(clientId, { page, limit });
+    const { ruleProgress, redemptionHistory, pagination, isLoading } = useLoyaltyHistory(clientId, { page, limit: 20 });
+    const [expandedRule, setExpandedRule] = useState<string | null>(null);
 
+    const fmt = (n: number) => n.toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fmtDate = (d: string | Date) => new Date(d).toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric' });
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-2xl">
+            <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>Historial de Puntos - {clientName}</DialogTitle>
+                    <DialogTitle className="flex items-center gap-2">
+                        <Trophy className="h-5 w-5 text-monchito-purple" />
+                        Historial de Fidelización — {clientName}
+                    </DialogTitle>
                 </DialogHeader>
 
-                <div className="space-y-4 py-4">
-                    <p className="text-sm text-slate-500">
-                        Registro detallado de los puntos obtenidos a través de pedidos realizados.
-                    </p>
+                {isLoading ? (
+                    <div className="space-y-3 py-4">
+                        {[1, 2, 3].map(i => <Skeleton key={i} className="h-16 w-full rounded-xl" />)}
+                    </div>
+                ) : (
+                    <div className="space-y-6 py-2">
 
-                    {isLoading ? (
-                        <div className="space-y-2">
-                            {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-12 w-full" />)}
-                        </div>
-                    ) : history.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-10 text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                            <Info className="h-10 w-10 mb-2 opacity-50" />
-                            <p className="text-sm">No se registran acumulaciones de puntos aún.</p>
-                        </div>
-                    ) : (
-                        <>
-                            <div className="rounded-xl border border-slate-200 overflow-hidden">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow className="bg-slate-50">
-                                            <TableHead>Fecha</TableHead>
-                                            <TableHead>N° Pedido</TableHead>
-                                            <TableHead className="text-right">Monto Pedido</TableHead>
+                        {/* ── Progreso actual por regla ── */}
+                        {ruleProgress.length > 0 && (
+                            <section>
+                          3>
+                                <div className="space-y-3">
+                                    {ruleProgress.map((rule: any) => (
+                                        <div key=erald-50/40' : 'border-slate-200 bg-white'}`}>
+                                            <div className="flex items-start justify-between gap-3 mb-3">
+                                                <div>
+                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{rule.ruleName}</p>
+                                                    <p className="font-bold text-slate-800 text-sm">{rule.prizeName || 'Premio'}</p>
                                             <TableHead className="text-right">Puntos Ganados</TableHead>
                                         </TableRow>
                                     </TableHeader>

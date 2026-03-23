@@ -18,6 +18,7 @@ import {
     Store,
     Settings2,
     CheckCircle,
+    ArrowLeftRight,
 } from "lucide-react"
 import { Link, useLocation } from "react-router-dom"
 import { useAuth } from "@/shared/auth"
@@ -99,12 +100,13 @@ const topLevelItems = [
 const groupedItems = [
     {
         title: "Gestión Comercial",
-        icon: Store, // Represents commercial activity
+        icon: Store,
         items: [
             { title: "Empresarias", url: "/clients", icon: Users },
             { title: "Pedidos", url: "/orders", icon: Inbox },
             { title: "Recepción", url: "/orders/reception", icon: PackageCheck },
             { title: "Entregas", url: "/orders/delivery", icon: Truck },
+            { title: "Cambios", url: "/exchanges", icon: ArrowLeftRight },
         ]
     },
     {

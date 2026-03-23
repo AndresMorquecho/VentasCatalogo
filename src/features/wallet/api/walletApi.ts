@@ -3,8 +3,17 @@ import { httpClient } from "@/shared/lib/httpClient";
 export interface WalletRechargePayload {
     client_id: string;
     amount: number;
-    payment_method: 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO';
+    payment_method: 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE';
     bank_account_id?: string;
+    reference?: string;
+    notes?: string;
+}
+
+export interface InstantRechargePayload {
+    clientId: string;
+    amount: number;
+    paymentMethod: 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE';
+    bankAccountId: string;
     reference?: string;
     notes?: string;
 }
@@ -12,6 +21,11 @@ export interface WalletRechargePayload {
 export const walletApi = {
     recharge: async (payload: WalletRechargePayload) => {
         return httpClient.post('/wallet/recharges', payload);
+    },
+
+    instantRecharge: async (payload: InstantRechargePayload): Promise<{ id: string; status: string }> => {
+        const res = await httpClient.post<{ id: string; status: string }>('/wallet/recharges/instant', payload);
+        return res as { id: string; status: string };
     },
     
     getRecharges: async (params?: { 

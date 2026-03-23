@@ -4,8 +4,8 @@ import type { PaginatedResponse } from '@/entities/order/model/types';
 
 export const loyaltyRulesApi = {
     getAll: async (): Promise<LoyaltyRule[]> => {
-        const res = await httpClient.get<any>('/loyalty/rules');
-        return res?.data || [];
+        const res = await httpClient.get<LoyaltyRule[]>('/loyalty/rules');
+        return res || [];
     },
     create: async (data: LoyaltyRuleFormData): Promise<LoyaltyRule> => {
         return httpClient.post<LoyaltyRule>('/loyalty/rules', data);
@@ -20,8 +20,8 @@ export const loyaltyRulesApi = {
 
 export const loyaltyPrizesApi = {
     getAll: async (): Promise<LoyaltyPrize[]> => {
-        const res = await httpClient.get<any>('/loyalty/prizes');
-        return res?.data || [];
+        const res = await httpClient.get<LoyaltyPrize[]>('/loyalty/prizes');
+        return res || [];
     },
     create: async (data: LoyaltyPrizeFormData): Promise<LoyaltyPrize> => {
         return httpClient.post<LoyaltyPrize>('/loyalty/prizes', data);

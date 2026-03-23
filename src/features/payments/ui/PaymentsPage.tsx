@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { usePaymentSearch, usePaymentOperations } from "../model/hooks";
+import { getPaidAmount } from "@/entities/order/model/model";
 import { Input } from "@/shared/ui/input";
 import { Search, DollarSign, Wallet, FileText, Printer, Filter, RotateCcw } from "lucide-react";
 import { Button } from "@/shared/ui/button";
@@ -195,7 +196,7 @@ export function PaymentsPage() {
                             </div>
                         ) : (
                             orders.map(order => {
-                                const paid = (order.payments || []).reduce((acc, p) => acc + p.amount, 0);
+                                const paid = getPaidAmount(order);
                                 const pending = Math.max(0, (order.realInvoiceTotal || order.total) - paid);
                                 const isPaid = pending <= 0.01;
 
@@ -330,13 +331,13 @@ export function PaymentsPage() {
                                 <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm transform transition hover:-translate-y-1">
                                     <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1">Abonado Real</p>
                                     <div className="text-3xl font-mono font-black text-emerald-600 leading-none tracking-tighter">
-                                        ${((selectedOrder.payments || []).reduce((acc, p) => acc + p.amount, 0)).toFixed(2)}
+                                        ${getPaidAmount(selectedOrder).toFixed(2)}
                                     </div>
                                 </div>
                                 <div className="bg-white p-5 rounded-2xl border-2 border-red-100 shadow-sm transform transition hover:-translate-y-1 bg-red-50/10 ring-4 ring-red-50/30">
                                     <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-1">Deuda Pendiente</p>
                                     <div className="text-3xl font-mono font-black text-red-600 leading-none tracking-tighter">
-                                        ${Math.max(0, (selectedOrder.realInvoiceTotal || selectedOrder.total) - ((selectedOrder.payments || []).reduce((acc, p) => acc + p.amount, 0))).toFixed(2)}
+                                        ${Math.max(0, (selectedOrder.realInvoiceTotal || selectedOrder.total) - getPaidAmount(selectedOrder)).toFixed(2)}
                                     </div>
                                 </div>
                             </div>
@@ -359,7 +360,9 @@ export function PaymentsPage() {
                                         date: p.createdAt,
                                         method: p.method,
                                         reference: p.reference,
-                                        receiptNumber: p.receiptNumber
+                                        receiptNumber: p.receiptNumber,
+                                        description: p.description,
+                                        financialRecords: p.financialRecords || []
                                     }))}
                                         onDelete={handleDeletePayment}
                                     />
@@ -379,7 +382,7 @@ export function PaymentsPage() {
                                         referenceNumber: selectedOrder.receiptNumber,
                                         description: "Abono a pedido"
                                     }}
-                                    expectedAmount={Math.max(0, (selectedOrder.realInvoiceTotal || selectedOrder.total) - ((selectedOrder.payments || []).reduce((acc, p) => acc + p.amount, 0)))}
+                                    expectedAmount={Math.max(0, (selectedOrder.realInvoiceTotal || selectedOrder.total) - getPaidAmount(selectedOrder))}
                                     allowMultiplePayments={true}
                                 />
                             )}

@@ -22,6 +22,19 @@ export interface MultiplePaymentPayload {
     }>;
 }
 
+export interface SplitPaymentPayload {
+    orders: Array<{ orderId: string; amount: number }>;
+    payments: Array<{
+        method: string;
+        amount: number;
+        bankAccountId?: string;
+        transactionReference?: string;
+        notes?: string;
+    }>;
+    total: number;
+    requestId: string;
+}
+
 /**
  * Payment API - Transport Layer
  * 
@@ -45,5 +58,9 @@ export const paymentApi = {
     revertPayment: async (orderId: string, paymentId: string): Promise<void> => {
         // The backend expects DELETE /payments/:paymentId
         return httpClient.delete<void>(`/payments/${paymentId}`);
+    },
+
+    processSplitPayment: async (payload: SplitPaymentPayload): Promise<any> => {
+        return httpClient.post<any>('/payments/split', payload);
     }
 };
