@@ -7,6 +7,43 @@ export type ExchangeItemStatus = 'PENDING' | 'PROCESSED';
 
 export type CreditDestination = 'WALLET' | 'CASH_RETURN' | 'DISTRIBUTE';
 
+export type ExchangeBatchStatus = 'PENDING' | 'SENT' | 'RECEIVED';
+
+export interface ExchangeBatchItem {
+  id: string;
+  batchId: string;
+  orderId: string;
+  clientId: string;
+  clientName: string;
+  receiptNumber: string;
+  orderTotal: string;
+  invoiceTotal: string | null;
+  paidAmount: string;
+  pendingAmount: string;
+  notes: string | null;
+  createdAt: string;
+}
+
+export interface ExchangeBatch {
+  id: string;
+  batchNumber: string;
+  trackingGuide: string | null;
+  status: ExchangeBatchStatus;
+  notes: string | null;
+  createdByName: string | null;
+  sentAt: string | null;
+  receivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  items: ExchangeBatchItem[];
+}
+
+export interface CreateExchangeBatchDTO {
+  trackingGuide?: string;
+  notes?: string;
+  items: { orderId: string; notes?: string }[];
+}
+
 export interface ExchangeItem {
   id: string;
   exchangeId: string;

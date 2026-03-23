@@ -7,6 +7,9 @@ import { PendingOrdersTable } from "./PendingOrdersTable"
 import { ReceptionZone } from "./ReceptionZone"
 import { ReceptionHistory } from "./ReceptionHistory"
 import { BatchPrintModal } from "./BatchPrintModal"
+import { ExchangeBatchReceptionTab } from "./ExchangeBatchReceptionTab"
+import { orderApi } from "@/entities/order/model/api"
+import type { ExchangeBatch } from "@/features/exchanges/model/types"
 
 export function ReceptionBatchPage() {
     const {
@@ -30,6 +33,7 @@ export function ReceptionBatchPage() {
         lastSavedOrders,
         lastSavedBatch,
         clearLastSaved,
+        addOrdersDirectly,
         // Pagination & Filters
         historyPage,
         setHistoryPage,
@@ -43,6 +47,31 @@ export function ReceptionBatchPage() {
     const onEditBatch = (batch: any) => {
         startEditingBatch(batch);
         setActiveTab("reception");
+    };
+
+    const onReceiveExchangeBatch = async (batch: ExchangeBatch) => {
+        // Load orders from the exchange batch into the reception zone
+        // These orders have status ENTREGADO so they won't appear in allOrders
+        // We fetch them individually and add them to selectedOrders
+        try {
+            const orderPromises = batch.items.map((item) =>
+                orderApi.getById(item.orderId)
+            );
+            const orders = await Promise.all(orderPromises);
+            const preparedOrders = orders.map((o) => ({
+                ...o,
+                finalTotal: o.realInvoiceTotal ? Number(o.realInvoiceTotal) : Number(o.total),
+                finalInvoiceNumber: (o as any).invoiceNumber || '',
+                documentType: (o as any).documentType || 'FACTURA',
+                entryDate: new Date().toISOString().split('T')[0],
+                fromExchangeBatch: true,
+                exchangeBatchId: batch.id,
+            }));
+            addOrdersDirectly(preparedOrders);
+            setActiveTab("reception");
+        } catch (err) {
+            console.error('Error loading exchange batch orders:', err);
+        }
     };
 
     return (
@@ -72,6 +101,16 @@ export function ReceptionBatchPage() {
                                 onClick={() => setActiveTab("reception")}
                             >
                                 {editingBatchId ? 'Zona de Edición' : 'Nueva Recepción'}
+                            </Button>
+                            <Button
+                                variant={activeTab === "exchanges" ? "default" : "outline"}
+                                className={activeTab === "exchanges" 
+                                    ? "bg-monchito-purple hover:bg-monchito-purple/90 text-white" 
+                                    : "border-monchito-purple/20 text-monchito-purple/60 hover:bg-monchito-purple/5 hover:text-monchito-purple"
+                                }
+                                onClick={() => setActiveTab("exchanges")}
+                            >
+                                Cambios Enviados
                             </Button>
                             <Button
                                 variant={activeTab === "history" ? "default" : "outline"}
@@ -133,6 +172,8 @@ export function ReceptionBatchPage() {
                             </div>
                         )}
                     </div>
+                ) : activeTab === "exchanges" ? (
+                    <ExchangeBatchReceptionTab onReceiveBatch={onReceiveExchangeBatch} />
                 ) : (
                     <ReceptionHistory
                         batches={batches}

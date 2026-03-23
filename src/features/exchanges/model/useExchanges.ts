@@ -10,6 +10,23 @@ export function useExchanges(filters?: ExchangeFilters) {
   });
 }
 
+export function useExchangeBatches(filters?: { status?: string; dateFrom?: string; dateTo?: string }) {
+  return useQuery({
+    queryKey: ['exchange-batches', filters],
+    queryFn: () => exchangesApi.listBatches(filters),
+    select: (res) => res || [],
+  });
+}
+
+export function useUpdateExchangeBatchStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, newStatus }: { id: string; newStatus: string }) =>
+      exchangesApi.updateBatchStatus(id, newStatus),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['exchange-batches'] }),
+  });
+}
+
 export function useExchangeDetail(id: string) {
   return useQuery({
     queryKey: ['exchanges', id],

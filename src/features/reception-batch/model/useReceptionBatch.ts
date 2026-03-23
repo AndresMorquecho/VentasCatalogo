@@ -127,6 +127,15 @@ export const useReceptionBatch = () => {
         ]);
     };
 
+    // Add fully-formed order objects directly (e.g. from exchange batch)
+    const addOrdersDirectly = (orders: any[]) => {
+        setSelectedOrders(prev => {
+            const existingIds = new Set(prev.map(o => o.id));
+            const toAdd = orders.filter(o => !existingIds.has(o.id));
+            return [...prev, ...toAdd];
+        });
+    };
+
     const removeOrder = (orderId: string) => {
         setSelectedOrders(selectedOrders.filter(o => o.id !== orderId));
     };
@@ -186,7 +195,8 @@ export const useReceptionBatch = () => {
             paymentMethod: (o as any).paymentMethod || 'EFECTIVO',
             referenceNumber: (o as any).referenceNumber,
             entryDate: (o as any).entryDate,
-            creditDistribution: (o as any).creditDistribution || undefined
+            creditDistribution: (o as any).creditDistribution || undefined,
+            fromExchangeBatch: (o as any).fromExchangeBatch || false,
         }));
 
         saveBatch.mutate({
@@ -223,6 +233,7 @@ export const useReceptionBatch = () => {
         cancelEdit,
         isLoadingOrders,
         updateOrderItem,
+        addOrdersDirectly,
         lastSavedOrders,
         lastSavedBatch,
         clearLastSaved: () => {
