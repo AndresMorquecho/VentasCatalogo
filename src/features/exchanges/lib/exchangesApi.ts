@@ -9,6 +9,8 @@ import type {
   ProcessResult,
   ExchangeFilters,
   CreateExchangeBatchDTO,
+  ReceiveBatchDTO,
+  ReceiveBatchResult,
 } from '../model/types';
 
 function toQueryString(filters?: ExchangeFilters): string {
@@ -59,4 +61,7 @@ export const exchangesApi = {
 
   updateBatchStatus: (id: string, newStatus: string) =>
     httpClient.patch<ExchangeBatch>(`/exchanges/batches/${id}/status`, { newStatus }),
+
+  receiveBatch: (batchId: string, dto: ReceiveBatchDTO) =>
+    httpClient.post<ReceiveBatchResult>(`/exchanges/batches/${batchId}/receive`, dto),
 };

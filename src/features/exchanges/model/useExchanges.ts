@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { exchangesApi } from '../lib/exchangesApi';
-import type { CreateExchangeDTO, AddItemDTO, ProcessFinancialDTO, ExchangeFilters } from './types';
+import type { CreateExchangeDTO, AddItemDTO, ProcessFinancialDTO, ExchangeFilters, ReceiveBatchDTO } from './types';
 
 export function useExchanges(filters?: ExchangeFilters) {
   return useQuery({
@@ -15,6 +15,8 @@ export function useExchangeBatches(filters?: { status?: string; dateFrom?: strin
     queryKey: ['exchange-batches', filters],
     queryFn: () => exchangesApi.listBatches(filters),
     select: (res) => res || [],
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -83,5 +85,14 @@ export function useProcessExchangeFinancial() {
     mutationFn: ({ exchangeId, dto }: { exchangeId: string; dto: ProcessFinancialDTO }) =>
       exchangesApi.processFinancial(exchangeId, dto),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['exchanges'] }),
+  });
+}
+
+export function useReceiveExchangeBatch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ batchId, dto }: { batchId: string; dto: ReceiveBatchDTO }) =>
+      exchangesApi.receiveBatch(batchId, dto),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['exchange-batches'] }),
   });
 }

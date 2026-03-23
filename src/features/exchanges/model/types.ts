@@ -21,6 +21,7 @@ export interface ExchangeBatchItem {
   paidAmount: string;
   pendingAmount: string;
   notes: string | null;
+  financialProcessed?: boolean;
   createdAt: string;
 }
 
@@ -114,4 +115,29 @@ export interface ExchangeFilters {
   dateFrom?: string;
   dateTo?: string;
   onlyExchanges?: boolean;
+}
+
+export interface ReceiveBatchItemDTO {
+  batchItemId: string;
+  orderId: string;
+  newInvoiceValue: number;
+  creditDestination?: CreditDestination;
+  bankAccountId?: string;
+}
+
+export interface ReceiveBatchDTO {
+  items: ReceiveBatchItemDTO[];
+}
+
+export interface ReceiveBatchResultItem {
+  batchItemId: string;
+  differenceValue: number;
+  action: string;
+  movementType: 'INTERNAL' | 'INCOME' | 'EXPENSE';
+}
+
+export interface ReceiveBatchResult {
+  batchId: string;
+  status: string;
+  items: ReceiveBatchResultItem[];
 }

@@ -173,7 +173,7 @@ export function ReceptionBatchPage() {
                         )}
                     </div>
                 ) : activeTab === "exchanges" ? (
-                    <ExchangeBatchReceptionTab onReceiveBatch={onReceiveExchangeBatch} />
+                    <ExchangeBatchReceptionTab />
                 ) : (
                     <ReceptionHistory
                         batches={batches}
