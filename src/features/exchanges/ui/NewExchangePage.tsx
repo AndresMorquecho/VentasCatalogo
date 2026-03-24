@@ -14,6 +14,7 @@ import {
   Filter,
   ClipboardList
 } from 'lucide-react';
+import { useToast } from '../../../shared/ui/use-toast';
 
 import { Button } from '../../../shared/ui/button';
 import { Input } from '../../../shared/ui/input';
@@ -291,6 +292,7 @@ function AddOrdersModal({ open, onClose, onAdd, alreadyAddedIds }: AddOrdersModa
 
 export function NewExchangePage() {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [trackingGuide, setTrackingGuide] = useState('');
   const [notes, setNotes] = useState('');
   const [selectedOrders, setSelectedOrders] = useState<Order[]>([]);
@@ -312,8 +314,14 @@ export function NewExchangePage() {
   const currentBatchTotal = selectedOrders.reduce((sum, o) => sum + Number(o.total || 0), 0);
 
   const handleSubmit = async () => {
-    if (selectedOrders.length === 0) { alert('Agrega al menos un pedido'); return; }
-    if (!trackingGuide.trim()) { alert('El número de guía es obligatorio'); return; }
+    if (selectedOrders.length === 0) {
+      showToast('Agrega al menos un pedido', 'error');
+      return;
+    }
+    if (!trackingGuide.trim()) {
+      showToast('El número de guía es obligatorio', 'error');
+      return;
+    }
     
     setSubmitting(true);
     try {
@@ -322,9 +330,10 @@ export function NewExchangePage() {
         notes: notes || undefined,
         items: selectedOrders.map(o => ({ orderId: o.id }))
       });
+      showToast('Guía de cambio guardada exitosamente', 'success');
       navigate('/exchanges');
     } catch (err: any) {
-      alert(err.message || 'Error al guardar la guía');
+      showToast(err.message || 'Error al guardar la guía', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -434,7 +443,7 @@ export function NewExchangePage() {
                    </tr>
                  ) : (
                    selectedOrders.map((order, idx) => {
-                     const abono = order.payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
+                     const abono = (order.payments || []).reduce((sum: number, p: any) => sum + Number(p.amount), 0);
                      const saldo = Number(order.total || 0) - abono;
                      return (
                        <tr key={order.id} className="hover:bg-monchito-purple/5 transition-all duration-200 border-b border-slate-50 last:border-0">

@@ -337,83 +337,96 @@ export function TransactionsTable({ transactions, onView, isLoading }: Props) {
                                 </div>
                             </div>
                             <div className="text-right shrink-0">
-                                <p className={`text-lg font-black ${theme.amount}`}>
+                                <p className={`text-xl font-black ${theme.amount} leading-none`}>
                                     {amountPrefix(t.movementType)}${t.amount.toFixed(2)}
                                 </p>
+                                {t.balanceAfter != null && (
+                                    <div className="mt-1 flex flex-col items-end">
+                                        <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest leading-none">Saldo Final</span>
+                                        <p className="text-sm font-black text-slate-800 font-mono tracking-tighter">
+                                            ${t.balanceAfter.toFixed(2)}
+                                        </p>
+                                    </div>
+                                )}
                                 {t.userReference && (
-                                    <p className="text-[10px] font-mono text-slate-400 mt-0.5">
+                                    <p className="text-[10px] font-mono text-slate-400 mt-1">
                                         {t.source === 'ORDER_PAYMENT' ? 'Recibo' : 'Comprobante'}: {t.userReference}
                                     </p>
                                 )}
                             </div>
                         </div>
 
-                        {/* ── Empresaria ── */}
-                        <div className="mb-2 flex items-start gap-6 flex-wrap">
-                            <div className="space-y-0.5">
-                                <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Empresaria</span>
-                                <p className="text-sm font-bold text-slate-800 line-clamp-1">{t.clientName || 'S/N'}</p>
+                        {/* ── Standardized Metadata Grid (Universal for all card types) ── */}
+                        <div className="mb-4 grid grid-cols-2 sm:grid-cols-5 gap-4 px-1">
+                            {/* Col 1: Empresaria */}
+                            <div className="space-y-0.5 min-w-0">
+                                <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">Empresaria</span>
+                                <p className="text-sm font-bold text-slate-800 line-clamp-1">{t.clientName || '—'}</p>
                                 {(() => {
                                     const info = extractOrderInfo(t.notes)
                                     const id = info.id || t.clientDocument
                                     return id ? (
-                                        <p className="text-[11px] font-mono text-slate-500">Cédula: {id}</p>
+                                        <p className="text-[10px] font-mono text-slate-500 truncate">ID: {id}</p>
                                     ) : null
                                 })()}
                             </div>
-                            {t.orderId && (() => {
-                                const info = extractOrderInfo(t.notes)
-                                return (
-                                    <>
-                                        {info.ordenNumber && (
-                                            <div>
-                                                <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">N° Orden</span>
-                                                <p className="text-sm font-mono text-slate-600 mt-0.5">{info.ordenNumber}</p>
-                                            </div>
-                                        )}
-                                        <div>
-                                            <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">N° Pedido</span>
-                                            <p className="text-sm font-mono text-slate-600 mt-0.5">
-                                                {info.pedidoNumber || t.orderId.slice(-8).toUpperCase()}
-                                            </p>
-                                        </div>
-                                        {info.brandName && (
-                                            <div>
-                                                <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Marca</span>
-                                                <p className="text-sm font-bold text-slate-800 mt-0.5">{info.brandName}</p>
-                                            </div>
-                                        )}
-                                        {info.orderType && (
-                                            <div>
-                                                <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Tipo</span>
-                                                <p className="text-sm font-medium text-slate-500 mt-0.5">{info.orderType}</p>
-                                            </div>
-                                        )}
-                                    </>
-                                )
-                            })()}
-                            {!t.orderId && t.type === 'CASH_RETURN' && (
-                                <div>
-                                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Concepto</span>
-                                    <p className="text-sm font-bold text-rose-600 mt-0.5">Reembolso — Devolución</p>
-                                </div>
-                            )}
-                            {/* Mostrar comprobante si existe en notas (para recargas) */}
+
+                            {/* Col 2: N° Orden */}
                             {(() => {
                                 const info = extractOrderInfo(t.notes)
-                                if (info.comprobante) {
-                                    return (
-                                        <div>
-                                            <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Comprobante</span>
-                                            <p className="text-sm font-bold text-indigo-600 mt-0.5">{info.comprobante}</p>
-                                        </div>
-                                    )
-                                }
-                                return null
+                                return (
+                                    <div className="space-y-0.5">
+                                        <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">N° Orden</span>
+                                        <p className="text-xs font-mono font-bold text-slate-600 bg-slate-100/50 px-1.5 py-0.5 rounded w-fit">
+                                            {info.ordenNumber || '—'}
+                                        </p>
+                                    </div>
+                                )
+                            })()}
+
+                            {/* Col 3: N° Pedido */}
+                            {(() => {
+                                const info = extractOrderInfo(t.notes)
+                                return (
+                                    <div className="space-y-0.5">
+                                        <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">N° Pedido</span>
+                                        <p className="text-xs font-mono text-slate-500 truncate">
+                                            {info.pedidoNumber || (t.orderId ? t.orderId.slice(-8).toUpperCase() : '—')}
+                                        </p>
+                                    </div>
+                                )
+                            })()}
+
+                            {/* Col 4: Marca */}
+                            {(() => {
+                                const info = extractOrderInfo(t.notes)
+                                return (
+                                    <div className="space-y-0.5">
+                                        <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">Marca</span>
+                                        <p className="text-xs font-black text-slate-700 truncate">{info.brandName || '—'}</p>
+                                    </div>
+                                )
+                            })()}
+
+                            {/* Col 5: Tipo / Concepto */}
+                            {(() => {
+                                const info = extractOrderInfo(t.notes)
+                                let concept = info.orderType || t.type
+                                if (t.type === 'CASH_RETURN') concept = 'Reembolso'
+                                if (cardType === 'wallet-recharge') concept = 'Recarga'
+                                
+                                return (
+                                    <div className="space-y-0.5">
+                                        <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">Tipo</span>
+                                        <p className="text-[11px] font-bold text-monchito-purple uppercase tracking-tighter truncate">
+                                            {concept || 'General'}
+                                        </p>
+                                    </div>
+                                )
                             })()}
                         </div>
 
-                        {/* ── Movimientos ── */}
+                        {/* ── Movimientos y Saldo ── */}
                         <MovimientosSection t={t} cardType={cardType} walletLeg={walletLeg} />
                     </div>
                 )

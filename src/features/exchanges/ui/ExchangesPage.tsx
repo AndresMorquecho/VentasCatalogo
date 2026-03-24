@@ -7,8 +7,7 @@ import {
   Package,
   Truck,
   ChevronRight,
-  ClipboardList,
-  X
+  ClipboardList
 } from 'lucide-react';
 
 import { Button } from '../../../shared/ui/button';
@@ -16,6 +15,8 @@ import { Input } from '../../../shared/ui/input';
 import { Badge } from '../../../shared/ui/badge';
 import { PageHeader } from '../../../shared/ui/PageHeader';
 import { useExchangeBatches, useUpdateExchangeBatchStatus } from '../model/useExchanges';
+import { useToast } from '../../../shared/ui/use-toast';
+import { ConfirmDialog } from '../../../shared/ui/confirm-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../../shared/ui/dialog';
 import type { ExchangeBatch } from '../model/types';
 
@@ -33,19 +34,29 @@ const STATUS_COLORS: Record<string, string> = {
 
 export function ExchangesPage() {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [search, setSearch] = useState('');
   const [selectedBatch, setSelectedBatch] = useState<ExchangeBatch | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [batchIdToSend, setBatchIdToSend] = useState<string | null>(null);
 
-  const { data: batches = [], isLoading } = useExchangeBatches();
+  const { data: batches = [], isLoading, refetch } = useExchangeBatches();
   const updateStatus = useUpdateExchangeBatchStatus();
 
-  const handleSendToSupplier = async (e: React.MouseEvent, id: string) => {
+  const handleSendToSupplier = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (!window.confirm('¿Confirmas que esta guía ha sido enviada a bodega?')) return;
+    setBatchIdToSend(id);
+    setConfirmOpen(true);
+  };
+
+  const onConfirmSend = async () => {
+    if (!batchIdToSend) return;
     try {
-      await updateStatus.mutateAsync({ id, newStatus: 'SENT' });
+      await updateStatus.mutateAsync({ id: batchIdToSend, newStatus: 'SENT' });
+      showToast('Lote marcado como enviado a bodega', 'success');
+      refetch();
     } catch (err: any) {
-      alert(err.message || 'Error al actualizar estado');
+      showToast(err.message || 'Error al actualizar estado', 'error');
     }
   };
 
@@ -264,6 +275,15 @@ export function ExchangesPage() {
           )}
         </DialogContent>
       </Dialog>
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        onConfirm={onConfirmSend}
+        title="Confirmar Envío"
+        description="¿Confirmas que esta guía ha sido enviada físicamente a bodega/proveedor?"
+        confirmText="Confirmar Envío"
+        cancelText="Cancelar"
+      />
     </div>
   );
 }

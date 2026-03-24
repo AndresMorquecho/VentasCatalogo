@@ -1,4 +1,4 @@
-﻿// v3-redesign
+// v3-redesign
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, PackageSearch, Search, X, Plus, Check } from 'lucide-react';
@@ -20,13 +20,12 @@ import {
 import { orderApi } from '../../../entities/order/model/api';
 import { exchangesApi } from '../lib/exchangesApi';
 import type { Order } from '../../../entities/order/model/types';
+import { useToast } from '../../../shared/ui/use-toast';
 
 interface BatchRow { order: Order }
 
 function calcPaid(order: Order): number {
-  const hasSplit = order.payments.some((p) => p.method === 'SPLIT_PAYMENT');
   return order.payments
-    .filter((p) => !(hasSplit && p.method === 'CREDITO_CLIENTE'))
     .reduce((sum, p) => sum + Number(p.amount), 0);
 }
 
@@ -162,13 +161,13 @@ function AddOrdersModal({ open, onClose, alreadyAdded, onConfirm }: AddOrdersMod
 
 export function NewExchangeBatchPage() {
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [rows, setRows] = useState<BatchRow[]>([]);
   const [trackingGuide, setTrackingGuide] = useState('');
   const [batchNotes, setBatchNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const addOrders = (orders: Order[]) => {
     setRows((prev) => {
@@ -184,8 +183,11 @@ export function NewExchangeBatchPage() {
   const totalPending = rows.reduce((s, r) => s + Math.max(0, Number(r.order.total) - calcPaid(r.order)), 0);
 
   const handleSubmit = async () => {
-    if (rows.length === 0) { setError('Agrega al menos un pedido al lote'); return; }
-    setError(null);
+    if (rows.length === 0) {
+      showToast('Agrega al menos un pedido al lote', 'error');
+      return;
+    }
+    
     setSubmitting(true);
     try {
       await exchangesApi.createBatch({
@@ -193,9 +195,10 @@ export function NewExchangeBatchPage() {
         notes: batchNotes.trim() || undefined,
         items: rows.map((r) => ({ orderId: r.order.id })),
       });
+      showToast('Lote de cambio creado exitosamente', 'success');
       navigate('/exchanges');
     } catch (err: any) {
-      setError(err.message || 'Error al crear el lote');
+      showToast(err.message || 'Error al crear el lote', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -264,7 +267,6 @@ export function NewExchangeBatchPage() {
               </Button>
             </div>
           </div>
-          {error && <p className="text-sm text-red-600 font-medium mt-2">{error}</p>}
         </CardContent>
       </Card>
 
