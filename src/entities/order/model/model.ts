@@ -23,13 +23,7 @@ export function validateOrderPayload(payload: OrderPayload): void {
  */
 export function getPaidAmount(order: Order): number {
     const payments = order.payments || [];
-    const hasSplitPayment = payments.some(p => p.method === 'SPLIT_PAYMENT');
     return payments
-        .filter(p => {
-            // When SPLIT_PAYMENT exists, CREDITO_CLIENTE is already included in the split total
-            if (hasSplitPayment && p.method === 'CREDITO_CLIENTE') return false;
-            return true;
-        })
         .reduce((acc, p) => acc + Number(p.amount || 0), 0);
 }
 

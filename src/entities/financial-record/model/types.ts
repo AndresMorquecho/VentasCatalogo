@@ -93,7 +93,8 @@ export interface CreditDistributionItem {
   targetOrderId?: string; // null = billetera virtual
   amount: number;
   description: string;
-  isCashReturn?: boolean; // true = devolución en efectivo
+  isCashReturn?: boolean; // true = devolución (efectivo/banco)
+  bankAccountId?: string; // NEW: Cuenta desde donde se devuelve
 }
 
 export interface CreditDistributionModalProps {

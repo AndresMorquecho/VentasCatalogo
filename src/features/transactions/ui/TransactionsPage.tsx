@@ -24,7 +24,7 @@ const ACCOUNT_TYPE_OPTIONS = [
 
 export function TransactionsPage() {
     const [page, setPage] = useState(1)
-    const [limit] = useState(50)
+    const [limit] = useState(12)
     const [searchTerm, setSearchTerm] = useState("")
     const debouncedSearch = useDebounce(searchTerm, 1000)
 
@@ -104,7 +104,7 @@ export function TransactionsPage() {
                 icon={DollarSign}
             />
 
-            <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 mb-6 space-y-4">
+            <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 space-y-4">
                 {/* First row: Search, Date Range, and User */}
                 <div className="flex flex-wrap gap-4 items-end">
                     <div className="w-full md:w-64">
@@ -198,8 +198,9 @@ export function TransactionsPage() {
                     <Loader2 className="animate-spin h-8 w-8 text-slate-400" />
                 </div>
             ) : (
-                <>
+                <div className="space-y-4">
                     <TransactionsTable transactions={transactions} onView={setViewTx} />
+                    
                     {pagination && (
                         <Pagination
                             currentPage={page}
@@ -209,7 +210,7 @@ export function TransactionsPage() {
                             itemsPerPage={limit}
                         />
                     )}
-                </>
+                </div>
             )}
 
             <TransactionDetailsModal

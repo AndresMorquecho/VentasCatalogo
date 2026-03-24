@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { usePaymentSearch, usePaymentOperations } from "../model/hooks";
 import { getPaidAmount } from "@/entities/order/model/model";
 import { Input } from "@/shared/ui/input";
-import { Search, DollarSign, Wallet, FileText, Printer, Filter, RotateCcw } from "lucide-react";
+import { Search, DollarSign, Wallet, FileText, Printer, Filter } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import { PaymentsHistoryTable } from "./PaymentsHistoryTable";
 import { PaymentModal, type PaymentModalData } from "@/shared/ui/PaymentModal";
@@ -82,15 +82,18 @@ export function PaymentsPage() {
         }
     };
 
+    const [isProcessing, setIsProcessing] = useState(false);
+
     const handlePaymentSuccess = async (orderId?: string) => {
         showToast("Abono registrado exitosamente. Caja actualizada.", "success");
         setIsPaymentModalOpen(false);
 
         if (orderId) {
             try {
+                // Pre-refetch to update table state immediately
+                refetch();
                 const updatedOrder = await orderApi.getById(orderId);
                 await handlePreviewAccountStatement(updatedOrder);
-                refetch(); // Reload list to update balances
             } catch (error) {
                 console.error("Error fetching updated order for PDF:", error);
             }
@@ -98,8 +101,9 @@ export function PaymentsPage() {
     };
 
     const handlePaymentSubmit = async (data: PaymentModalData) => {
-        if (!selectedOrder) return;
+        if (!selectedOrder || isProcessing) return;
 
+        setIsProcessing(true);
         try {
             const payload = {
                 orderId: selectedOrder.id,
@@ -117,6 +121,8 @@ export function PaymentsPage() {
         } catch (error) {
             console.error("Error processing payments:", error);
             showToast("Error al procesar los pagos", "error");
+        } finally {
+            setIsProcessing(false);
         }
     };
 

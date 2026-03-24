@@ -124,8 +124,7 @@ export const SelectContent: React.FC<{ children: React.ReactNode; searchable?: b
         onClick={() => setOpen(false)}
       />
       <div className={cn(
-        "absolute z-50 mt-1 max-h-96 w-full flex flex-col overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95",
-        "bottom-full mb-1 lg:bottom-auto lg:top-full lg:mt-1",
+        "absolute z-50 bottom-full mb-1 max-h-96 w-full flex flex-col overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95",
         className
       )}>
         {searchable && (

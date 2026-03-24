@@ -1,10 +1,15 @@
 import { useState, useEffect } from "react"
+import { cn } from "@/shared/lib/utils"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/ui/dialog"
 import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
 import { Checkbox } from "@/shared/ui/checkbox"
-import { Receipt } from "lucide-react"
+import { Label } from "@/shared/ui/label"
+import { Receipt, Building2, Wallet as WalletIcon } from "lucide-react"
 import type { CreditDistribution, CreditDistributionItem } from "@/entities/financial-record/model/types"
+import { useQuery } from "@tanstack/react-query"
+import { bankAccountApi } from "@/entities/bank-account/model/api"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/select"
 
 interface Props {
   isOpen: boolean
@@ -31,6 +36,7 @@ interface Props {
   }>
   onDistribute: (distribution: CreditDistribution) => void
   initialDistribution?: CreditDistribution
+  initialRemainingAction?: 'wallet' | 'return'
   onBack?: () => void
 }
 
@@ -42,31 +48,54 @@ export function CreditDistributionModal({
   availableOrders,
   onDistribute,
   initialDistribution,
+  initialRemainingAction,
   onBack
 }: Props) {
   const [distributions, setDistributions] = useState<CreditDistributionItem[]>([])
-  const [remainingAction, setRemainingAction] = useState<'wallet' | 'return'>('wallet')
+  const [remainingAction, setRemainingAction] = useState<'wallet' | 'return'>(initialRemainingAction || 'wallet')
+  const [selectedReturnAccountId, setSelectedReturnAccountId] = useState<string>('')
+
+  // Fetch bank accounts for the "Return to client" option
+  const { data: accountsResponse } = useQuery({
+    queryKey: ['bank-accounts'],
+    queryFn: () => bankAccountApi.getAll({ limit: 100 }),
+    enabled: isOpen
+  })
+
+  const activeAccounts = accountsResponse?.data || [] // Fetch all, don't filter to troubleshoot missing accounts
+
+  // Default to first CASH account or first available
+  useEffect(() => {
+    if (activeAccounts.length > 0 && !selectedReturnAccountId) {
+      const cashAcc = activeAccounts.find(a => a.type === 'CASH') || activeAccounts[0]
+      if (cashAcc) {
+        setSelectedReturnAccountId(cashAcc.id)
+      }
+    }
+  }, [activeAccounts, selectedReturnAccountId])
 
   // Reset or Initialize when modal opens
   useEffect(() => {
     if (isOpen) {
       if (initialDistribution && initialDistribution.distributions.length > 0) {
-        // Separar distribuciones a pedidos de la acción sobre el resto
         const orderDistributions = initialDistribution.distributions.filter(d => !!d.targetOrderId)
         const totalOtherDist = initialDistribution.distributions.find(d => !d.targetOrderId)
         
         setDistributions(orderDistributions)
         if (totalOtherDist) {
           setRemainingAction(totalOtherDist.isCashReturn ? 'return' : 'wallet')
+          if (totalOtherDist.isCashReturn && totalOtherDist.bankAccountId) {
+            setSelectedReturnAccountId(totalOtherDist.bankAccountId)
+          }
         } else {
-          setRemainingAction('wallet')
+          setRemainingAction(initialRemainingAction || 'wallet')
         }
       } else {
         setDistributions([])
-        setRemainingAction('wallet')
+        setRemainingAction(initialRemainingAction || 'wallet')
       }
     }
-  }, [isOpen, initialDistribution])
+  }, [isOpen, initialDistribution, initialRemainingAction])
 
   const totalDistributed = distributions.reduce((sum, d) => sum + d.amount, 0)
   const remaining = creditAmount - totalDistributed
@@ -114,13 +143,13 @@ export function CreditDistributionModal({
   const handleConfirm = () => {
     const finalDistributions: CreditDistributionItem[] = [...distributions]
     
-    // Add remaining amount distribution based on user choice
     if (remaining > 0.005) {
       if (remainingAction === 'return') {
         finalDistributions.push({
           amount: remaining,
-          description: `Devolución en efectivo - Origen: Pedido ${sourceOrder.receiptNumber}`,
-          isCashReturn: true
+          description: `Devolución al cliente - Origen: Pedido ${sourceOrder.receiptNumber}`,
+          isCashReturn: true,
+          bankAccountId: selectedReturnAccountId || undefined
         })
       } else {
         finalDistributions.push({
@@ -161,9 +190,7 @@ export function CreditDistributionModal({
           </div>
         </DialogHeader>
 
-        {/* Distribution Section */}
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-
           {availableOrders.length > 0 ? (
             <div className="border rounded-lg border-slate-200 overflow-hidden flex-1 min-h-0">
               <div className="h-full overflow-y-auto">
@@ -212,7 +239,7 @@ export function CreditDistributionModal({
                                       type="number"
                                       value={distribution.amount}
                                       onChange={(e) => handleAmountChange(order.id, Number(e.target.value))}
-                                      className="h-8 text-sm border-monchito-purple/20 focus:ring-monchito-purple/20 px-2 w-24"
+                                      className="h-8 text-sm border-monchito-purple/20 px-2 w-24"
                                       min={0}
                                       max={Math.min(order.pendingAmount, remaining + distribution.amount)}
                                       step={0.01}
@@ -241,9 +268,7 @@ export function CreditDistributionModal({
           )}
         </div>
 
-        {/* Summary and Actions - Always visible at bottom */}
         <div className="shrink-0 space-y-3 pt-3 border-t">
-          {/* Always show summary so user can choose wallet vs cash return */}
           <div className="border rounded-lg p-3 space-y-2 bg-slate-50">
             <div className="grid grid-cols-2 gap-3 text-sm">
               {totalDistributed > 0 && (
@@ -284,14 +309,55 @@ export function CreditDistributionModal({
                       onChange={(e) => setRemainingAction(e.target.value as 'wallet' | 'return')}
                       className="text-monchito-purple focus:ring-monchito-purple"
                     />
-                    <span className="text-sm">Devolver al cliente (efectivo)</span>
+                    <span className="text-sm">Devolver al cliente (Reembolso)</span>
                   </label>
                 </div>
+
+                {remainingAction === 'return' && activeAccounts.length > 0 && (
+                  <div className="mt-3 flex items-center gap-3 animate-in fade-in slide-in-from-top-1 duration-200">
+                    <Label className="text-xs font-semibold text-slate-500 whitespace-nowrap">Desde la cuenta:</Label>
+                    <Select
+                      value={selectedReturnAccountId}
+                      onValueChange={setSelectedReturnAccountId}
+                    >
+                      <SelectTrigger className="h-9 text-xs border-monchito-purple/20 bg-white min-w-[240px] focus:ring-monchito-purple/20">
+                        <SelectValue placeholder="Seleccionar cuenta de origen..." />
+                      </SelectTrigger>
+                      <SelectContent searchable className="z-[9999]">
+                        {activeAccounts.map(acc => (
+                          <SelectItem 
+                            key={acc.id} 
+                            value={acc.id}
+                            label={`${acc.name} (${acc.bankName || 'Efectivo'})`}
+                          >
+                            <div className="flex flex-col gap-0.5 w-full">
+                              <div className="flex items-center gap-2 font-semibold text-slate-700">
+                                {acc.type === 'CASH' ? <WalletIcon className="h-3.5 w-3.5 text-emerald-600" /> : <Building2 className="h-3.5 w-3.5 text-blue-600" />}
+                                <span>{acc.name}</span>
+                                {acc.bankName && acc.type !== 'CASH' && <span className="text-[10px] text-slate-400 font-normal">({acc.bankName})</span>}
+                              </div>
+                              <div className="flex justify-between items-center text-[10px] pl-5 pr-1">
+                                <span className={cn(
+                                  "px-1.5 py-0.5 rounded text-[8px] font-bold uppercase",
+                                  acc.type === 'CASH' ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700"
+                                )}>
+                                  {acc.type === 'CASH' ? 'Efectivo' : 'Banco'}
+                                </span>
+                                <span className="font-mono font-bold text-emerald-600 tracking-tight">
+                                  ${Number(acc.currentBalance).toFixed(2)}
+                                </span>
+                              </div>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
             )}
           </div>
 
-          {/* Action Buttons - always show Confirm */}
           <div className="flex gap-3">
             {onBack && (
               <Button variant="ghost" onClick={onBack} className="flex-1 text-slate-500 hover:text-slate-700">

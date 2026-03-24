@@ -1,6 +1,6 @@
 import {
     ArrowUpCircle,
-    Building2, Wallet, Banknote, RefreshCw, CreditCard
+    Building2, Wallet, Banknote, RefreshCw, CreditCard, Loader2
 } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
@@ -9,6 +9,7 @@ import type { FinancialRecord } from "@/entities/financial-record/model/types"
 interface Props {
     transactions: FinancialRecord[]
     onView: (t: FinancialRecord) => void
+    isLoading?: boolean
 }
 
 // ─── Group transactions by transactionGroupId ────────────────────────────────
@@ -37,13 +38,13 @@ function extractOrderInfo(notes: string | null | undefined): {
     const isInitial = n.includes('inicial')
 
     // Improved Regex: Search for the key and capture until the next pipe or end of string
-    const getMatch = (key: string) => {
-        const regex = new RegExp(`${key}:\\s*([^|\\n]+)`, 'i')
+    const getMatch = (keyPattern: string) => {
+        const regex = new RegExp(`${keyPattern}:\\s*([^|\\n\\r]+)`, 'i')
         const match = notes.match(regex)
         return match?.[1]?.trim()
     }
 
-    const id = getMatch('Cédula') || getMatch('ID')
+    const id = getMatch('C[eé]dula') || getMatch('ID') || getMatch('IDENTIFICACI[OÓ]N')
     const orden = getMatch('Orden')
     const pedido = getMatch('Pedido')
     const brand = getMatch('Marca')
@@ -281,7 +282,16 @@ function amountPrefix(movementType: string): string {
 
 // ─── Main component ──────────────────────────────────────────────────────────
 
-export function TransactionsTable({ transactions, onView }: Props) {
+export function TransactionsTable({ transactions, onView, isLoading }: Props) {
+    if (isLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center p-24 bg-white rounded-2xl border border-slate-100 space-y-4">
+                <Loader2 className="h-8 w-8 animate-spin text-monchito-purple" />
+                <p className="text-sm font-medium text-slate-400">Cargando transacciones...</p>
+            </div>
+        )
+    }
+
     if (transactions.length === 0) {
         return (
             <div className="bg-white rounded-2xl border border-slate-200 p-16 text-center">
@@ -305,10 +315,10 @@ export function TransactionsTable({ transactions, onView }: Props) {
                     <div
                         key={t.id}
                         onClick={() => onView(t)}
-                        className={`rounded-2xl border ${theme.border} ${theme.bg} p-4 cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-[1.002]`}
+                        className={`rounded-2xl border ${theme.border} ${theme.bg} p-3 cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-[1.002]`}
                     >
                         {/* ── Header ── */}
-                        <div className="flex items-start justify-between gap-4 mb-3">
+                        <div className="flex items-start justify-between gap-4 mb-2">
                             <div className="flex items-center gap-2.5">
                                 <Icon className={`h-5 w-5 shrink-0 ${theme.icon}`} />
                                 <div>
@@ -339,7 +349,7 @@ export function TransactionsTable({ transactions, onView }: Props) {
                         </div>
 
                         {/* ── Empresaria ── */}
-                        <div className="mb-3 flex items-start gap-8 flex-wrap">
+                        <div className="mb-2 flex items-start gap-6 flex-wrap">
                             <div className="space-y-0.5">
                                 <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Empresaria</span>
                                 <p className="text-sm font-bold text-slate-800 line-clamp-1">{t.clientName || 'S/N'}</p>
@@ -347,7 +357,7 @@ export function TransactionsTable({ transactions, onView }: Props) {
                                     const info = extractOrderInfo(t.notes)
                                     const id = info.id || t.clientDocument
                                     return id ? (
-                                        <p className="text-[11px] font-mono text-slate-500">{id}</p>
+                                        <p className="text-[11px] font-mono text-slate-500">Cédula: {id}</p>
                                     ) : null
                                 })()}
                             </div>
