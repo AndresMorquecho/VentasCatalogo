@@ -10,7 +10,7 @@ export const financialRecordApi = {
   /**
    * Get all financial records with pagination and filters
    */
-  getAll: async (params?: { page?: number; limit?: number; startDate?: string; endDate?: string; clientId?: string }): Promise<PaginatedResponse<FinancialRecord>> => {
+  getAll: async (params?: { page?: number; limit?: number; startDate?: string; endDate?: string; clientId?: string; referenceNumber?: string; accountType?: string; bankAccountId?: string; createdBy?: string }): Promise<PaginatedResponse<FinancialRecord>> => {
     const queryParams = new URLSearchParams();
     if (params) {
       Object.entries(params).forEach(([key, value]) => {

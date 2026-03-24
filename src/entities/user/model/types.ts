@@ -1,19 +1,19 @@
-export type UserRole = 'ADMIN' | 'OPERATOR' | 'VIEWER';
+export type UserRole = 'ADMIN' | 'OPERATOR' | 'VIEWER' | 'USER';
 export type UserStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
 
 export interface User {
     id: string;
-    name: string;
-    email: string;
-    role: UserRole;
-    status: UserStatus;
+    username: string;
+    role: string;
+    isActive: boolean;
     createdAt: string;
-    lastAccess?: string;
+    updatedAt: string;
+    lastAccessAt?: string;
 }
 
 export interface UserPayload {
-    name: string;
-    email: string;
-    role: UserRole;
-    status: UserStatus;
+    username: string;
+    password: string;
+    role: string;
+    isActive: boolean;
 }

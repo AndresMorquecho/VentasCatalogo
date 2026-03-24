@@ -9,6 +9,9 @@ export interface TransactionFilters {
     endDate?: string;
     referenceNumber?: string;
     clientId?: string;
+    accountType?: string; // 'CASH' | 'BANK_ACCOUNT' | 'WALLET'
+    bankAccountId?: string;
+    createdBy?: string;
     page?: number;
     limit?: number;
 }

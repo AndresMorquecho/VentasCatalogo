@@ -4,14 +4,22 @@ import type { UserPayload } from './types'
 
 const KEYS = {
     all: ['users'] as const,
-    list: () => [...KEYS.all, 'list'] as const,
+    list: (params?: any) => [...KEYS.all, 'list', params] as const,
     detail: (id: string) => [...KEYS.all, 'detail', id] as const,
+}
+
+export function useUsers(params?: { search?: string; limit?: number; page?: number }) {
+    return useQuery({
+        queryKey: KEYS.list(params),
+        queryFn: () => userApi.getAll(params),
+        placeholderData: (prev) => prev
+    })
 }
 
 export function useUserList() {
     return useQuery({
         queryKey: KEYS.list(),
-        queryFn: userApi.getAll,
+        queryFn: () => userApi.getAll(),
     })
 }
 
@@ -29,7 +37,7 @@ export function useCreateUser() {
     return useMutation({
         mutationFn: (payload: UserPayload) => userApi.create(payload),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: KEYS.list() })
+            queryClient.invalidateQueries({ queryKey: KEYS.all })
         }
     })
 }
@@ -41,7 +49,7 @@ export function useUpdateUser() {
         mutationFn: ({ id, payload }: { id: string; payload: Partial<UserPayload> }) => 
             userApi.update(id, payload),
         onSuccess: (_, { id }) => {
-            queryClient.invalidateQueries({ queryKey: KEYS.list() })
+            queryClient.invalidateQueries({ queryKey: KEYS.all })
             queryClient.invalidateQueries({ queryKey: KEYS.detail(id) })
         }
     })

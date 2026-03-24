@@ -21,16 +21,46 @@ interface TransactionGroup {
     walletLeg?: FinancialRecord // INTERNAL leg of a wallet recharge group
 }
 
-// Extract order info from notes field
-function extractOrderInfo(notes: string | null | undefined): { orderNumber?: string; brandName?: string } {
+function extractOrderInfo(notes: string | null | undefined): { 
+    id?: string;         // Identification number (Cédula)
+    ordenNumber?: string; // System ID (OR-...)
+    pedidoNumber?: string; // Catalog ID (PD-...)
+    brandName?: string; 
+    orderType?: string;
+    comprobante?: string;
+    isInitial?: boolean 
+} {
     if (!notes) return {}
     
-    const orderMatch = notes.match(/Pedido:\s*([^\|]+)/)
-    const brandMatch = notes.match(/Marca:\s*([^\|]+)/)
+    // Normalize notes for initial check
+    const n = notes.toLowerCase()
+    const isInitial = n.includes('inicial')
+
+    // Improved Regex: Search for the key and capture until the next pipe or end of string
+    const getMatch = (key: string) => {
+        const regex = new RegExp(`${key}:\\s*([^|\\n]+)`, 'i')
+        const match = notes.match(regex)
+        return match?.[1]?.trim()
+    }
+
+    const id = getMatch('Cédula') || getMatch('ID')
+    const orden = getMatch('Orden')
+    const pedido = getMatch('Pedido')
+    const brand = getMatch('Marca')
+    const type = getMatch('Tipo')
+    const comp = getMatch('Comprobante')
     
+    // Additional fallback for old records using "Recibo" instead of "Orden"
+    const fallbackOrden = orden || getMatch('Recibo')
+
     return {
-        orderNumber: orderMatch?.[1]?.trim(),
-        brandName: brandMatch?.[1]?.trim()
+        id,
+        ordenNumber: fallbackOrden,
+        pedidoNumber: pedido,
+        brandName: brand,
+        orderType: type,
+        comprobante: comp,
+        isInitial
     }
 }
 
@@ -71,7 +101,7 @@ function groupTransactions(transactions: FinancialRecord[]): TransactionGroup[] 
         }
     }
 
-    // Re-sort by date descending (grouping may have reordered)
+    // Re-sort by date descending (most recent first)
     result.sort((a, b) => new Date(b.primary.date).getTime() - new Date(a.primary.date).getTime())
 
     return result
@@ -143,23 +173,31 @@ function getCardTitle(t: FinancialRecord, cardType: CardType): string {
             return 'Recarga Billetera Virtual'
         }
         case 'wallet-use': {
+            const info = extractOrderInfo(t.notes)
+            if (info.isInitial) return 'Pedido Inicial — Billetera'
             if (type === 'EXCHANGE_CREDIT') return 'Crédito por Cambio'
             return 'Uso de Billetera Virtual'
         }
         case 'cash': {
+            const info = extractOrderInfo(t.notes)
             // CREDIT_APPLICATION with CASH_RETURN source
             if (type === 'CREDIT_APPLICATION' && source === 'CASH_RETURN') {
                 return 'Devolución en Efectivo'
             }
             if (type === 'CASH_RETURN') return 'Devolución en Efectivo'
+            if (info.isInitial) return 'Pedido Inicial — Efectivo'
             return 'Pago en Efectivo'
         }
         case 'bank': {
+            const info = extractOrderInfo(t.notes)
             const pm = t.paymentMethod
-            if (pm === 'TRANSFERENCIA') return 'Transferencia Bancaria'
-            if (pm === 'DEPOSITO') return 'Depósito Bancario'
-            if (pm === 'CHEQUE') return 'Pago con Cheque'
-            return 'Movimiento Bancario'
+            let base = 'Movimiento Bancario'
+            if (pm === 'TRANSFERENCIA') base = 'Transferencia Bancaria'
+            if (pm === 'DEPOSITO') base = 'Depósito Bancario'
+            if (pm === 'CHEQUE') base = 'Pago con Cheque'
+            
+            if (info.isInitial) return `Pedido Inicial — ${base}`
+            return base
         }
         case 'exchange': {
             if (type === 'EXCHANGE_SAME_VALUE') return 'Cambio — Mismo Valor'
@@ -301,35 +339,67 @@ export function TransactionsTable({ transactions, onView }: Props) {
                         </div>
 
                         {/* ── Empresaria ── */}
-                        <div className="mb-3 flex items-start gap-6 flex-wrap">
-                            <div>
+                        <div className="mb-3 flex items-start gap-8 flex-wrap">
+                            <div className="space-y-0.5">
                                 <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Empresaria</span>
-                                <p className="text-sm font-bold text-slate-800 mt-0.5">{t.clientName || t.clientId}</p>
+                                <p className="text-sm font-bold text-slate-800 line-clamp-1">{t.clientName || 'S/N'}</p>
+                                {(() => {
+                                    const info = extractOrderInfo(t.notes)
+                                    const id = info.id || t.clientDocument
+                                    return id ? (
+                                        <p className="text-[11px] font-mono text-slate-500">{id}</p>
+                                    ) : null
+                                })()}
                             </div>
-                            {t.clientDocument && (
-                                <div>
-                                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Cédula</span>
-                                    <p className="text-sm font-bold text-slate-800 mt-0.5">{t.clientDocument}</p>
-                                </div>
-                            )}
                             {t.orderId && (() => {
-                                const orderInfo = extractOrderInfo(t.notes)
+                                const info = extractOrderInfo(t.notes)
                                 return (
                                     <>
+                                        {info.ordenNumber && (
+                                            <div>
+                                                <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">N° Orden</span>
+                                                <p className="text-sm font-mono text-slate-600 mt-0.5">{info.ordenNumber}</p>
+                                            </div>
+                                        )}
                                         <div>
-                                            <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Pedido</span>
+                                            <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">N° Pedido</span>
                                             <p className="text-sm font-mono text-slate-600 mt-0.5">
-                                                {orderInfo.orderNumber || t.orderId.slice(-8).toUpperCase()}
+                                                {info.pedidoNumber || t.orderId.slice(-8).toUpperCase()}
                                             </p>
                                         </div>
-                                        {orderInfo.brandName && (
+                                        {info.brandName && (
                                             <div>
                                                 <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Marca</span>
-                                                <p className="text-sm font-bold text-slate-800 mt-0.5">{orderInfo.brandName}</p>
+                                                <p className="text-sm font-bold text-slate-800 mt-0.5">{info.brandName}</p>
+                                            </div>
+                                        )}
+                                        {info.orderType && (
+                                            <div>
+                                                <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Tipo</span>
+                                                <p className="text-sm font-medium text-slate-500 mt-0.5">{info.orderType}</p>
                                             </div>
                                         )}
                                     </>
                                 )
+                            })()}
+                            {!t.orderId && t.type === 'CASH_RETURN' && (
+                                <div>
+                                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Concepto</span>
+                                    <p className="text-sm font-bold text-rose-600 mt-0.5">Reembolso — Devolución</p>
+                                </div>
+                            )}
+                            {/* Mostrar comprobante si existe en notas (para recargas) */}
+                            {(() => {
+                                const info = extractOrderInfo(t.notes)
+                                if (info.comprobante) {
+                                    return (
+                                        <div>
+                                            <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Comprobante</span>
+                                            <p className="text-sm font-bold text-indigo-600 mt-0.5">{info.comprobante}</p>
+                                        </div>
+                                    )
+                                }
+                                return null
                             })()}
                         </div>
 
