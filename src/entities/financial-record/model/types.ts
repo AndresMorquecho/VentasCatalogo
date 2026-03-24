@@ -1,8 +1,9 @@
 // Financial Record Entity - Unified model matching backend
 // Replaces FinancialTransaction and FinancialMovement
 
-export type FinancialRecordType = 'PAYMENT' | 'ADJUSTMENT' | 'EXPENSE' | 'CREDIT_GENERATION' | 'CREDIT_APPLICATION';
-export type FinancialSource = 'ORDER_PAYMENT' | 'MANUAL' | 'ADJUSTMENT' | 'RECEPTION_OVERPAYMENT' | 'CREDIT_DISTRIBUTION';
+export type FinancialRecordType = 'PAYMENT' | 'ADJUSTMENT' | 'EXPENSE' | 'CREDIT_GENERATION' | 'CREDIT_APPLICATION'
+    | 'EXCHANGE_SAME_VALUE' | 'EXCHANGE_ADDITIONAL_CHARGE' | 'EXCHANGE_CREDIT' | 'CASH_RETURN';
+export type FinancialSource = 'ORDER_PAYMENT' | 'MANUAL' | 'ADJUSTMENT' | 'RECEPTION_OVERPAYMENT' | 'CREDIT_DISTRIBUTION' | 'EXCHANGE';
 export type MovementType = 'INCOME' | 'EXPENSE' | 'INTERNAL';
 
 export type AccountType =
@@ -43,6 +44,13 @@ export interface FinancialRecord {
   fromAccountType?: AccountType;
   toAccountType?: AccountType;
   transactionGroupId?: string;
+
+  // Balance snapshot (calculated at creation time)
+  balanceBefore?: number;
+  balanceAfter?: number;
+
+  // Client identification
+  clientDocument?: string;
 
   // Metadata
   createdAt: string;

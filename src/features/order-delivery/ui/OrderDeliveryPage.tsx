@@ -301,10 +301,11 @@ export function OrderDeliveryPage() {
 
                     {/* Periodo - 4 cols */}
                     <div className="lg:col-span-4 space-y-2">
+                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1">Rango de Recepción</label>
                         <DateRangePicker
                             value={dateRange}
                             onChange={setDateRange}
-                            label="Rango de Recepción"
+                            showLabel={false}
                             placeholder="Seleccionar periodo"
                             className="h-10"
                         />

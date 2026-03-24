@@ -5,6 +5,8 @@ import { Input } from "@/shared/ui/input"
 import type { Order } from "@/entities/order/model/types"
 import { ArrowRight, Search, Tag } from "lucide-react"
 import { getPaidAmount } from "@/entities/order/model/model"
+import { DateRangePicker } from "@/shared/ui/filters"
+import type { DateRange } from "react-day-picker"
 
 interface Props {
     orders: Order[]
@@ -18,7 +20,7 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
     const [orderNumberFilter, setOrderNumberFilter] = useState("")
     const [brandFilter, setBrandFilter] = useState("")
     const [typeFilter, setTypeFilter] = useState("")
-    const [dateFilter, setDateFilter] = useState("") // YYYY-MM-DD from input type="date"
+    const [dateRange, setDateRange] = useState<DateRange | undefined>()
 
     // Map for faster lookups
 
@@ -34,7 +36,8 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
         const lowerSearch = searchTerm.toLowerCase().trim();
         const lowerReceipt = receiptFilter.toLowerCase().trim();
         const lowerOrderNum = orderNumberFilter.toLowerCase().trim();
-        const targetDate = dateFilter ? new Date(dateFilter).toISOString().split('T')[0] : null;
+        const startDate = dateRange?.from ? dateRange.from.toISOString().split('T')[0] : null;
+        const endDate = dateRange?.to ? dateRange.to.toISOString().split('T')[0] : null;
 
         return orders.filter(o => {
             // 1. Client Search
@@ -52,15 +55,16 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
             // 5. Type Filter
             if (typeFilter && o.type !== typeFilter) return false;
 
-            // 6. Date Filter
-            if (targetDate) {
+            // 6. Date Range Filter
+            if (startDate || endDate) {
                 const orderDate = new Date(o.createdAt).toISOString().split('T')[0];
-                if (orderDate !== targetDate) return false;
+                if (startDate && orderDate < startDate) return false;
+                if (endDate && orderDate > endDate) return false;
             }
 
             return true;
         });
-    }, [orders, searchTerm, receiptFilter, orderNumberFilter, brandFilter, typeFilter, dateFilter]);
+    }, [orders, searchTerm, receiptFilter, orderNumberFilter, brandFilter, typeFilter, dateRange]);
 
     const toggle = (id: string) => {
         setSelected(prev => {
@@ -175,13 +179,14 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
                             </select>
                         </div>
 
-                        {/* Date Input */}
-                        <div className="relative w-32">
-                            <Input
-                                type="date"
-                                value={dateFilter}
-                                onChange={(e) => setDateFilter(e.target.value)}
-                                className="h-7 w-full bg-white border-monchito-purple/20 focus-visible:ring-monchito-purple/20 text-[10px] px-2"
+                        {/* Date Range Picker */}
+                        <div className="relative w-44">
+                            <DateRangePicker
+                                value={dateRange}
+                                onChange={setDateRange}
+                                showLabel={false}
+                                placeholder="dd/mm/aaaa"
+                                className="h-7 text-[10px]"
                             />
                         </div>
                     </div>
@@ -190,7 +195,7 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
                         <span className="text-[10px] font-bold text-monchito-purple bg-monchito-purple/10 px-2 py-1 rounded-md">
                             {filteredOrders.length}
                         </span>
-                        {(searchTerm || receiptFilter || orderNumberFilter || brandFilter || typeFilter || dateFilter) && (
+                        {(searchTerm || receiptFilter || orderNumberFilter || brandFilter || typeFilter || dateRange) && (
                             <button
                                 onClick={() => { 
                                     setSearchTerm(''); 
@@ -198,7 +203,7 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
                                     setOrderNumberFilter(''); 
                                     setBrandFilter(''); 
                                     setTypeFilter('');
-                                    setDateFilter(''); 
+                                    setDateRange(undefined); 
                                 }}
                                 className="text-[10px] text-slate-400 hover:text-red-500 underline"
                             >
