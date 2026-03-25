@@ -348,7 +348,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                             createdOrders[0],
                             {
                                 id: user?.id || '1',
-                                name: user?.username || 'Vendedor',
+                                username: user?.username || 'Vendedor',
                                 role: 'OPERATOR',
                                 email: '',
                                 status: 'ACTIVE',

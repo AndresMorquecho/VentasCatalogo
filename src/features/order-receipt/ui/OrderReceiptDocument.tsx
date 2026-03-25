@@ -322,7 +322,7 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({ order, child
                 {/* SIGNATURES */}
                 <View style={styles.signatureContainer}>
                     <View style={styles.signatureBlock}>
-                        <Text style={styles.signatureName}>{user?.name?.toUpperCase() || ""}</Text>
+                        <Text style={styles.signatureName}>{user?.username?.toUpperCase() || order.createdByName?.toUpperCase() || ""}</Text>
                         <View style={styles.signatureLine} />
                         <Text style={styles.signatureLabel}>Vendedor</Text>
                     </View>

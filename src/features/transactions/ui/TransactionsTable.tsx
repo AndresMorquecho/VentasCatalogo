@@ -20,6 +20,7 @@ interface Props {
 interface TransactionGroup {
     primary: FinancialRecord
     walletLeg?: FinancialRecord // INTERNAL leg of a wallet recharge group
+    secondaryLeg?: FinancialRecord // INCOME leg of a distribution group
 }
 
 function extractOrderInfo(notes: string | null | undefined): { 
@@ -83,16 +84,32 @@ function groupTransactions(transactions: FinancialRecord[]): TransactionGroup[] 
 
     // Process grouped records
     for (const [, records] of grouped) {
-        const income = records.find(r => r.movementType === 'INCOME')
-        const internal = records.find(r => r.movementType === 'INTERNAL')
+        // Try to identify a wallet recharge pair (INCOME + INTERNAL)
+        const rechargeIncome = records.find(r => r.movementType === 'INCOME' && r.fromAccountType === 'EXTERNAL')
+        const rechargeInternal = records.find(r => r.movementType === 'INTERNAL' && r.toAccountType === 'WALLET')
 
-        if (income && internal) {
-            // Wallet recharge pair: show as one card
-            result.push({ primary: income, walletLeg: internal })
-        } else {
-            // Other groups or incomplete pairs: show each individually
-            for (const r of records) result.push({ primary: r })
+        if (rechargeIncome && rechargeInternal) {
+            result.push({ primary: rechargeIncome, walletLeg: rechargeInternal })
+            continue
         }
+
+        // Try to identify a distribution pair (EXPENSE + INCOME)
+        const distExpense = records.find(r => r.movementType === 'EXPENSE')
+        const distIncome = records.find(r => r.movementType === 'INCOME')
+
+        if (distExpense && distIncome) {
+            // For distributions INTO WALLET (Surplus), we show INCOME as primary to get (+) sign
+            if (distIncome.toAccountType === 'WALLET') {
+                result.push({ primary: distIncome, secondaryLeg: distExpense })
+            } else {
+                // For Order-to-Order distributions, we show EXPENSE (outflow) as primary
+                result.push({ primary: distExpense, secondaryLeg: distIncome })
+            }
+            continue
+        }
+
+        // Other groups: show each individually
+        for (const r of records) result.push({ primary: r })
     }
 
     // Add ungrouped records, but SKIP CREDIT_GENERATION (internal accounting only)
@@ -117,17 +134,16 @@ function getCardType(t: FinancialRecord): CardType {
     const source = t.source as string
     const pm = t.paymentMethod
 
-    // CREDIT_APPLICATION: Depends on source
-    if (type === 'CREDIT_APPLICATION') {
-        // Cash return from reception overpayment
-        if (source === 'CASH_RETURN') return 'cash'
-        
-        // Distribution to wallet (shows as recharge)
-        if (source === 'CREDIT_DISTRIBUTION' && !t.orderId) return 'wallet-recharge'
-        
-        // Distribution to another order (shows as wallet use)
-        if (source === 'CREDIT_DISTRIBUTION' && t.orderId) return 'wallet-use'
+    // CREDIT_APPLICATION or PAYMENT from distributor
+    if (source === 'CREDIT_DISTRIBUTION') {
+        // If it involves the wallet as destination, it's a recharge/surplus case
+        if (t.toAccountType === 'WALLET' || t.type === 'PAYMENT') return 'wallet-recharge'
+        // Otherwise it's a "use" (outflow) to pay another order
+        return 'wallet-use'
     }
+
+    // Cash return from reception overpayment
+    if (type === 'CREDIT_APPLICATION' && source === 'CASH_RETURN') return 'cash'
 
     // Exchange types
     if (['EXCHANGE_SAME_VALUE', 'EXCHANGE_ADDITIONAL_CHARGE', 'EXCHANGE_CREDIT', 'CASH_RETURN'].includes(type)) {
@@ -177,6 +193,8 @@ function getCardTitle(t: FinancialRecord, cardType: CardType): string {
             const info = extractOrderInfo(t.notes)
             if (info.isInitial) return 'Pedido Inicial — Billetera'
             if (type === 'EXCHANGE_CREDIT') return 'Crédito por Cambio'
+            if (source === 'CREDIT_DISTRIBUTION') return 'Uso de Billetera Virtual' // Grouped distribution card
+            if (t.movementType === 'INCOME') return 'Ajuste Billetera Virtual'
             return 'Uso de Billetera Virtual'
         }
         case 'cash': {
@@ -210,11 +228,11 @@ function getCardTitle(t: FinancialRecord, cardType: CardType): string {
 }
 
 function getSubBadge(t: FinancialRecord, cardType: CardType): string | null {
-    if (cardType === 'wallet-use') {
+    if (cardType === 'wallet-use' || cardType === 'wallet-recharge') {
         const src = t.source as string
         if (src === 'ORDER_PAYMENT') return 'Abono a Pedido'
         if (src === 'EXCHANGE') return 'Crédito por Cambio'
-        if (src === 'CREDIT_DISTRIBUTION') return 'Distribución de Saldo'
+        if (src === 'CREDIT_DISTRIBUTION') return 'Redistribución de Saldo'
         return null
     }
     return null
@@ -304,7 +322,7 @@ export function TransactionsTable({ transactions, onView, isLoading }: Props) {
 
     return (
         <div className="space-y-3">
-            {groups.map(({ primary: t, walletLeg }) => {
+            {groups.map(({ primary: t, walletLeg, secondaryLeg }) => {
                 const cardType = getCardType(t)
                 const theme = getTheme(cardType, t.movementType)
                 const title = getCardTitle(t, cardType)
@@ -427,7 +445,7 @@ export function TransactionsTable({ transactions, onView, isLoading }: Props) {
                         </div>
 
                         {/* ── Movimientos y Saldo ── */}
-                        <MovimientosSection t={t} cardType={cardType} walletLeg={walletLeg} />
+                        <MovimientosSection t={t} cardType={cardType} walletLeg={walletLeg} secondaryLeg={secondaryLeg} />
                     </div>
                 )
             })}
@@ -437,10 +455,11 @@ export function TransactionsTable({ transactions, onView, isLoading }: Props) {
 
 // ─── Movimientos section per card type ──────────────────────────────────────
 
-function MovimientosSection({ t, cardType, walletLeg }: {
+function MovimientosSection({ t, cardType, walletLeg, secondaryLeg }: {
     t: FinancialRecord
     cardType: CardType
     walletLeg?: FinancialRecord
+    secondaryLeg?: FinancialRecord
 }) {
     const hasBankBalance = t.balanceBefore != null && t.balanceAfter != null
 
@@ -452,8 +471,8 @@ function MovimientosSection({ t, cardType, walletLeg }: {
                 <div className="flex-1 h-px bg-slate-200" />
             </div>
             <div className="space-y-2">
-        {cardType === 'wallet-recharge' && <WalletRechargeMovements t={t} hasBankBalance={hasBankBalance} walletLeg={walletLeg} />}
-                {cardType === 'wallet-use' && <WalletUseMovements t={t} />}
+                {cardType === 'wallet-recharge' && <WalletRechargeMovements t={t} hasBankBalance={hasBankBalance} walletLeg={walletLeg} secondaryLeg={secondaryLeg} />}
+                {cardType === 'wallet-use' && <WalletUseMovements t={t} secondaryLeg={secondaryLeg} />}
                 {cardType === 'cash' && <CashMovements t={t} hasBankBalance={hasBankBalance} />}
                 {cardType === 'bank' && <BankMovements t={t} hasBankBalance={hasBankBalance} />}
                 {cardType === 'exchange' && <ExchangeMovements t={t} hasBankBalance={hasBankBalance} />}
@@ -465,46 +484,51 @@ function MovimientosSection({ t, cardType, walletLeg }: {
 // Card 1: Recarga Billetera Virtual
 // Banco (real, con saldo) + Billetera Virtual (informativo)
 // Handles both manual recharges and credit distributions from reception
-function WalletRechargeMovements({ t, hasBankBalance, walletLeg }: {
+function WalletRechargeMovements({ t, hasBankBalance, walletLeg, secondaryLeg }: {
     t: FinancialRecord
     hasBankBalance: boolean
     walletLeg?: FinancialRecord
+    secondaryLeg?: FinancialRecord
 }) {
-    const type = t.type as string
     const source = t.source as string
     
-    // CREDIT_APPLICATION from reception (distribution to wallet)
-    if (type === 'CREDIT_APPLICATION' && source === 'CREDIT_DISTRIBUTION') {
-        // This is a credit distribution to wallet - show as informative only
-        // The actual bank movement happened when the order was originally paid
-        const hasWalletBalance = t.balanceBefore != null && t.balanceAfter != null
+    // CREDIT_DISTRIBUTION to wallet from reception (Surplus redistribution)
+    if (source === 'CREDIT_DISTRIBUTION') {
+        const income = t.movementType === 'INCOME' ? t : secondaryLeg
+        const expense = t.movementType === 'EXPENSE' ? t : secondaryLeg
+        if (!income || !expense) return null
+        
+        const orderInfo = extractOrderInfo(expense.notes)
+        
         return (
             <>
                 <MovementRow
                     icon={<Building2 className="h-3.5 w-3.5 text-blue-500" />}
-                    label={t.bankAccountName || 'Cuenta Bancaria'}
-                    detail="Saldo a favor aplicado"
-                    delta={t.amount}
+                    label="Saldo de Pedido (Origen)"
+                    detail={`${orderInfo.ordenNumber || 'Pedido'}`}
+                    delta={-expense.amount} // Distribution outflow
                     balanceBefore={undefined}
                     balanceAfter={undefined}
-                    deltaColor="text-emerald-600"
+                    deltaColor="text-red-500"
                     informative={true}
                 />
                 <MovementRow
                     icon={<Wallet className="h-3.5 w-3.5 text-purple-500" />}
-                    label="Billetera Virtual"
-                    detail={t.clientName}
-                    delta={t.amount}
-                    balanceBefore={hasWalletBalance ? t.balanceBefore : undefined}
-                    balanceAfter={hasWalletBalance ? t.balanceAfter : undefined}
+                    label="Billetera Virtual (informativo)"
+                    detail={income.clientName}
+                    delta={income.amount} // Distribution inflow
+                    balanceBefore={income.balanceBefore}
+                    balanceAfter={income.balanceAfter}
                     deltaColor="text-purple-600"
-                    informative={false}
+                    informative={true}
                 />
             </>
         )
     }
     
     // Manual recharge: t is always the INCOME record (bank leg). walletLeg is the INTERNAL record.
+    const isIncomeLegExpense = t.movementType === 'EXPENSE'
+    const isWalletLegExpense = (walletLeg?.movementType || t.movementType) === 'EXPENSE'
     const walletAmount = walletLeg?.amount ?? t.amount
     const hasWalletBalance = walletLeg?.balanceBefore != null && walletLeg?.balanceAfter != null
     return (
@@ -513,20 +537,20 @@ function WalletRechargeMovements({ t, hasBankBalance, walletLeg }: {
                 icon={<Building2 className="h-3.5 w-3.5 text-blue-500" />}
                 label={t.bankAccountName || 'Cuenta Bancaria'}
                 detail={t.bankAccountName || '—'}
-                delta={t.amount}
+                delta={isIncomeLegExpense ? -t.amount : t.amount}
                 balanceBefore={hasBankBalance ? t.balanceBefore : undefined}
                 balanceAfter={hasBankBalance ? t.balanceAfter : undefined}
-                deltaColor="text-emerald-600"
+                deltaColor={isIncomeLegExpense ? "text-red-500" : "text-emerald-600"}
                 informative={false}
             />
             <MovementRow
                 icon={<Wallet className="h-3.5 w-3.5 text-purple-500" />}
                 label="Billetera Virtual"
                 detail={t.clientName}
-                delta={walletAmount}
+                delta={isWalletLegExpense ? -walletAmount : walletAmount}
                 balanceBefore={hasWalletBalance ? walletLeg!.balanceBefore : undefined}
                 balanceAfter={hasWalletBalance ? walletLeg!.balanceAfter : undefined}
-                deltaColor="text-purple-600"
+                deltaColor={isWalletLegExpense ? "text-red-500" : "text-purple-600"}
                 informative={true}
             />
         </>
@@ -535,17 +559,51 @@ function WalletRechargeMovements({ t, hasBankBalance, walletLeg }: {
 
 // Card 2: Uso de Billetera Virtual
 // Solo billetera (real, resta)
-function WalletUseMovements({ t }: { t: FinancialRecord }) {
+function WalletUseMovements({ t, secondaryLeg }: { t: FinancialRecord; secondaryLeg?: FinancialRecord }) {
+    const isExpense = t.movementType === 'EXPENSE'
     const hasWalletBalance = t.balanceBefore != null && t.balanceAfter != null
+    const source = t.source as string
+
+    if (source === 'CREDIT_DISTRIBUTION' && secondaryLeg) {
+        // Grouped Order-to-Order distribution
+        const orderInfo = extractOrderInfo(t.notes)
+        const targetInfo = extractOrderInfo(secondaryLeg.notes)
+        
+        return (
+            <>
+                <MovementRow
+                    icon={<Wallet className="h-3.5 w-3.5 text-purple-500" />}
+                    label="Billetera Virtual (Uso)"
+                    detail={`${orderInfo.ordenNumber || 'Pedido Origen'}`}
+                    delta={-t.amount}
+                    balanceBefore={hasWalletBalance ? t.balanceBefore : undefined}
+                    balanceAfter={hasWalletBalance ? t.balanceAfter : undefined}
+                    deltaColor="text-red-500"
+                    informative={false}
+                />
+                <MovementRow
+                    icon={<Building2 className="h-3.5 w-3.5 text-slate-500" />}
+                    label="Abono a Pedido"
+                    detail={`${targetInfo.ordenNumber || 'Pedido Destino'}`}
+                    delta={secondaryLeg.amount}
+                    balanceBefore={undefined}
+                    balanceAfter={undefined}
+                    deltaColor="text-emerald-500"
+                    informative={true}
+                />
+            </>
+        )
+    }
+
     return (
         <MovementRow
             icon={<Wallet className="h-3.5 w-3.5 text-purple-500" />}
             label="Billetera Virtual"
             detail={t.clientName}
-            delta={-t.amount}
+            delta={isExpense ? -t.amount : t.amount}
             balanceBefore={hasWalletBalance ? t.balanceBefore : undefined}
             balanceAfter={hasWalletBalance ? t.balanceAfter : undefined}
-            deltaColor="text-red-500"
+            deltaColor={isExpense ? "text-red-500" : "text-purple-600"}
             informative={false}
         />
     )
@@ -564,10 +622,10 @@ function CashMovements({ t, hasBankBalance }: { t: FinancialRecord; hasBankBalan
                 icon={<Banknote className="h-3.5 w-3.5 text-red-500" />}
                 label={t.bankAccountName || 'Caja / Efectivo'}
                 detail="Devolución al cliente"
-                delta={-t.amount}
+                delta={isExpense ? -t.amount : t.amount}
                 balanceBefore={hasBankBalance ? t.balanceBefore : undefined}
                 balanceAfter={hasBankBalance ? t.balanceAfter : undefined}
-                deltaColor="text-red-500"
+                deltaColor={isExpense ? 'text-red-500' : 'text-emerald-600'}
                 informative={false}
             />
         )
@@ -635,15 +693,16 @@ function ExchangeMovements({ t, hasBankBalance }: { t: FinancialRecord; hasBankB
         )
     }
     // EXCHANGE_CREDIT
+    const isExpense = t.movementType === 'EXPENSE'
     return (
         <MovementRow
             icon={<Wallet className="h-3.5 w-3.5 text-purple-500" />}
             label="Billetera Virtual"
             detail={t.clientName}
-            delta={t.amount}
+            delta={isExpense ? -t.amount : t.amount}
             balanceBefore={undefined}
             balanceAfter={undefined}
-            deltaColor="text-purple-600"
+            deltaColor={isExpense ? "text-red-500" : "text-purple-600"}
             informative={false}
         />
     )

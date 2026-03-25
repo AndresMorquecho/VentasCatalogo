@@ -113,8 +113,8 @@ export function RechargeWalletModal({ open, onOpenChange }: RechargeWalletModalP
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[800px] border-none shadow-2xl overflow-hidden p-0">
-                <DialogHeader className="p-6 bg-slate-50 border-b">
+            <DialogContent className="sm:max-w-[800px] border-none shadow-2xl p-0">
+                <DialogHeader className="p-6 bg-slate-50 border-b rounded-t-xl">
                     <div className="flex items-center gap-3">
                         <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
                             <Wallet className="h-6 w-6" />

@@ -319,7 +319,7 @@ export function OrderFormPage() {
                     ordersWithNumbers[0],
                     {
                         id: user?.id || '1',
-                        name: user?.username || 'Vendedor',
+                        username: user?.username || 'Vendedor',
                         role: 'OPERATOR',
                         email: '',
                         status: 'ACTIVE',
