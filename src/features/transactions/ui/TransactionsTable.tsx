@@ -292,9 +292,11 @@ function getTheme(cardType: CardType, movementType: string): Theme {
 
 // ─── Amount sign helper ──────────────────────────────────────────────────────
 
-function amountPrefix(movementType: string): string {
-    if (movementType === 'INCOME') return '+'
-    if (movementType === 'EXPENSE') return '-'
+function amountPrefix(t: FinancialRecord): string {
+    if (t.movementType === 'INCOME') return '+'
+    if (t.movementType === 'EXPENSE') return '-'
+    if (t.fromAccountType === 'WALLET') return '-'
+    if (t.toAccountType === 'WALLET') return '+'
     return '↔'
 }
 
@@ -356,7 +358,7 @@ export function TransactionsTable({ transactions, onView, isLoading }: Props) {
                             </div>
                             <div className="text-right shrink-0">
                                 <p className={`text-xl font-black ${theme.amount} leading-none`}>
-                                    {amountPrefix(t.movementType)}${t.amount.toFixed(2)}
+                                    {amountPrefix(t)}${t.amount.toFixed(2)}
                                 </p>
                                 {t.balanceAfter != null && (
                                     <div className="mt-1 flex flex-col items-end">
@@ -560,7 +562,7 @@ function WalletRechargeMovements({ t, hasBankBalance, walletLeg, secondaryLeg }:
 // Card 2: Uso de Billetera Virtual
 // Solo billetera (real, resta)
 function WalletUseMovements({ t, secondaryLeg }: { t: FinancialRecord; secondaryLeg?: FinancialRecord }) {
-    const isExpense = t.movementType === 'EXPENSE'
+    const isDeduction = t.movementType === 'EXPENSE' || t.movementType === 'INTERNAL' || t.fromAccountType === 'WALLET'
     const hasWalletBalance = t.balanceBefore != null && t.balanceAfter != null
     const source = t.source as string
 
@@ -600,10 +602,10 @@ function WalletUseMovements({ t, secondaryLeg }: { t: FinancialRecord; secondary
             icon={<Wallet className="h-3.5 w-3.5 text-purple-500" />}
             label="Billetera Virtual"
             detail={t.clientName}
-            delta={isExpense ? -t.amount : t.amount}
+            delta={isDeduction ? -t.amount : t.amount}
             balanceBefore={hasWalletBalance ? t.balanceBefore : undefined}
             balanceAfter={hasWalletBalance ? t.balanceAfter : undefined}
-            deltaColor={isExpense ? "text-red-500" : "text-purple-600"}
+            deltaColor={isDeduction ? "text-red-500" : "text-purple-600"}
             informative={false}
         />
     )

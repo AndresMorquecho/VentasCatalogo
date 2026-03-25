@@ -204,7 +204,8 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({ order, child
         'EFECTIVO': 'Efectivo',
         'DEPOSITO': 'Depósito',
         'BILLETERA_VIRTUAL': 'Billetera Virtual',
-        'CREDITO_CLIENTE': 'Crédito aplicado'
+        'CREDITO_CLIENTE': 'Crédito aplicado',
+        'SPLIT_PAYMENT': 'Pago Combinado'
     };
 
     const friendlyPayment = paymentLabels[order.paymentMethod] || order.paymentMethod;
