@@ -24,46 +24,47 @@ interface TransactionGroup {
 }
 
 function extractOrderInfo(notes: string | null | undefined): { 
-    id?: string;         // Identification number (Cédula)
-    ordenNumber?: string; // System ID (OR-...)
-    pedidoNumber?: string; // Catalog ID (PD-...)
+    id?: string;
+    ordenNumber?: string;
+    pedidoNumber?: string;
     brandName?: string; 
     orderType?: string;
     comprobante?: string;
     isInitial?: boolean 
 } {
     if (!notes) return {}
-    
-    // Normalize notes for initial check
-    const n = notes.toLowerCase()
-    const isInitial = n.includes('inicial')
 
-    // Improved Regex: Search for the key and capture until the next pipe or end of string
-    const getMatch = (keyPattern: string) => {
-        const regex = new RegExp(`${keyPattern}:\\s*([^|\\n\\r]+)`, 'i')
-        const match = notes.match(regex)
-        return match?.[1]?.trim()
+    const lowerNotes = notes.toLowerCase()
+    const isInitial = lowerNotes.includes('inicial')
+    
+    // Split by pipe to analyze each part independently
+    const parts = notes.split('|').map(p => p.trim())
+    const info: any = { isInitial }
+
+    parts.forEach(part => {
+        const lp = part.toLowerCase()
+        if (lp.includes('cédula') || lp.includes('cedula') || lp.includes('id:') || lp.includes('identificación')) {
+            info.id = part.split(':')[1]?.trim()
+        } else if (lp.includes('orden:') || lp.includes('recibo:') || lp.includes('no. orden') || lp.includes('n° orden')) {
+            info.ordenNumber = part.split(':')[1]?.trim()
+        } else if (lp.includes('pedido:') || lp.includes('no. pedido') || lp.includes('n° pedido')) {
+            info.pedidoNumber = part.split(':')[1]?.trim()
+        } else if (lp.includes('marca:')) {
+            info.brandName = part.split(':')[1]?.trim()
+        } else if (lp.includes('tipo:')) {
+            info.orderType = part.split(':')[1]?.trim()
+        } else if (lp.includes('comprobante:')) {
+            info.comprobante = part.split(':')[1]?.trim()
+        }
+    })
+
+    // Final fallback for Orden if still missing (look for OR- pattern)
+    if (!info.ordenNumber) {
+        const orMatch = notes.match(/OR-\d{4}-\d+/i)
+        if (orMatch) info.ordenNumber = orMatch[0]
     }
 
-    const id = getMatch('C[eé]dula') || getMatch('ID') || getMatch('IDENTIFICACI[OÓ]N')
-    const orden = getMatch('Orden')
-    const pedido = getMatch('Pedido')
-    const brand = getMatch('Marca')
-    const type = getMatch('Tipo')
-    const comp = getMatch('Comprobante')
-    
-    // Additional fallback for old records using "Recibo" instead of "Orden"
-    const fallbackOrden = orden || getMatch('Recibo')
-
-    return {
-        id,
-        ordenNumber: fallbackOrden,
-        pedidoNumber: pedido,
-        brandName: brand,
-        orderType: type,
-        comprobante: comp,
-        isInitial
-    }
+    return info
 }
 
 function groupTransactions(transactions: FinancialRecord[]): TransactionGroup[] {
@@ -94,15 +95,17 @@ function groupTransactions(transactions: FinancialRecord[]): TransactionGroup[] 
         }
 
         // Try to identify a distribution pair (EXPENSE + INCOME)
-        const distExpense = records.find(r => r.movementType === 'EXPENSE')
-        const distIncome = records.find(r => r.movementType === 'INCOME')
+        // Distributions from reception use source 'CREDIT_DISTRIBUTION' for the twin legs.
+        // We might also have a 'CREDIT_GENERATION' (source: RECEPTION_OVERPAYMENT) in the same group.
+        const distExpense = records.find(r => r.movementType === 'EXPENSE' && r.source === 'CREDIT_DISTRIBUTION')
+        const distIncome = records.find(r => r.movementType === 'INCOME' && r.source === 'CREDIT_DISTRIBUTION')
 
         if (distExpense && distIncome) {
-            // For distributions INTO WALLET (Surplus), we show INCOME as primary to get (+) sign
-            if (distIncome.toAccountType === 'WALLET') {
+            // Priority: If it goes to Wallet (Recharge case), make INCOME primary so it shows (+) sign
+            if (distIncome.toAccountType === 'WALLET' || distIncome.type === 'PAYMENT') {
                 result.push({ primary: distIncome, secondaryLeg: distExpense })
             } else {
-                // For Order-to-Order distributions, we show EXPENSE (outflow) as primary
+                // Otherwise (outflow to another order), make EXPENSE primary so it shows (-) sign
                 result.push({ primary: distExpense, secondaryLeg: distIncome })
             }
             continue
@@ -431,15 +434,14 @@ export function TransactionsTable({ transactions, onView, isLoading }: Props) {
                             {/* Col 5: Tipo / Concepto */}
                             {(() => {
                                 const info = extractOrderInfo(t.notes)
-                                let concept = info.orderType || t.type
-                                if (t.type === 'CASH_RETURN') concept = 'Reembolso'
-                                if (cardType === 'wallet-recharge') concept = 'Recarga'
+                                if (t.type === 'CASH_RETURN') info.orderType = 'Reembolso'
+                                if (cardType === 'wallet-recharge') info.orderType = 'Recarga'
                                 
                                 return (
                                     <div className="space-y-0.5">
                                         <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">Tipo</span>
                                         <p className="text-[11px] font-bold text-monchito-purple uppercase tracking-tighter truncate">
-                                            {concept || 'General'}
+                                            {(t.type === 'PAYMENT' || info.orderType === 'PAGO') ? 'ABONO' : (info.orderType || t.type)}
                                         </p>
                                     </div>
                                 )

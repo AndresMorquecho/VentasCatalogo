@@ -44,9 +44,9 @@ export function useDeleteCashClosure() {
     });
 }
 
-export function useCashClosurePreview(toDate?: string) {
+export function useCashClosurePreview(toDate?: string, userId?: string) {
     return useQuery({
-        queryKey: [...CASH_CLOSURE_QUERY_KEYS.all, 'preview', toDate],
-        queryFn: () => cashClosureApi.getPreview(toDate),
+        queryKey: [...CASH_CLOSURE_QUERY_KEYS.all, 'preview', toDate, userId],
+        queryFn: () => cashClosureApi.getPreview(toDate, userId),
     });
 }

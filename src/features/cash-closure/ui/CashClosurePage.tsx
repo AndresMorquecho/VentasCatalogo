@@ -4,7 +4,7 @@ import { CashClosureHistory } from './CashClosureHistory';
 import { CashClosureConfirmModal } from './CashClosureConfirmModal';
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
-import { Loader2, HelpCircle, Wallet, CheckCircle2, FileText, AlertCircle, Calendar, Banknote, Calculator, TrendingUp, TrendingDown, Users, Info } from "lucide-react";
+import { Loader2, HelpCircle, Wallet, CheckCircle2, FileText, AlertCircle, Calendar, Banknote, Calculator, TrendingUp, Users, Info } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
 import { useNotifications } from "@/shared/lib/notifications";
 import { logAction } from "@/shared/lib/auditService";
@@ -13,6 +13,8 @@ import { Badge } from "@/shared/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/ui/dialog";
 import { generateCashClosurePDF } from '../lib/generateCashClosurePDF';
 import { useAuth } from '@/shared/auth';
+import { usersApi } from '@/shared/auth/authApi';
+import { useQuery } from '@tanstack/react-query';
 import { Pagination } from '@/shared/ui/pagination';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { useScrollIndicator } from '../hooks/useScrollIndicator';
@@ -41,6 +43,7 @@ function StatRow({ label, value, highlight }: { label: string; value: string; hi
 export function CashClosurePage() {
     const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
     const [actualAmount, setActualAmount] = useState<number>(0);
+    const [selectedUserId, setSelectedUserId] = useState<string>('all');
     const [page, setPage] = useState(1);
     const [limit] = useState(25);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -49,6 +52,13 @@ export function CashClosurePage() {
     const { data: response, refetch: refetchClosures } = useCashClosures({ page, limit });
     const closures = response?.data || [];
     const pagination = response?.pagination;
+
+    // Fetch users for the filter
+    const { data: usersResponse } = useQuery({
+        queryKey: ['users-list-closure'],
+        queryFn: () => usersApi.getAll(1, 100),
+    });
+    const systemUsers = usersResponse?.data || [];
 
     const { scrollRef: saldosScrollRef, showBottomShadow: showSaldosBottomShadow } = useScrollIndicator();
     const { scrollRef: previewScrollRef, showBottomShadow: showPreviewBottomShadow } = useScrollIndicator();
@@ -60,11 +70,15 @@ export function CashClosurePage() {
     const [year, month, day] = date.split('-').map(Number);
     const endOfDay = new Date(year, month - 1, day, 23, 59, 59, 999);
 
-    const { data: previewData, isLoading: isCalculating, refetch: refetchPreview } = useCashClosurePreview(endOfDay.toISOString());
+    const { data: previewData, isLoading: isCalculating, refetch: refetchPreview } = useCashClosurePreview(
+        endOfDay.toISOString(),
+        selectedUserId === 'all' ? undefined : selectedUserId
+    );
 
     const handleOpenConfirmModal = () => {
         if (!hasPermission('cash_closure.close')) { notifyError({ message: "No tienes permiso para realizar cierres de caja" }); return; }
         if (!previewData || previewData.isAlreadyClosed) return;
+        if (selectedUserId !== 'all') { notifyError({ message: "Para realizar un cierre oficial debe seleccionar 'Todos los Usuarios'" }); return; }
         if (actualAmount === 0) { notifyError({ message: "Debes ingresar el monto de efectivo contado" }); return; }
         setShowConfirmModal(true);
     };
@@ -90,6 +104,22 @@ export function CashClosurePage() {
             await refetchPreview();
         } catch (error: any) {
             notifyError(error, "Error al crear el cierre de caja");
+        }
+    };
+
+    const handleDownloadPreviewReport = async () => {
+        if (!previewData) return;
+        try {
+            const reportUser = selectedUserId === 'all' ? 'GLOBAL' : systemUsers.find(u => u.id === selectedUserId)?.username.toUpperCase();
+            await generateCashClosurePDF({
+                ...previewData,
+                closedByName: user?.username || 'Usuario',
+                closedAt: new Date().toISOString(),
+                notes: selectedUserId === 'all' ? `REPORTE GLOBAL DE VISTA PREVIA` : `REPORTE INDIVIDUAL: ${reportUser}`
+            });
+            notifySuccess("Reporte de vista previa generado");
+        } catch (error) {
+            notifyError({ message: "Error al generar reporte de vista previa" });
         }
     };
 
@@ -182,6 +212,23 @@ export function CashClosurePage() {
                                     </div>
                                 </div>
 
+                                {/* Filtro de Usuario */}
+                                <div className="pt-2">
+                                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1 block">
+                                        Cajero / Usuario
+                                    </label>
+                                    <select
+                                        value={selectedUserId}
+                                        onChange={(e) => setSelectedUserId(e.target.value)}
+                                        className="w-full h-8 rounded-md border border-slate-200 bg-white px-2 text-xs font-bold focus:ring-1 focus:ring-primary outline-none"
+                                    >
+                                        <option value="all">TODOS LOS USUARIOS (CIERRE GLOBAL)</option>
+                                        {systemUsers.map(u => (
+                                            <option key={u.id} value={u.id}>{u.username.toUpperCase()}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
                                 {previewData?.isAlreadyClosed && (
                                     <Alert className="bg-amber-50 border-amber-200 text-amber-800">
                                         <AlertCircle className="h-4 w-4" />
@@ -232,9 +279,13 @@ export function CashClosurePage() {
                                         </div>
                                     )}
 
-                                    <Button onClick={handleOpenConfirmModal} disabled={!previewData || previewData.isAlreadyClosed || createClosure.isPending || isCalculating || actualAmount === 0} className="w-full h-11 rounded-xl bg-monchito-purple hover:bg-monchito-purple/90 text-white font-semibold shadow-lg">
+                                    <Button 
+                                        onClick={handleOpenConfirmModal} 
+                                        disabled={!previewData || previewData.isAlreadyClosed || createClosure.isPending || isCalculating || actualAmount === 0 || selectedUserId !== 'all'} 
+                                        className="w-full h-11 rounded-xl bg-monchito-purple hover:bg-monchito-purple/90 text-white font-semibold shadow-lg disabled:opacity-50"
+                                    >
                                         {createClosure.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
-                                        {previewData?.isAlreadyClosed ? "Periodo ya Cerrado" : "Generar Cierre"}
+                                        {selectedUserId !== 'all' ? "Seleccione 'Todos' para Cerrar" : previewData?.isAlreadyClosed ? "Periodo ya Cerrado" : "Realizar Cierre Oficial"}
                                     </Button>
                                 </div>
                             </CardContent>
@@ -248,9 +299,15 @@ export function CashClosurePage() {
                             <CardHeader className="bg-white border-b p-3 shrink-0">
                                 <div className="flex justify-between items-center">
                                     <CardTitle className="text-sm font-black text-slate-800 flex items-center gap-2">
-                                        <FileText className="h-4 w-4 text-blue-500" /> Vista Previa del Cierre
+                                        <FileText className="h-4 w-4 text-blue-500" /> 
+                                        {selectedUserId === 'all' ? 'Vista Previa del Cierre Global' : `Reporte de Usuario: ${systemUsers.find(u => u.id === selectedUserId)?.username.toUpperCase()}`}
                                     </CardTitle>
-                                    <Badge variant="outline" className="font-bold text-[10px]">{previewData?.movementCount || 0} Registros</Badge>
+                                    <div className="flex gap-2 items-center">
+                                        <Button variant="outline" size="sm" onClick={handleDownloadPreviewReport} disabled={!previewData || isCalculating} className="h-7 text-[10px] font-bold gap-1.5 border-blue-200 hover:bg-blue-50 text-blue-600">
+                                            <FileText className="h-3.5 w-3.5" /> Descargar Reporte
+                                        </Button>
+                                        <Badge variant="outline" className="font-bold text-[10px] bg-slate-50">{previewData?.movementCount || 0} Registros</Badge>
+                                    </div>
                                 </div>
                             </CardHeader>
                             <CardContent ref={previewScrollRef} className="p-3 overflow-y-auto flex-1 bg-slate-50/50 min-h-0 space-y-4">
@@ -266,161 +323,119 @@ export function CashClosurePage() {
                                     </div>
                                 ) : (
                                     <>
-
-                                        {/* BLOQUE 1: RESUMEN GENERAL */}
+                                        {/* BLOQUE 1: RESUMEN DE FLUJO */}
                                         <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-sm">
-                                            <SectionTitle icon={Calculator} label="1. Resumen General" color="text-slate-700" />
-                                            <div className="grid grid-cols-3 gap-2">
-                                                <div className="bg-green-50 border border-green-200 rounded-lg p-2 text-center">
-                                                    <p className="text-[10px] font-bold uppercase text-green-600 mb-1">Total Ingresos</p>
-                                                    <p className="text-base font-black text-green-700">{fmt(p?.incomeBySource ? (p.incomeBySource.orderPayments + p.incomeBySource.additionalPayments + p.incomeBySource.walletRecharges + p.incomeBySource.adjustments) : (previewData.totalIncome))}</p>
+                                            <SectionTitle icon={Calculator} label="1. Resumen de Flujo Físico" color="text-slate-700" />
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+                                                    <p className="text-[10px] font-bold uppercase text-green-600 mb-1">Ingresos Efectivo/Bancos</p>
+                                                    <p className="text-xl font-black text-green-700">{fmt(previewData.totalIncome)}</p>
                                                 </div>
-                                                <div className="bg-red-50 border border-red-200 rounded-lg p-2 text-center">
-                                                    <p className="text-[10px] font-bold uppercase text-red-600 mb-1">Total Egresos</p>
-                                                    <p className="text-base font-black text-red-600">{fmt(previewData.totalExpense)}</p>
-                                                </div>
-                                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 text-center">
-                                                    <p className="text-[10px] font-bold uppercase text-blue-600 mb-1">Balance Neto</p>
-                                                    <p className="text-base font-black text-blue-700">{fmt(previewData.totalIncome - previewData.totalExpense)}</p>
+                                                <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
+                                                    <p className="text-[10px] font-bold uppercase text-red-600 mb-1">Egresos Reales</p>
+                                                    <p className="text-xl font-black text-red-600">{fmt(previewData.totalExpense)}</p>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        {/* BLOQUE 2: INGRESOS SEPARADOS */}
-                                        {p?.incomeBySource && (
-                                            <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-sm">
-                                                <SectionTitle icon={TrendingUp} label="2. Ingresos por Tipo" color="text-green-600" />
-                                                <div className="grid grid-cols-1 gap-2">
-                                                    {/* Abonos iniciales */}
-                                                    {p.incomeBySource.orderPayments > 0 && (
-                                                        <div className="bg-slate-50 rounded-lg p-2 border border-slate-100">
-                                                            <div className="flex justify-between items-center">
-                                                                <span className="text-xs font-bold text-slate-700">Abonos Iniciales (pedidos nuevos)</span>
-                                                                <span className="text-sm font-black text-green-600">{fmt(p.incomeBySource.orderPayments)}</span>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                    {/* Abonos posteriores */}
-                                                    {p.incomeBySource.additionalPayments > 0 && (
-                                                        <div className="bg-slate-50 rounded-lg p-2 border border-slate-100">
-                                                            <div className="flex justify-between items-center">
-                                                                <span className="text-xs font-bold text-slate-700">Abonos Posteriores (módulo de abonos)</span>
-                                                                <span className="text-sm font-black text-green-600">{fmt(p.incomeBySource.additionalPayments)}</span>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                    {/* Recargas billetera */}
-                                                    {p.incomeBySource.walletRecharges > 0 && (
-                                                        <div className="bg-violet-50 rounded-lg p-2 border border-violet-100">
-                                                            <div className="flex justify-between items-center mb-1">
-                                                                <span className="text-xs font-bold text-violet-700">Recargas de Billetera</span>
-                                                                <span className="text-sm font-black text-violet-700">{fmt(p.incomeBySource.walletRecharges)}</span>
-                                                            </div>
-                                                            {p.walletRechargeByMethod && (
-                                                                <div className="pl-2 space-y-0.5">
-                                                                    {p.walletRechargeByMethod.TRANSFERENCIA > 0 && <StatRow label="Transferencia" value={fmt(p.walletRechargeByMethod.TRANSFERENCIA)} />}
-                                                                    {p.walletRechargeByMethod.DEPOSITO > 0 && <StatRow label="Depósito" value={fmt(p.walletRechargeByMethod.DEPOSITO)} />}
-                                                                    {p.walletRechargeByMethod.CHEQUE > 0 && <StatRow label="Cheque" value={fmt(p.walletRechargeByMethod.CHEQUE)} />}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                    {/* Ajustes */}
-                                                    {p.incomeBySource.adjustments > 0 && (
-                                                        <div className="bg-slate-50 rounded-lg p-2 border border-slate-100">
-                                                            <div className="flex justify-between items-center">
-                                                                <span className="text-xs font-bold text-slate-700">Otros Ingresos / Ajustes</span>
-                                                                <span className="text-sm font-black text-green-600">{fmt(p.incomeBySource.adjustments)}</span>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                    {/* Por método */}
-                                                    {p.incomeByMethod && (
-                                                        <div className="bg-slate-50 rounded-lg p-2 border border-slate-100">
-                                                            <p className="text-[10px] font-bold uppercase text-slate-400 mb-1">Por Método de Pago</p>
-                                                            {p.incomeByMethod.EFECTIVO > 0 && <StatRow label="Efectivo" value={fmt(p.incomeByMethod.EFECTIVO)} highlight="green" />}
-                                                            {p.incomeByMethod.TRANSFERENCIA > 0 && <StatRow label="Transferencia" value={fmt(p.incomeByMethod.TRANSFERENCIA)} />}
-                                                            {p.incomeByMethod.DEPOSITO > 0 && <StatRow label="Depósito" value={fmt(p.incomeByMethod.DEPOSITO)} />}
-                                                            {p.incomeByMethod.CHEQUE > 0 && <StatRow label="Cheque" value={fmt(p.incomeByMethod.CHEQUE)} />}
-                                                        </div>
-                                                    )}
+                                        {/* BLOQUE 2: DESGLOSE SEGMENTADO (Las 5 Secciones) */}
+                                        <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-sm">
+                                            <SectionTitle icon={TrendingUp} label="2. Desglose de Operaciones" color="text-slate-700" />
+                                            <div className="space-y-2 mt-3">
+                                                {/* Sección 1: Abonos Iniciales */}
+                                                <div className="flex justify-between items-center p-2 bg-slate-50 rounded-lg border border-slate-100">
+                                                    <div className="flex items-center gap-2">
+                                                        <Badge className="bg-blue-500 text-[9px] h-4">INICIAL</Badge>
+                                                        <span className="text-xs font-bold text-slate-700 uppercase">Abonos Iniciales de Órdenes</span>
+                                                    </div>
+                                                    <span className="text-sm font-black text-slate-900">{fmt(previewData.incomeBySource?.orderPayments || 0)}</span>
+                                                </div>
+
+                                                {/* Sección 2: Cobros en Entrega */}
+                                                <div className="flex justify-between items-center p-2 bg-slate-50 rounded-lg border border-slate-100">
+                                                    <div className="flex items-center gap-2">
+                                                        <Badge className="bg-emerald-500 text-[9px] h-4">ENTREGA</Badge>
+                                                        <span className="text-xs font-bold text-slate-700 uppercase">Cobros al Entregar Producto</span>
+                                                    </div>
+                                                    <span className="text-sm font-black text-slate-900">{fmt(previewData.incomeBySource?.deliveryPayments || 0)}</span>
+                                                </div>
+
+                                                {/* Sección 3: Abonos Normales */}
+                                                <div className="flex justify-between items-center p-2 bg-slate-50 rounded-lg border border-slate-100">
+                                                    <div className="flex items-center gap-2">
+                                                        <Badge className="bg-primary text-[9px] h-4">ABONOS</Badge>
+                                                        <span className="text-xs font-bold text-slate-700 uppercase">Abonos Posteriores (Mód. Abonos)</span>
+                                                    </div>
+                                                    <span className="text-sm font-black text-slate-900">{fmt(previewData.incomeBySource?.additionalPayments || 0)}</span>
+                                                </div>
+
+                                                {/* Sección 4: Ventas Catálogo */}
+                                                <div className="flex justify-between items-center p-2 bg-slate-50 rounded-lg border border-slate-100">
+                                                    <div className="flex items-center gap-2">
+                                                        <Badge className="bg-orange-500 text-[9px] h-4">VENTAS</Badge>
+                                                        <span className="text-xs font-bold text-slate-700 uppercase">Ventas Directas de Catálogo</span>
+                                                    </div>
+                                                    <span className="text-sm font-black text-slate-900">{fmt(previewData.incomeBySource?.catalogSales || 0)}</span>
+                                                </div>
+                                                
+                                                {/* Otros: Recargas y Ajustes */}
+                                                <div className="flex justify-between items-center p-2 bg-slate-50 rounded-lg border border-slate-100 opacity-60 italic">
+                                                    <span className="text-xs font-medium text-slate-500 uppercase">Resguardo (Recargas/Ajustes)</span>
+                                                    <span className="text-sm font-medium text-slate-500">{fmt((previewData.incomeBySource?.walletRecharges || 0) + (previewData.incomeBySource?.adjustments || 0))}</span>
                                                 </div>
                                             </div>
-                                        )}
+                                        </div>
 
-                                        {/* BLOQUE 3: EGRESOS */}
-                                        {previewData.totalExpense > 0 && (
-                                            <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-sm">
-                                                <SectionTitle icon={TrendingDown} label="3. Egresos" color="text-red-500" />
-                                                <div className="bg-red-50 rounded-lg p-2 border border-red-100">
-                                                    <StatRow label="Total Egresos" value={fmt(previewData.totalExpense)} highlight="red" />
+                                        {/* BLOQUE 3: BILLETERA VIRTUAL (Informativo) */}
+                                        <div className="bg-violet-50 rounded-xl border border-violet-100 p-3 shadow-sm">
+                                            <SectionTitle icon={Users} label="3. Uso de Billetera Virtual" color="text-violet-600" />
+                                            <div className="p-3 bg-white rounded-lg border border-violet-100 mt-2">
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <span className="text-xs font-bold text-violet-700 uppercase leading-none">Saldo a Favor Aplicado</span>
+                                                    <span className="text-lg font-black text-violet-700">{fmt(previewData.movements?.filter((m: any) => m.isCreditApplication).reduce((s: number, m: any) => s + m.amount, 0) || 0)}</span>
                                                 </div>
+                                                <p className="text-[9px] text-violet-400 font-medium italic">Nota: Este valor liquida deudas pero no entra como dinero físico a caja.</p>
                                             </div>
-                                        )}
+                                        </div>
 
-                                        {/* BLOQUE 4: MOVIMIENTOS POR CUENTA */}
-                                        {p?.balanceByBank && p.balanceByBank.length > 0 && (
-                                            <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-sm">
-                                                <SectionTitle icon={Wallet} label="4. Movimientos por Cuenta" color="text-blue-600" />
-                                                <div className="space-y-2">
-                                                    {p.balanceByBank.map((acc: any) => (
-                                                        <div key={acc.bankAccountId} className="bg-slate-50 rounded-lg p-2 border border-slate-100">
-                                                            <div className="flex items-center gap-2 mb-1">
-                                                                <div className={`px-2 py-0.5 rounded text-[10px] font-black ${acc.bankAccountType === 'CASH' ? 'bg-primary text-white' : 'bg-slate-200 text-slate-600'}`}>
-                                                                    {acc.bankAccountType === 'CASH' ? 'CAJA' : 'BANCO'}
-                                                                </div>
-                                                                <span className="text-xs font-bold text-slate-700">{acc.bankAccountName}</span>
-                                                            </div>
-                                                            <div className="grid grid-cols-4 gap-1 text-center">
-                                                                <div>
-                                                                    <p className="text-[9px] text-slate-400 uppercase">Saldo Inicial</p>
-                                                                    <p className="text-xs font-bold text-slate-600">{fmt(acc.initialBalance)}</p>
-                                                                </div>
-                                                                <div>
-                                                                    <p className="text-[9px] text-green-500 uppercase">Ingresos</p>
-                                                                    <p className="text-xs font-bold text-green-600">{fmt(acc.income)}</p>
-                                                                </div>
-                                                                <div>
-                                                                    <p className="text-[9px] text-red-400 uppercase">Egresos</p>
-                                                                    <p className="text-xs font-bold text-red-500">{fmt(acc.expense)}</p>
-                                                                </div>
-                                                                <div>
-                                                                    <p className="text-[9px] text-blue-500 uppercase">Saldo Final</p>
-                                                                    <p className={`text-xs font-black ${acc.finalBalance < 0 ? 'text-red-600' : 'text-blue-700'}`}>{fmt(acc.finalBalance)}</p>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
+                                        {/* BLOQUE 4: POR MÉTODO DE PAGO */}
+                                        <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-sm">
+                                            <SectionTitle icon={Banknote} label="4. Resumen por Método" color="text-slate-600" />
+                                            <div className="grid grid-cols-2 gap-2 mt-2">
+                                                {Object.entries(previewData.incomeByMethod || {}).map(([method, val]: any) => val > 0 && (
+                                                    <div key={method} className="flex justify-between items-center p-2 rounded-lg bg-slate-50 border border-slate-100">
+                                                        <span className="text-[10px] font-bold text-slate-500 uppercase truncate">{method}</span>
+                                                        <span className="text-xs font-black text-slate-800">{fmt(val)}</span>
+                                                    </div>
+                                                ))}
                                             </div>
-                                        )}
+                                        </div>
 
-                                        {/* BLOQUE 5: MOVIMIENTOS DETALLADOS */}
-                                        {previewData.detailedMovements?.length > 0 && (
+                                        {/* BLOQUE 5: HISTORIAL DETALLADO */}
+                                        {previewData.movements?.length > 0 && (
                                             <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-sm">
-                                                <SectionTitle icon={FileText} label="5. Movimientos Detallados" color="text-slate-600" />
-                                                <div className="divide-y divide-slate-100">
-                                                    {previewData.detailedMovements.map((move: any) => (
+                                                <SectionTitle icon={FileText} label="5. Historial Detallado" color="text-slate-600" />
+                                                <div className="divide-y divide-slate-100 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                                                    {previewData.movements.map((move: any) => (
                                                         <div key={move.id} className={`py-2 flex justify-between items-start gap-2 ${move.isInternal ? 'opacity-50' : ''}`}>
                                                             <div className="flex gap-2 min-w-0">
-                                                                <div className={`mt-1 h-2 w-2 rounded-full flex-shrink-0 ${move.isInternal ? 'bg-violet-400' : move.movementType === 'INCOME' ? 'bg-green-500' : 'bg-red-500'}`} />
+                                                                <div className={`mt-1.5 h-1.5 w-1.5 rounded-full flex-shrink-0 ${move.isInternal ? 'bg-violet-400' : move.movementType === 'INCOME' ? 'bg-green-500' : 'bg-red-500'}`} />
                                                                 <div className="min-w-0">
-                                                                    <p className="text-xs font-bold text-slate-800 truncate">{move.moduleLabel || move.description}</p>
-                                                                    <div className="flex items-center gap-1 text-[10px] text-slate-400 flex-wrap">
-                                                                        <span>{new Date(move.date).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' })}</span>
+                                                                    <p className="text-[11px] font-bold text-slate-800 truncate leading-tight uppercase tracking-tight">{move.description || move.moduleLabel}</p>
+                                                                    <div className="flex items-center gap-1.5 text-[9px] text-slate-400 mt-0.5">
+                                                                        <span className="font-medium">{new Date(move.date).toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}</span>
                                                                         <span>•</span>
-                                                                        <span className="text-primary font-bold">{move.accountName}</span>
-                                                                        {move.paymentMethod && <><span>•</span><span>{move.paymentMethod}</span></>}
-                                                                        {move.isInternal && <Badge variant="outline" className="text-[9px] h-3.5 bg-violet-50 text-violet-600 border-violet-200 px-1">INTERNO</Badge>}
-                                                                        {move.isCreditApplication && <Badge variant="outline" className="text-[9px] h-3.5 bg-blue-50 text-blue-600 border-blue-200 px-1">SALDO A FAVOR</Badge>}
+                                                                        <span className="text-primary/70 font-black uppercase text-[8px]">{move.accountName}</span>
+                                                                        {move.paymentMethod && <span>• {move.paymentMethod}</span>}
+                                                                        {move.isCreditApplication && <span className="bg-blue-50 text-blue-500 px-1 rounded uppercase font-bold">Billetera</span>}
                                                                     </div>
                                                                 </div>
                                                             </div>
                                                             <div className="text-right flex-shrink-0">
-                                                                <p className={`text-sm font-black ${move.isInternal ? 'text-violet-500' : move.movementType === 'INCOME' ? 'text-green-600' : 'text-red-500'}`}>
+                                                                <p className={`text-[11px] font-black leading-none ${move.isInternal ? 'text-violet-500' : move.movementType === 'INCOME' ? 'text-green-600' : 'text-red-500'}`}>
                                                                     {move.movementType === 'INCOME' ? '+' : '-'}{fmt(move.amount)}
                                                                 </p>
-                                                                <p className="text-[10px] text-slate-400">{move.user}</p>
+                                                                <p className="text-[8px] text-slate-400 mt-1 uppercase font-bold">{move.user}</p>
                                                             </div>
                                                         </div>
                                                     ))}
@@ -428,8 +443,8 @@ export function CashClosurePage() {
                                             </div>
                                         )}
 
-                                        {/* BLOQUE 6: DESGLOSE POR USUARIO */}
-                                        {p?.movementsByUser && p.movementsByUser.length > 0 && (
+                                        {/* BLOQUE 6: DESGLOSE POR USUARIO (Solo en vista global) */}
+                                        {selectedUserId === 'all' && p?.movementsByUser && p.movementsByUser.length > 0 && (
                                             <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-sm">
                                                 <SectionTitle icon={Users} label="6. Desglose por Usuario" color="text-slate-600" />
                                                 <div className="space-y-2">
@@ -440,8 +455,8 @@ export function CashClosurePage() {
                                                                 <Badge variant="outline" className="text-[10px]">{u.movementCount} mov.</Badge>
                                                             </div>
                                                             <div className="grid grid-cols-2 gap-2">
-                                                                <StatRow label="Ingresos gestionados" value={fmt(u.totalIncome)} highlight="green" />
-                                                                <StatRow label="Egresos gestionados" value={fmt(u.totalExpense)} highlight="red" />
+                                                                <StatRow label="Ingresos" value={fmt(u.totalIncome)} highlight="green" />
+                                                                <StatRow label="Egresos" value={fmt(u.totalExpense)} highlight="red" />
                                                             </div>
                                                         </div>
                                                     ))}
@@ -451,7 +466,6 @@ export function CashClosurePage() {
                                     </>
                                 )}
                             </CardContent>
-                            {/* Footer con totales */}
                             <div className="p-2 bg-slate-50 border-t shrink-0 flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-slate-400">
                                 <div className="flex gap-4">
                                     <span className="flex items-center gap-1"><div className="h-2 w-2 rounded-full bg-green-500" /> Ingresos: <span className="text-green-600">{fmt(previewData?.totalIncome || 0)}</span></span>
@@ -476,7 +490,7 @@ export function CashClosurePage() {
                 </div>
             )}
 
-            <CashClosureConfirmModal
+            <CashClosureConfirmModal 
                 open={showConfirmModal}
                 onOpenChange={setShowConfirmModal}
                 previewData={previewData}
@@ -488,4 +502,4 @@ export function CashClosurePage() {
             />
         </div>
     );
-}
+};

@@ -1,8 +1,8 @@
 export interface CashClosureMovementDetail {
     id: string;
     date: string;
-    type: 'INCOME' | 'EXPENSE' | 'INTERNAL';
-    source: 'ORDER_PAYMENT' | 'MANUAL' | 'ADJUSTMENT';
+    type: string; // INCOME | EXPENSE | INTERNAL
+    source: string; // ORDER_PAYMENT | MANUAL | ADJUSTMENT | CATALOG_SALE
     amount: number;
     clientName?: string;
     paymentMethod?: string;
@@ -10,15 +10,18 @@ export interface CashClosureMovementDetail {
     createdBy: string;
     createdByName?: string;
     description?: string;
-    moduleLabel?: string; // Human-readable: "Abono inicial pedido PD-XXX", "Recarga billetera", etc.
+    moduleLabel?: string;
+    isCreditApplication?: boolean; // Flag for virtual wallet usage
 }
 
 export interface CashClosureIncomeBySource {
-    orderPayments: number;       // Abonos iniciales de pedidos
-    additionalPayments: number;  // Abonos posteriores (módulo de abonos)
-    walletRecharges: number;     // Recargas de billetera (MANUAL source, INCOME)
-    adjustments: number;         // Ajustes
-    manual: number;              // Otros movimientos manuales
+    orderPayments: number;       // 1. Abonos iniciales de pedidos
+    deliveryPayments: number;    // 2. Cobros en Entrega
+    additionalPayments: number;  // 3. Abonos normales/posteriores
+    catalogSales: number;        // 4. Ventas de Catálogo
+    walletRecharges: number;     // 5a. Recargas (Resguardo)
+    adjustments: number;         // 5b. Ajustes (Resguardo)
+    manual: number;              // Otros
 }
 
 export interface CashClosureWalletRechargeByMethod {

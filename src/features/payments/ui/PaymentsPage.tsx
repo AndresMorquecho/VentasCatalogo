@@ -375,36 +375,6 @@ export function PaymentsPage() {
                                 </div>
                             </div>
 
-                            {/* Modals */}
-                            {isPaymentModalOpen && selectedOrder && (
-                                <PaymentModal
-                                    open={isPaymentModalOpen}
-                                    onOpenChange={setIsPaymentModalOpen}
-                                    onSubmit={handlePaymentSubmit}
-                                    paymentContext={{
-                                        type: "ABONO",
-                                        clientId: selectedOrder.clientId,
-                                        clientName: selectedOrder.clientName,
-                                        referenceNumber: selectedOrder.receiptNumber,
-                                        description: "Abono a pedido"
-                                    }}
-                                    expectedAmount={Math.max(0, (selectedOrder.realInvoiceTotal || selectedOrder.total) - getPaidAmount(selectedOrder))}
-                                    allowMultiplePayments={true}
-                                />
-                            )}
-
-                            {pdfPreview.pdfDocument && (
-                                <PDFPreviewModal
-                                    open={pdfPreview.isOpen}
-                                    onOpenChange={pdfPreview.closePreview}
-                                    title={pdfTitle}
-                                    pdfDocument={pdfPreview.pdfDocument}
-                                    fileName={pdfFileName}
-                                    onDownload={pdfPreview.downloadPDF}
-                                    onPrint={pdfPreview.printPDF}
-                                />
-                            )}
-                            
                             <ConfirmDialog
                                 open={deleteConfirmOpen}
                                 onOpenChange={setDeleteConfirmOpen}
@@ -426,6 +396,36 @@ export function PaymentsPage() {
                     )}
                 </div>
             </div>
+
+            {/* Modals - Moved outside the conditional block to prevent unmounting on refetch */}
+            {isPaymentModalOpen && selectedOrder && (
+                <PaymentModal
+                    open={isPaymentModalOpen}
+                    onOpenChange={setIsPaymentModalOpen}
+                    onSubmit={handlePaymentSubmit}
+                    paymentContext={{
+                        type: "ABONO",
+                        clientId: selectedOrder.clientId,
+                        clientName: selectedOrder.clientName,
+                        referenceNumber: selectedOrder.receiptNumber,
+                        description: "Abono a pedido"
+                    }}
+                    expectedAmount={Math.max(0, (selectedOrder.realInvoiceTotal || selectedOrder.total) - getPaidAmount(selectedOrder))}
+                    allowMultiplePayments={true}
+                />
+            )}
+
+            {pdfPreview.pdfDocument && (
+                <PDFPreviewModal
+                    open={pdfPreview.isOpen}
+                    onOpenChange={pdfPreview.closePreview}
+                    title={pdfTitle}
+                    pdfDocument={pdfPreview.pdfDocument}
+                    fileName={pdfFileName}
+                    onDownload={pdfPreview.downloadPDF}
+                    onPrint={pdfPreview.printPDF}
+                />
+            )}
         </div>
     );
 }
