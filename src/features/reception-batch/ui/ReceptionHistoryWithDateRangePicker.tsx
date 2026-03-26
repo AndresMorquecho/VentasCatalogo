@@ -5,7 +5,7 @@
  * a un DateRangePicker con calendario interactivo
  */
 
-import React, { useState } from "react"
+import { useState } from "react"
 import { Search, RotateCcw, Filter } from "lucide-react"
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
@@ -17,10 +17,6 @@ import type { DateRange } from "react-day-picker"
 interface Props {
     batches: any[]
     pagination?: any
-    onEdit: (batch: any) => void
-    onDelete: (batchId: string) => void
-    isDeleting?: boolean
-    page: number
     onPageChange: (page: number) => void
     filters: {
         search: string;
@@ -33,12 +29,6 @@ interface Props {
 }
 
 export function ReceptionHistoryWithDateRangePicker({ 
-    batches, 
-    pagination, 
-    onEdit, 
-    onDelete, 
-    isDeleting,
-    page,
     onPageChange,
     filters,
     onFilterChange

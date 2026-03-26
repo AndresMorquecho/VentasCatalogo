@@ -3,7 +3,7 @@ import { Input } from "@/shared/ui/input"
 import { Label } from "@/shared/ui/label"
 import { SelectedOrdersTable } from "./SelectedOrdersTable"
 import { ArrowDown, CheckCircle } from "lucide-react"
-import type { CreditDistribution } from "@/entities/financial-record/model/types"
+
 
 interface Props {
     selectedOrders: any[]

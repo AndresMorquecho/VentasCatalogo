@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Search, X } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { Input } from '@/shared/ui/input';
 import { Label } from '@/shared/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
