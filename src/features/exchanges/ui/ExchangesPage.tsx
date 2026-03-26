@@ -7,29 +7,40 @@ import {
   Package,
   Truck,
   ChevronRight,
-  ClipboardList
+  ClipboardList,
+  CheckCircle2
 } from 'lucide-react';
 
 import { Button } from '../../../shared/ui/button';
 import { Input } from '../../../shared/ui/input';
 import { Badge } from '../../../shared/ui/badge';
+import { Label } from '../../../shared/ui/label';
 import { PageHeader } from '../../../shared/ui/PageHeader';
 import { useExchangeBatches, useUpdateExchangeBatchStatus } from '../model/useExchanges';
 import { useToast } from '../../../shared/ui/use-toast';
 import { ConfirmDialog } from '../../../shared/ui/confirm-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../../shared/ui/dialog';
 import type { ExchangeBatch } from '../model/types';
+import { DateRangePicker } from '@/shared/ui/filters/DateRangePicker';
+import type { DateRange } from 'react-day-picker';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 const STATUS_LABELS: Record<string, string> = {
-  PENDING: 'Pendiente de Envío',
-  SENT: 'Enviado a Bodega',
-  RECEIVED: 'Recibido / Procesado',
+  ENVIADO: 'Enviado',
+  EN_BODEGA: 'En Bodega',
+  ENTREGADO: 'Entregado al Cliente',
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  PENDING: 'bg-amber-100 text-amber-700 border-amber-200',
-  SENT: 'bg-blue-100 text-blue-700 border-blue-200',
-  RECEIVED: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  ENVIADO: 'bg-blue-100 text-blue-700 border-blue-200',
+  EN_BODEGA: 'bg-amber-100 text-amber-700 border-amber-200',
+  ENTREGADO: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+};
+
+const fmtDate = (d: string | null | undefined) => {
+  if (!d) return '--/--/--';
+  return format(new Date(d), 'dd/MM/yyyy HH:mm', { locale: es });
 };
 
 export function ExchangesPage() {
@@ -38,25 +49,31 @@ export function ExchangesPage() {
   const [search, setSearch] = useState('');
   const [selectedBatch, setSelectedBatch] = useState<ExchangeBatch | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [batchIdToSend, setBatchIdToSend] = useState<string | null>(null);
+  const [pendingTransition, setPendingTransition] = useState<{ id: string; nextStatus: string } | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
-  const { data: batches = [], isLoading, refetch } = useExchangeBatches();
+  const { data: batches = [], isLoading, refetch } = useExchangeBatches({
+    dateFrom: dateRange?.from?.toISOString(),
+    dateTo: dateRange?.to?.toISOString(),
+  });
   const updateStatus = useUpdateExchangeBatchStatus();
 
-  const handleSendToSupplier = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    setBatchIdToSend(id);
+  const handleUpdateStatus = (e: React.MouseEvent | null, id: string, nextStatus: string) => {
+    e?.stopPropagation();
+    setPendingTransition({ id, nextStatus });
     setConfirmOpen(true);
   };
 
-  const onConfirmSend = async () => {
-    if (!batchIdToSend) return;
+  const onConfirmTransition = async () => {
+    if (!pendingTransition) return;
     try {
-      await updateStatus.mutateAsync({ id: batchIdToSend, newStatus: 'SENT' });
-      showToast('Lote marcado como enviado a bodega', 'success');
+      await updateStatus.mutateAsync({ id: pendingTransition.id, newStatus: pendingTransition.nextStatus });
+      showToast(`Estado de guía actualizado a ${STATUS_LABELS[pendingTransition.nextStatus]}`, 'success');
+      setPendingTransition(null);
+      setSelectedBatch(null);
       refetch();
     } catch (err: any) {
-      showToast(err.message || 'Error al actualizar estado', 'error');
+      showToast(err.response?.data?.message || err.message || 'Error al actualizar estado', 'error');
     }
   };
 
@@ -85,16 +102,42 @@ export function ExchangesPage() {
 
       <div className="space-y-4">
         {/* Filter and Search */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative w-full sm:w-80">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <Input
-              placeholder="Buscar por N° guía o notas..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 h-11 border-slate-200 rounded-xl bg-white shadow-sm focus:ring-monchito-purple/20"
+        <div className="flex flex-wrap items-end gap-4 bg-slate-50/50 p-4 rounded-2xl border border-slate-100 mb-2">
+          <div className="flex-1 min-w-[280px]">
+            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block ml-1">Búsqueda de Guía</Label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                placeholder="N° guía, notas o responsable..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 h-10 border-slate-200 rounded-xl bg-white shadow-sm focus:ring-monchito-purple/20 text-sm"
+              />
+            </div>
+          </div>
+          <div className="flex-1 min-w-[280px]">
+            <DateRangePicker 
+              value={dateRange}
+              onChange={setDateRange}
+              showLabel={true}
+              label="Rango de Fechas (Registro)"
+              className="rounded-xl border-slate-200"
             />
           </div>
+          {(dateRange?.from || dateRange?.to || search) && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={(e: React.MouseEvent) => {
+                e.preventDefault();
+                setDateRange(undefined);
+                setSearch('');
+              }} 
+              className="text-slate-400 hover:text-monchito-purple font-bold h-10 px-4"
+            >
+              Limpiar Filtros
+            </Button>
+          )}
         </div>
 
         {/* Content Table */}
@@ -163,7 +206,7 @@ export function ExchangesPage() {
                       </td>
                       <td className="px-6 py-5">
                         <span className="text-xs font-bold text-slate-500 whitespace-nowrap uppercase tracking-tighter">
-                          {new Date(batch.createdAt).toLocaleDateString()}
+                          {fmtDate(batch.createdAt)}
                         </span>
                       </td>
                       <td className="px-6 py-5 text-center">
@@ -210,12 +253,18 @@ export function ExchangesPage() {
                     <p className="text-2xl font-black text-slate-800">{selectedBatch.items?.length || 0}</p>
                   </div>
                   <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Fecha Registro</p>
-                    <p className="text-sm font-bold text-slate-800">{new Date(selectedBatch.createdAt).toLocaleDateString()}</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Estado / Tiempo</p>
+                    <p className="text-[11px] font-black text-monchito-purple uppercase leading-tight mb-1">{STATUS_LABELS[selectedBatch.status]}</p>
+                    <p className="text-[9px] font-bold text-slate-400 whitespace-nowrap">
+                      {selectedBatch.status === 'ENVIADO' && `Enviado: ${fmtDate(selectedBatch.sentAt || selectedBatch.createdAt)}`}
+                      {selectedBatch.status === 'EN_BODEGA' && `Recibido: ${fmtDate(selectedBatch.receivedAt)}`}
+                      {selectedBatch.status === 'ENTREGADO' && `Entregado: ${fmtDate(selectedBatch.deliveredAt)}`}
+                    </p>
                   </div>
                   <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm md:col-span-2">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Notas</p>
-                    <p className="text-sm font-medium text-slate-600 truncate">{selectedBatch.notes || 'Sin notas'}</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Notas del Lote</p>
+                    <p className="text-xs font-semibold text-slate-600 line-clamp-2">{selectedBatch.notes || 'Sin notas'}</p>
+                    <p className="text-[9px] text-slate-300 font-bold uppercase mt-1">LOTE ID: {selectedBatch.id.substring(0,8)}... | {selectedBatch.createdByName || 'Admin'}</p>
                   </div>
                 </div>
 
@@ -230,10 +279,13 @@ export function ExchangesPage() {
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
                              <span className="font-bold text-slate-800 text-sm">{item.clientName}</span>
-                             <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-slate-200 text-slate-500 font-bold uppercase tracking-tight">
-                               {item.receiptNumber}
-                             </Badge>
-                          </div>
+                              <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-slate-200 text-slate-500 font-bold uppercase tracking-tight">
+                                {item.receiptNumber}
+                              </Badge>
+                              <Badge className={`${item.financialProcessed ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-100 text-slate-400 border-slate-200'} text-[8px] h-4 font-black uppercase tracking-tighter`}>
+                                {item.financialProcessed ? 'Procesado' : 'Por Procesar'}
+                              </Badge>
+                           </div>
                           <p className="text-[11px] font-bold text-slate-400 flex items-center gap-1 uppercase tracking-tighter">
                              <Calendar className="h-3 w-3" /> {new Date(item.createdAt).toLocaleDateString()}
                           </p>
@@ -254,7 +306,7 @@ export function ExchangesPage() {
                 </div>
               </div>
 
-              <DialogFooter className="p-6 bg-white border-t border-slate-100 flex gap-3">
+              <DialogFooter className="p-6 bg-white border-t border-slate-100 flex flex-col sm:flex-row gap-3">
                  <Button 
                    variant="outline" 
                    className="flex-1 rounded-xl h-11 font-bold text-slate-500 hover:bg-slate-50 transition-all active:scale-95"
@@ -262,12 +314,20 @@ export function ExchangesPage() {
                  >
                    Cerrar Detalle
                  </Button>
-                 {selectedBatch.status === 'PENDING' && (
+                 {selectedBatch.status === 'ENVIADO' && (
                    <Button 
-                     className="flex-1 bg-monchito-purple hover:bg-monchito-purple/90 text-white font-black h-11 rounded-xl shadow-lg shadow-monchito-purple/20 transition-all active:scale-95"
-                     onClick={(e) => handleSendToSupplier(e, selectedBatch.id)}
+                     className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-black h-11 rounded-xl shadow-lg shadow-amber-500/20 transition-all active:scale-95 flex items-center justify-center gap-2"
+                     onClick={() => handleUpdateStatus(null, selectedBatch.id, 'EN_BODEGA')}
                    >
-                     Marcar como Enviado
+                     < Truck className="h-4 w-4" /> Marcar: En Bodega
+                   </Button>
+                 )}
+                 {selectedBatch.status === 'EN_BODEGA' && (
+                   <Button 
+                     className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-black h-11 rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-95 flex items-center justify-center gap-2"
+                     onClick={() => handleUpdateStatus(null, selectedBatch.id, 'ENTREGADO')}
+                   >
+                     < CheckCircle2 className="h-4 w-4" /> Marcar: Entregado
                    </Button>
                  )}
               </DialogFooter>
@@ -278,10 +338,10 @@ export function ExchangesPage() {
       <ConfirmDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
-        onConfirm={onConfirmSend}
-        title="Confirmar Envío"
-        description="¿Confirmas que esta guía ha sido enviada físicamente a bodega/proveedor?"
-        confirmText="Confirmar Envío"
+        onConfirm={onConfirmTransition}
+        title="Confirmar Cambio de Estado"
+        description={`¿Estás seguro que deseas marcar esta guía como "${pendingTransition ? STATUS_LABELS[pendingTransition.nextStatus] : ''}"? Esta acción dejará constancia en el historial de tiempos.`}
+        confirmText="Confirmar Acción"
         cancelText="Cancelar"
       />
     </div>

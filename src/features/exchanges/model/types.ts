@@ -7,7 +7,7 @@ export type ExchangeItemStatus = 'PENDING' | 'PROCESSED';
 
 export type CreditDestination = 'WALLET' | 'CASH_RETURN' | 'DISTRIBUTE';
 
-export type ExchangeBatchStatus = 'PENDING' | 'SENT' | 'RECEIVED';
+export type ExchangeBatchStatus = 'ENVIADO' | 'EN_BODEGA' | 'ENTREGADO';
 
 export interface ExchangeBatchItem {
   id: string;
@@ -34,6 +34,7 @@ export interface ExchangeBatch {
   createdByName: string | null;
   sentAt: string | null;
   receivedAt: string | null;
+  deliveredAt: string | null;
   createdAt: string;
   updatedAt: string;
   items: ExchangeBatchItem[];
