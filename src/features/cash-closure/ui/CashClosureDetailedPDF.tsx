@@ -138,9 +138,10 @@ const s = StyleSheet.create({
     // Final Summary
     finalSummaryContainer: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
+        justifyContent: 'center',
         alignItems: 'flex-end',
         marginTop: 35,
+        width: '100%'
     },
     totalToReportBox: {
         borderWidth: 1,
@@ -162,8 +163,10 @@ const s = StyleSheet.create({
     },
     signatureContainer: {
         flexDirection: 'row',
-        gap: 50,
-        marginTop: 20
+        justifyContent: 'center',
+        gap: 80,
+        marginTop: 20,
+        width: '100%'
     },
     signatureBox: {
         width: 140,
@@ -300,7 +303,7 @@ export function CashClosureDetailedPDF({ report }: Props) {
 
     // Filter accounts for summary
     const cashAccounts = report.totalDetails?.accounts.filter(a => a.type === 'CASH') || [];
-    const bankAccounts = report.totalDetails?.accounts.filter(a => a.type === 'BANK') || [];
+    const bankAccounts = report.totalDetails?.accounts.filter(a => a.type !== 'CASH') || [];
     
     const totalCash = cashAccounts.reduce((s, a) => s + (a.balance || 0), 0);
     const totalBanks = bankAccounts.reduce((s, a) => s + (a.balance || 0), 0);
@@ -381,8 +384,57 @@ export function CashClosureDetailedPDF({ report }: Props) {
                     </View>
                 </View>
 
-                {/* Bottom Section: Signatures & Total */}
-                <View style={s.finalSummaryContainer} wrap={false}>
+                {/* Botón de Conciliación Final */}
+                <View style={{ marginTop: 30, border: '1pt solid #000', padding: 10, backgroundColor: '#FAFAFA' }} wrap={false}>
+                    <Text style={[s.infoBold, { fontSize: 10, marginBottom: 8, textDecoration: 'underline' }]}>CONCILIACIÓN DEL CIERRE</Text>
+                    
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <Text style={{ fontSize: 9 }}>Saldo Esperado en Sistema (Efectivo + Bancos):</Text>
+                        <Text style={[s.infoBold, { fontSize: 9 }]}>{fmtCurrency(totalCash + totalBanks)}</Text>
+                    </View>
+
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <Text style={{ fontSize: 9 }}>Total Reportado por Usuario (Contado + Bancos):</Text>
+                        <View style={{ flexDirection: 'row', gap: 2 }}>
+                            <Text style={[s.infoBold, { fontSize: 9 }]}>{fmtCurrency((actualAmount || 0) + totalBanks)}</Text>
+                            <Text style={{ fontSize: 8, color: '#666' }}>({fmtCurrency(actualAmount)} contado + {fmtCurrency(totalBanks)} bancos)</Text>
+                        </View>
+                    </View>
+
+                    <View style={{ borderTopWidth: 0.5, borderTopColor: '#CCC', marginVertical: 5 }} />
+
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold' }}>Diferencia Total:</Text>
+                        <Text style={{ 
+                            fontSize: 10, 
+                            fontFamily: 'Helvetica-Bold',
+                            color: Math.abs(((actualAmount || 0) + totalBanks) - (totalCash + totalBanks)) > 0.01 ? COLORS.red : COLORS.green 
+                        }}>
+                            {fmtCurrency(((actualAmount || 0) + totalBanks) - (totalCash + totalBanks))}
+                        </Text>
+                    </View>
+
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <Text style={{ fontSize: 9 }}>Resultado de Auditoría:</Text>
+                        <Text style={{ 
+                            fontSize: 9, 
+                            fontFamily: 'Helvetica-Bold',
+                            color: Math.abs(((actualAmount || 0) + totalBanks) - (totalCash + totalBanks)) > 0.01 ? COLORS.red : COLORS.green 
+                        }}>
+                            {Math.abs(((actualAmount || 0) + totalBanks) - (totalCash + totalBanks)) > 0.01 ? 'DESCUADRE DETECTADO' : 'CORRECTAMENTE CUADRADO'}
+                        </Text>
+                    </View>
+
+                    {report.notes && (
+                        <View style={{ marginTop: 8, borderTopWidth: 0.5, borderTopColor: '#EEE', paddingTop: 5 }}>
+                            <Text style={{ fontSize: 8, fontFamily: 'Helvetica-Bold', marginBottom: 2 }}>Observaciones:</Text>
+                            <Text style={{ fontSize: 8, fontStyle: 'italic', color: '#444' }}>{report.notes}</Text>
+                        </View>
+                    )}
+                </View>
+
+                {/* Final Signature Section */}
+                <View style={[s.finalSummaryContainer, { marginTop: 40 }]} wrap={false}>
                     {/* Signatures */}
                     <View style={s.signatureContainer}>
                         <View style={s.signatureBox}>
@@ -395,12 +447,6 @@ export function CashClosureDetailedPDF({ report }: Props) {
                             <Text style={s.signatureName}>_________________</Text>
                             <Text style={s.signatureRole}>Auditoría / Gerencia</Text>
                         </View>
-                    </View>
-
-                    {/* Final Summary Box */}
-                    <View style={s.totalToReportBox}>
-                        <Text style={s.totalToReportLabel}>Total a reportar (Efectivo + Bancos):</Text>
-                        <Text style={s.totalToReportValue}>{fmtCurrency(actualAmount + totalBanks)}</Text>
                     </View>
                 </View>
 

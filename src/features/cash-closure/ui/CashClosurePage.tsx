@@ -18,6 +18,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Pagination } from '@/shared/ui/pagination';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { useScrollIndicator } from '../hooks/useScrollIndicator';
+import { PDFPreviewModal } from "@/shared/ui/PDFPreviewModal";
+import { CashClosureDetailedPDF } from './CashClosureDetailedPDF';
 
 const fmt = (n: number) => `$${n.toFixed(2)}`;
 
@@ -48,6 +50,11 @@ export function CashClosurePage() {
     const [limit] = useState(25);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [activeTab, setActiveTab] = useState<'closure' | 'history'>('closure');
+    
+    // PDF Preview States
+    const [previewModalOpen, setPreviewModalOpen] = useState(false);
+    const [previewReportData, setPreviewReportData] = useState<any>(null);
+    const [previewFileName, setPreviewFileName] = useState("");
 
     const { data: response, refetch: refetchClosures } = useCashClosures({ page, limit });
     const closures = response?.data || [];
@@ -94,9 +101,15 @@ export function CashClosurePage() {
                 logAction({ userId: user.id, userName: user.username, action: 'UPDATE_ROLE', module: 'cash_closure' as any, detail: `Realizó cierre de caja por ${actualAmount.toFixed(2)}`, severity: 'CRITICAL' });
             }
             if (result.detailedReport) {
-                try {
-                    await generateCashClosurePDF({ ...result.detailedReport, expectedAmount: result.expectedAmount, actualAmount: result.actualAmount, difference: result.difference, notes: result.notes });
-                } catch { notifyError({ message: "Cierre creado, pero hubo un error generando el PDF" }); }
+                setPreviewReportData({
+                    ...result.detailedReport,
+                    expectedAmount: result.expectedAmount,
+                    actualAmount: result.actualAmount,
+                    difference: result.difference,
+                    notes: result.notes || notes
+                });
+                setPreviewFileName(`Cierre_Oficial_${new Date().toISOString().split('T')[0]}.pdf`);
+                setPreviewModalOpen(true);
             }
             setActualAmount(0);
             setShowConfirmModal(false);
@@ -109,18 +122,19 @@ export function CashClosurePage() {
 
     const handleDownloadPreviewReport = async () => {
         if (!previewData) return;
-        try {
-            const reportUser = selectedUserId === 'all' ? 'GLOBAL' : systemUsers.find(u => u.id === selectedUserId)?.username.toUpperCase();
-            await generateCashClosurePDF({
-                ...previewData,
-                closedByName: user?.username || 'Usuario',
-                closedAt: new Date().toISOString(),
-                notes: selectedUserId === 'all' ? `REPORTE GLOBAL DE VISTA PREVIA` : `REPORTE INDIVIDUAL: ${reportUser}`
-            });
-            notifySuccess("Reporte de vista previa generado");
-        } catch (error) {
-            notifyError({ message: "Error al generar reporte de vista previa" });
-        }
+        const reportUser = selectedUserId === 'all' ? 'GLOBAL' : systemUsers.find(u => u.id === selectedUserId)?.username.toUpperCase();
+        
+        setPreviewReportData({
+            ...previewData,
+            closedByName: user?.username || 'Usuario',
+            closedAt: new Date().toISOString(),
+            actualAmount,
+            expectedAmount: expected,
+            difference,
+            notes: "VISTA PREVIA DE AUDITORÍA (BORRADOR NO OFICIAL)"
+        });
+        setPreviewFileName(`Vista_Previa_Cierre_${reportUser}_${date}.pdf`);
+        setPreviewModalOpen(true);
     };
 
     const expected = previewData?.expectedAmount || 0;
@@ -500,6 +514,19 @@ export function CashClosurePage() {
                 onConfirm={handleConfirmClosure}
                 isLoading={createClosure.isPending}
             />
+
+            {previewReportData && (
+                <PDFPreviewModal
+                    open={previewModalOpen}
+                    onOpenChange={setPreviewModalOpen}
+                    title="Reporte de Cierre de Caja"
+                    fileName={previewFileName}
+                    pdfDocument={<CashClosureDetailedPDF report={previewReportData} />}
+                    onDownload={() => {
+                        generateCashClosurePDF(previewReportData, previewFileName);
+                    }}
+                />
+            )}
         </div>
     );
 };
