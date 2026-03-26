@@ -1,5 +1,7 @@
 import { useState, useMemo, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
+import type { DateRange } from "react-day-picker"
+import { startOfDay, endOfDay } from "date-fns"
 import { Skeleton } from "@/shared/ui/skeleton"
 import { useOrderList, useDeleteOrder } from "@/entities/order/model/hooks"
 import { useOrderFilters } from "../model/useOrderFilters"
@@ -31,6 +33,9 @@ export function OrderList({ triggerCreate, onTriggerHandled }: {
     // We keep the internal search query for the input, but debounce it for the API/filtering
     const [searchQuery, setSearchQuery] = useState('')
     const debouncedSearch = useDebounce(searchQuery, 1000)
+    
+    const [dateRange, setDateRange] = useState<DateRange | undefined>()
+    const debouncedDateRange = useDebounce(dateRange, 500)
 
     const {
         statusFilter,
@@ -42,6 +47,8 @@ export function OrderList({ triggerCreate, onTriggerHandled }: {
         limit,
         status: statusFilter === 'ALL' ? undefined : statusFilter,
         search: debouncedSearch.length >= 3 ? debouncedSearch : undefined,
+        startDate: debouncedDateRange?.from ? startOfDay(debouncedDateRange.from).toISOString() : undefined,
+        endDate: debouncedDateRange?.to ? endOfDay(debouncedDateRange.to).toISOString() : undefined,
         onlyParents: true
     })
 
@@ -56,7 +63,7 @@ export function OrderList({ triggerCreate, onTriggerHandled }: {
     // Reset to page 1 when filtering
     useEffect(() => {
         setPage(1)
-    }, [statusFilter, debouncedSearch])
+    }, [statusFilter, debouncedSearch, debouncedDateRange])
 
     // Handle external trigger to open create
     useEffect(() => {
@@ -176,6 +183,8 @@ export function OrderList({ triggerCreate, onTriggerHandled }: {
                 onStatusChange={setStatusFilter}
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
+                dateRange={dateRange}
+                onDateRangeChange={setDateRange}
             />
 
             {filteredOrders.length === 0 ? (

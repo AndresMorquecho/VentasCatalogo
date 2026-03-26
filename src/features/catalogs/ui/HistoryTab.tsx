@@ -6,7 +6,9 @@ import { useClientList } from '@/features/clients/api/hooks';
 import { Loader2 } from 'lucide-react';
 import { Pagination } from '@/shared/ui/pagination';
 import { Label } from '@/shared/ui/label';
-import { BrandFilter, ClientFilter, FilterContainer } from '@/shared/ui/filters';
+import { BrandFilter, ClientFilter, FilterContainer, DateRangePicker } from '@/shared/ui/filters';
+import type { DateRange } from 'react-day-picker';
+import { startOfDay, endOfDay } from 'date-fns';
 
 export function HistoryTab() {
   const [page, setPage] = useState(1);
@@ -16,6 +18,7 @@ export function HistoryTab() {
   const [selectedBrandId, setSelectedBrandId] = useState<string | undefined>();
   const [selectedClientId, setSelectedClientId] = useState<string | undefined>();
   const [madeOrderFilter, setMadeOrderFilter] = useState<string>(''); // '', 'SI', 'NO'
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
 
   const { data: brandsData } = useBrandList();
   const brands = brandsData?.data || [];
@@ -26,8 +29,10 @@ export function HistoryTab() {
   const { data: deliveriesData, isLoading } = useCatalogDeliveries({
     page,
     limit,
-    brandId: selectedBrandId,
-    clientId: selectedClientId
+    brand_id: selectedBrandId,
+    client_id: selectedClientId,
+    start_date: dateRange?.from ? startOfDay(dateRange.from).toISOString() : undefined,
+    end_date: dateRange?.to ? endOfDay(dateRange.to).toISOString() : undefined,
   });
 
   const pagination = deliveriesData?.pagination;
@@ -48,10 +53,11 @@ export function HistoryTab() {
     setSelectedBrandId(undefined);
     setSelectedClientId(undefined);
     setMadeOrderFilter('');
+    setDateRange(undefined);
     setPage(1);
   };
 
-  const hasActiveFilters = selectedBrandId || selectedClientId || madeOrderFilter;
+  const hasActiveFilters = !!(selectedBrandId || selectedClientId || madeOrderFilter || dateRange);
 
   return (
     <Card>
@@ -80,6 +86,15 @@ export function HistoryTab() {
             value={selectedBrandId}
             onChange={(id) => {
               setSelectedBrandId(id);
+              setPage(1);
+            }}
+            className="flex-1"
+          />
+
+          <DateRangePicker
+            value={dateRange}
+            onChange={(range) => {
+              setDateRange(range);
               setPage(1);
             }}
             className="flex-1"

@@ -1,5 +1,9 @@
 import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
+import { DateRangePicker } from "@/shared/ui/filters"
+import { cn } from "@/shared/lib/utils"
+import { Search } from "lucide-react"
+import type { DateRange } from "react-day-picker"
 import type { OrderFilterType } from "../model/useOrderFilters"
 
 interface OrderFiltersProps {
@@ -7,6 +11,8 @@ interface OrderFiltersProps {
     onStatusChange: (filter: OrderFilterType) => void
     searchQuery: string
     onSearchChange: (query: string) => void
+    dateRange?: DateRange
+    onDateRangeChange: (range: DateRange | undefined) => void
 }
 
 const FILTERS: { value: OrderFilterType; label: string }[] = [
@@ -16,30 +22,52 @@ const FILTERS: { value: OrderFilterType; label: string }[] = [
     { value: 'ENTREGADO', label: 'Entregados' },
 ]
 
-export function OrderFilters({ statusFilter, onStatusChange, searchQuery, onSearchChange }: OrderFiltersProps) {
+export function OrderFilters({ statusFilter, onStatusChange, searchQuery, onSearchChange, dateRange, onDateRangeChange }: OrderFiltersProps) {
     return (
-        <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center mb-6">
-            <div className="flex gap-2 flex-wrap order-2 sm:order-1">
-                {FILTERS.map((f) => (
-                    <Button
-                        key={f.value}
-                        variant={statusFilter === f.value ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => onStatusChange(f.value)}
-                        className="rounded-full px-4"
-                    >
-                        {f.label}
-                    </Button>
-                ))}
+        <div className="flex flex-col lg:flex-row gap-3 items-center mb-6 w-full">
+            {/* Buscador - Toma el espacio restante */}
+            <div className="w-full lg:flex-1 min-w-0">
+                <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                        placeholder="Buscar cliente, catálogo, orden (OR-), pedido (PD-)..."
+                        value={searchQuery}
+                        onChange={(e) => onSearchChange(e.target.value)}
+                        className="pl-9 h-10 bg-white border-slate-200 focus-visible:ring-monchito-purple/20 focus-visible:border-monchito-purple/30 rounded-lg shadow-sm"
+                    />
+                </div>
             </div>
 
-            <div className="w-full sm:w-auto sm:min-w-[300px] order-1 sm:order-2">
-                <Input
-                    placeholder="Buscar cliente, catalogo, recibo..."
-                    value={searchQuery}
-                    onChange={(e) => onSearchChange(e.target.value)}
-                    className="bg-background"
+            {/* Fecha - Ancho fijo */}
+            <div className="w-full lg:w-64 shrink-0">
+                <DateRangePicker
+                    value={dateRange}
+                    onChange={onDateRangeChange}
+                    className="w-full h-10 shadow-sm"
+                    showLabel={false}
                 />
+            </div>
+
+            {/* Estados - Botones compactos estilo segmentado */}
+            <div className="w-full lg:w-auto overflow-x-auto no-scrollbar pb-1 lg:pb-0 shrink-0">
+                <div className="flex items-center gap-1 bg-slate-100/80 p-1 rounded-lg border border-slate-200">
+                    {FILTERS.map((f) => (
+                        <Button
+                            key={f.value}
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onStatusChange(f.value)}
+                            className={cn(
+                                "h-8 px-3 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all whitespace-nowrap",
+                                statusFilter === f.value 
+                                    ? "bg-white text-monchito-purple shadow-sm hover:bg-white" 
+                                    : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                            )}
+                        >
+                            {f.label}
+                        </Button>
+                    ))}
+                </div>
             </div>
         </div>
     )

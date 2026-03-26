@@ -30,6 +30,8 @@ const getRecoveryStatusLabel = (status?: string) => {
   }
 };
 
+import { Label } from '@/shared/ui/label';
+
 export function GlobalFilters({
   filterState,
   onFiltersChangeImmediate,
@@ -77,6 +79,9 @@ export function GlobalFilters({
 
       {/* Estado de Recuperación */}
       <div className="w-64">
+        <Label className="text-xs font-medium mb-1.5 block text-slate-700">
+          Estado
+        </Label>
         <Select
           value={filterState.recoveryStatus || 'ALL'}
           onValueChange={(value) => {
