@@ -55,6 +55,19 @@ export interface CashClosureAccountBalance {
     finalBalance: number;    // initialBalance + income - expense
 }
 
+export interface SummaryTableRecord {
+    date: string;
+    label?: string; // For "Tipo"
+    reference?: string; // For "Referencia" (method/source)
+    code?: string; // For "Código" (voucher/id)
+    description: string;
+    identification?: string; // For "Identificacion"
+    client?: string;
+    amount: number;
+    type: 'INCOME' | 'EXPENSE' | 'INTERNAL';
+    balance: number;
+}
+
 export interface CashClosureDetailedReport {
     // Basic Info
     id?: string;
@@ -87,4 +100,18 @@ export interface CashClosureDetailedReport {
 
     // Full Movement List
     movements: CashClosureMovementDetail[];
+
+    // New 4 Summary Tables for optimized PDF
+    summaryTables?: {
+        wallet: SummaryTableRecord[];
+        bancos: SummaryTableRecord[];
+        abonos: SummaryTableRecord[];
+        entregas: SummaryTableRecord[];
+        catalog: SummaryTableRecord[];
+    };
+    totalDetails?: {
+        cash: number;
+        banks: number;
+        accounts: { name: string; type: string; balance: number }[];
+    };
 }

@@ -1,339 +1,410 @@
 import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
-import type { CashClosureDetailedReport } from '@/entities/cash-closure/model/detailed-types';
+import type { CashClosureDetailedReport, SummaryTableRecord } from '@/entities/cash-closure/model/detailed-types';
 
-const C = {
-    primary: '#6D28D9',
-    green: '#16A34A',
-    red: '#DC2626',
-    blue: '#2563EB',
-    violet: '#7C3AED',
-    slate900: '#0F172A',
-    slate700: '#334155',
-    slate500: '#64748B',
-    slate300: '#CBD5E1',
-    slate100: '#F1F5F9',
-    slate50: '#F8FAFC',
+// Constants for styles based on the provided image
+const COLORS = {
+    black: '#000000',
+    grayHeader: '#E5E7EB', // Gray for the table title bar
     white: '#FFFFFF',
+    text: '#000000',
+    lightGray: '#F9FAFB',
+    green: '#15803d', // Dark green for income
+    red: '#b91c1c',   // Dark red for expense
 };
 
 const s = StyleSheet.create({
-    page: { padding: 32, fontFamily: 'Helvetica', fontSize: 9, backgroundColor: C.white },
-    // Header
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottomWidth: 1.5, borderBottomColor: C.primary, paddingBottom: 12 },
-    logo: { width: 90, height: 45, objectFit: 'contain' },
-    headerRight: { alignItems: 'flex-end' },
-    headerTitle: { fontSize: 15, fontFamily: 'Helvetica-Bold', color: C.slate900, marginBottom: 3 },
-    headerSub: { fontSize: 8, color: C.slate500 },
-    // Section
-    sectionHeader: { backgroundColor: C.slate100, padding: '6 10', borderRadius: 4, marginTop: 14, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: C.primary },
-    sectionTitle: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: C.slate700, textTransform: 'uppercase', letterSpacing: 0.8 },
-    // Summary cards row
-    summaryRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-    summaryCard: { flex: 1, borderRadius: 6, padding: '8 10', alignItems: 'center' },
-    summaryLabel: { fontSize: 7, color: C.slate500, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 },
-    summaryValue: { fontSize: 13, fontFamily: 'Helvetica-Bold' },
-    // Info rows
-    infoRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3, borderBottomWidth: 1, borderBottomColor: C.slate100 },
-    infoLabel: { fontSize: 8, color: C.slate500 },
-    infoValue: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: C.slate700 },
-    // Table
-    table: { width: '100%', marginBottom: 8 },
-    tableHeader: { flexDirection: 'row', borderBottomWidth: 1.5, borderBottomColor: C.slate700, paddingVertical: 4, paddingHorizontal: 2 },
-    tableRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: C.slate100, paddingVertical: 4, paddingHorizontal: 2 },
-    tableRowAlt: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: C.slate100, paddingVertical: 4, paddingHorizontal: 2, backgroundColor: C.slate50 },
-    th: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: C.slate700, textTransform: 'uppercase' },
-    td: { fontSize: 8, color: C.slate500 },
-    tdBold: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: C.slate900 },
-    // Cuadre box
-    cuadreBox: { flexDirection: 'row', borderRadius: 6, padding: '8 12', marginBottom: 14, borderWidth: 1 },
-    // Signature
-    sigRow: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 40 },
-    sigBox: { width: 160, alignItems: 'center' },
-    sigLine: { width: '100%', borderTopWidth: 1, borderTopColor: C.slate300, marginBottom: 5 },
-    sigLabel: { fontSize: 8, color: C.slate500 },
-    sigName: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: C.slate900, marginTop: 2 },
-    // Footer
-    footer: { position: 'absolute', bottom: 24, left: 32, right: 32, textAlign: 'center', fontSize: 7, color: C.slate300, borderTopWidth: 1, borderTopColor: C.slate100, paddingTop: 8 },
-    // Income block
-    incomeBlock: { borderRadius: 5, padding: '6 8', marginBottom: 5, borderWidth: 1 },
-    incomeBlockTitle: { fontSize: 8, fontFamily: 'Helvetica-Bold', marginBottom: 3 },
-    // Account card
-    accountCard: { borderRadius: 5, padding: '6 8', marginBottom: 5, borderWidth: 1, borderColor: C.slate100, backgroundColor: C.slate50 },
-    accountName: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: C.slate900, marginBottom: 4 },
-    accountGrid: { flexDirection: 'row' },
-    accountCell: { flex: 1, alignItems: 'center' },
-    accountCellLabel: { fontSize: 7, color: C.slate500, textTransform: 'uppercase', marginBottom: 2 },
-    accountCellValue: { fontSize: 9, fontFamily: 'Helvetica-Bold' },
+    page: { 
+        paddingVertical: 40, 
+        paddingHorizontal: 30, 
+        fontFamily: 'Helvetica', 
+        fontSize: 7.5, 
+        color: COLORS.text,
+        backgroundColor: COLORS.white 
+    },
+    // Header Styles
+    headerContainer: { 
+        flexDirection: 'row', 
+        justifyContent: 'space-between', 
+        marginBottom: 5,
+        alignItems: 'flex-start'
+    },
+    logoContainer: {
+        width: '30%',
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5
+    },
+    logo: { 
+        width: 35, 
+        height: 35, 
+        objectFit: 'contain' 
+    },
+    logoText: {
+        fontSize: 6,
+        fontFamily: 'Helvetica-Bold',
+        width: 60
+    },
+    titleContainer: {
+        width: '40%',
+        alignItems: 'center',
+    },
+    mainTitle: {
+        fontSize: 14,
+        fontFamily: 'Helvetica-Bold',
+        marginTop: 10
+    },
+    reportDateContainer: {
+        width: '30%',
+        alignItems: 'flex-end',
+    },
+    reportDate: {
+        fontSize: 10,
+        fontFamily: 'Helvetica',
+    },
+    subHeaderInfo: {
+        marginTop: 2,
+        marginBottom: 10,
+    },
+    infoText: {
+        fontSize: 9,
+        marginBottom: 3,
+    },
+    infoBold: {
+        fontFamily: 'Helvetica-Bold',
+    },
+    headerLine: {
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.black,
+        borderBottomStyle: 'dotted',
+        marginBottom: 15,
+        width: '100%'
+    },
+    // Table Styles
+    tableTitleBar: {
+        backgroundColor: COLORS.grayHeader,
+        borderWidth: 1,
+        borderColor: COLORS.black,
+        paddingVertical: 3,
+        paddingHorizontal: 8,
+        marginTop: 15,
+        borderRadius: 2,
+    },
+    tableTitleText: {
+        fontSize: 9,
+        fontFamily: 'Helvetica-Bold',
+        textTransform: 'uppercase',
+    },
+    tableHeaderRow: {
+        flexDirection: 'row',
+        borderBottomWidth: 1.5,
+        borderBottomColor: COLORS.black,
+        paddingVertical: 3,
+        marginTop: 2,
+    },
+    colHeader: {
+        fontFamily: 'Helvetica-Bold',
+        fontSize: 7,
+    },
+    row: {
+        flexDirection: 'row',
+        paddingVertical: 3,
+        borderBottomWidth: 0.5,
+        borderBottomColor: '#EEE',
+    },
+    rowText: {
+        fontSize: 6.5,
+    },
+    tableFooter: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: 5,
+        paddingHorizontal: 10,
+    },
+    tableCount: {
+        fontSize: 10,
+        fontFamily: 'Helvetica-Bold',
+    },
+    tableTotalLine: {
+        width: 80,
+        borderTopWidth: 1.5,
+        borderTopColor: COLORS.black,
+        alignItems: 'flex-end',
+        paddingTop: 2,
+    },
+    tableTotalValue: {
+        fontSize: 11,
+        fontFamily: 'Helvetica-Bold',
+    },
+    // Final Summary
+    finalSummaryContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-end',
+        marginTop: 35,
+    },
+    totalToReportBox: {
+        borderWidth: 1,
+        borderColor: COLORS.black,
+        paddingVertical: 6,
+        paddingHorizontal: 15,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 15,
+        backgroundColor: '#FAFAFA'
+    },
+    totalToReportLabel: {
+        fontSize: 10,
+        fontFamily: 'Helvetica-Bold',
+    },
+    totalToReportValue: {
+        fontSize: 11,
+        fontFamily: 'Helvetica-Bold',
+    },
+    signatureContainer: {
+        flexDirection: 'row',
+        gap: 50,
+        marginTop: 20
+    },
+    signatureBox: {
+        width: 140,
+        alignItems: 'center',
+    },
+    signatureLine: {
+        width: '100%',
+        borderTopWidth: 0.8,
+        borderTopColor: COLORS.black,
+        marginBottom: 4,
+    },
+    signatureName: {
+        fontSize: 7,
+        fontFamily: 'Helvetica-Bold',
+        textTransform: 'uppercase',
+    },
+    signatureRole: {
+        fontSize: 6.5,
+        fontStyle: 'italic',
+        color: '#444'
+    },
+    footerContainer: {
+        position: 'absolute',
+        bottom: 20,
+        left: 0,
+        right: 0,
+        textAlign: 'center',
+        fontSize: 6,
+        color: '#666'
+    }
 });
 
-const fmt = (n: number) => `$${(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const fmtDate = (d: string) => {
-    const dateObj = new Date(d);
-    if (dateObj.getFullYear() <= 1970) return "Inicio de Registros";
+const fmt = (n: number) => (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtCurrency = (n: number) => (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const fmtDateOnly = (d: string | Date | undefined) => {
+    if (!d) return "---";
+    const dateObj = typeof d === 'string' ? new Date(d) : d;
+    if (isNaN(dateObj.getTime())) return "---";
     return dateObj.toLocaleDateString('es-EC', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
+const fmtTimeOnly = (d: string | Date | undefined) => {
+    if (!d) return "---";
+    const dateObj = typeof d === 'string' ? new Date(d) : d;
+    if (isNaN(dateObj.getTime())) return "---";
+    return dateObj.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
 };
 
 interface Props { report: CashClosureDetailedReport; }
 
 export function CashClosureDetailedPDF({ report }: Props) {
-    const { fromDate, toDate, closedByName, closedAt, totalIncome, totalExpense,
-        incomeByMethod, balanceByBank, movementsByUser,
-        movements, expectedAmount, actualAmount, difference, notes } = report;
+    const { toDate, closedByName, summaryTables, actualAmount = 0 } = report;
 
-    const movs = movements || [];
+    const wallet = summaryTables?.wallet || [];
+    const bancos = summaryTables?.bancos || [];
+    const abonos = summaryTables?.abonos || [];
+    const entregas = summaryTables?.entregas || [];
+    const catalog = summaryTables?.catalog || [];
 
-    // Filter out internal movements (those don't affect physical cash drawer)
-    const realMovs = movs.filter(m => (m.type !== 'INTERNAL' && (m as any).movementType !== 'INTERNAL'));
+    // Optimized column widths for 10 columns in Portrait
+    const W = {
+        n: '3%',
+        tipo: '7%',
+        ref: '8%',
+        cod: '16%', // Max room for long IDs
+        desc: '16%',
+        hora: '7%',
+        id: '9%',
+        cli: '17%',
+        val: '9%',
+        acum: '8%'
+    };
 
-    // Improved grouping logic with fallback to ensure Page 1 is never empty if there's data
-    const matchedIds = new Set<string>();
+    const renderFinancialTable = (data: SummaryTableRecord[], title: string) => (
+        <View style={{ marginBottom: 15 }} wrap={false}>
+            {/* Title Bar */}
+            <View style={s.tableTitleBar}>
+                <Text style={s.tableTitleText}>{title}</Text>
+            </View>
 
-    const rawGroups = [
-        { 
-            title: '1. ABONOS INICIALES (ÓRDENES)', 
-            badge: 'INICIAL',
-            filter: (m: any) => !m.isCreditApplication && m.description?.toUpperCase().includes('ABONO') && !m.description?.toUpperCase().includes('ENTREGA') && !m.description?.toUpperCase().includes('LOTE')
-        },
-        { 
-            title: '2. COBROS EN ENTREGA / LOTES', 
-            badge: 'ENTREGA',
-            filter: (m: any) => !m.isCreditApplication && (m.description?.toUpperCase().includes('ENTREGA') || m.description?.toUpperCase().includes('LOTE'))
-        },
-        { 
-            title: '3. ABONOS POSTERIORES', 
-            badge: 'ABONO',
-            filter: (m: any) => !m.isCreditApplication && m.source === 'ORDER_PAYMENT' && !m.description?.toUpperCase().includes('ABONO') && !m.description?.toUpperCase().includes('ENTREGA')
-        },
-        { 
-            title: '4. VENTAS DE CATÁLOGO', 
-            badge: 'VENTA',
-            filter: (m: any) => !m.isCreditApplication && (m.source === 'CATALOG_SALE' || m.description?.toUpperCase().includes('VENTA'))
-        },
-        { 
-            title: '5. RECARGAS Y AJUSTES - DINERO FÍSICO', 
-            badge: 'RECARGA',
-            filter: (m: any) => !m.isCreditApplication && (m.source === 'ADJUSTMENT' || m.source === 'MANUAL' || m.description?.toUpperCase().includes('RECARGA'))
-        },
-        { 
-            title: '6. USO DE BILLETERA VIRTUAL (SALDOS)', 
-            badge: 'BILLETERA',
-            filter: (m: any) => m.isCreditApplication
-        },
-    ];
+            {/* Header Row */}
+            <View style={[s.tableHeaderRow, { paddingHorizontal: 2 }]}>
+                <View style={{ width: W.n }}><Text style={s.colHeader}>N°</Text></View>
+                <View style={{ width: W.tipo }}><Text style={s.colHeader}>Tipo</Text></View>
+                <View style={{ width: W.ref }}><Text style={s.colHeader}>Ref.</Text></View>
+                <View style={{ width: W.cod }}><Text style={s.colHeader}>Código</Text></View>
+                <View style={{ width: W.desc }}><Text style={s.colHeader}>Descripción</Text></View>
+                <View style={{ width: W.hora }}><Text style={s.colHeader}>Hora</Text></View>
+                <View style={{ width: W.id }}><Text style={s.colHeader}>Identificación</Text></View>
+                <View style={{ width: W.cli }}><Text style={s.colHeader}>Empresaria/Cliente</Text></View>
+                <View style={{ width: W.val }}><Text style={[s.colHeader, { textAlign: 'right' }]}>Valor</Text></View>
+                <View style={{ width: W.acum }}><Text style={[s.colHeader, { textAlign: 'right' }]}>Acum.</Text></View>
+            </View>
 
-    const sections = rawGroups.map(g => {
-        const groupMovements = realMovs.filter(m => {
-            if (matchedIds.has(m.id)) return false;
-            if (g.filter(m)) {
-                matchedIds.add(m.id);
-                return true;
-            }
-            return false;
-        });
-        return { ...g, groupMovements };
-    });
+            {/* Data Rows with strict containment */}
+            {data.length === 0 ? (
+                <View style={{ padding: 10 }}><Text style={{ fontSize: 7, textAlign: 'center', fontStyle: 'italic' }}>Sin movimientos registrados en este periodo</Text></View>
+            ) : (
+                data.map((row, i) => (
+                    <View key={i} style={[s.row, { paddingHorizontal: 2 }]} wrap={false}>
+                        <View style={{ width: W.n, overflow: 'hidden' }}><Text style={{ fontSize: 6.2 }}>{i + 1}</Text></View>
+                        <View style={{ width: W.tipo, paddingRight: 4, overflow: 'hidden' }}><Text style={{ fontSize: 6.2 }}>{row.label || '---'}</Text></View>
+                        <View style={{ width: W.ref, paddingRight: 4, overflow: 'hidden' }}><Text style={{ fontSize: 6.2 }}>{row.reference || '---'}</Text></View>
+                        <View style={{ width: W.cod, paddingRight: 4, overflow: 'hidden' }}><Text style={{ fontSize: 6.2 }}>{row.code || '---'}</Text></View>
+                        <View style={{ width: W.desc, paddingRight: 4, overflow: 'hidden' }}><Text style={{ fontSize: 6.2 }}>{row.description}</Text></View>
+                        <View style={{ width: W.hora, overflow: 'hidden' }}><Text style={{ fontSize: 6.2 }}>{fmtTimeOnly(row.date)}</Text></View>
+                        <View style={{ width: W.id, paddingRight: 2, overflow: 'hidden' }}><Text style={{ fontSize: 6.2 }}>{row.identification || '---'}</Text></View>
+                        <View style={{ width: W.cli, paddingRight: 4, overflow: 'hidden' }}><Text style={{ fontSize: 6.2 }}>{(row.client || '---').toUpperCase()}</Text></View>
+                        <View style={{ width: W.val, overflow: 'hidden' }}>
+                            <Text style={{ 
+                                fontSize: 6.2,
+                                textAlign: 'right', 
+                                fontFamily: 'Helvetica-Bold',
+                                color: row.type === 'INCOME' ? COLORS.green : (row.type === 'EXPENSE' ? COLORS.red : COLORS.text)
+                            }}>
+                                {row.type === 'INCOME' ? '▲ ' : (row.type === 'EXPENSE' ? '▼ ' : '')}{fmt(row.amount)}
+                            </Text>
+                        </View>
+                        <View style={{ width: W.acum, overflow: 'hidden' }}><Text style={{ fontSize: 6.2, textAlign: 'right' }}>{fmt(row.balance)}</Text></View>
+                    </View>
+                ))
+            )}
 
-    // Catch-all section for any orphan records to avoid empty page 1
-    const orphans = realMovs.filter(m => !matchedIds.has(m.id));
-    if (orphans.length > 0) {
-        sections.push({
-            title: 'OTROS MOVIMIENTOS GENERALES',
-            badge: 'GENERAL',
-            groupMovements: orphans
-        } as any);
-    }
+            {/* Table Footer */}
+            <View style={s.tableFooter}>
+                <Text style={s.tableCount}>{data.length}</Text>
+                <View style={s.tableTotalLine}>
+                    <Text style={s.tableTotalValue}>{data.length > 0 ? fmtCurrency(data[data.length - 1].balance) : '0.00'}</Text>
+                </View>
+            </View>
+        </View>
+    );
+
+    // Filter accounts for summary
+    const cashAccounts = report.totalDetails?.accounts.filter(a => a.type === 'CASH') || [];
+    const bankAccounts = report.totalDetails?.accounts.filter(a => a.type === 'BANK') || [];
+    
+    const totalCash = cashAccounts.reduce((s, a) => s + (a.balance || 0), 0);
+    const totalBanks = bankAccounts.reduce((s, a) => s + (a.balance || 0), 0);
 
     return (
-        <Document title={`Cierre de Caja - ${fmtDate(closedAt)}`}>
-
-            {/* PÁGINA 1: RESUMEN Y SEGMENTACIÓN TIPO TABLA (Estilo imagen) */}
+        <Document title={`Cierre de Caja - ${fmtDateOnly(new Date())}`}>
             <Page size="A4" style={s.page}>
-                {/* Header Estilo Imagen */}
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                        <Image src="/images/mochitopng.png" style={{ width: 60, height: 60, objectFit: 'contain' }} />
-                        <View>
-                            <Text style={{ fontSize: 7, color: C.slate700 }}>VENTA POR CATÁLOGO</Text>
-                        </View>
+                {/* Custom Header based on image */}
+                <View style={s.headerContainer}>
+                    <View style={s.logoContainer}>
+                        <Image src="/images/mochitopng.png" style={s.logo} />
+                        <Text style={s.logoText}>VENTA POR CATÁLOGO</Text>
                     </View>
-                    <View style={{ alignItems: 'flex-end' }}>
-                        <Text style={{ fontSize: 18, fontFamily: 'Helvetica-Bold', color: C.slate900 }}>CIERRE DE CAJA</Text>
+                    <View style={s.titleContainer}>
+                        <Text style={s.mainTitle}>CIERRE DE CAJA</Text>
                     </View>
-                </View>
-
-                {/* Info Cierre */}
-                <View style={{ marginBottom: 15 }}>
-                    <View style={{ flexDirection: 'row', marginBottom: 3 }}>
-                        <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', width: 90 }}>Fecha de cierre:</Text>
-                        <Text style={{ fontSize: 9 }}>{fmtDate(closedAt)}</Text>
-                    </View>
-                    <View style={{ flexDirection: 'row', marginBottom: 3 }}>
-                        <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', width: 90 }}>Responsable:</Text>
-                        <Text style={{ fontSize: 9, textTransform: 'uppercase' }}>{closedByName || 'Administrador'}</Text>
-                    </View>
-                    <View style={{ flexDirection: 'row', marginBottom: 3 }}>
-                        <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', width: 90 }}>Periodo:</Text>
-                        <Text style={{ fontSize: 9 }}>{fmtDate(fromDate)} - {fmtDate(toDate)}</Text>
+                    <View style={s.reportDateContainer}>
+                        <Text style={s.reportDate}>{fmtDateOnly(new Date())}</Text>
                     </View>
                 </View>
 
-                {/* ITERAR POR GRUPOS ESTILO TABLA (Como la imagen) */}
-                {sections.map((section, idx) => {
-                    const groupMovements = section.groupMovements;
-                    if (groupMovements.length === 0) return null;
-
-                    return (
-                        <View key={idx} style={{ marginBottom: 20 }}>
-                            {/* Título del Grupo */}
-                            <View style={{ borderBottomWidth: 1, borderTopWidth: 1, borderColor: '#333', paddingVertical: 2, marginBottom: 2 }}>
-                                <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: '#000' }}>{section.title}</Text>
-                            </View>
-
-                            {/* Encabezado de la Tabla */}
-                            <View style={{ flexDirection: 'row', borderBottomWidth: 1.5, borderBottomColor: '#000', paddingVertical: 2 }}>
-                                <Text style={{ width: '15%', fontSize: 8, fontFamily: 'Helvetica-Bold' }}>No recibo</Text>
-                                <Text style={{ width: '15%', fontSize: 8, fontFamily: 'Helvetica-Bold' }}>Hora</Text>
-                                <Text style={{ width: '12%', fontSize: 8, fontFamily: 'Helvetica-Bold' }}>Tipo</Text>
-                                <Text style={{ width: '18%', fontSize: 8, fontFamily: 'Helvetica-Bold' }}>Monto</Text>
-                                <Text style={{ width: '40%', fontSize: 8, fontFamily: 'Helvetica-Bold' }}>Cliente</Text>
-                            </View>
-
-                            {/* Filas */}
-                            {groupMovements.map((m: any, mIdx: number) => {
-                                const isIncome = m.movementType === 'INCOME';
-                                const color = isIncome ? '#059669' : '#DC2626';
-
-                                return (
-                                    <View key={mIdx} style={{ flexDirection: 'row', paddingVertical: 3, borderBottomWidth: 0.5, borderBottomColor: '#EEE', alignItems: 'center' }}>
-                                        <Text style={{ width: '15%', fontSize: 8 }}>{(m.id || '').substring((m.id || '').length - 6).toUpperCase()}</Text>
-                                        <Text style={{ width: '15%', fontSize: 8 }}>{new Date(m.date).toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}</Text>
-                                        <Text style={{ width: '12%', fontSize: 8 }}>{section.badge}</Text>
-                                        <View style={{ width: '18%', flexDirection: 'row', alignItems: 'center' }}>
-                                            <Text style={{ fontSize: 7, marginRight: 2, color }}>{isIncome ? '↑' : '↓'}</Text>
-                                            <Text style={{ width: '100%', fontSize: 8, fontFamily: 'Helvetica-Bold', color }}>{fmt(m.amount)}</Text>
-                                        </View>
-                                        <View style={{ width: '40%', flexDirection: 'row', alignItems: 'center' }}>
-                                            <Text style={{ fontSize: 8, textTransform: 'uppercase' }}>{m.clientName || 'N/A'}</Text>
-                                            {m.isCreditApplication && (
-                                                <Text style={{ fontSize: 6, color: '#3B82F6', marginLeft: 4, fontFamily: 'Helvetica-Bold' }}>[BV]</Text>
-                                            )}
-                                        </View>
-                                    </View>
-                                );
-                            })}
-
-                            {/* Contador al final */}
-                            <View style={{ paddingVertical: 4 }}>
-                                <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', textAlign: 'center' }}>{groupMovements.length}</Text>
-                            </View>
-                        </View>
-                    );
-                })}
-
-                {/* RESUMEN FINAL DE LA PÁGINA 1 */}
-                <View style={{ marginTop: 10, borderTopWidth: 2, paddingTop: 5 }}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 20 }}>
-                        <Text style={{ fontSize: 9 }}>Total Ingresos Reales: <Text style={{ fontFamily: 'Helvetica-Bold' }}>{fmt(totalIncome)}</Text></Text>
-                        <Text style={{ fontSize: 9 }}>Total Egresos: <Text style={{ fontFamily: 'Helvetica-Bold' }}>{fmt(totalExpense)}</Text></Text>
-                        <Text style={{ fontSize: 10 }}>NETO: <Text style={{ fontFamily: 'Helvetica-Bold', color: C.primary }}>{fmt(totalIncome - totalExpense)}</Text></Text>
-                    </View>
+                {/* Sub-header info */}
+                <View style={s.subHeaderInfo}>
+                    <Text style={s.infoText}>
+                        Fecha de cierre: <Text style={s.infoBold}>{fmtDateOnly(toDate)}</Text>
+                    </Text>
+                    <Text style={s.infoText}>
+                        Responsable: <Text style={s.infoBold}>{(closedByName || 'ADMINISTRADOR').toUpperCase()}</Text>
+                    </Text>
                 </View>
 
-                {notes && (
-                    <View style={{ marginTop: 20, padding: 8, backgroundColor: '#F8F8F8', borderRadius: 4 }}>
-                        <Text style={{ fontSize: 8, fontFamily: 'Helvetica-Bold', marginBottom: 2 }}>NOTAS:</Text>
-                        <Text style={{ fontSize: 8 }}>{notes}</Text>
+                {/* Separator Line */}
+                <View style={s.headerLine} />
+
+                {/* Tables rendering in portrait */}
+                {renderFinancialTable(wallet, 'Wallet Informativa')}
+                {renderFinancialTable(bancos, 'Bancos / Movimientos Globales')}
+                {renderFinancialTable(catalog, 'Ventas - Catálogo')}
+                {renderFinancialTable(abonos, 'Abonos')}
+                {renderFinancialTable(entregas, 'Entregas')}
+
+                {/* Accounts Summary Section */}
+                <View style={{ marginTop: 20 }} wrap={false}>
+                    <View style={[s.tableTitleBar, { backgroundColor: '#F3F4F6' }]}>
+                        <Text style={s.tableTitleText}>RESUMEN DE SALDOS POR CUENTAS</Text>
                     </View>
-                )}
-
-                <Text style={s.footer} render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages} | Mochito`} fixed />
-            </Page>
-
-            {/* PÁGINA 2: DISTRIBUCIÓN POR MÉTODO Y CUENTAS */}
-            <Page size="A4" style={s.page}>
-                <View style={[s.sectionHeader, { marginTop: 0 }]}><Text style={s.sectionTitle}>Distribución y Saldos</Text></View>
-                
-                {/* Cuadre de efectivo (solo si es reporte oficial) */}
-                {expectedAmount !== undefined && (
-                    <View style={[s.cuadreBox, { backgroundColor: Math.abs(difference || 0) > 0.01 ? '#FEF2F2' : '#F0FDF4', borderColor: Math.abs(difference || 0) > 0.01 ? '#FECACA' : '#BBF7D0', marginBottom: 20 }]}>
-                         <View style={{ flex: 1, alignItems: 'center' }}>
-                            <Text style={s.summaryLabel}>Efectivo Sistema</Text>
-                            <Text style={[s.summaryValue, { fontSize: 11 }]}>{fmt(expectedAmount)}</Text>
-                        </View>
-                        <View style={{ flex: 1, alignItems: 'center' }}>
-                            <Text style={s.summaryLabel}>Efectivo Contado</Text>
-                            <Text style={[s.summaryValue, { fontSize: 11 }]}>{fmt(actualAmount || 0)}</Text>
-                        </View>
-                        <View style={{ flex: 1, alignItems: 'center' }}>
-                            <Text style={s.summaryLabel}>Diferencia</Text>
-                            <Text style={[s.summaryValue, { fontSize: 11, color: Math.abs(difference || 0) > 0.01 ? C.red : C.green }]}>{fmt(difference || 0)}</Text>
-                        </View>
-                    </View>
-                )}
-
-                <View style={{ flexDirection: 'row', gap: 15 }}>
-                    {/* Tabla por Método */}
-                    <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', marginBottom: 5 }}>INGRESOS POR MÉTODO</Text>
-                        <View style={s.table}>
-                            {Object.entries(incomeByMethod).filter(([, v]) => v > 0).map(([method, value], i) => (
-                                <View key={i} style={s.tableRow}>
-                                    <Text style={{ width: '60%', fontSize: 8 }}>{method}</Text>
-                                    <Text style={{ width: '40%', fontSize: 8, fontFamily: 'Helvetica-Bold', textAlign: 'right' }}>{fmt(value)}</Text>
+                    
+                    <View style={{ flexDirection: 'row', gap: 20, marginTop: 10 }}>
+                        {/* CASH Column */}
+                        <View style={{ flex: 1 }}>
+                            <Text style={[s.infoBold, { fontSize: 9, borderBottomWidth: 1, paddingBottom: 2, marginBottom: 5 }]}>EFECTIVO</Text>
+                            {cashAccounts.map((acc, i) => (
+                                <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2 }}>
+                                    <Text style={{ fontSize: 8 }}>{acc.name}</Text>
+                                    <Text style={{ fontSize: 8 }}>{fmtCurrency(acc.balance)}</Text>
                                 </View>
                             ))}
+                            <View style={{ borderTopWidth: 1, marginTop: 5, paddingTop: 3, flexDirection: 'row', justifyContent: 'space-between' }}>
+                                <Text style={s.infoBold}>Total Efectivo:</Text>
+                                <Text style={s.infoBold}>{fmtCurrency(totalCash)}</Text>
+                            </View>
                         </View>
-                    </View>
 
-                    {/* Cuentas */}
-                    <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', marginBottom: 5 }}>ESTADO DE CUENTAS</Text>
-                        {balanceByBank.map((acc, i) => (
-                            <View key={i} style={{ marginBottom: 4, paddingBottom: 4, borderBottomWidth: 0.5, borderBottomColor: '#EEE' }}>
-                                <Text style={{ fontSize: 8, fontFamily: 'Helvetica-Bold' }}>{acc.bankAccountName}</Text>
-                                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                    <Text style={{ fontSize: 7, color: '#666' }}>Saldo Final:</Text>
-                                    <Text style={{ fontSize: 8, fontFamily: 'Helvetica-Bold' }}>{fmt(acc.finalBalance)}</Text>
+                        {/* BANK Column */}
+                        <View style={{ flex: 1 }}>
+                            <Text style={[s.infoBold, { fontSize: 9, borderBottomWidth: 1, paddingBottom: 2, marginBottom: 5 }]}>BANCOS</Text>
+                            {bankAccounts.map((acc, i) => (
+                                <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2 }}>
+                                    <Text style={{ fontSize: 8 }}>{acc.name}</Text>
+                                    <Text style={{ fontSize: 8 }}>{fmtCurrency(acc.balance)}</Text>
                                 </View>
+                            ))}
+                            <View style={{ borderTopWidth: 1, marginTop: 5, paddingTop: 3, flexDirection: 'row', justifyContent: 'space-between' }}>
+                                <Text style={s.infoBold}>Total Bancos:</Text>
+                                <Text style={s.infoBold}>{fmtCurrency(totalBanks)}</Text>
                             </View>
-                        ))}
-                    </View>
-                </View>
-
-                {/* Reporte por Usuarios */}
-                <View style={{ marginTop: 20 }}>
-                    <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', marginBottom: 5 }}>DESGLOSE POR USUARIO</Text>
-                    <View style={s.table}>
-                        <View style={s.tableHeader}>
-                            <Text style={{ width: '50%', fontSize: 8, fontFamily: 'Helvetica-Bold' }}>Usuario</Text>
-                            <Text style={{ width: '25%', fontSize: 8, fontFamily: 'Helvetica-Bold', textAlign: 'right' }}>Ingresos</Text>
-                            <Text style={{ width: '25%', fontSize: 8, fontFamily: 'Helvetica-Bold', textAlign: 'right' }}>Egresos</Text>
                         </View>
-                        {movementsByUser.map((u, i) => (
-                            <View key={i} style={s.tableRow}>
-                                <Text style={{ width: '50%', fontSize: 8 }}>{u.userName}</Text>
-                                <Text style={{ width: '25%', fontSize: 8, textAlign: 'right', color: C.green }}>{fmt(u.totalIncome)}</Text>
-                                <Text style={{ width: '25%', fontSize: 8, textAlign: 'right', color: C.red }}>{fmt(u.totalExpense)}</Text>
-                            </View>
-                        ))}
                     </View>
                 </View>
 
-                {/* Firmas */}
-                <View style={s.sigRow}>
-                    <View style={s.sigBox}>
-                        <View style={s.sigLine} />
-                        <Text style={s.sigLabel}>Firma Responsable</Text>
-                        <Text style={s.sigName}>{closedByName || 'Administrador'}</Text>
+                {/* Bottom Section: Signatures & Total */}
+                <View style={s.finalSummaryContainer} wrap={false}>
+                    {/* Signatures */}
+                    <View style={s.signatureContainer}>
+                        <View style={s.signatureBox}>
+                            <View style={s.signatureLine} />
+                            <Text style={s.signatureName}>{(closedByName || 'Responsable').toUpperCase()}</Text>
+                            <Text style={s.signatureRole}>Responsable de Caja</Text>
+                        </View>
+                        <View style={s.signatureBox}>
+                            <View style={s.signatureLine} />
+                            <Text style={s.signatureName}>_________________</Text>
+                            <Text style={s.signatureRole}>Auditoría / Gerencia</Text>
+                        </View>
                     </View>
-                    <View style={s.sigBox}>
-                        <View style={s.sigLine} />
-                        <Text style={s.sigLabel}>Firma Recibido</Text>
-                        <Text style={s.sigName}>Gerencia General</Text>
+
+                    {/* Final Summary Box */}
+                    <View style={s.totalToReportBox}>
+                        <Text style={s.totalToReportLabel}>Total a reportar:</Text>
+                        <Text style={s.totalToReportValue}>{fmtCurrency(actualAmount)}</Text>
                     </View>
                 </View>
 
-                <Text style={s.footer} render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages} | Mochito`} fixed />
+                <Text style={s.footerContainer} render={({ pageNumber, totalPages }) => `Documento oficial de auditoría - Página ${pageNumber} de ${totalPages}`} fixed />
             </Page>
         </Document>
     );
