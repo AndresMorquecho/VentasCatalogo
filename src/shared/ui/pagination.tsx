@@ -16,7 +16,7 @@ export function Pagination({
     totalItems,
     itemsPerPage
 }: PaginationProps) {
-    if (totalPages <= 1) return null;
+    if (!totalPages || totalPages <= 1 || !Number.isFinite(totalPages) || totalPages < 0) return null;
 
     const startItem = (currentPage - 1) * (itemsPerPage || 0) + 1;
     const endItem = Math.min(currentPage * (itemsPerPage || 0), totalItems || 0);
