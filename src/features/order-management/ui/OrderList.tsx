@@ -52,8 +52,8 @@ export function OrderList({ triggerCreate, onTriggerHandled }: {
         onlyParents: true
     })
 
-    const orders = response?.data || []
-    const pagination = response?.pagination
+    const orders = response ? (Array.isArray(response) ? response : (response.data || [])) : []
+    const pagination = response && !Array.isArray(response) ? response.pagination : undefined
 
     const deleteOrder = useDeleteOrder()
     const { notifySuccess, notifyError } = useNotifications()
@@ -84,7 +84,7 @@ export function OrderList({ triggerCreate, onTriggerHandled }: {
                 o.receiptNumber.toLowerCase().includes(query) ||
                 (o.orderNumber && o.orderNumber.toLowerCase().includes(query)) ||
                 o.brandName.toLowerCase().includes(query) ||
-                o.childOrders?.some(child =>
+                o.childOrders?.some((child: Order) =>
                     (child.orderNumber && child.orderNumber.toLowerCase().includes(query)) ||
                     (child.invoiceNumber && child.invoiceNumber.toLowerCase().includes(query))
                 )
