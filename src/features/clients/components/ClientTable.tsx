@@ -1,10 +1,7 @@
 import { Skeleton } from "@/shared/ui/skeleton";
 import {
-    Table,
     TableBody,
     TableCell,
-    TableHead,
-    TableHeader,
     TableRow,
 } from "@/shared/ui/table";
 import { Button } from "@/shared/ui/button";
@@ -51,37 +48,37 @@ export function ClientTable({ clients, isLoading, onEdit, onView, onDelete }: Cl
     }
 
     return (
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-            <div className="overflow-x-auto">
-                <Table>
-                    <TableHeader>
-                        <TableRow className="bg-monchito-purple/5 hover:bg-monchito-purple/5 border-b border-monchito-purple/10">
-                            <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest h-12">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
+            <div className="w-full overflow-x-auto custom-scrollbar rounded-t-2xl">
+                <table className="text-left border-collapse min-w-[1200px] w-max">
+                    <thead>
+                        <tr className="bg-monchito-purple/5 border-b border-monchito-purple/10">
+                            <th className="px-4 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest h-12 text-left">
                                 Documento
-                            </TableHead>
-                            <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">
+                            </th>
+                            <th className="px-4 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left">
                                 Nombre
-                            </TableHead>
-                            <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">
+                            </th>
+                            <th className="px-4 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left">
                                 Ciudad
-                            </TableHead>
-                            <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">
+                            </th>
+                            <th className="px-4 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left">
                                 Estado
-                            </TableHead>
-                            <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">
+                            </th>
+                            <th className="px-4 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left">
                                 Contacto
-                            </TableHead>
-                            <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">
+                            </th>
+                            <th className="px-4 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left">
                                 F. Registro
-                            </TableHead>
-                            <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">
+                            </th>
+                            <th className="px-4 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left">
                                 Últ. Pedido
-                            </TableHead>
-                            <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right">
+                            </th>
+                            <th className="px-4 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right">
                                 Acciones
-                            </TableHead>
-                        </TableRow>
-                    </TableHeader>
+                            </th>
+                        </tr>
+                    </thead>
                     <TableBody>
                         {clients.map((client) => {
                             const lastOrder = client.lastOrderDate ? new Date(client.lastOrderDate) : null;
@@ -206,7 +203,7 @@ export function ClientTable({ clients, isLoading, onEdit, onView, onDelete }: Cl
                             );
                         })}
                     </TableBody>
-                </Table>
+                </table>
             </div>
         </div>
     );

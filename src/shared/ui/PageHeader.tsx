@@ -22,25 +22,25 @@ export function PageHeader({
             "bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6",
             className
         )}>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 sm:gap-4 truncate">
                 {Icon && (
-                    <div className="p-3 rounded-xl bg-monchito-purple/10 text-monchito-purple hidden sm:block">
-                        <Icon className="h-6 w-6" />
+                    <div className="p-2 sm:p-3 rounded-lg sm:rounded-xl bg-monchito-purple/10 text-monchito-purple shrink-0">
+                        <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
                     </div>
                 )}
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900 tracking-tight leading-none">
+                <div className="min-w-0">
+                    <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight leading-none truncate">
                         {title}
                     </h1>
                     {description && (
-                        <p className="text-sm text-slate-500 mt-2 font-medium">
+                        <p className="text-xs sm:text-sm text-slate-500 mt-1 sm:mt-2 font-medium truncate">
                             {description}
                         </p>
                     )}
                 </div>
             </div>
             {actions && (
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                     {actions}
                 </div>
             )}

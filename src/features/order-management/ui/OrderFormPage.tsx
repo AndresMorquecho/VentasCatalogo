@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useMemo } from "react"
 import { useFormik } from "formik"
 import { useNavigate, useParams } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
@@ -22,6 +22,7 @@ import { getPaidAmount } from "@/entities/order/model/model"
 import { orderApi } from "@/entities/order/model/api"
 import { useClientList } from "@/features/clients/api/hooks"
 import { useBrandList } from "@/features/brands/api/hooks"
+import { useBankAccountList } from "@/features/bank-accounts/api/hooks"
 import { getActiveBrands } from "@/entities/brand/model/model"
 import { useNotifications } from "@/shared/lib/notifications"
 import { prepareOrderReceiptForPreview } from "@/features/order-receipt/lib/prepareOrderReceiptForPreview"
@@ -165,6 +166,10 @@ export function OrderFormPage() {
 
     const clients = clientsResponse?.data || []
     const brands = brandsResponse?.data || []
+    
+    const { data: bankAccountsResponse } = useBankAccountList()
+    const bankAccounts = bankAccountsResponse?.data || []
+    
     const createOrder = useCreateOrder()
     const { notifySuccess, notifyError } = useNotifications()
     const { user } = useAuth()
@@ -360,6 +365,8 @@ export function OrderFormPage() {
             deposit: 0,
             creditToUse: 0,
             createdAt: new Date().toISOString().split('T')[0],
+            transactionDate: new Date().toISOString().split('T')[0],
+            paymentMethod: "EFECTIVO",
             notes: "",
         },
         validationSchema,
@@ -654,6 +661,8 @@ export function OrderFormPage() {
                             deposit: 0,
                             creditToUse: 0,
                             createdAt: firstOrder.createdAt ? new Date(firstOrder.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+                            transactionDate: firstOrder.transactionDate ? new Date(firstOrder.transactionDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+                            paymentMethod: firstOrder.paymentMethod || "EFECTIVO",
                             notes: firstOrder.notes || "",
                         });
                     } catch (err) {
@@ -706,6 +715,8 @@ export function OrderFormPage() {
                         deposit: 0,
                         creditToUse: 0,
                         createdAt: order.createdAt ? new Date(order.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+                        transactionDate: order.transactionDate ? new Date(order.transactionDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+                        paymentMethod: order.paymentMethod || "EFECTIVO",
                         notes: order.notes || "",
                     });
                 } catch (err) {
@@ -876,6 +887,8 @@ export function OrderFormPage() {
                         possibleDeliveryDate: itemToCreate.possibleDeliveryDate,
                         notes: formik.values.notes,
                         createdAt: formik.values.createdAt,
+                        transaction_date: formik.values.transactionDate,
+                        paymentMethod: formik.values.paymentMethod,
                         items: [{
                             productName: itemToCreate.brandName,
                             quantity: itemToCreate.quantity,
@@ -1553,12 +1566,15 @@ export function OrderFormPage() {
                                     : original.possibleDeliveryDate,
                                 orderNumber: updatedOrder.orderNumber || original.orderNumber,
                                 status: updatedOrder.status || original.status,
-                                payments: updatedOrder.payments || original.payments
+                                payments: updatedOrder.payments || original.payments,
+                                paymentMethod: updatedOrder.paymentMethod || original.paymentMethod,
+                                bankAccountId: updatedOrder.bankAccountId || original.bankAccountId
                             }
                             formik.setFieldValue('brandItems', items)
                         }
                     }}
                     lastClosureDate={lastClosureDate}
+                    bankAccounts={bankAccounts}
                 />
             )}
 
@@ -1591,9 +1607,10 @@ interface OrderEditModalProps {
     onOpenChange: (open: boolean) => void
     onSuccess: (updatedOrder: any) => void
     lastClosureDate: Date | null
+    bankAccounts: any[]
 }
 
-function OrderEditModal({ order, open, onOpenChange, onSuccess, lastClosureDate }: OrderEditModalProps) {
+function OrderEditModal({ order, open, onOpenChange, onSuccess, lastClosureDate, bankAccounts }: OrderEditModalProps) {
     const { notifySuccess, notifyError } = useNotifications()
     const updateOrder = useUpdateOrder()
     const queryClient = useQueryClient()
@@ -1601,8 +1618,20 @@ function OrderEditModal({ order, open, onOpenChange, onSuccess, lastClosureDate 
         total: Number(order.total) || 0,
         deposit: getPaidAmount(order) || 0,
         possibleDeliveryDate: order.possibleDeliveryDate ? new Date(order.possibleDeliveryDate).toISOString().split('T')[0] : '',
-        orderNumber: order.orderNumber || ''
+        orderNumber: order.orderNumber || '',
+        paymentMethod: order.paymentMethod || 'EFECTIVO',
+        bankAccountId: order.bankAccountId || ''
     })
+
+    const { data: walletData } = useClientCredits(order.clientId || '')
+    const walletBalance = walletData?.reduce((acc: number, curr: any) => acc + Number(curr.amount || 0), 0) || 0
+
+    const filteredBankAccounts = useMemo(() => {
+        if (formData.paymentMethod === 'EFECTIVO') {
+            return bankAccounts.filter(acc => acc.type === 'CASH')
+        }
+        return []
+    }, [bankAccounts, formData.paymentMethod])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -1643,7 +1672,9 @@ function OrderEditModal({ order, open, onOpenChange, onSuccess, lastClosureDate 
                     brandId: order.brandId,
                     brandName: order.brand?.name || order.brandName
                 }],
-                deposit: formData.deposit
+                deposit: formData.deposit,
+                paymentMethod: formData.paymentMethod,
+                bankAccountId: formData.bankAccountId
             }
 
             console.log('[OrderEditModal] Updating order:', order.id, 'with payload:', payload)
@@ -1751,6 +1782,50 @@ function OrderEditModal({ order, open, onOpenChange, onSuccess, lastClosureDate 
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                        <div className="space-y-1.5">
+                            <Label className="text-xs font-bold text-slate-600">
+                                Método de Pago:
+                                {formData.paymentMethod === 'BILLETERA_VIRTUAL' && (
+                                    <span className="ml-2 text-emerald-600 font-medium"> (Saldo: ${walletBalance.toFixed(2)})</span>
+                                )}
+                            </Label>
+                            <select
+                                className="w-full h-9 rounded-md border border-slate-200 text-xs px-3 focus:ring-1 focus:ring-monchito-purple outline-none"
+                                value={formData.paymentMethod}
+                                onChange={(e) => {
+                                    const method = e.target.value
+                                    setFormData({ 
+                                        ...formData, 
+                                        paymentMethod: method,
+                                        bankAccountId: method === 'EFECTIVO' 
+                                            ? (bankAccounts.find((a: any) => a.type === 'CASH')?.id || '') 
+                                            : ''
+                                    })
+                                }}
+                            >
+                                <option value="EFECTIVO">EFECTIVO</option>
+                                <option value="BILLETERA_VIRTUAL">BILLETERA VIRTUAL</option>
+                            </select>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-xs font-bold text-slate-600">Cuenta Bancaria:</Label>
+                            <select
+                                className="w-full h-9 rounded-md border border-slate-200 text-xs px-3 focus:ring-1 focus:ring-monchito-purple outline-none"
+                                value={formData.bankAccountId}
+                                onChange={(e) => setFormData({ ...formData, bankAccountId: e.target.value })}
+                                disabled={formData.paymentMethod === 'BILLETERA_VIRTUAL'}
+                            >
+                                <option value="">{formData.paymentMethod === 'BILLETERA_VIRTUAL' ? 'No se requiere (Se usa Saldo a Favor)' : 'Seleccione una cuenta...'}</option>
+                                {filteredBankAccounts.map((acc: any) => (
+                                    <option key={acc.id} value={acc.id}>
+                                        {acc.name} ({acc.bankName || (acc.type === 'CASH' ? 'Efectivo' : 'Banco')})
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
 
                     <Separator className="my-4" />

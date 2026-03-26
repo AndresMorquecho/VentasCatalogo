@@ -102,8 +102,8 @@ export function ExchangesPage() {
 
       <div className="space-y-4">
         {/* Filter and Search */}
-        <div className="flex flex-wrap items-end gap-4 bg-slate-50/50 p-4 rounded-2xl border border-slate-100 mb-2">
-          <div className="flex-1 min-w-[280px]">
+        <div className="flex flex-col md:flex-row items-end gap-3 bg-slate-50/50 p-4 rounded-2xl border border-slate-100 mb-2">
+          <div className="w-full md:flex-1 min-w-0">
             <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block ml-1">Búsqueda de Guía</Label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -111,17 +111,17 @@ export function ExchangesPage() {
                 placeholder="N° guía, notas o responsable..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 h-10 border-slate-200 rounded-xl bg-white shadow-sm focus:ring-monchito-purple/20 text-sm"
+                className="pl-9 h-10 border-slate-200 rounded-xl bg-white shadow-sm focus:ring-monchito-purple/20 text-sm w-full"
               />
             </div>
           </div>
-          <div className="flex-1 min-w-[280px]">
+          <div className="w-full md:w-64">
             <DateRangePicker 
               value={dateRange}
               onChange={setDateRange}
               showLabel={true}
               label="Rango de Fechas (Registro)"
-              className="rounded-xl border-slate-200"
+              className="rounded-xl border-slate-200 h-10 w-full"
             />
           </div>
           {(dateRange?.from || dateRange?.to || search) && (
@@ -133,9 +133,9 @@ export function ExchangesPage() {
                 setDateRange(undefined);
                 setSearch('');
               }} 
-              className="text-slate-400 hover:text-monchito-purple font-bold h-10 px-4"
+              className="text-slate-400 hover:text-monchito-purple font-bold h-10 px-4 w-full md:w-auto mt-2 md:mt-0"
             >
-              Limpiar Filtros
+              Limpiar
             </Button>
           )}
         </div>
@@ -158,8 +158,8 @@ export function ExchangesPage() {
           </div>
         ) : (
           <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm border-collapse">
+            <div className="overflow-x-auto custom-scrollbar">
+              <table className="text-sm border-collapse min-w-[1000px] w-max">
                 <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-sm">
                   <tr className="bg-slate-50/80 border-b border-slate-200 text-[10px] uppercase tracking-wider text-slate-500 font-semibold whitespace-nowrap">
                     <th className="px-4 py-4 text-center w-16">N°</th>

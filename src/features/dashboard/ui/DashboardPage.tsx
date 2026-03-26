@@ -302,8 +302,8 @@ export function DashboardPage() {
                         <h4 className="font-black text-slate-800">Facturas / Pedidos Recientes</h4>
                     </div>
                     <CardContent className="p-0">
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
+                        <div className="overflow-x-auto custom-scrollbar">
+                            <table className="text-left border-collapse min-w-[1000px] w-max">
                                 <thead>
                                     <tr className="bg-white text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100/50">
                                         <th className="px-6 py-5">No</th>

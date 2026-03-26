@@ -59,8 +59,8 @@ export function InventoryTable({ movements }: Props) {
 
     return (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden">
-            <div className="overflow-x-auto">
-                <Table>
+            <div className="overflow-x-auto no-scrollbar">
+                <Table className="min-w-[1600px]">
                     <TableHeader className="bg-slate-50/50">
                         <TableRow className="border-b border-slate-200 hover:bg-transparent">
                             <TableHead className="w-[40px] text-[10px] font-black uppercase tracking-tighter text-slate-400 py-4 pl-4 text-center">F</TableHead>

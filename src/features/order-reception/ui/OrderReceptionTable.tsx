@@ -31,8 +31,8 @@ function formatCurrency(amount: number) {
 export function OrderReceptionTable({ orders, onReceive, onReverse, isProcessing }: OrderReceptionTableProps) {
     return (
         <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
-            <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-380px)] min-h-[400px]">
-                <Table>
+            <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-380px)] min-h-[400px] custom-scrollbar">
+                <Table className="min-w-[1000px]">
                     <TableHeader className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-sm">
                         <TableRow className="hover:bg-transparent">
                         <TableHead>Fecha</TableHead>
