@@ -399,8 +399,8 @@ export function CashClosureDetailedPDF({ report }: Props) {
 
                     {/* Final Summary Box */}
                     <View style={s.totalToReportBox}>
-                        <Text style={s.totalToReportLabel}>Total a reportar:</Text>
-                        <Text style={s.totalToReportValue}>{fmtCurrency(actualAmount)}</Text>
+                        <Text style={s.totalToReportLabel}>Total a reportar (Efectivo + Bancos):</Text>
+                        <Text style={s.totalToReportValue}>{fmtCurrency(actualAmount + totalBanks)}</Text>
                     </View>
                 </View>
 

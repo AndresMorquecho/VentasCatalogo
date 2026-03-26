@@ -328,7 +328,7 @@ export function CashClosurePage() {
                                             <SectionTitle icon={Calculator} label="1. Resumen de Flujo Físico" color="text-slate-700" />
                                             <div className="grid grid-cols-2 gap-2">
                                                 <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
-                                                    <p className="text-[10px] font-bold uppercase text-green-600 mb-1">Ingresos Efectivo/Bancos</p>
+                                                    <p className="text-[10px] font-bold uppercase text-green-600 mb-1">Total Ingresos (Sistema)</p>
                                                     <p className="text-xl font-black text-green-700">{fmt(previewData.totalIncome)}</p>
                                                 </div>
                                                 <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
