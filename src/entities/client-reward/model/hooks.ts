@@ -1,25 +1,25 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { rewardsApi } from '../api/rewardsApi';
-import type { RewardType } from './types';
 
 export function useRewards() {
     const queryClient = useQueryClient();
 
-    const { data: rewards = [], isLoading } = useQuery({
+    const { data, isLoading } = useQuery({
         queryKey: ['rewards'],
-        queryFn: () => rewardsApi.getAll()
+        queryFn: () => rewardsApi.getBalances()
     });
+    const rewards = data?.data || [];
 
     const redeemPoints = useMutation({
-        mutationFn: ({ clientId, points, type }: { clientId: string; points: number; type: RewardType }) =>
-            rewardsApi.redeemPoints(clientId, points, type),
+        mutationFn: ({ clientId, ruleId }: { clientId: string; ruleId: string }) =>
+            rewardsApi.redeem(clientId, ruleId),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['rewards'] });
         }
     });
 
     const getClientReward = (clientId: string) => {
-        return rewards.find(r => r.clientId === clientId) || {
+        return rewards.find((r: any) => r.clientId === clientId) || {
             id: 'temp',
             clientId,
             totalRewardPoints: 0,

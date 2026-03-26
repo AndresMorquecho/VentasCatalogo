@@ -63,14 +63,15 @@ export const paymentService = {
 
             // Get bank account from payload or determine automatically
             let finalBankAccountId = payload.bankAccountId;
-            const accounts = await bankAccountApi.getAll();
+            const response = await bankAccountApi.getAll();
+            const accounts = response.data;
 
             if (!finalBankAccountId) {
                 if (method === 'EFECTIVO') {
-                    const cashAccount = accounts.find(a => a.type === 'CASH');
+                    const cashAccount = accounts.find((a: any) => a.type === 'CASH');
                     finalBankAccountId = cashAccount?.id || '2';
                 } else {
-                    const bankAccount = accounts.find(a => a.type === 'BANK');
+                    const bankAccount = accounts.find((a: any) => a.type === 'BANK');
                     finalBankAccountId = bankAccount?.id || '1';
                 }
             }
@@ -83,7 +84,7 @@ export const paymentService = {
                 clientId,
                 order.clientName,
                 method,
-                finalBankAccountId,
+                finalBankAccountId as string,
                 createdBy,
                 notes || `Abono a pedido #${order.receiptNumber}${createdByName ? ` (Por: ${createdByName})` : ''}`,
                 refNumber
@@ -104,7 +105,7 @@ export const paymentService = {
 
             // 5. Impact Cash Account (Only if CASH)
             if (method === 'EFECTIVO') {
-                const cashAccount = accounts.find(a => a.type === 'CASH');
+                const cashAccount = accounts.find((a: any) => a.type === 'CASH');
                 if (cashAccount) {
                     const newBalance = cashAccount.currentBalance + paymentAmount;
                     await bankAccountApi.update(cashAccount.id, { currentBalance: newBalance });
@@ -115,8 +116,9 @@ export const paymentService = {
         // 6. Generate Client Credit if Overpayment
         if (creditAmount > 0) {
             // Get bank account for credit
-            const accounts = await bankAccountApi.getAll();
-            const cashAccount = accounts.find(a => a.type === 'CASH');
+            const res = await bankAccountApi.getAll();
+            const accounts = res.data;
+            const cashAccount = accounts.find((a: any) => a.type === 'CASH');
             const bankAccountId = cashAccount?.id || '2';
 
             // Use centralized service for adjustment
@@ -176,8 +178,9 @@ export const paymentService = {
 
         // Deduct from Cash (Mock Reversal)
         if (payment.method === 'EFECTIVO') {
-            const accounts = await bankAccountApi.getAll();
-            const cashAccount = accounts.find(a => a.type === 'CASH');
+            const res = await bankAccountApi.getAll();
+            const accounts = res.data;
+            const cashAccount = accounts.find((a: any) => a.type === 'CASH');
             if (cashAccount) {
                 await bankAccountApi.update(cashAccount.id, { currentBalance: cashAccount.currentBalance - payment.amount });
             }

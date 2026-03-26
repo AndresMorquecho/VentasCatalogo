@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
-import { ShoppingBag, Trophy, Calendar, Info, CheckCircle2, Clock, TrendingUp, Gift } from 'lucide-react';
+import { ShoppingBag, Trophy, Calendar, TrendingUp } from 'lucide-react';
 import { Skeleton } from '@/shared/ui/skeleton';
 import { Badge } from '@/shared/ui/badge';
 import { useLoyaltyHistory } from '../model/hooks';
@@ -17,10 +17,6 @@ interface Props {
 export function LoyaltyPointHistoryModal({ open, onOpenChange, clientId, clientName }: Props) {
     const [page, setPage] = useState(1);
     const { ruleProgress, redemptionHistory, pagination, isLoading } = useLoyaltyHistory(clientId, { page, limit: 20 });
-    const [expandedRule, setExpandedRule] = useState<string | null>(null);
-
-    const fmt = (n: number) => n.toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const fmtDate = (d: string | Date) => new Date(d).toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric' });
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -44,7 +40,7 @@ export function LoyaltyPointHistoryModal({ open, onOpenChange, clientId, clientN
                             <section>
                                 <div className="space-y-3">
                                     {ruleProgress.map((rule: any) => (
-                                        <div key={rule.ruleId} className={`p-4 rounded-xl border transition-all ${expandedRule === rule.ruleId ? 'border-emerald-500 bg-emerald-50/40' : 'border-slate-200 bg-white'}`}>
+                                        <div key={rule.ruleId} className="p-4 rounded-xl border border-slate-200 bg-white">
                                             <div className="flex items-start justify-between gap-3 mb-3">
                                                 <div>
                                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{rule.ruleName}</p>

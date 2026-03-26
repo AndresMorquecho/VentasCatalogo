@@ -29,9 +29,9 @@ export interface Client {
     operator2?: string;
 
     // Nuevos campos FASE 1 & 2
-    birthDate?: string;
+    birthDate?: string | null;
     isWhatsApp: boolean;
-    referredById?: string;
+    referredById?: string | null;
     lastDataUpdate?: string;
     lastOrderDate?: string;
     lastBrandName?: string;

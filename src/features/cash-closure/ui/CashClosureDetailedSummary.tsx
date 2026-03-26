@@ -101,11 +101,32 @@ export function CashClosureDetailedSummary({ report }: Props) {
                                         <div className="text-xs text-blue-600">{formatPercent(incomeBySource.orderPayments, totalIncome)}</div>
                                     </div>
                                 </div>
+                                <div className="flex justify-between items-center p-3 bg-cyan-50 rounded-lg">
+                                    <span className="font-medium">Cobros en Entrega</span>
+                                    <div className="text-right">
+                                        <div className="font-bold text-cyan-900">{formatCurrency(incomeBySource.deliveryPayments)}</div>
+                                        <div className="text-xs text-cyan-600">{formatPercent(incomeBySource.deliveryPayments, totalIncome)}</div>
+                                    </div>
+                                </div>
                                 <div className="flex justify-between items-center p-3 bg-emerald-50 rounded-lg">
                                     <span className="font-medium">Abonos Posteriores</span>
                                     <div className="text-right">
                                         <div className="font-bold text-emerald-900">{formatCurrency(incomeBySource.additionalPayments)}</div>
                                         <div className="text-xs text-emerald-600">{formatPercent(incomeBySource.additionalPayments, totalIncome)}</div>
+                                    </div>
+                                </div>
+                                <div className="flex justify-between items-center p-3 bg-pink-50 rounded-lg">
+                                    <span className="font-medium">Ventas de Catálogo</span>
+                                    <div className="text-right">
+                                        <div className="font-bold text-pink-900">{formatCurrency(incomeBySource.catalogSales)}</div>
+                                        <div className="text-xs text-pink-600">{formatPercent(incomeBySource.catalogSales, totalIncome)}</div>
+                                    </div>
+                                </div>
+                                <div className="flex justify-between items-center p-3 bg-violet-50 rounded-lg">
+                                    <span className="font-medium">Recargas Billetera</span>
+                                    <div className="text-right">
+                                        <div className="font-bold text-violet-900">{formatCurrency(incomeBySource.walletRecharges)}</div>
+                                        <div className="text-xs text-violet-600">{formatPercent(incomeBySource.walletRecharges, totalIncome)}</div>
                                     </div>
                                 </div>
                                 <div className="flex justify-between items-center p-3 bg-amber-50 rounded-lg">
@@ -186,8 +207,8 @@ export function CashClosureDetailedSummary({ report }: Props) {
                                     {balanceByBank.map((item) => (
                                         <TableRow key={item.bankAccountId}>
                                             <TableCell className="font-medium">{item.bankAccountName}</TableCell>
-                                            <TableCell className={`text-right font-mono font-bold ${item.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                                {formatCurrency(item.balance)}
+                                            <TableCell className={`text-right font-mono font-bold ${item.finalBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                {formatCurrency(item.finalBalance)}
                                             </TableCell>
                                         </TableRow>
                                     ))}

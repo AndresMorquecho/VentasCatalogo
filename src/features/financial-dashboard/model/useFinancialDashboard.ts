@@ -15,7 +15,8 @@ export interface FinancialDashboardData {
  * NO business logic - only composition
  */
 export function useFinancialDashboard(): FinancialDashboardData {
-    const { data: records = [], isLoading, error } = useFinancialRecords();
+    const { data: recordsResponse, isLoading, error } = useFinancialRecords();
+    const records = recordsResponse?.data || [];
     
     // Apply pure query function from entity
     const summary = useMemo(() => {

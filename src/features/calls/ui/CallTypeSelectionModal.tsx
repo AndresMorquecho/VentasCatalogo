@@ -20,7 +20,7 @@ const CALL_TYPES = [
         enabled: true
     },
     {
-        id: 'COBRANZA',
+        id: 'COBRO',
         title: 'Cobranza',
         description: 'Seguimiento de pagos pendientes',
         icon: DollarSign,
@@ -72,7 +72,7 @@ export function CallTypeSelectionModal({ open, onOpenChange }: Props) {
         if (typeId === 'REACTIVACION') {
             onOpenChange(false);
             navigate('/calls/reactivation');
-        } else if (typeId === 'COBRANZA') {
+        } else if (typeId === 'COBRO') {
             onOpenChange(false);
             navigate('/calls/collection');
         }

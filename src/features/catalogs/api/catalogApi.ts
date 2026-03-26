@@ -17,7 +17,8 @@ export const catalogApi = {
   },
 
   getInventory: async (filters?: InventoryFilters): Promise<{ data: CatalogInventory[]; pagination: any }> => {
-    return httpClient.get('/catalogs/inventory', { params: filters });
+    const query = filters ? new URLSearchParams(filters as any).toString() : '';
+    return httpClient.get(`/catalogs/inventory${query ? `?${query}` : ''}`);
   },
 
   // Entregas
@@ -30,6 +31,7 @@ export const catalogApi = {
   },
 
   getDeliveries: async (filters?: DeliveryFilters): Promise<{ data: CatalogDelivery[]; pagination: any }> => {
-    return httpClient.get('/catalogs/deliveries', { params: filters });
+    const query = filters ? new URLSearchParams(filters as any).toString() : '';
+    return httpClient.get(`/catalogs/deliveries${query ? `?${query}` : ''}`);
   }
 };

@@ -14,10 +14,9 @@ import {
     callResultsMap
 } from '@/entities/call';
 
-// Motivos actualizados
 const CALL_REASONS_MAP: Record<string, string> = {
     'REACTIVACION': 'Reactivación',
-    'COBRANZA': 'Cobranza'
+    'COBRO': 'Cobranza'
 };
 
 export function CallsPage() {

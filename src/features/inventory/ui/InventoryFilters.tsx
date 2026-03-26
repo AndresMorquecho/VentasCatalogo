@@ -1,4 +1,4 @@
-import { Search, Filter, CalendarDays, MapPin, Tag, ReceiptText, User, ShoppingBag } from "lucide-react";
+import { Search, Filter, MapPin, Tag, ReceiptText, User, ShoppingBag } from "lucide-react";
 import { Input } from "@/shared/ui/input";
 import { Button } from "@/shared/ui/button";
 import { DateRangePicker } from "@/shared/ui/filters";

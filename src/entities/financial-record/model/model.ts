@@ -235,7 +235,10 @@ export const getCashFlowSummary = (records: FinancialRecord[]): CashFlowSummary 
   const bySource: CashFlowSummary['bySource'] = {
     ORDER_PAYMENT: { income: 0, expense: 0, count: 0 },
     MANUAL: { income: 0, expense: 0, count: 0 },
-    ADJUSTMENT: { income: 0, expense: 0, count: 0 }
+    ADJUSTMENT: { income: 0, expense: 0, count: 0 },
+    RECEPTION_OVERPAYMENT: { income: 0, expense: 0, count: 0 },
+    CREDIT_DISTRIBUTION: { income: 0, expense: 0, count: 0 },
+    EXCHANGE: { income: 0, expense: 0, count: 0 }
   };
 
   // Group by bank account

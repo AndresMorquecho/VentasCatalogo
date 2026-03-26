@@ -62,11 +62,20 @@ export function createDetailedCashClosureReport(
         orderPayments: incomeRecords
             .filter(r => r.source === 'ORDER_PAYMENT' && r.notes?.includes('inicial'))
             .reduce((sum, r) => sum + r.amount, 0),
+        deliveryPayments: incomeRecords
+            .filter(r => r.source === 'ORDER_PAYMENT' && r.notes?.toLowerCase().includes('entrega'))
+            .reduce((sum, r) => sum + r.amount, 0),
         additionalPayments: incomeRecords
-            .filter(r => r.source === 'ORDER_PAYMENT' && !r.notes?.includes('inicial'))
+            .filter(r => r.source === 'ORDER_PAYMENT' && !r.notes?.includes('inicial') && !r.notes?.toLowerCase().includes('entrega'))
+            .reduce((sum, r) => sum + r.amount, 0),
+        catalogSales: incomeRecords
+            .filter(r => r.source === 'EXCHANGE') // Mock source mapping
+            .reduce((sum, r) => sum + r.amount, 0),
+        walletRecharges: incomeRecords
+            .filter(r => r.source === 'RECEPTION_OVERPAYMENT') // Mock source mapping
             .reduce((sum, r) => sum + r.amount, 0),
         adjustments: incomeRecords
-            .filter(r => r.source === 'ADJUSTMENT')
+            .filter(r => r.source === 'ADJUSTMENT' || r.source === 'CREDIT_DISTRIBUTION')
             .reduce((sum, r) => sum + r.amount, 0),
         manual: incomeRecords
             .filter(r => r.source === 'MANUAL')
@@ -89,6 +98,13 @@ export function createDetailedCashClosureReport(
             .reduce((sum, r) => sum + r.amount, 0),
     };
 
+    // 4b. Wallet recharge by method (Mock)
+    const walletRechargeByMethod = {
+        TRANSFERENCIA: 0,
+        DEPOSITO: 0,
+        CHEQUE: 0
+    };
+
     // 5. Balance by bank account
     const balanceByBank = bankAccounts.map(account => {
         const accountRecords = rangeRecords.filter(r => r.bankAccountId === account.id);
@@ -102,7 +118,11 @@ export function createDetailedCashClosureReport(
         return {
             bankAccountId: account.id,
             bankAccountName: account.name,
-            balance: income - expense
+            bankAccountType: account.type,
+            initialBalance: account.currentBalance - (income - expense), // Approximation
+            income,
+            expense,
+            finalBalance: account.currentBalance
         };
     });
 
@@ -166,6 +186,7 @@ export function createDetailedCashClosureReport(
         movementCount: rangeRecords.length,
         incomeBySource,
         incomeByMethod,
+        walletRechargeByMethod,
         balanceByBank,
         movementsByUser,
         movements: movementDetails

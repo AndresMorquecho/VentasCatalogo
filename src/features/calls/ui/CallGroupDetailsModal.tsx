@@ -7,7 +7,7 @@ import { useClients } from '@/entities/client/model/hooks';
 
 const CALL_REASONS_MAP: Record<string, string> = {
     'REACTIVACION': 'Reactivación',
-    'COBRANZA': 'Cobranza',
+    'COBRO': 'Cobranza',
     'SEGUIMIENTO_PEDIDO': 'Seguimiento de Pedido',
     'OFERTA': 'Oferta',
     'OTRO': 'Otro'

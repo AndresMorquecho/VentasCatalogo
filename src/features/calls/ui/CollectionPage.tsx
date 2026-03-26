@@ -59,7 +59,7 @@ export function CollectionPage() {
         try {
             await createCall({
                 clientId: selectedClient.id,
-                reason: 'COBRANZA',
+                reason: 'COBRO',
                 result,
                 notes: notes || null
             });

@@ -27,8 +27,10 @@ export interface FinancialAuditData {
  * NO business logic - only orchestration + pure query application
  */
 export function useFinancialAudit(): FinancialAuditData {
-    const { data: records = [], isLoading: loadingRecords, error: recordsError } = useFinancialRecords();
-    const { data: bankAccounts = [], isLoading: loadingAccounts, error: accountsError } = useBankAccountList();
+    const { data: recordsData, isLoading: loadingRecords, error: recordsError } = useFinancialRecords();
+    const records = recordsData?.data || [];
+    const { data: bankAccountsData, isLoading: loadingAccounts, error: accountsError } = useBankAccountList();
+    const bankAccounts = bankAccountsData?.data || [];
 
     const audits = useMemo<BankAccountAudit[]>(() => {
         return bankAccounts.map(account => {

@@ -20,7 +20,6 @@ import {
 } from "@/shared/ui/select";
 import type { Client } from "@/entities/client/model/types";
 import { useOrderList } from "@/entities/order/model/hooks";
-import { useBrandList } from "@/features/brands/api/hooks";
 import { clientApi } from "@/shared/api/clientApi";
 import { format, differenceInDays } from "date-fns";
 import { es } from "date-fns/locale";
@@ -29,13 +28,10 @@ import type { DateRange } from "react-day-picker";
 import {
     User,
     ShoppingBag,
-    AlertCircle,
-    ShieldAlert,
     Search,
     RotateCw,
     Info,
     MapPin,
-    MessageSquare,
     History,
     Calendar,
     Target,
@@ -94,15 +90,14 @@ export function ClientDetailModal({ client: initialClient, open, onOpenChange }:
     const startDate = dateRange?.from ? dateRange.from.toISOString().split('T')[0] : undefined;
     const endDate = dateRange?.to ? dateRange.to.toISOString().split('T')[0] : undefined;
 
-    const { data: client, isLoading: isClientLoading } = useQuery({
+    const { data: client } = useQuery({
         queryKey: ['clients', initialClient?.id],
         queryFn: () => initialClient ? clientApi.getById(initialClient.id) : null,
         enabled: !!initialClient && open,
         initialData: initialClient || undefined
     });
 
-    const { data: brandsResponse } = useBrandList({ limit: 100 });
-    const { data: ordersResponse, isLoading: isOrdersLoading, refetch } = useOrderList(
+    const { data: ordersResponse, isLoading: isOrdersLoading } = useOrderList(
         client ? {
             clientId: client.id,
             page,
@@ -117,7 +112,7 @@ export function ClientDetailModal({ client: initialClient, open, onOpenChange }:
 
     const orders = ordersResponse?.data || [];
     const pagination = ordersResponse?.pagination;
-    const brands = brandsResponse?.data || [];
+    // const brands = brandsResponse?.data || [];
 
     const risk = useMemo(() => {
         if (!orders || orders.length === 0) return { label: "NUEVA", color: "bg-blue-100 text-blue-800", avg: 0, score: 0 };

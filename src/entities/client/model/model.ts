@@ -7,6 +7,8 @@ import type { Client, ClientPayload } from './types';
 export function createClient(data: ClientPayload): Client {
     return {
         id: crypto.randomUUID(),
+        isWhatsApp: false,
+        isBlocked: false,
         ...data,
         createdAt: new Date().toISOString(),
     };

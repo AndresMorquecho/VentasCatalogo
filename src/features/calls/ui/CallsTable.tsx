@@ -2,13 +2,12 @@ import { useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
 import { Button } from '@/shared/ui/button';
 import { Eye } from 'lucide-react';
-import { callResultsMap } from '@/entities/call';
 import type { CallGroup } from '@/entities/call/model/api';
 import { CallGroupDetailsModal } from './CallGroupDetailsModal';
 
 const CALL_REASONS_MAP: Record<string, string> = {
     'REACTIVACION': 'Reactivación',
-    'COBRANZA': 'Cobranza',
+    'COBRO': 'Cobranza',
     'SEGUIMIENTO_PEDIDO': 'Seguimiento de Pedido',
     'OFERTA': 'Oferta',
     'OTRO': 'Otro'
