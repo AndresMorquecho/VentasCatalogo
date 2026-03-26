@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { orderApi } from "@/entities/order/model/api";
-import { paymentApi, type MultiplePaymentPayload } from "@/shared/api/paymentApi";
+import { paymentApi } from "@/shared/api/paymentApi";
 
 interface PaymentSearchParams {
     page?: number;

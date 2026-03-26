@@ -26,7 +26,7 @@ export function RewardDetailsModal({ open, onOpenChange, clientId }: RewardDetai
 
     const reward = getClientReward(clientId);
 
-    const handleRedeemClick = (prize: { id: string, name: string, pointsRequired: number }) => {
+    const handleRedeemClick = (prize: any) => {
         setSelectedPrize({ id: prize.id, name: prize.name, points: prize.pointsRequired });
         setConfirmOpen(true);
     };
@@ -34,7 +34,7 @@ export function RewardDetailsModal({ open, onOpenChange, clientId }: RewardDetai
     const handleConfirmRedeem = async () => {
         if (!selectedPrize) return;
         try {
-            await redeemPrize({ clientId, prizeId: selectedPrize.id });
+            await redeemPrize({ clientId, ruleId: selectedPrize.id });
             showToast("Canje exitoso. Los puntos se han reiniciado.", "success");
             onOpenChange(false); // Cierra automáticamente el modal principal
         } catch (error) {
@@ -106,7 +106,8 @@ export function RewardDetailsModal({ open, onOpenChange, clientId }: RewardDetai
                                 ) : (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                         {prizes.filter(p => p.isActive).map(prize => {
-                                            const canAfford = reward.totalRewardPoints >= prize.pointsRequired;
+                                            const points = prize.pointsRequired ?? 0;
+                                            const canAfford = reward.totalRewardPoints >= points;
 
                                             return (
                                                 <div

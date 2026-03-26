@@ -115,9 +115,10 @@ interface Props {
     packingNumber: string;
     packingTotal: number;
     userName: string;
+    batchId?: string;
 }
 
-export const ReceptionBatchReport: React.FC<Props> = ({ orders, packingNumber, packingTotal, userName }) => {
+export const ReceptionBatchReport: React.FC<Props> = ({ orders, packingNumber, packingTotal, userName, batchId }) => {
     const formattedDate = new Date().toLocaleString('es-EC', {
         day: '2-digit', month: '2-digit', year: 'numeric',
         hour: '2-digit', minute: '2-digit', second: '2-digit',
@@ -172,6 +173,12 @@ export const ReceptionBatchReport: React.FC<Props> = ({ orders, packingNumber, p
                         <Text style={styles.metaLabel}>VALOR PACKING:</Text>
                         <Text style={styles.metaValue}>{Number(packingTotal).toFixed(2)}</Text>
                     </View>
+                    {batchId && (
+                        <View style={styles.metaRow}>
+                            <Text style={styles.metaLabel}>ID INTERNO:</Text>
+                            <Text style={styles.metaValue}>{batchId}</Text>
+                        </View>
+                    )}
                 </View>
 
                 <View style={styles.table}>

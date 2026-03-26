@@ -6,7 +6,6 @@ import {
     DialogTitle
 } from "@/shared/ui/dialog"
 import { Button } from "@/shared/ui/button"
-import { Label } from "@/shared/ui/label"
 import { Input } from "@/shared/ui/input"
 import { Truck, Plus, Trash2, Wallet, ReceiptText, AlertCircle } from "lucide-react"
 import type { Order } from "@/entities/order/model/types"

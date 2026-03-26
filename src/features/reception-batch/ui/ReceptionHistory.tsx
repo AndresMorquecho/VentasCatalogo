@@ -23,7 +23,7 @@ import {
 } from "@/shared/ui/select"
 import { useBrandList } from "@/features/brands/api/hooks"
 import { ConfirmDialog } from "@/shared/ui/confirm-dialog"
-import { Pagination } from "@/shared/ui/Pagination"
+import { Pagination } from "@/shared/ui/pagination"
 import { DateRangePicker } from "@/shared/ui/filters"
 import type { DateRange } from "react-day-picker"
 

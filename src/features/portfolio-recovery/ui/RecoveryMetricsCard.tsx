@@ -7,9 +7,8 @@
  * Requirements: 1.1, 1.2, 1.4
  */
 
-import { useState } from 'react';
 import { Card, CardContent } from '@/shared/ui/card';
-import { ChevronDown, ChevronUp, Package, TrendingUp, Clock, DollarSign } from 'lucide-react';
+import { ChevronDown, ChevronUp, Package, Clock } from 'lucide-react';
 import { RecoveryStatusBadge } from './RecoveryStatusBadge';
 import type { BrandRecoveryMetrics } from '@/features/portfolio-recovery/types';
 import { formatCurrency, formatNumber } from '@/features/portfolio-recovery/types';
