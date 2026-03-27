@@ -32,11 +32,20 @@ interface DeliverOrderModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onSuccess?: () => void;
+    creditDistributions?: Record<string, import('@/entities/financial-record/model/types').CreditDistribution>;
 }
 
-export function DeliverOrderModal({ order, orders = [], open, onOpenChange, onSuccess }: DeliverOrderModalProps) {
+export function DeliverOrderModal({ order, orders = [], open, onOpenChange, onSuccess, creditDistributions = {} }: DeliverOrderModalProps) {
     const isBatch = orders.length > 0
     const activeOrders = isBatch ? orders : (order ? [order] : [])
+    
+    // Filter credit distributions that belong to the orders being delivered in THIS modal
+    const relevantDistributions = useMemo(() => {
+        return Object.entries(creditDistributions)
+            .filter(([orderId]) => activeOrders.some(o => o.id === orderId))
+            .map(([_, dist]) => dist)
+    }, [creditDistributions, activeOrders])
+
     const firstOrder = activeOrders[0]
     const [isSubmitting, setIsSubmitting] = useState(false)
     const isProcessingRef = useRef(false)
@@ -151,11 +160,14 @@ export function DeliverOrderModal({ order, orders = [], open, onOpenChange, onSu
             }))
 
             if (isBatch) {
-                await orderApi.batchDeliver(activeOrders.map(o => o.id), paymentsToSend)
+                // Batch Deliver uses 'creditDistributions' (plural)
+                await orderApi.batchDeliver(activeOrders.map(o => o.id), paymentsToSend, relevantDistributions)
             } else {
+                // Single Deliver uses 'creditDistribution' (singular)
                 const deliveredOrder = await orderApi.deliverOrder(firstOrder.id, {
                     payments: paymentsToSend,
-                    notes: `Entrega al cliente ${firstOrder.clientName}`
+                    notes: `Entrega al cliente ${firstOrder.clientName}`,
+                    creditDistribution: relevantDistributions[0]
                 });
 
                 // PDF generation (simplified to main payment or first one)

@@ -110,36 +110,17 @@ export function DeliverOrderModalNew({ order, orders = [], open, onOpenChange, o
             }))
 
             if (isBatch) {
-                const hasDistributions = Object.keys(creditDistributions).length > 0
+                // Collect relevant distributions for the batch
+                const distributionsToSend = Object.entries(creditDistributions)
+                    .filter(([orderId]) => activeOrders.some(o => o.id === orderId))
+                    .map(([_, dist]) => dist)
 
-                if (hasDistributions) {
-                    // Deliver each order individually so we can attach credit distributions per order
-                    let remainingPayment = totalPaid
-                    for (const o of activeOrders) {
-                        const effective = Number(o.realInvoiceTotal ?? o.total)
-                        const paid = getPaidAmount(o)
-                        const creditNote = Number(o.creditNoteTotal || 0)
-                        const incomingDist = Object.values(creditDistributions).reduce((s, dist) => {
-                            const d = dist.distributions.find(dd => dd.targetOrderId === o.id)
-                            return s + (d?.amount || 0)
-                        }, 0)
-                        const orderPending = Math.max(0, effective - paid - creditNote - incomingDist)
-                        const orderPayment = Math.min(orderPending, remainingPayment)
-                        remainingPayment -= orderPayment
-
-                        const orderPayments = orderPayment > 0.01 && totalPaid > 0.01
-                            ? paymentsToSend.map(p => ({ ...p, amount: Number(((p.amount / totalPaid) * orderPayment).toFixed(2)) })).filter(p => p.amount > 0.01)
-                            : []
-
-                        await orderApi.deliverOrder(o.id, {
-                            payments: orderPayments,
-                            notes: `Entrega en lote al cliente ${o.clientName}`,
-                            creditDistribution: creditDistributions[o.id]
-                        })
-                    }
-                } else {
-                    await orderApi.batchDeliver(activeOrders.map(o => o.id), paymentsToSend)
-                }
+                // Use the atomic batch deliver endpoint
+                await orderApi.batchDeliver(
+                    activeOrders.map(o => o.id), 
+                    paymentsToSend, 
+                    distributionsToSend
+                )
                 
                 // RE-FETCH UPDATED ORDERS TO GET NEW BALANCES FOR PDF
                 const updatedOrders = await Promise.all(

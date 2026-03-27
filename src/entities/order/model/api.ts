@@ -275,9 +275,10 @@ export const orderApi = {
             bankAccountId?: string;
             paymentMethod: string;
             reference?: string;
-        }[]
+        }[],
+        creditDistributions?: any[]
     ): Promise<any> => {
-        return httpClient.post<any>('/orders/batch-deliver', { orderIds, payments });
+        return httpClient.post<any>('/orders/batch-deliver', { orderIds, payments, creditDistributions });
     },
 
     /**
