@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect } from "react"
 import { useTransactions } from "../model/hooks"
 import { TransactionsTable } from "./TransactionsTable"
-import { TransactionDetailsModal } from "./TransactionDetailsModal"
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
 import { Search, Loader2, X, DollarSign } from "lucide-react"
@@ -12,7 +11,6 @@ import { DateRangePicker } from "@/shared/ui/filters"
 import { ClientSearchSelect } from "@/shared/ui/filters/ClientSearchSelect"
 import { UserSearchSelect } from "@/shared/ui/filters/UserSearchSelect"
 import type { DateRange } from "react-day-picker"
-import type { FinancialRecord } from "@/entities/financial-record/model/types"
 import { useBankAccounts } from "@/entities/bank-account"
 
 const ACCOUNT_TYPE_OPTIONS = [
@@ -33,7 +31,6 @@ export function TransactionsPage() {
     const [bankAccountId, setBankAccountId] = useState("")
     const [clientId, setClientId] = useState<string | undefined>()
     const [createdBy, setCreatedBy] = useState<string | undefined>()
-    const [viewTx, setViewTx] = useState<FinancialRecord | null>(null)
 
     const { data: bankAccountsData } = useBankAccounts()
     const bankAccounts = bankAccountsData?.data || []
@@ -199,7 +196,7 @@ export function TransactionsPage() {
                 </div>
             ) : (
                 <div className="space-y-4">
-                    <TransactionsTable transactions={transactions} onView={setViewTx} />
+                    <TransactionsTable transactions={transactions} />
                     
                     {pagination && (
                         <Pagination
@@ -213,11 +210,7 @@ export function TransactionsPage() {
                 </div>
             )}
 
-            <TransactionDetailsModal
-                open={!!viewTx}
-                onOpenChange={(v) => !v && setViewTx(null)}
-                transaction={viewTx}
-            />
+
         </div>
     )
 }

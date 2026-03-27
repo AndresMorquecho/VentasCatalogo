@@ -60,7 +60,7 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, lastClosur
         <TooltipProvider>
             <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
                 <div className="overflow-x-auto custom-scrollbar">
-                    <table className="text-sm border-collapse min-w-[1200px] w-max">
+                    <table className="text-sm border-collapse min-w-[1200px] w-full">
                         <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-sm">
                             <tr className="bg-slate-50/80 border-b border-slate-200 text-[10px] uppercase tracking-wider text-slate-500 font-semibold whitespace-nowrap">
                                 <th className="px-4 py-4 text-left w-[80px]">Origen</th>

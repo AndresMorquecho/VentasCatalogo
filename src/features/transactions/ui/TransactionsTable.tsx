@@ -8,7 +8,6 @@ import type { FinancialRecord } from "@/entities/financial-record/model/types"
 
 interface Props {
     transactions: FinancialRecord[]
-    onView: (t: FinancialRecord) => void
     isLoading?: boolean
 }
 
@@ -305,7 +304,7 @@ function amountPrefix(t: FinancialRecord): string {
 
 // ─── Main component ──────────────────────────────────────────────────────────
 
-export function TransactionsTable({ transactions, onView, isLoading }: Props) {
+export function TransactionsTable({ transactions, isLoading }: Props) {
     if (isLoading) {
         return (
             <div className="flex flex-col items-center justify-center p-24 bg-white rounded-2xl border border-slate-100 space-y-4">
@@ -337,8 +336,7 @@ export function TransactionsTable({ transactions, onView, isLoading }: Props) {
                 return (
                     <div
                         key={t.id}
-                        onClick={() => onView(t)}
-                        className={`rounded-2xl border ${theme.border} ${theme.bg} p-3 cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-[1.002]`}
+                        className={`rounded-2xl border ${theme.border} ${theme.bg} p-3`}
                     >
                         {/* ── Header ── */}
                         <div className="flex items-start justify-between gap-4 mb-2">

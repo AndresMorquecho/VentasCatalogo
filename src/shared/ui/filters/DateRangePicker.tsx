@@ -8,14 +8,13 @@ import './compact-calendar.css';
 import { Button } from '@/shared/ui/button';
 import { Label } from '@/shared/ui/label';
 
-interface DateRangePickerProps {
+interface DateRangePickerProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'value' | 'onChange'> {
   value?: DateRange;
   onChange: (range: DateRange | undefined) => void;
   label?: string;
   placeholder?: string;
   className?: string;
   showLabel?: boolean;
-  disabled?: boolean;
 }
 
 export function DateRangePicker({
@@ -23,11 +22,12 @@ export function DateRangePicker({
   onChange,
   label = 'Rango de Fechas',
   placeholder = 'Seleccionar rango',
-  className = '',
+  className: containerClassName = '',
   showLabel = true,
-  disabled = false,
+  ...props
 }: DateRangePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const disabled = props.disabled;
 
   const handleClear = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -51,7 +51,7 @@ export function DateRangePicker({
   };
 
   return (
-    <div className={`relative ${className}`}>
+    <div className={`relative ${containerClassName}`}>
       {showLabel && (
         <Label className="text-xs font-medium mb-1.5 block text-slate-700">
           {label}
@@ -61,8 +61,11 @@ export function DateRangePicker({
       <div className="relative">
         <button
           type="button"
-          onClick={() => !disabled && setIsOpen(!isOpen)}
-          disabled={disabled}
+          {...props}
+          onClick={(e) => {
+            if (!disabled) setIsOpen(!isOpen);
+            if (props.onClick) props.onClick(e);
+          }}
           className={`
             w-full h-9 px-3 pr-20 text-sm text-left
             bg-white border border-slate-200 rounded-lg

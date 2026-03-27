@@ -470,6 +470,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                                 type="date"
                                 id="createdAt"
                                 {...formik.getFieldProps('createdAt')}
+                                disabled
                             />
                             {formik.touched.createdAt && formik.errors.createdAt && (
                                 <p className="text-red-500 text-xs">{formik.errors.createdAt}</p>

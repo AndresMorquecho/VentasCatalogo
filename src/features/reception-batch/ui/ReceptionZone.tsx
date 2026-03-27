@@ -30,7 +30,60 @@ export function ReceptionZone({
     onUpdateOrder,
     isEditing = false
 }: Props) {
-    
+    const handleMainKeyDown = (e: React.KeyboardEvent, group: string, index: number) => {
+        const input = e.currentTarget as HTMLInputElement;
+        const isInput = input.tagName === 'INPUT';
+        const isNumber = isInput && input.type === 'number';
+        const isDate = isInput && input.type === 'date';
+        
+        let selectionStart: number | null = null;
+        let valueLength = 0;
+
+        try {
+            if (isInput && !isNumber && !isDate) {
+                selectionStart = input.selectionStart;
+                valueLength = input.value.length;
+            }
+        } catch (err) {}
+
+        if (e.key === 'ArrowRight') {
+            const isAtEnd = !isInput || isDate || selectionStart === valueLength;
+            if (isAtEnd) {
+                const next = document.querySelector(`[data-nav-group="${group}"][data-nav-index="${index + 1}"]`) as HTMLElement;
+                if (next) {
+                    e.preventDefault();
+                    next.focus();
+                    if (next instanceof HTMLInputElement && next.type !== 'number' && next.type !== 'date') next.select();
+                }
+            }
+        } else if (e.key === 'ArrowLeft') {
+            const isAtStart = !isInput || isDate || selectionStart === 0;
+            if (isAtStart) {
+                const prev = document.querySelector(`[data-nav-group="${group}"][data-nav-index="${index - 1}"]`) as HTMLElement;
+                if (prev) {
+                    e.preventDefault();
+                    prev.focus();
+                    if (prev instanceof HTMLInputElement && prev.type !== 'number' && prev.type !== 'date') prev.select();
+                }
+            }
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            const table = document.querySelector('table');
+            if (table) {
+                const firstInput = table.querySelector('input, select, button') as HTMLElement;
+                if (firstInput) firstInput.focus();
+            }
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            // Jump to something above or just ignore
+        } else if (e.key === 'Enter') {
+             // In these specific fields, Enter might finalilze the batch
+             if (index === 2) {
+                 e.preventDefault();
+                 onConfirm();
+             }
+        }
+    };
 
     return (
         <div className="flex flex-col h-full overflow-hidden">
@@ -62,16 +115,26 @@ export function ReceptionZone({
                                     value={packingNumber}
                                     onChange={(e) => setPackingNumber(e.target.value)}
                                     className="h-8 text-xs w-32 bg-white border-monchito-purple/20 focus:ring-monchito-purple/20"
+                                    data-nav-group="batch-header"
+                                    data-nav-index={0}
+                                    onKeyDown={(e) => handleMainKeyDown(e, 'batch-header', 0)}
                                 />
                             </div>
                             <div className="flex flex-col gap-1">
                                 <Label className="text-[10px] text-monchito-purple font-black uppercase tracking-widest">Valor Packing ($)</Label>
                                 <Input 
-                                    type="number"
+                                    type="text"
+                                    inputMode="decimal"
                                     placeholder="0.00" 
                                     value={packingTotal}
-                                    onChange={(e) => setPackingTotal(Number(e.target.value))}
+                                    onChange={(e) => {
+                                        const val = e.target.value.replace(/[^0-9.]/g, '');
+                                        setPackingTotal(Number(val));
+                                    }}
                                     className="h-8 text-xs w-28 bg-white border-monchito-purple/20 focus:ring-monchito-purple/20 font-mono font-bold text-monchito-purple hide-spinner"
+                                    data-nav-group="batch-header"
+                                    data-nav-index={1}
+                                    onKeyDown={(e) => handleMainKeyDown(e, 'batch-header', 1)}
                                 />
                             </div>
                         </div>
@@ -80,6 +143,9 @@ export function ReceptionZone({
                             className="bg-monchito-purple hover:bg-monchito-purple/90 text-white font-bold h-9 px-6 shadow-sm flex items-center gap-2"
                             disabled={selectedOrders.length === 0 || isProcessing || !packingNumber}
                             onClick={onConfirm}
+                            data-nav-group="batch-header"
+                            data-nav-index={2}
+                            onKeyDown={(e) => handleMainKeyDown(e, 'batch-header', 2)}
                         >
                             {isProcessing ? (
                                 <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -106,7 +172,6 @@ export function ReceptionZone({
                         onUpdateInvoiceNumber={(id, val) => onUpdateOrder(id, { finalInvoiceNumber: val })}
                         onUpdateDocumentType={(id, val) => onUpdateOrder(id, { documentType: val })}
                         onUpdateEntryDate={(id, val) => onUpdateOrder(id, { entryDate: val })}
-                        onUpdateCreditDistribution={(id, distribution) => onUpdateOrder(id, { creditDistribution: distribution })} // NUEVO
                     />
                 </div>
             </div>

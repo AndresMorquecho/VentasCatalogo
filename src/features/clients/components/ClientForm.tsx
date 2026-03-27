@@ -56,7 +56,7 @@ const ID_TYPES = [
 ];
 
 const validationSchema = Yup.object({
-    identificationType: Yup.string().required("Requerido"),
+    identificationType: Yup.string().required("Se requiere elegir un tipo de documento"),
     identificationNumber: Yup.string()
         .when('identificationType', {
             is: (val: string) => val === 'CEDULA',
@@ -66,20 +66,20 @@ const validationSchema = Yup.object({
             is: (val: string) => val === 'RUC',
             then: (schema) => schema.matches(/^\d{13}$/, "RUC debe tener 13 dígitos"),
         })
-        .required("Requerido"),
-    firstName: Yup.string().required("El nombre es requerido"),
-    country: Yup.string().required("Requerido"),
-    province: Yup.string().required("Requerido"),
-    city: Yup.string().required("Requerido"),
-    address: Yup.string().required("Requerido"),
+        .required("Se requiere número de identificación"),
+    firstName: Yup.string().required("Se requiere nombre completo de empresaria"),
+    country: Yup.string().required("Se requiere el país"),
+    province: Yup.string().required("Se requiere la provincia"),
+    city: Yup.string().required("Se requiere la ciudad"),
+    address: Yup.string().required("Se requiere la dirección domiciliaria"),
     neighborhood: Yup.string().optional(),
     sector: Yup.string().optional(),
-    email: Yup.string().email("Formato inválido").required("Requerido"),
+    email: Yup.string().email("Formato de correo inválido").required("Se requiere correo electrónico"),
     reference: Yup.string().optional(),
     phone1: Yup.string()
-        .matches(/^\d{7,15}$/, "Entre 7 y 15 dígitos")
-        .required("Requerido"),
-    operator1: Yup.string().required("Requerido"),
+        .matches(/^\d{7,15}$/, "Teléfono debe tener entre 7 y 15 dígitos")
+        .required("Se requiere teléfono principal"),
+    operator1: Yup.string().required("Se requiere operadora del teléfono"),
     phone2: Yup.string()
         .matches(/^\d{7,15}$/, "Entre 7 y 15 dígitos")
         .optional()
@@ -102,6 +102,8 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
     const isEditing = !!client;
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showValidationModal, setShowValidationModal] = useState(false);
+    const [missingFields, setMissingFields] = useState<string[]>([]);
 
     const formik = useFormik({
         initialValues: {
@@ -201,6 +203,23 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
         },
     });
 
+    const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        const errors = await formik.validateForm();
+        const errorMessages = Object.values(errors) as string[];
+
+        if (errorMessages.length > 0) {
+            setMissingFields(errorMessages);
+            setShowValidationModal(true);
+            // Mark all fields as touched to show inline errors as well
+            formik.setTouched(
+                Object.keys(formik.values).reduce((acc, key) => ({ ...acc, [key]: true }), {})
+            );
+        } else {
+            formik.handleSubmit(e);
+        }
+    };
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden border-none shadow-2xl">
@@ -221,7 +240,7 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
                 </DialogHeader>
 
                 <div className="flex-1 overflow-y-auto px-6 py-4 custom-scrollbar">
-                    <form id="client-form" onSubmit={formik.handleSubmit} className="space-y-8">
+                    <form id="client-form" onSubmit={handleFormSubmit} className="space-y-8">
                         {/* SECCIÓN 1: INFORMACIÓN PERSONAL */}
                         <section className="space-y-4">
                             <div className="flex items-center gap-2 pb-2 border-b border-muted">
@@ -274,7 +293,12 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
                                     <Label htmlFor="firstName" className="text-xs font-semibold">Nombre Completo de la Empresaria</Label>
                                     <Input
                                         id="firstName"
-                                        {...formik.getFieldProps("firstName")}
+                                        name="firstName"
+                                        value={formik.values.firstName}
+                                        onChange={(e) => {
+                                            formik.setFieldValue("firstName", e.target.value.toUpperCase());
+                                        }}
+                                        onBlur={formik.handleBlur}
                                         placeholder="Nombre y Apellidos"
                                         className={cn(
                                             "bg-slate-50/50",
@@ -536,6 +560,55 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
                     </div>
                 </DialogFooter>
             </DialogContent>
+
+            {/* Modal de Validación de Campos Faltantes */}
+            <Dialog open={showValidationModal} onOpenChange={setShowValidationModal}>
+                <DialogContent className="sm:max-w-[450px] max-h-[85vh] flex flex-col border-none shadow-2xl p-0 overflow-hidden transform-gpu transition-all">
+                    <DialogHeader className="p-5 bg-gradient-to-r from-primary/5 via-primary/10 to-transparent border-b shrink-0">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2.5 rounded-xl bg-primary/10 text-primary shadow-sm border border-primary/20">
+                                <AlertCircle className="h-5 w-5" />
+                            </div>
+                            <div>
+                                <DialogTitle className="text-lg font-bold text-slate-800 tracking-tight">
+                                    ¡Atención Requerida!
+                                </DialogTitle>
+                                <p className="text-[10px] text-primary font-bold uppercase tracking-widest mt-0.5">
+                                    Campos Pendientes
+                                </p>
+                            </div>
+                        </div>
+                    </DialogHeader>
+                    
+                    <div className="flex-1 overflow-y-auto p-6 space-y-5 custom-scrollbar bg-slate-50/30">
+                        <div className="p-4 bg-white rounded-xl border border-dashed border-primary/30 shadow-sm shadow-primary/5">
+                             <p className="text-xs text-slate-600 font-semibold leading-relaxed">
+                                Para registrar a la empresaria, por favor asegúrese de completar correctamente los siguientes campos:
+                            </p>
+                        </div>
+                        
+                        <div className="space-y-3">
+                            {missingFields.map((error, idx) => (
+                                <div key={idx} className="flex items-center gap-3 p-3.5 bg-white rounded-xl border border-slate-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] group hover:scale-[1.01] transition-all">
+                                    <div className="h-2 w-2 rounded-full bg-primary/30 group-hover:bg-primary shrink-0" />
+                                    <span className="text-[13px] font-bold text-slate-700 italic leading-snug">
+                                        {error}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    
+                    <DialogFooter className="p-5 bg-white border-t shrink-0">
+                        <Button 
+                            className="w-full bg-primary hover:bg-primary/90 text-white font-bold uppercase text-[11px] tracking-[1.5px] h-12 shadow-xl shadow-primary/20 transition-all hover:translate-y-[-1px] active:translate-y-[1px]"
+                            onClick={() => setShowValidationModal(false)}
+                        >
+                            Entendido, iré a completar
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </Dialog>
     );
 }

@@ -12,15 +12,18 @@ import { useClientCredit } from "@/features/wallet/model/hooks"
 import { usePDFPreview } from "@/shared/hooks/usePDFPreview"
 import { PDFPreviewModal } from "@/shared/ui/PDFPreviewModal"
 
+import type { CreditDistribution } from "@/entities/financial-record/model/types"
+
 interface DeliverOrderModalProps {
     order: Order | null;
     orders?: Order[];
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onSuccess?: () => void;
+    creditDistributions?: Record<string, CreditDistribution>;
 }
 
-export function DeliverOrderModalNew({ order, orders = [], open, onOpenChange, onSuccess }: DeliverOrderModalProps) {
+export function DeliverOrderModalNew({ order, orders = [], open, onOpenChange, onSuccess, creditDistributions = {} }: DeliverOrderModalProps) {
     const isBatch = orders.length > 0
     const activeOrders = isBatch ? orders : (order ? [order] : [])
     const firstOrder = activeOrders[0]
@@ -48,10 +51,20 @@ export function DeliverOrderModalNew({ order, orders = [], open, onOpenChange, o
     // Keep component mounted if we are showing a PDF even if the orders are cleared
     if (!firstOrder && !pdfPreview.pdfDocument) return null
 
-    // Calculate totals safely
-    const totalEffective = activeOrders.reduce((sum, o) => sum + (o.realInvoiceTotal ?? o.total), 0)
-    const totalPaidBefore = activeOrders.reduce((sum, o) => sum + getPaidAmount(o), 0)
-    const totalAmountToCharge = Math.max(0, totalEffective - totalPaidBefore)
+    // Calculate totals: sum only the POSITIVE pending per order
+    // (surpluses from NC/overpayment must NOT cancel other orders' pending amounts)
+    const totalAmountToCharge = activeOrders.reduce((sum, o) => {
+        const effective = Number(o.realInvoiceTotal ?? o.total)
+        const paid = getPaidAmount(o)
+        const creditNote = Number(o.creditNoteTotal || 0)
+        // incoming credit from distributions applied to this order (from other orders' surplus)
+        const incomingDist = Object.values(creditDistributions).reduce((s, dist) => {
+            const d = dist.distributions.find(d => d.targetOrderId === o.id)
+            return s + (d?.amount || 0)
+        }, 0)
+        const pending = effective - paid - creditNote - incomingDist
+        return sum + Math.max(0, pending)
+    }, 0)
     const currentCreditAmount = creditData?.totalCredit || 0
  
     // Payment context for the modal
@@ -74,9 +87,10 @@ export function DeliverOrderModalNew({ order, orders = [], open, onOpenChange, o
 
         const totalPaid = data.payments.reduce((sum, p) => sum + p.amount, 0)
         
-        // REGLA FASE 3: En entregas SIEMPRE se debe pagar el total
-        if (Math.abs(totalPaid - totalAmountToCharge) > 0.01) {
-            notifyError({ message: 'Se debe cancelar el monto total pendiente para proceder con la entrega.' })
+        // REGLA FASE 3: En entregas se debe pagar el total pendiente real
+        // Si totalAmountToCharge es 0 (todo cubierto por NC/distribución), se puede proceder sin pago
+        if (totalAmountToCharge > 0.01 && Math.abs(totalPaid - totalAmountToCharge) > 0.05) {
+            notifyError({ message: `Se debe cancelar el monto total pendiente ($${totalAmountToCharge.toFixed(2)}) para proceder con la entrega.` })
             throw new Error('Full payment required')
         }
 
@@ -96,7 +110,36 @@ export function DeliverOrderModalNew({ order, orders = [], open, onOpenChange, o
             }))
 
             if (isBatch) {
-                await orderApi.batchDeliver(activeOrders.map(o => o.id), paymentsToSend)
+                const hasDistributions = Object.keys(creditDistributions).length > 0
+
+                if (hasDistributions) {
+                    // Deliver each order individually so we can attach credit distributions per order
+                    let remainingPayment = totalPaid
+                    for (const o of activeOrders) {
+                        const effective = Number(o.realInvoiceTotal ?? o.total)
+                        const paid = getPaidAmount(o)
+                        const creditNote = Number(o.creditNoteTotal || 0)
+                        const incomingDist = Object.values(creditDistributions).reduce((s, dist) => {
+                            const d = dist.distributions.find(dd => dd.targetOrderId === o.id)
+                            return s + (d?.amount || 0)
+                        }, 0)
+                        const orderPending = Math.max(0, effective - paid - creditNote - incomingDist)
+                        const orderPayment = Math.min(orderPending, remainingPayment)
+                        remainingPayment -= orderPayment
+
+                        const orderPayments = orderPayment > 0.01 && totalPaid > 0.01
+                            ? paymentsToSend.map(p => ({ ...p, amount: Number(((p.amount / totalPaid) * orderPayment).toFixed(2)) })).filter(p => p.amount > 0.01)
+                            : []
+
+                        await orderApi.deliverOrder(o.id, {
+                            payments: orderPayments,
+                            notes: `Entrega en lote al cliente ${o.clientName}`,
+                            creditDistribution: creditDistributions[o.id]
+                        })
+                    }
+                } else {
+                    await orderApi.batchDeliver(activeOrders.map(o => o.id), paymentsToSend)
+                }
                 
                 // RE-FETCH UPDATED ORDERS TO GET NEW BALANCES FOR PDF
                 const updatedOrders = await Promise.all(
@@ -125,10 +168,17 @@ export function DeliverOrderModalNew({ order, orders = [], open, onOpenChange, o
 
                 notifySuccess(`Lote de ${activeOrders.length} entregas registrado correctamente`)
             } else {
+                // Get credit distribution for this single order (if any)
+                const orderCreditDist = firstOrder ? creditDistributions[firstOrder.id] : undefined
+
                 await orderApi.deliverOrder(firstOrder.id, {
                     payments: paymentsToSend,
-                    notes: `Entrega al cliente ${firstOrder.clientName}`
+                    notes: `Entrega al cliente ${firstOrder.clientName}`,
+                    creditDistribution: orderCreditDist
                 });
+
+                // For other orders that received distributions (their surplus was applied here)
+                // those are handled server-side already via creditDistribution.distributions[].targetOrderId
 
                 // RE-FETCH UPDATED ORDER
                 const deliveredOrder = await orderApi.getById(firstOrder.id);
@@ -187,7 +237,7 @@ export function DeliverOrderModalNew({ order, orders = [], open, onOpenChange, o
                     expectedAmount={totalAmountToCharge}
                     allowMultiplePayments={true}
                     initialAmount={totalAmountToCharge}
-                    forceExactAmount={true}
+                    forceExactAmount={totalAmountToCharge > 0.01}
                 />
             )}
 

@@ -51,6 +51,8 @@ export interface Order {
     receptionDate?: string; // Date received in warehouse
     deliveryDate?: string; // Date delivered to client
     invoiceNumber?: string; // Official Invoice Number (optional)
+    creditNoteNumber?: string;
+    creditNoteTotal?: number;
     orderNumber?: string; // Catalog Order Number (optional)
 
     // Nuevos campos FASE 3

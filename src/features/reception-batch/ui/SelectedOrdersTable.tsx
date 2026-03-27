@@ -1,12 +1,8 @@
-import { useState } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table"
 import { Input } from "@/shared/ui/input"
-import { Button } from "@/shared/ui/button"
 import type { Order } from "@/entities/order/model/types"
 import type { CreditDistribution } from "@/entities/financial-record/model/types"
-import { X, CheckCircle, DollarSign, ArrowRight } from "lucide-react"
-import { CreditActionSelectorModal } from "./CreditActionSelectorModal"
-import { CreditDistributionModal } from "./CreditDistributionModal"
+import { X, CheckCircle, ArrowRight } from "lucide-react"
 import { getPaidAmount } from "@/entities/order/model/model"
 
 export interface SelectedOrderState {
@@ -25,7 +21,7 @@ interface Props {
     onUpdateInvoiceNumber: (id: string, val: string) => void
     onUpdateDocumentType: (id: string, val: string) => void
     onUpdateEntryDate: (id: string, val: string) => void
-    onUpdateCreditDistribution?: (id: string, distribution: CreditDistribution) => void 
+
 }
 
 export function SelectedOrdersTable({
@@ -35,170 +31,68 @@ export function SelectedOrdersTable({
     onUpdateInvoiceNumber,
     onUpdateDocumentType,
     onUpdateEntryDate,
-    onUpdateCreditDistribution
 }: Props) {
-    const [creditModalState, setCreditModalState] = useState<{
-        selectorOpen: boolean
-        distributionOpen: boolean
-        sourceOrder?: SelectedOrderState
-        creditAmount: number
-        initialRemainingAction?: 'wallet' | 'return'
-    }>({
-        selectorOpen: false,
-        distributionOpen: false,
-        creditAmount: 0,
-        initialRemainingAction: undefined
-    })
-
     const totalEstimate = orders.reduce((sum, o) => sum + Number(o.order.total || 0), 0)
     const totalInvoice = orders.reduce((sum, o) => sum + Number(o.finalTotal || 0), 0)
 
-    const calculateCreditAmount = (orderState: SelectedOrderState) => {
-        const initialPaid = getPaidAmount(orderState.order);
-        const finalBalance = Number(orderState.finalTotal || 0) - initialPaid;
-        return finalBalance < -0.01 ? Math.abs(finalBalance) : 0;
-    }
+    const handleTableKeyDown = (e: React.KeyboardEvent<HTMLElement>, rowIndex: number, fieldName: string) => {
+        const input = e.currentTarget as HTMLInputElement;
+        const isInput = input.tagName === 'INPUT';
+        const isNumber = isInput && input.type === 'number';
+        const isDate = isInput && input.type === 'date';
+        const isSelect = input.tagName === 'SELECT';
 
-    const handleOpenCreditDistribution = (orderState: SelectedOrderState) => {
-        const creditAmount = calculateCreditAmount(orderState);
-        if (creditAmount > 0) {
-            const isComplex = orderState.creditDistribution && 
-                orderState.creditDistribution.distributions.some(d => !!d.targetOrderId);
-
-            setCreditModalState({
-                selectorOpen: !isComplex,
-                distributionOpen: !!isComplex,
-                sourceOrder: orderState,
-                creditAmount,
-                initialRemainingAction: undefined
-            });
-        }
-    }
-
-    const handleMoveToWallet = () => {
-        if (creditModalState.sourceOrder && onUpdateCreditDistribution) {
-            const distribution: CreditDistribution = {
-                sourceOrderId: creditModalState.sourceOrder.order.id,
-                totalCreditAmount: creditModalState.creditAmount,
-                distributions: [{
-                    amount: creditModalState.creditAmount,
-                    description: `Saldo completo guardado en billetera virtual - Origen: Pedido ${creditModalState.sourceOrder.order.receiptNumber}`
-                }]
-            }
-            onUpdateCreditDistribution(creditModalState.sourceOrder.order.id, distribution);
-        }
-        setCreditModalState({ selectorOpen: false, distributionOpen: false, creditAmount: 0, initialRemainingAction: undefined });
-    }
-
-    const handleReturnToClient = () => {
-        setCreditModalState(prev => ({
-            ...prev,
-            selectorOpen: false,
-            distributionOpen: true,
-            initialRemainingAction: 'return'
-        }));
-    }
-
-    const handleDistributeToOrders = () => {
-        setCreditModalState(prev => ({
-            ...prev,
-            selectorOpen: false,
-            distributionOpen: true,
-            initialRemainingAction: undefined
-        }));
-    }
-
-    const handleCreditDistribution = (distribution: CreditDistribution) => {
-        if (creditModalState.sourceOrder && onUpdateCreditDistribution) {
-            onUpdateCreditDistribution(creditModalState.sourceOrder.order.id, distribution);
-        }
-        setCreditModalState({ selectorOpen: false, distributionOpen: false, creditAmount: 0, initialRemainingAction: undefined });
-    }
-
-    const handleBackToSelector = () => {
-        setCreditModalState(prev => ({
-            ...prev,
-            selectorOpen: true,
-            distributionOpen: false
-        }));
-    }
-
-    const getAvailableOrdersForDistribution = (sourceOrderState: SelectedOrderState) => {
-        return orders
-            .filter(o => 
-                o.order.id !== sourceOrderState.order.id && 
-                o.order.clientId === sourceOrderState.order.clientId
-            )
-            .map(o => {
-                const initialPaid = getPaidAmount(o.order);
-                const incomingFromOthers = orders.reduce((sum, other) => {
-                    if (other.order.id === sourceOrderState.order.id || !other.creditDistribution) return sum;
-                    const distToThisOrder = other.creditDistribution.distributions.find(d => d.targetOrderId === o.order.id);
-                    return sum + (distToThisOrder?.amount || 0);
-                }, 0);
-
-                const pendingAmount = Math.max(0, Number(o.finalTotal || 0) - initialPaid - incomingFromOthers);
-                
-                return {
-                    id: o.order.id,
-                    receiptNumber: o.order.receiptNumber,
-                    orderNumber: o.order.orderNumber || '',
-                    clientName: o.order.clientName,
-                    orderType: (o.order.type || 'NORMAL') as any,
-                    pendingAmount,
-                    totalAmount: Number(o.finalTotal || 0),
-                    paidAmount: initialPaid + incomingFromOthers,
-                    brandName: o.order.brandName
-                };
-            })
-            .filter(o => o.pendingAmount > 0.01);
-    }
-
-    const handleTableKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, rowIndex: number, fieldName: string) => {
-        const input = e.currentTarget;
         let selectionStart: number | null = null;
+        let valueLength = 0;
+
         try {
-            selectionStart = input.selectionStart;
+            if (isInput && !isNumber && !isDate) {
+                selectionStart = input.selectionStart;
+                valueLength = input.value.length;
+            }
         } catch (e) {}
 
-        const valueLength = input.value.length;
+        const fields = ['documentType', 'finalInvoiceNumber', 'finalTotal', 'entryDate'];
 
         if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
             e.preventDefault();
             const nextIndex = e.key === 'ArrowDown' ? rowIndex + 1 : rowIndex - 1;
-            const target = document.querySelector(`input[data-row-index="${nextIndex}"][data-field-name="${fieldName}"]`) as HTMLInputElement;
+            const target = document.querySelector(`[data-row-index="${nextIndex}"][data-field-name="${fieldName}"]`) as HTMLElement;
             if (target) {
                 target.focus();
-                if (target.type !== 'number') target.select();
+                if (target instanceof HTMLInputElement && target.type !== 'number' && target.type !== 'date') target.select();
             }
         } else if (e.key === 'ArrowLeft') {
-            if (selectionStart === 0 || input.type === 'number') {
-                const fields = ['finalInvoiceNumber', 'finalTotal'];
+            const isAtStart = isSelect || isDate || selectionStart === 0;
+            if (isAtStart) {
                 const currentIndex = fields.indexOf(fieldName);
                 if (currentIndex > 0) {
                     const prevField = fields[currentIndex - 1];
-                    const targetInput = document.querySelector(`input[data-row-index="${rowIndex}"][data-field-name="${prevField}"]`) as HTMLInputElement;
-                    if (targetInput) {
+                    const target = document.querySelector(`[data-row-index="${rowIndex}"][data-field-name="${prevField}"]`) as HTMLElement;
+                    if (target) {
                         e.preventDefault();
-                        targetInput.focus();
-                        if (targetInput.type !== 'number') targetInput.select();
+                        target.focus();
+                        if (target instanceof HTMLInputElement && target.type !== 'number' && target.type !== 'date') target.select();
                     }
                 }
             }
         } else if (e.key === 'ArrowRight') {
-            if (selectionStart === valueLength || input.type === 'number') {
-                const fields = ['finalInvoiceNumber', 'finalTotal'];
+            const isAtEnd = isSelect || isDate || selectionStart === valueLength;
+            if (isAtEnd) {
                 const currentIndex = fields.indexOf(fieldName);
                 if (currentIndex < fields.length - 1) {
                     const nextField = fields[currentIndex + 1];
-                    const targetInput = document.querySelector(`input[data-row-index="${rowIndex}"][data-field-name="${nextField}"]`) as HTMLInputElement;
-                    if (targetInput) {
+                    const target = document.querySelector(`[data-row-index="${rowIndex}"][data-field-name="${nextField}"]`) as HTMLElement;
+                    if (target) {
                         e.preventDefault();
-                        targetInput.focus();
-                        if (targetInput.type !== 'number') targetInput.select();
+                        target.focus();
+                        if (target instanceof HTMLInputElement && target.type !== 'number' && target.type !== 'date') target.select();
                     }
                 }
             }
+        } else if (e.key === 'Enter' && isDate) {
+             e.preventDefault();
+             if ('showPicker' in input) (input as any).showPicker();
         }
     }
 
@@ -244,8 +138,6 @@ export function SelectedOrdersTable({
                                 }, 0);
 
                                 const finalBalance = Number(finalTotal || 0) - initialPaid - incomingDistributiveCredit;
-                                const creditAmount = calculateCreditAmount(orderState);
-                                const hasCreditDistribution = !!orderState.creditDistribution;
                                 const mismatch = Math.abs(Number(order.total || 0) - Number(finalTotal || 0)) > 0.01;
 
                                 return (
@@ -283,6 +175,9 @@ export function SelectedOrdersTable({
                                             <select
                                                 value={documentType}
                                                 onChange={(e) => onUpdateDocumentType(order.id, e.target.value)}
+                                                onKeyDown={(e) => handleTableKeyDown(e, orders.indexOf(orderState), 'documentType')}
+                                                data-row-index={orders.indexOf(orderState)}
+                                                data-field-name="documentType"
                                                 className="h-7 text-[10px] w-24 bg-white border border-monchito-purple/20 rounded px-1 focus:outline-none focus:ring-1 focus:ring-monchito-purple/20"
                                             >
                                                 <option value="FACTURA">FACTURA</option>
@@ -304,12 +199,12 @@ export function SelectedOrdersTable({
                                         </TableCell>
                                         <TableCell className="py-4 px-2">
                                             <Input
-                                                type="number"
-                                                min={0}
+                                                type="text"
+                                                inputMode="decimal"
                                                 value={finalTotal}
                                                 onChange={(e) => {
-                                                    const val = parseFloat(e.target.value);
-                                                    onUpdateInvoiceTotal(order.id, isNaN(val) ? 0 : val);
+                                                    const val = e.target.value.replace(/[^0-9.]/g, '');
+                                                    onUpdateInvoiceTotal(order.id, Number(val));
                                                 }}
                                                 onKeyDown={(e) => handleTableKeyDown(e, orders.indexOf(orderState), 'finalTotal')}
                                                 data-row-index={orders.indexOf(orderState)}
@@ -322,31 +217,16 @@ export function SelectedOrdersTable({
                                                 type="date"
                                                 value={entryDate}
                                                 onChange={(e) => onUpdateEntryDate(order.id, e.target.value)}
+                                                onKeyDown={(e) => handleTableKeyDown(e, orders.indexOf(orderState), 'entryDate')}
+                                                data-row-index={orders.indexOf(orderState)}
+                                                data-field-name="entryDate"
                                                 className="h-7 text-[10px] px-1 w-24 bg-white border-monchito-purple/20 focus:ring-monchito-purple/20"
                                             />
                                         </TableCell>
                                         <TableCell className={`py-4 px-2 text-right font-mono font-bold text-xs`}>
-                                            <div className="flex items-center justify-end gap-2">
-                                                <span className={finalBalance < -0.01 ? 'text-emerald-600' : finalBalance > 0.01 ? 'text-amber-600' : 'text-slate-400'}>
-                                                    {finalBalance < -0.01 ? 'Favor: ' : ''}${Math.abs(finalBalance).toFixed(2)}
-                                                </span>
-                                                {creditAmount > 0 && (
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        onClick={() => handleOpenCreditDistribution(orderState)}
-                                                        className={`h-6 px-2 text-[10px] flex items-center gap-1 ${
-                                                            hasCreditDistribution 
-                                                                ? 'bg-monchito-purple text-white border-monchito-purple hover:bg-monchito-purple/90 shadow-sm' 
-                                                                : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
-                                                        }`}
-                                                        title={`Distribuir $${creditAmount.toFixed(2)} de saldo a favor`}
-                                                    >
-                                                        <DollarSign className="h-3 w-3" />
-                                                        {hasCreditDistribution ? 'Ver/Editar' : 'Distribuir'}
-                                                    </Button>
-                                                )}
-                                            </div>
+                                            <span className={finalBalance < -0.01 ? 'text-emerald-600' : finalBalance > 0.01 ? 'text-amber-600' : 'text-slate-400'}>
+                                                {finalBalance < -0.01 ? 'Favor: ' : ''}${Math.abs(finalBalance).toFixed(2)}
+                                            </span>
                                         </TableCell>
                                         <TableCell className="p-1 w-[30px] text-center py-4">
                                             <button
@@ -373,45 +253,6 @@ export function SelectedOrdersTable({
                     </div>
                 </div>
             </div>
-
-            {creditModalState.sourceOrder && (
-                <CreditActionSelectorModal
-                    isOpen={creditModalState.selectorOpen}
-                    onClose={() => setCreditModalState({ selectorOpen: false, distributionOpen: false, creditAmount: 0, initialRemainingAction: undefined })}
-                    sourceOrder={{
-                        id: creditModalState.sourceOrder.order.id,
-                        receiptNumber: creditModalState.sourceOrder.order.receiptNumber,
-                        orderNumber: creditModalState.sourceOrder.order.orderNumber || '',
-                        clientName: creditModalState.sourceOrder.order.clientName,
-                        orderType: (creditModalState.sourceOrder.order.type || 'NORMAL') as any
-                    }}
-                    creditAmount={creditModalState.creditAmount}
-                    onMoveToWallet={handleMoveToWallet}
-                    onReturnToClient={handleReturnToClient}
-                    onDistributeToOrders={handleDistributeToOrders}
-                />
-            )}
-
-            {creditModalState.sourceOrder && (
-                <CreditDistributionModal
-                    isOpen={creditModalState.distributionOpen}
-                    onClose={() => setCreditModalState({ selectorOpen: false, distributionOpen: false, creditAmount: 0, initialRemainingAction: undefined })}
-                    sourceOrder={{
-                        id: creditModalState.sourceOrder.order.id,
-                        receiptNumber: creditModalState.sourceOrder.order.receiptNumber,
-                        orderNumber: creditModalState.sourceOrder.order.orderNumber || '',
-                        clientId: creditModalState.sourceOrder.order.clientId,
-                        clientName: creditModalState.sourceOrder.order.clientName,
-                        orderType: creditModalState.sourceOrder.order.type || 'NORMAL'
-                    }}
-                    creditAmount={creditModalState.creditAmount}
-                    availableOrders={getAvailableOrdersForDistribution(creditModalState.sourceOrder)}
-                    onDistribute={handleCreditDistribution}
-                    initialDistribution={creditModalState.sourceOrder.creditDistribution}
-                    initialRemainingAction={creditModalState.initialRemainingAction}
-                    onBack={handleBackToSelector}
-                />
-            )}
         </div>
     )
 }

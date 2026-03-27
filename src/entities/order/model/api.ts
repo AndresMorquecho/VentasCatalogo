@@ -169,6 +169,8 @@ export const orderApi = {
         data: {
             finalTotal: number;
             invoiceNumber?: string;
+            creditNoteNumber?: string;
+            creditNoteTotal?: number;
             abonoRecepcion?: number;
             bankAccountId?: string;
             paymentMethod?: string;
@@ -188,6 +190,8 @@ export const orderApi = {
             abonoRecepcion: number;
             finalTotal: number;
             finalInvoiceNumber: string;
+            creditNoteNumber?: string;
+            creditNoteTotal?: number;
             documentType?: string;
             entryDate?: string;
             packingNumber?: string;
@@ -241,6 +245,20 @@ export const orderApi = {
                 reference?: string;
             }[];
             notes?: string;
+            creditNoteNumber?: string;
+            creditNoteTotal?: number;
+            invoiceNumber?: string;
+            creditDistribution?: {
+                sourceOrderId: string;
+                totalCreditAmount: number;
+                distributions: {
+                    targetOrderId?: string;
+                    amount: number;
+                    description: string;
+                    isCashReturn?: boolean;
+                    bankAccountId?: string;
+                }[];
+            };
         }
     ): Promise<Order> => {
         return httpClient.post<Order>(`/orders/${orderId}/deliver`, data);

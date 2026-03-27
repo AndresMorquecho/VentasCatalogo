@@ -66,17 +66,22 @@ function SearchableSelect({
     value,
     onChange,
     placeholder,
-    disabled = false
+    disabled = false,
+    onKeyDown,
+    dataProps
 }: {
     options: Option[],
     value: string,
     onChange: (val: string) => void,
     placeholder: string,
-    disabled?: boolean
+    disabled?: boolean,
+    onKeyDown?: (e: React.KeyboardEvent) => void,
+    dataProps?: Record<string, string | number>
 }) {
     const [isOpen, setIsOpen] = useState(false)
     const [searchTerm, setSearchTerm] = useState("")
     const wrapperRef = useRef<HTMLDivElement>(null)
+    const selectRef = useRef<HTMLDivElement>(null)
 
     const selectedOption = options.find(o => o.id === value)
 
@@ -95,49 +100,78 @@ function SearchableSelect({
         (option.subLabel && option.subLabel.toLowerCase().includes(searchTerm.toLowerCase()))
     )
 
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (onKeyDown) onKeyDown(e)
+        
+        if (disabled) return
+
+        if (e.key === 'Enter' || e.key === ' ') {
+            if (!isOpen) {
+                e.preventDefault()
+                setIsOpen(true)
+                setSearchTerm("")
+            }
+        } else if (e.key === 'Escape') {
+            setIsOpen(false)
+        }
+    }
+
     return (
         <div className="relative" ref={wrapperRef}>
             <div
-                className={`flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm items-center justify-between overflow-hidden ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                ref={selectRef}
+                tabIndex={disabled ? -1 : 0}
+                {...dataProps}
+                className={`flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm items-center justify-between overflow-hidden transition-all focus:ring-1 focus:ring-monchito-purple focus:border-monchito-purple outline-none ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-slate-400'}`}
                 onClick={() => {
                     if (disabled) return;
                     setIsOpen(!isOpen)
-                    if (!isOpen) setSearchTerm("") // Reset search on open
+                    if (!isOpen) setSearchTerm("")
                 }}
+                onKeyDown={handleKeyDown}
             >
-                <span className={selectedOption ? "text-foreground" : "text-muted-foreground"}>
+                <span className={selectedOption ? "text-foreground font-medium" : "text-muted-foreground"}>
                     {selectedOption ? `${selectedOption.label} ${selectedOption.subLabel ? `(${selectedOption.subLabel})` : ''}` : placeholder}
                 </span>
-                <span className="opacity-50 text-xs text-muted-foreground">▼</span>
+                <span className="opacity-50 text-[10px] text-muted-foreground mr-[-4px]">▼</span>
             </div>
 
             {isOpen && (
-                <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover text-popover-foreground shadow-lg bg-white dark:bg-slate-950 ring-1 ring-black ring-opacity-5">
-                    <div className="p-2 border-b">
+                <div className="absolute z-50 mt-1 w-full min-w-[200px] rounded-xl border bg-white text-popover-foreground shadow-2xl ring-1 ring-black ring-opacity-5 animate-in fade-in zoom-in-95 duration-200">
+                    <div className="p-2 border-b border-slate-100 bg-slate-50/50 rounded-t-xl">
                         <Input
                             autoFocus
                             placeholder="Buscar..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="h-8"
+                            onKeyDown={(e) => {
+                                if (e.key === 'Escape') setIsOpen(false)
+                                if (e.key === 'Enter' && filteredOptions.length > 0) {
+                                    onChange(filteredOptions[0].id)
+                                    setIsOpen(false)
+                                    selectRef.current?.focus()
+                                }
+                            }}
+                            className="h-8 bg-white"
                         />
                     </div>
                     <div className="max-h-[250px] overflow-auto py-1">
                         {filteredOptions.length === 0 ? (
-                            <div className="px-2 py-3 text-sm text-muted-foreground text-center">No se encontraron resultados</div>
+                            <div className="px-2 py-3 text-xs text-muted-foreground text-center italic">No se encontraron resultados</div>
                         ) : (
                             filteredOptions.map((option) => (
                                 <div
                                     key={option.id}
-                                    className={`relative flex cursor-default select-none items-center rounded-sm px-3 py-2 text-sm outline-none hover:bg-indigo-50 hover:text-indigo-900 transition-colors ${option.id === value ? "bg-indigo-100 text-indigo-900 font-medium" : ""}`}
+                                    className={`relative flex cursor-default select-none items-center rounded-md mx-1 px-3 py-2 text-xs outline-none hover:bg-monchito-purple/5 hover:text-monchito-purple transition-colors ${option.id === value ? "bg-monchito-purple/10 text-monchito-purple font-bold" : "text-slate-600"}`}
                                     onClick={() => {
                                         onChange(option.id)
                                         setIsOpen(false)
+                                        selectRef.current?.focus()
                                     }}
                                 >
                                     <div className="flex flex-col">
-                                        <span>{option.label}</span>
-                                        {option.subLabel && <span className="text-[10px] opacity-70">{option.subLabel}</span>}
+                                        <span className="font-bold">{option.label}</span>
+                                        {option.subLabel && <span className="text-[10px] opacity-70 font-medium">{option.subLabel}</span>}
                                     </div>
                                 </div>
                             ))
@@ -755,17 +789,89 @@ export function OrderFormPage() {
     // Total deposit is now the sum of manual row deposits
     const totalRowDeposit = formik.values.brandItems.reduce((sum, item) => sum + Number(item.deposit || 0), 0);
 
+    const handleMainKeyDown = (e: React.KeyboardEvent, group: string, index: number) => {
+        const input = e.currentTarget as HTMLInputElement;
+        const isInput = input.tagName === 'INPUT';
+        const isNumber = isInput && input.type === 'number';
+        const isDate = isInput && input.type === 'date';
+        
+        let selectionStart: number | null = null;
+        let valueLength = 0;
+
+        try {
+            if (isInput && !isNumber && !isDate) {
+                selectionStart = input.selectionStart;
+                valueLength = input.value.length;
+            }
+        } catch (err) {}
+
+        if (e.key === 'ArrowRight') {
+            const isAtEnd = !isInput || isDate || selectionStart === valueLength;
+            if (isAtEnd) {
+                const next = document.querySelector(`[data-nav-group="${group}"][data-nav-index="${index + 1}"]`) as HTMLElement;
+                if (next) {
+                    e.preventDefault();
+                    next.focus();
+                    if (next instanceof HTMLInputElement && next.type !== 'number' && next.type !== 'date') next.select();
+                }
+            }
+        } else if (e.key === 'ArrowLeft') {
+            const isAtStart = !isInput || isDate || selectionStart === 0;
+            if (isAtStart) {
+                const prev = document.querySelector(`[data-nav-group="${group}"][data-nav-index="${index - 1}"]`) as HTMLElement;
+                if (prev) {
+                    e.preventDefault();
+                    prev.focus();
+                    if (prev instanceof HTMLInputElement && prev.type !== 'number' && prev.type !== 'date') prev.select();
+                }
+            }
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            let nextGroup = group;
+            if (group === 'header') nextGroup = 'entry';
+            else if (group === 'entry') nextGroup = 'table';
+
+            const target = document.querySelector(`[data-nav-group="${nextGroup}"]`) as HTMLElement;
+            if (target) target.focus();
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            let prevGroup = group;
+            if (group === 'table') prevGroup = 'entry';
+            else if (group === 'entry') prevGroup = 'header';
+
+            const target = document.querySelector(`[data-nav-group="${prevGroup}"]`) as HTMLElement;
+            if (target) target.focus();
+        } else if (e.key === 'Enter' && group === 'entry') {
+            // Enter in entry bar: open picker for date, or add item for last fields
+            if (isDate) {
+                e.preventDefault();
+                try {
+                    // Try to open native date picker
+                    if ('showPicker' in input) {
+                        (input as any).showPicker();
+                    }
+                } catch (e) {
+                    // Fallback or ignore if not supported
+                }
+            } else if (index >= 5 || index === 7) { 
+                e.preventDefault();
+                handleAddItem();
+            }
+        }
+    };
+
     const handleTableKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, rowIndex: number, fieldName: string) => {
         const input = e.currentTarget;
+        const isNumber = input.type === 'number';
         let selectionStart: number | null = null;
+        let valueLength = 0;
         
         try {
-            selectionStart = input.selectionStart;
-        } catch (e) {
-            // type="number" does not support selectionStart in some browsers
-        }
-
-        const valueLength = input.value.length;
+            if (!isNumber) {
+                selectionStart = input.selectionStart;
+                valueLength = input.value.length;
+            }
+        } catch (e) {}
 
         if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
             e.preventDefault();
@@ -779,14 +885,15 @@ export function OrderFormPage() {
                 
                 if (targetInput) {
                     targetInput.focus();
-                    if (targetInput.type !== 'number') {
-                         targetInput.select();
-                    }
+                    if (targetInput.type !== 'number') targetInput.select();
                 }
+            } else if (e.key === 'ArrowUp' && rowIndex === 0) {
+                // Return to entry bar
+                const target = document.querySelector('[data-nav-group="entry"]') as HTMLElement;
+                if (target) target.focus();
             }
         } else if (e.key === 'ArrowLeft') {
-            // Move to previous column if at start of input (or if numeric input and we can't detect position)
-            if (selectionStart === 0 || input.type === 'number') {
+            if (selectionStart === 0) {
                 const fields = ['orderNumber', 'total', 'deposit'];
                 const currentIndex = fields.indexOf(fieldName);
                 if (currentIndex > 0) {
@@ -797,15 +904,12 @@ export function OrderFormPage() {
                     if (targetInput) {
                         e.preventDefault();
                         targetInput.focus();
-                        if (targetInput.type !== 'number') {
-                            targetInput.select();
-                        }
+                        if (targetInput.type !== 'number') targetInput.select();
                     }
                 }
             }
         } else if (e.key === 'ArrowRight') {
-            // Move to next column if at end of input
-            if (selectionStart === valueLength || input.type === 'number') {
+            if (selectionStart === valueLength) {
                 const fields = ['orderNumber', 'total', 'deposit'];
                 const currentIndex = fields.indexOf(fieldName);
                 if (currentIndex < fields.length - 1) {
@@ -816,9 +920,7 @@ export function OrderFormPage() {
                     if (targetInput) {
                         e.preventDefault();
                         targetInput.focus();
-                        if (targetInput.type !== 'number') {
-                            targetInput.select();
-                        }
+                        if (targetInput.type !== 'number') targetInput.select();
                     }
                 }
             }
@@ -1105,6 +1207,9 @@ export function OrderFormPage() {
                                         {...formik.getFieldProps('receiptNumber')}
                                         disabled={isLoadingReceiptNumber || isEditing}
                                         className="h-8 text-sm font-mono font-bold text-monchito-purple bg-monchito-purple/5"
+                                        data-nav-group="header"
+                                        data-nav-index="0"
+                                        onKeyDown={(e) => handleMainKeyDown(e, 'header', 0)}
                                     />
                                     {!isEditing && (
                                         <Button
@@ -1129,7 +1234,7 @@ export function OrderFormPage() {
                                 <Input
                                     type="date"
                                     {...formik.getFieldProps('createdAt')}
-                                    disabled={isEditing}
+                                    disabled
                                     className="h-8 text-sm"
                                 />
                             </div>
@@ -1141,6 +1246,11 @@ export function OrderFormPage() {
                                     onChange={(val) => formik.setFieldValue('clientId', val)}
                                     placeholder="Ingrese nombre o cédula..."
                                     disabled={isEditing}
+                                    dataProps={{
+                                        'data-nav-group': 'header',
+                                        'data-nav-index': 1
+                                    }}
+                                    onKeyDown={(e) => handleMainKeyDown(e, 'header', 1)}
                                 />
                                 {totalCredit > 0 && (
                                     <p className="text-xs text-green-600 font-bold mt-1">Saldo a favor: ${totalCredit.toFixed(2)}</p>
@@ -1183,7 +1293,10 @@ export function OrderFormPage() {
                         <select
                             value={currentItem.salesChannel}
                             onChange={(e) => setCurrentItem({ ...currentItem, salesChannel: e.target.value as SalesChannel })}
-                            className="h-8 w-full rounded-md border border-input text-xs px-2 py-1"
+                            className="h-8 w-full rounded-md border border-input text-xs px-2 py-1 outline-none focus:ring-1 focus:ring-monchito-purple"
+                            data-nav-group="entry"
+                            data-nav-index={0}
+                            onKeyDown={(e) => handleMainKeyDown(e, 'entry', 0)}
                         >
                             <option value="OFICINA">OFICINA</option>
                             <option value="WHATSAPP">WHATSAPP</option>
@@ -1195,7 +1308,10 @@ export function OrderFormPage() {
                         <select
                             value={currentItem.type}
                             onChange={(e) => setCurrentItem({ ...currentItem, type: e.target.value as OrderType })}
-                            className="h-8 w-full rounded-md border border-input text-xs px-2 py-1"
+                            className="h-8 w-full rounded-md border border-input text-xs px-2 py-1 outline-none focus:ring-1 focus:ring-monchito-purple"
+                            data-nav-group="entry"
+                            data-nav-index={1}
+                            onKeyDown={(e) => handleMainKeyDown(e, 'entry', 1)}
                         >
                             <option value="NORMAL">NORMAL</option>
                             <option value="PREVENTA">PREVENTA</option>
@@ -1209,15 +1325,25 @@ export function OrderFormPage() {
                             value={currentItem.orderNumber}
                             onChange={(e) => setCurrentItem({ ...currentItem, orderNumber: e.target.value })}
                             placeholder="Ej: 12345"
+                            data-nav-group="entry"
+                            data-nav-index={2}
+                            onKeyDown={(e) => handleMainKeyDown(e, 'entry', 2)}
                         />
                     </div>
                     <div className="w-full sm:w-[60px] space-y-1 shrink-0">
                         <Label className="text-xs font-bold uppercase text-slate-500">Cant:</Label>
                         <Input
-                            type="number"
+                            type="text"
+                            inputMode="decimal"
                             className="h-8 w-full text-xs px-2 hide-spinner"
                             value={currentItem.quantity}
-                            onChange={(e) => setCurrentItem({ ...currentItem, quantity: Number(e.target.value) })}
+                            onChange={(e) => {
+                                const val = e.target.value.replace(/[^0-9.]/g, '');
+                                setCurrentItem({ ...currentItem, quantity: Number(val) });
+                            }}
+                            data-nav-group="entry"
+                            data-nav-index={3}
+                            onKeyDown={(e) => handleMainKeyDown(e, 'entry', 3)}
                         />
                     </div>
                     <div className="w-full sm:flex-1 min-w-[140px] space-y-1">
@@ -1230,16 +1356,27 @@ export function OrderFormPage() {
                                 setCurrentItem({ ...currentItem, brandId: val, brandName: b ? b.name : "" });
                             }}
                             placeholder="Marca..."
+                            dataProps={{
+                                'data-nav-group': 'entry',
+                                'data-nav-index': 4
+                            }}
+                            onKeyDown={(e) => handleMainKeyDown(e, 'entry', 4)}
                         />
                     </div>
                     <div className="w-full sm:w-[80px] space-y-1 shrink-0">
                         <Label className="text-xs font-bold uppercase text-slate-500">Valor:</Label>
                         <Input
-                            type="number"
+                            type="text"
+                            inputMode="decimal"
                             className="h-8 w-full font-bold text-xs px-2 hide-spinner"
                             value={currentItem.total}
-                            onChange={(e) => setCurrentItem({ ...currentItem, total: Number(e.target.value) })}
-                            step="0.01"
+                            onChange={(e) => {
+                                const val = e.target.value.replace(/[^0-9.]/g, '');
+                                setCurrentItem({ ...currentItem, total: Number(val) });
+                            }}
+                            data-nav-group="entry"
+                            data-nav-index={5}
+                            onKeyDown={(e) => handleMainKeyDown(e, 'entry', 5)}
                         />
                     </div>
                     <div className="w-full sm:w-[135px] space-y-1 shrink-0">
@@ -1249,6 +1386,9 @@ export function OrderFormPage() {
                             className="h-8 w-full text-xs px-2"
                             value={currentItem.possibleDeliveryDate}
                             onChange={(e) => setCurrentItem({ ...currentItem, possibleDeliveryDate: e.target.value })}
+                            data-nav-group="entry"
+                            data-nav-index={6}
+                            onKeyDown={(e) => handleMainKeyDown(e, 'entry', 6)}
                         />
                     </div>
                     <div className="w-full sm:w-[130px] shrink-0">
@@ -1256,6 +1396,9 @@ export function OrderFormPage() {
                             type="button"
                             onClick={handleAddItem}
                             className="h-8 w-full bg-monchito-purple hover:bg-monchito-purple/90 px-3 text-xs font-bold transition-all rounded-lg"
+                            data-nav-group="entry"
+                            data-nav-index={7}
+                            onKeyDown={(e) => handleMainKeyDown(e, 'entry', 7)}
                         >
                             <Plus className="h-3 w-3 mr-1.5" /> Agregar
                         </Button>
@@ -1316,6 +1459,7 @@ export function OrderFormPage() {
                                                         onKeyDown={(e) => handleTableKeyDown(e, idx, 'orderNumber')}
                                                         data-row-index={idx}
                                                         data-field-name="orderNumber"
+                                                        data-nav-group="table"
                                                         placeholder="---"
                                                         className="h-7 text-xs font-mono px-1 border-slate-200"
                                                     />
@@ -1350,18 +1494,20 @@ export function OrderFormPage() {
                                                     <div className="flex justify-end items-center gap-1">
                                                         <span className="text-slate-400 text-xs">$</span>
                                                         <input
-                                                            type="number"
-                                                            step="0.01"
+                                                            type="text"
+                                                            inputMode="decimal"
                                                             className="h-7 w-16 text-right text-xs font-bold border border-slate-200 rounded-lg px-1 focus:ring-1 focus:ring-monchito-purple outline-none hide-spinner"
                                                             value={item.total}
                                                             onChange={(e) => {
+                                                                const val = e.target.value.replace(/[^0-9.]/g, '');
                                                                 const newItems = [...formik.values.brandItems]
-                                                                newItems[idx] = { ...newItems[idx], total: Number(e.target.value) }
+                                                                newItems[idx] = { ...newItems[idx], total: Number(val) }
                                                                 formik.setFieldValue('brandItems', newItems)
                                                             }}
                                                             onKeyDown={(e) => handleTableKeyDown(e as any, idx, 'total')}
                                                             data-row-index={idx}
                                                             data-field-name="total"
+                                                            data-nav-group="table"
                                                         />
                                                     </div>
                                                 ) : (
@@ -1374,22 +1520,21 @@ export function OrderFormPage() {
                                                     <div className="flex justify-end items-center gap-1">
                                                         <span className="text-emerald-500 text-xs">$</span>
                                                         <input
-                                                            type="number"
-                                                            step="0.01"
-                                                            min="0"
-                                                            max={item.total}
+                                                            type="text"
+                                                            inputMode="decimal"
                                                             placeholder="0.00"
                                                             className="h-7 w-16 text-right text-xs font-bold border border-slate-200 rounded-lg px-1 focus:ring-1 focus:ring-emerald-500 outline-none text-emerald-600 hide-spinner"
                                                             value={item.deposit === 0 ? '0' : (item.deposit || '')}
                                                             onChange={(e) => {
+                                                                const val = e.target.value.replace(/[^0-9.]/g, '');
                                                                 const newItems = [...formik.values.brandItems];
-                                                                const value = e.target.value === '' ? 0 : Number(e.target.value);
-                                                                newItems[idx] = { ...newItems[idx], deposit: value };
+                                                                newItems[idx] = { ...newItems[idx], deposit: Number(val) };
                                                                 formik.setFieldValue('brandItems', newItems);
                                                             }}
                                                             onKeyDown={(e) => handleTableKeyDown(e as any, idx, 'deposit')}
                                                             data-row-index={idx}
                                                             data-field-name="deposit"
+                                                            data-nav-group="table"
                                                         />
                                                     </div>
                                                 ) : (

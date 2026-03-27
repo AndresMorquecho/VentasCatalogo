@@ -1,32 +1,34 @@
 import { useState, useMemo, useRef, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { useOrderDeliveryList } from "../model/useOrderDelivery"
+import { useOrderDeliveryList, useDeliveryPendingOptions } from "../model/useOrderDelivery"
 import type { DeliveryFilters } from "../model/useOrderDelivery"
 import { OrderDeliveryTable } from "./OrderDeliveryTable"
 import { DeliverOrderModalNew } from "./DeliverOrderModalNew"
+import { PendingReceptionModal } from "./PendingReceptionModal"
 import type { Order } from "@/entities/order/model/types"
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
-import { Search, History, Truck, RotateCcw, Filter, ChevronDown } from "lucide-react"
+import { Search, History, Truck, RotateCcw, ChevronDown } from "lucide-react"
 import { PageHeader } from "@/shared/ui/PageHeader"
-import { useBrandList } from "@/features/brands/api/hooks"
-import { useClientList } from "@/features/clients/api/hooks"
 import { Pagination } from "@/shared/ui/pagination"
 import { DateRangePicker } from "@/shared/ui/filters"
 import type { DateRange } from "react-day-picker"
+import { useNotifications } from "@/shared/lib/notifications"
 
 /* --- Searchable Select for Clients --- */
-function SearchableClientSelect({ 
-    onSelect, 
-    value 
-}: { 
-    onSelect: (clientId: string) => void, 
-    value: string 
+function SearchableClientSelect({
+    onSelect,
+    value,
+    clients,
+    isLoading
+}: {
+    onSelect: (clientId: string) => void,
+    value: string,
+    clients: any[],
+    isLoading?: boolean
 }) {
     const [isOpen, setIsOpen] = useState(false)
     const [search, setSearch] = useState("")
-    const { data: clientsResponse } = useClientList({ limit: 100, search })
-    const clients = clientsResponse ? (Array.isArray(clientsResponse) ? clientsResponse : clientsResponse.data) : []
     const wrapperRef = useRef<HTMLDivElement>(null)
 
     const selectedClient = clients.find(c => c.id === value)
@@ -43,7 +45,7 @@ function SearchableClientSelect({
 
     return (
         <div className="relative" ref={wrapperRef}>
-            <div 
+            <div
                 className="flex h-10 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm items-center justify-between cursor-pointer hover:border-monchito-purple/50 transition-colors"
                 onClick={() => setIsOpen(!isOpen)}
             >
@@ -58,7 +60,7 @@ function SearchableClientSelect({
                     <div className="p-3 border-b border-slate-100">
                         <div className="relative">
                             <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-slate-400" />
-                            <Input 
+                            <Input
                                 autoFocus
                                 placeholder="Nombre o Cédula..."
                                 value={search}
@@ -68,17 +70,13 @@ function SearchableClientSelect({
                         </div>
                     </div>
                     <div className="max-h-[250px] overflow-auto p-1 py-1.5">
-                        <div 
-                            className="px-3 py-2 text-sm font-bold text-monchito-purple hover:bg-monchito-purple/5 rounded-lg cursor-pointer flex items-center gap-2"
-                            onClick={() => { onSelect(""); setIsOpen(false); }}
-                        >
-                            Todas las empresarias
-                        </div>
-                        {clients.length === 0 ? (
+                        {isLoading ? (
+                            <div className="px-3 py-4 text-xs text-slate-400 text-center italic">Cargando empresarias...</div>
+                        ) : clients.length === 0 ? (
                             <div className="px-3 py-4 text-xs text-slate-400 text-center italic">No se encontraron empresarias</div>
                         ) : (
                             clients.map((c) => (
-                                <div 
+                                <div
                                     key={c.id}
                                     className={`px-3 py-2.5 text-sm hover:bg-slate-50 transition-colors cursor-pointer rounded-lg flex flex-col ${c.id === value ? "bg-monchito-purple/5 text-monchito-purple" : "text-slate-700"}`}
                                     onClick={() => {
@@ -102,21 +100,23 @@ function SearchableClientSelect({
 }
 
 /* --- Searchable Select for Brands --- */
-function SearchableBrandSelect({ 
-    onSelect, 
+function SearchableBrandSelect({
+    onSelect,
     value,
-    brands
-}: { 
-    onSelect: (brandId: string) => void, 
+    brands,
+    isLoading
+}: {
+    onSelect: (brandId: string) => void,
     value: string,
-    brands: any[]
+    brands: any[],
+    isLoading?: boolean
 }) {
     const [isOpen, setIsOpen] = useState(false)
     const [search, setSearch] = useState("")
     const wrapperRef = useRef<HTMLDivElement>(null)
 
     const selectedBrand = brands.find(b => b.id === value)
-    
+
     const filteredBrands = useMemo(() => {
         if (!search) return brands;
         return brands.filter(b => b.name.toLowerCase().includes(search.toLowerCase()));
@@ -134,7 +134,7 @@ function SearchableBrandSelect({
 
     return (
         <div className="relative" ref={wrapperRef}>
-            <div 
+            <div
                 onClick={() => setIsOpen(!isOpen)}
                 className="bg-white border-slate-200 h-10 px-4 flex items-center justify-between cursor-pointer text-sm font-bold rounded-xl border focus:ring-2 focus:ring-monchito-purple/20 shadow-sm transition-all"
             >
@@ -149,9 +149,9 @@ function SearchableBrandSelect({
                     <div className="p-2 border-b border-slate-100">
                         <div className="relative">
                             <Search className="absolute left-2 top-2 h-3 w-3 text-slate-400" />
-                            <Input 
+                            <Input
                                 autoFocus
-                                placeholder="Buscar marca..." 
+                                placeholder="Buscar marca..."
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 className="pl-7 h-8 text-[11px] bg-slate-50 border-none focus-visible:ring-0"
@@ -159,23 +159,23 @@ function SearchableBrandSelect({
                         </div>
                     </div>
                     <div className="max-h-[200px] overflow-auto py-1">
-                        <div 
-                            onClick={() => { onSelect("ALL"); setIsOpen(false); setSearch(""); }}
-                            className="px-4 py-2 text-xs font-bold hover:bg-slate-50 cursor-pointer text-slate-400"
-                        >
-                            Todas las marcas
-                        </div>
-                        {filteredBrands.map((brand: any) => (
-                            <div 
-                                key={brand.id}
-                                onClick={() => { onSelect(brand.id); setIsOpen(false); setSearch(""); }}
-                                className={`px-4 py-2 text-xs font-bold hover:bg-monchito-purple/5 hover:text-monchito-purple cursor-pointer transition-colors ${value === brand.id ? 'bg-monchito-purple/5 text-monchito-purple' : 'text-slate-600'}`}
-                            >
-                                {brand.name}
-                            </div>
-                        ))}
-                        {filteredBrands.length === 0 && (
-                            <div className="px-4 py-3 text-center text-[10px] text-slate-400 italic">No se encontraron marcas</div>
+                        {isLoading ? (
+                            <div className="px-4 py-3 text-center text-[10px] text-slate-400 italic">Cargando marcas...</div>
+                        ) : (
+                            <>
+                                {filteredBrands.map((brand: any) => (
+                                    <div
+                                        key={brand.id}
+                                        onClick={() => { onSelect(brand.id); setIsOpen(false); setSearch(""); }}
+                                        className={`px-4 py-2 text-xs font-bold hover:bg-monchito-purple/5 hover:text-monchito-purple cursor-pointer transition-colors ${value === brand.id ? 'bg-monchito-purple/5 text-monchito-purple' : 'text-slate-600'}`}
+                                    >
+                                        {brand.name}
+                                    </div>
+                                ))}
+                                {filteredBrands.length === 0 && (
+                                    <div className="px-4 py-3 text-center text-[10px] text-slate-400 italic">No se encontraron marcas</div>
+                                )}
+                            </>
                         )}
                     </div>
                 </div>
@@ -186,6 +186,7 @@ function SearchableBrandSelect({
 
 export function OrderDeliveryPage() {
     const navigate = useNavigate()
+    const { notifyError } = useNotifications()
 
     // Filter State
     const [page, setPage] = useState(1);
@@ -193,20 +194,21 @@ export function OrderDeliveryPage() {
     const [brandId, setBrandId] = useState<string>("ALL")
     const [clientId, setClientId] = useState<string>("")
     const [dateRange, setDateRange] = useState<DateRange | undefined>()
-    const [orderNumber, setOrderNumber] = useState<string>("")
     const [searchTerm, setSearchTerm] = useState<string>("")
-    
-    const [showFilters, setShowFilters] = useState(false)
     const [dateCategoryFilter, setDateCategoryFilter] = useState<'ALL' | 'RECENT' | 'WARN' | 'CRITICAL'>('ALL')
+    const [isPendingModalOpen, setIsPendingModalOpen] = useState(false)
 
     // Convert DateRange to strings for API
     const startDate = dateRange?.from ? dateRange.from.toISOString().split('T')[0] : ""
     const endDate = dateRange?.to ? dateRange.to.toISOString().split('T')[0] : ""
 
+    // Determine if we should perform the main fetch
+    const isEnabled = !!clientId || brandId !== "ALL" || !!searchTerm || !!dateRange
+
     // Reset page on filter change
     useEffect(() => {
         setPage(1);
-    }, [brandId, clientId, startDate, endDate, orderNumber, searchTerm, dateCategoryFilter]);
+    }, [brandId, clientId, dateRange, searchTerm]);
 
     // Memoized filters for the hook
     const filters = useMemo((): DeliveryFilters => ({
@@ -214,33 +216,41 @@ export function OrderDeliveryPage() {
         endDate,
         brandId,
         clientId,
-        orderNumber,
         searchText: searchTerm,
         page,
-        limit
-    }), [startDate, endDate, brandId, clientId, orderNumber, searchTerm, page, limit])
+        limit,
+        enabled: isEnabled
+    }), [startDate, endDate, brandId, clientId, searchTerm, page, limit, isEnabled])
 
     const { data: response, isLoading, isError, refetch } = useOrderDeliveryList(filters)
     const orders = response?.data || []
     const pagination = response?.pagination
-    
-    const { data: brandsResponse } = useBrandList()
-    const brands = brandsResponse ? (Array.isArray(brandsResponse) ? brandsResponse : brandsResponse.data) : []
+
+    // Get filter options from pending orders
+    const { data: pendingOptions, isLoading: isLoadingOptions } = useDeliveryPendingOptions()
+    const clientsWithPending = pendingOptions?.clients || []
+    const brandsWithPending = pendingOptions?.brands || []
 
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
     const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([])
     const [isDeliverModalOpen, setIsDeliverModalOpen] = useState(false)
     const [isBatchMode, setIsBatchMode] = useState(false)
+    // Credit distribution per order-id (set before delivery)
+    const [creditDistributions, setCreditDistributions] = useState<Record<string, import('@/entities/financial-record/model/types').CreditDistribution>>({})
+
+    const handleUpdateCreditDistribution = (orderId: string, dist: import('@/entities/financial-record/model/types').CreditDistribution) => {
+        setCreditDistributions(prev => ({ ...prev, [orderId]: dist }))
+    }
 
 
     const clearFilters = () => {
         setBrandId("ALL")
         setClientId("")
         setDateRange(undefined)
-        setOrderNumber("")
         setSearchTerm("")
         setDateCategoryFilter("ALL")
         setSelectedOrderIds([])
+        setCreditDistributions({})
         setPage(1)
     }
 
@@ -265,6 +275,24 @@ export function OrderDeliveryPage() {
 
     const handleBatchDeliver = () => {
         if (selectedOrderIds.length === 0) return
+
+        // Validate: every selected order with a credit surplus must have a distribution configured
+        const ordersWithPendingCredit = selectedOrders.filter(order => {
+            const effective = Number(order.realInvoiceTotal ?? order.total)
+            const paid = order.payments?.reduce((s, p) => s + Number(p.amount || 0), 0) || 0
+            const creditNote = Number(order.creditNoteTotal || 0)
+            const credit = effective - paid - creditNote
+            return credit < -0.01 && !creditDistributions[order.id]
+        })
+
+        if (ordersWithPendingCredit.length > 0) {
+            const receipts = ordersWithPendingCredit.map(o => `#${o.receiptNumber}`).join(', ')
+            notifyError({
+                message: `Distribución pendiente en: ${receipts}. Usa el botón "Distribuir" en cada pedido con saldo a favor antes de proceder.`
+            })
+            return
+        }
+
         setIsBatchMode(true)
         setIsDeliverModalOpen(true)
     }
@@ -273,8 +301,8 @@ export function OrderDeliveryPage() {
 
     return (
         <div className="space-y-6">
-            <PageHeader 
-                title="Entrega al Cliente" 
+            <PageHeader
+                title="Entrega al Cliente"
                 description="Gestión de entregas finales y cobro de saldos pendientes"
                 icon={Truck}
                 actions={
@@ -283,117 +311,149 @@ export function OrderDeliveryPage() {
                             <History className="h-4 w-4" />
                             Historial
                         </Button>
-                        <Button variant="outline" onClick={clearFilters} title="Limpiar todos los filtros" className="h-10 w-10 p-0 rounded-xl border-slate-200 text-slate-400 hover:text-orange-500">
-                            <RotateCcw className="h-4 w-4" />
-                        </Button>
                     </div>
                 }
             />
 
-            {/* Premium Filter Panel */}
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xl shadow-slate-200/50">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-x-8 gap-y-6">
-                    {/* Cliente Selector - 3 cols */}
-                    <div className="lg:col-span-3 space-y-2">
-                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1">Empresaria</label>
-                        <SearchableClientSelect onSelect={setClientId} value={clientId} />
+            {/* Consolidated Filter Bar */}
+            <div className="bg-white px-5 py-4 rounded-2xl border border-slate-200 shadow-sm border-l-4 border-l-monchito-purple">
+                <div className="flex flex-col lg:flex-row lg:items-end gap-5">
+
+                    {/* Cliente Selector */}
+                    <div className="flex-[2] min-w-[300px] space-y-1.5">
+                        <div className="flex items-center justify-between gap-1.5 pl-1">
+                            <div className="flex items-center gap-1.5 ">
+                                <Truck className="h-3 w-3 text-monchito-purple" />
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Empresaria ({clientsWithPending.length})</label>
+                            </div>
+                            {clientId && (
+                                <button
+                                    onClick={() => setIsPendingModalOpen(true)}
+                                    className="text-[9px] font-black text-monchito-purple hover:text-monchito-purple/70 uppercase tracking-tighter flex items-center gap-0.5 transition-colors bg-monchito-purple/5 px-2 py-0.5 rounded-lg whitespace-nowrap"
+                                >
+                                    <Search className="h-2 w-2" />
+                                    Ver Por Recibir
+                                </button>
+                            )}
+                        </div>
+                        <SearchableClientSelect onSelect={setClientId} value={clientId} clients={clientsWithPending} isLoading={isLoadingOptions} />
                     </div>
 
-                    {/* Periodo - 4 cols */}
-                    <div className="lg:col-span-4 space-y-2">
-                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1">Rango de Recepción</label>
+                    {/* Catálogo */}
+                    <div className="flex-1 min-w-[140px] space-y-1.5">
+                        <div className="flex items-center gap-1.5 pl-1">
+                            <Truck className="h-3 w-3 text-monchito-purple" />
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Catálogo ({brandsWithPending.length})</label>
+                        </div>
+                        <SearchableBrandSelect
+                            brands={brandsWithPending}
+                            value={brandId}
+                            onSelect={setBrandId}
+                            isLoading={isLoadingOptions}
+                        />
+                    </div>
+
+                    {/* Búsqueda Global */}
+                    <div className="flex-[1.5] min-w-[200px] space-y-1.5">
+                        <div className="flex items-center gap-1.5 pl-1">
+                            <Search className="h-3 w-3 text-monchito-purple" />
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Búsqueda Global</label>
+                        </div>
+                        <div className="relative group">
+                            <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400 group-focus-within:text-monchito-purple transition-colors" />
+                            <Input
+                                placeholder="Factura, NC, Orden, Cliente..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="pl-10 h-10 bg-slate-50 border-transparent hover:border-monchito-purple/20 focus:bg-white focus:border-monchito-purple/50 rounded-xl text-sm font-medium transition-all shadow-none focus:shadow-sm"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Periodo */}
+                    <div className="flex-[1.2] min-w-[180px] space-y-1.5">
+                        <div className="flex items-center gap-1.5 pl-1">
+                            <History className="h-3 w-3 text-monchito-purple" />
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Recepción</label>
+                        </div>
                         <DateRangePicker
                             value={dateRange}
                             onChange={setDateRange}
                             showLabel={false}
-                            placeholder="Seleccionar periodo"
-                            className="h-10"
+                            placeholder="Cualquier fecha"
+                            className="h-10 border-slate-200"
                         />
                     </div>
 
-                    {/* Catálogo - 3 cols */}
-                    <div className="lg:col-span-3 space-y-2">
-                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1">Catálogo / Marca</label>
-                        <SearchableBrandSelect 
-                            brands={brands} 
-                            value={brandId} 
-                            onSelect={setBrandId} 
-                        />
-                    </div>
-
-                    {/* Mas filtros toggle */}
-                    <div className="lg:col-span-2 flex items-end">
-                        <Button 
-                            variant="ghost" 
-                            className={`h-10 w-full rounded-xl border ${showFilters ? 'bg-monchito-purple/5 border-monchito-purple/20 text-monchito-purple' : 'border-slate-100 text-slate-500'}`}
-                            onClick={() => setShowFilters(!showFilters)}
+                    {/* Acciones */}
+                    <div className="flex items-center">
+                        <Button
+                            variant="ghost"
+                            onClick={clearFilters}
+                            className="h-10 w-10 p-0 rounded-xl border border-slate-100 text-slate-300 hover:text-orange-500 hover:border-orange-200 hover:bg-orange-50/30"
+                            title="Limpiar filtros"
                         >
-                            <Filter className="h-4 w-4 mr-2" />
-                            {showFilters ? 'Menos' : 'Más'} Filtros
+                            <RotateCcw className="h-4 w-4" />
                         </Button>
                     </div>
-
-                    {showFilters && (
-                        <>
-                            <div className="lg:col-span-4 space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                                <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1">Búsqueda General</label>
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                                    <Input
-                                        placeholder="Cualquier texto..."
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="pl-10 bg-white border-slate-200 h-10 text-sm font-medium rounded-xl shadow-sm"
-                                    />
-                                </div>
-                            </div>
-                            <div className="lg:col-span-4 space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                                <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1">Número de Orden</label>
-                                <Input
-                                    placeholder="Ej: ORD-123..."
-                                    value={orderNumber}
-                                    onChange={(e) => setOrderNumber(e.target.value)}
-                                    className="bg-white border-slate-200 h-10 text-sm font-bold rounded-xl shadow-sm"
-                                />
-                            </div>
-                        </>
-                    )}
                 </div>
             </div>
 
             {/* Batch Info Bar - Always visible, disabled when empty */}
-            <div className={`bg-white border border-slate-200 px-6 py-4 rounded-2xl shadow-sm flex items-center justify-between transition-all ${selectedOrderIds.length === 0 ? 'opacity-50' : ''}`}>
-                <div className="flex items-center gap-4">
-                    <div className="bg-monchito-purple/10 p-2.5 rounded-xl">
-                        <Truck className="h-5 w-5 text-monchito-purple" />
+            {(() => {
+                const pendingDistCount = selectedOrders.filter(order => {
+                    const effective = Number(order.realInvoiceTotal ?? order.total)
+                    const paid = order.payments?.reduce((s: number, p: any) => s + Number(p.amount || 0), 0) || 0
+                    const creditNote = Number((order as any).creditNoteTotal || 0)
+                    return effective - paid - creditNote < -0.01 && !creditDistributions[order.id]
+                }).length
+
+                return (
+                    <div className={`border px-6 py-4 rounded-2xl shadow-sm flex items-center justify-between transition-all ${selectedOrderIds.length === 0 ? 'opacity-50 bg-white border-slate-200'
+                            : pendingDistCount > 0 ? 'bg-amber-50/40 border-amber-300'
+                                : 'bg-white border-slate-200'
+                        }`}>
+                        <div className="flex items-center gap-4">
+                            <div className={`p-2.5 rounded-xl ${pendingDistCount > 0 && selectedOrderIds.length > 0 ? 'bg-amber-100' : 'bg-monchito-purple/10'}`}>
+                                <Truck className={`h-5 w-5 ${pendingDistCount > 0 && selectedOrderIds.length > 0 ? 'text-amber-600' : 'text-monchito-purple'}`} />
+                            </div>
+                            <div>
+                                <p className="text-slate-900 font-bold text-sm leading-none mb-1">
+                                    {selectedOrderIds.length > 0 ? `${selectedOrderIds.length} pedidos para entrega` : 'Selecciona pedidos para entregar'}
+                                </p>
+                                {selectedOrders.length > 0 && (
+                                    <p className="text-slate-500 text-xs font-medium truncate max-w-[300px]">{selectedOrders[0]?.clientName}</p>
+                                )}
+                                {pendingDistCount > 0 && selectedOrderIds.length > 0 && (
+                                    <p className="text-amber-600 text-xs font-bold mt-0.5">
+                                        ⚠ {pendingDistCount} pedido{pendingDistCount > 1 ? 's' : ''} con saldo a favor sin distribuir
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <Button
+                                variant="outline"
+                                className="text-slate-500 hover:text-slate-700 border-slate-200 h-9 px-4 text-xs font-medium rounded-xl"
+                                onClick={() => setSelectedOrderIds([])}
+                                disabled={selectedOrderIds.length === 0}
+                            >
+                                Cancelar Selección
+                            </Button>
+                            <Button
+                                className={`text-white font-medium px-6 rounded-xl h-9 text-xs disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${pendingDistCount > 0 && selectedOrderIds.length > 0
+                                        ? 'bg-amber-500 hover:bg-amber-600'
+                                        : 'bg-monchito-purple hover:bg-monchito-purple/90'
+                                    }`}
+                                onClick={handleBatchDeliver}
+                                disabled={selectedOrderIds.length === 0}
+                            >
+                                {pendingDistCount > 0 ? `Distribuir Saldos (${pendingDistCount})` : 'Proceder con Entrega'}
+                            </Button>
+                        </div>
                     </div>
-                    <div>
-                        <p className="text-slate-900 font-bold text-sm leading-none mb-1">
-                            {selectedOrderIds.length > 0 ? `${selectedOrderIds.length} pedidos para entrega` : 'Selecciona pedidos para entregar'}
-                        </p>
-                        {selectedOrders.length > 0 && (
-                            <p className="text-slate-500 text-xs font-medium truncate max-w-[300px]">{selectedOrders[0]?.clientName}</p>
-                        )}
-                    </div>
-                </div>
-                <div className="flex items-center gap-3">
-                    <Button 
-                        variant="outline"
-                        className="text-slate-500 hover:text-slate-700 border-slate-200 h-9 px-4 text-xs font-medium rounded-xl"
-                        onClick={() => setSelectedOrderIds([])}
-                        disabled={selectedOrderIds.length === 0}
-                    >
-                        Cancelar Selección
-                    </Button>
-                    <Button 
-                        className="bg-monchito-purple hover:bg-monchito-purple/90 text-white font-medium px-6 rounded-xl h-9 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                        onClick={handleBatchDeliver}
-                        disabled={selectedOrderIds.length === 0}
-                    >
-                        Proceder con Entrega
-                    </Button>
-                </div>
-            </div>
+                )
+            })()}
 
 
             {/* Tags / Quick Selection */}
@@ -437,16 +497,26 @@ export function OrderDeliveryPage() {
                 {isLoading ? (
                     <div className="p-20 flex flex-col items-center justify-center gap-4 text-slate-400">
                         <div className="h-10 w-10 border-4 border-slate-100 border-t-monchito-purple rounded-full animate-spin" />
-                        <span className="font-bold text-sm">Cargando lista de entregas...</span>
+                        <span className="font-bold text-sm">Buscando pedidos...</span>
+                    </div>
+                ) : !isEnabled ? (
+                    <div className="p-20 flex flex-col items-center justify-center gap-3 text-slate-400">
+                        <Search className="h-12 w-12 text-slate-200" />
+                        <div className="text-center">
+                            <p className="font-bold text-slate-500">Selecciona una Empresaria o Catálogo</p>
+                            <p className="text-xs">Usa los filtros superiores para ver los pedidos disponibles para entrega</p>
+                        </div>
                     </div>
                 ) : (
                     <>
-                        <OrderDeliveryTable 
-                            orders={displayedOrders} 
+                        <OrderDeliveryTable
+                            orders={displayedOrders}
                             selectedOrderIds={selectedOrderIds}
                             onSelectionChange={setSelectedOrderIds}
+                            creditDistributions={creditDistributions}
+                            onUpdateCreditDistribution={handleUpdateCreditDistribution}
                         />
-                         {pagination && pagination.pages > 1 && (
+                        {pagination && pagination.pages > 1 && (
                             <div className="p-4 border-t border-slate-100">
                                 <Pagination
                                     currentPage={page}
@@ -475,8 +545,19 @@ export function OrderDeliveryPage() {
                 onSuccess={() => {
                     refetch()
                     setSelectedOrderIds([])
+                    setCreditDistributions({})
                 }}
+                creditDistributions={creditDistributions}
             />
+
+            {clientId && (
+                <PendingReceptionModal
+                    clientId={clientId}
+                    clientName={clientsWithPending.find(c => c.id === clientId)?.firstName || 'Empresaria'}
+                    open={isPendingModalOpen}
+                    onOpenChange={setIsPendingModalOpen}
+                />
+            )}
         </div>
     )
 }

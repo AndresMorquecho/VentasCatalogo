@@ -86,6 +86,55 @@ export function OrderReceptionPage() {
         }
     }
 
+    const handleMainKeyDown = (e: React.KeyboardEvent, group: string, index: number) => {
+        const input = e.currentTarget as HTMLInputElement;
+        const isInput = input.tagName === 'INPUT';
+        const isNumber = isInput && input.type === 'number';
+        const isDate = isInput && input.type === 'date';
+        
+        let selectionStart: number | null = null;
+        let valueLength = 0;
+
+        try {
+            if (isInput && !isNumber && !isDate) {
+                selectionStart = input.selectionStart;
+                valueLength = input.value.length;
+            }
+        } catch (err) {}
+
+        if (e.key === 'ArrowRight') {
+            const isAtEnd = !isInput || isDate || selectionStart === valueLength;
+            if (isAtEnd) {
+                const next = document.querySelector(`[data-nav-group="${group}"][data-nav-index="${index + 1}"]`) as HTMLElement;
+                if (next) {
+                    e.preventDefault();
+                    next.focus();
+                    if (next instanceof HTMLInputElement && next.type !== 'number' && next.type !== 'date') next.select();
+                }
+            }
+        } else if (e.key === 'ArrowLeft') {
+            const isAtStart = !isInput || isDate || selectionStart === 0;
+            if (isAtStart) {
+                const prev = document.querySelector(`[data-nav-group="${group}"][data-nav-index="${index - 1}"]`) as HTMLElement;
+                if (prev) {
+                    e.preventDefault();
+                    prev.focus();
+                    if (prev instanceof HTMLInputElement && prev.type !== 'number' && prev.type !== 'date') prev.select();
+                }
+            }
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            const table = document.querySelector('table');
+            if (table) {
+                const firstInput = table.querySelector('input, button') as HTMLElement;
+                if (firstInput) firstInput.focus();
+            }
+        } else if (e.key === 'Enter' && isDate) {
+            e.preventDefault();
+            if ('showPicker' in input) (input as any).showPicker();
+        }
+    };
+
     const clearFilters = () => {
         setSearchText("");
         setDateRange(undefined);
@@ -122,6 +171,9 @@ export function OrderReceptionPage() {
                             className="pl-10 h-11 bg-slate-50 border-slate-200 rounded-xl"
                             value={searchText}
                             onChange={(e) => setSearchText(e.target.value)}
+                            data-nav-group="reception-filters"
+                            data-nav-index={0}
+                            onKeyDown={(e) => handleMainKeyDown(e, 'reception-filters', 0)}
                         />
                     </div>
                 </div>
@@ -133,6 +185,9 @@ export function OrderReceptionPage() {
                         placeholder="Seleccionar fechas"
                         className="h-11"
                         showLabel={true}
+                        data-nav-group="reception-filters"
+                        data-nav-index={1}
+                        onKeyDown={(e) => handleMainKeyDown(e, 'reception-filters', 1)}
                     />
                 </div>
             </div>
