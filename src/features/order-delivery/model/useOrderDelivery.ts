@@ -65,3 +65,20 @@ export const useOrderDeliveryHistory = (filters?: DeliveryFilters) => {
         }
     });
 }
+
+/**
+ * Hook to get data for filters (clients and brands) that actually have orders to deliver.
+ */
+export const useOrderDeliveryFilterData = () => {
+    return useQuery({
+        queryKey: ['orders', 'delivery-filter-data'],
+        queryFn: async () => {
+            const response = await orderApi.getAll({
+                status: 'RECIBIDO_EN_BODEGA',
+                limit: 1000 // Get enough data for filters
+            });
+            
+            return response.data;
+        }
+    });
+}

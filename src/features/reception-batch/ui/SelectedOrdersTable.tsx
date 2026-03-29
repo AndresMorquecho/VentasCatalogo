@@ -154,48 +154,60 @@ export function SelectedOrdersTable({
             .filter(o => o.pendingAmount > 0.01);
     }
 
-    const handleTableKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, rowIndex: number, fieldName: string) => {
-        const input = e.currentTarget;
+    const handleTableKeyDown = (e: React.KeyboardEvent<HTMLInputElement | HTMLSelectElement>, rowIndex: number, fieldName: string) => {
+        const input = e.currentTarget as HTMLInputElement;
         let selectionStart: number | null = null;
         try {
             selectionStart = input.selectionStart;
         } catch (e) {}
 
-        const valueLength = input.value.length;
+        const valueLength = (input.value || "").length;
+        const isNotNumberInput = input.type !== 'number' && input.type !== 'date' && input.tagName !== 'SELECT';
 
         if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            // For selects, only navigate if alt key is NOT pressed (to allow opening dropdown)
+            if (input.tagName === 'SELECT' && e.altKey) return;
+            
             e.preventDefault();
             const nextIndex = e.key === 'ArrowDown' ? rowIndex + 1 : rowIndex - 1;
-            const target = document.querySelector(`input[data-row-index="${nextIndex}"][data-field-name="${fieldName}"]`) as HTMLInputElement;
+            const target = document.querySelector(`[data-row-index="${nextIndex}"][data-field-name="${fieldName}"]`) as HTMLElement;
             if (target) {
                 target.focus();
-                if (target.type !== 'number') target.select();
+                if (target instanceof HTMLInputElement && target.type !== 'number' && target.type !== 'date') {
+                    target.select();
+                }
             }
         } else if (e.key === 'ArrowLeft') {
-            if (selectionStart === 0 || input.type === 'number') {
-                const fields = ['finalInvoiceNumber', 'finalTotal'];
+            const shouldMove = !isNotNumberInput || selectionStart === 0;
+            if (shouldMove) {
+                const fields = ['documentType', 'finalInvoiceNumber', 'finalTotal', 'entryDate'];
                 const currentIndex = fields.indexOf(fieldName);
                 if (currentIndex > 0) {
                     const prevField = fields[currentIndex - 1];
-                    const targetInput = document.querySelector(`input[data-row-index="${rowIndex}"][data-field-name="${prevField}"]`) as HTMLInputElement;
+                    const targetInput = document.querySelector(`[data-row-index="${rowIndex}"][data-field-name="${prevField}"]`) as HTMLElement;
                     if (targetInput) {
                         e.preventDefault();
                         targetInput.focus();
-                        if (targetInput.type !== 'number') targetInput.select();
+                        if (targetInput instanceof HTMLInputElement && targetInput.type !== 'number' && targetInput.type !== 'date') {
+                            targetInput.select();
+                        }
                     }
                 }
             }
         } else if (e.key === 'ArrowRight') {
-            if (selectionStart === valueLength || input.type === 'number') {
-                const fields = ['finalInvoiceNumber', 'finalTotal'];
+            const shouldMove = !isNotNumberInput || selectionStart === valueLength;
+            if (shouldMove) {
+                const fields = ['documentType', 'finalInvoiceNumber', 'finalTotal', 'entryDate'];
                 const currentIndex = fields.indexOf(fieldName);
                 if (currentIndex < fields.length - 1) {
                     const nextField = fields[currentIndex + 1];
-                    const targetInput = document.querySelector(`input[data-row-index="${rowIndex}"][data-field-name="${nextField}"]`) as HTMLInputElement;
+                    const targetInput = document.querySelector(`[data-row-index="${rowIndex}"][data-field-name="${nextField}"]`) as HTMLElement;
                     if (targetInput) {
                         e.preventDefault();
                         targetInput.focus();
-                        if (targetInput.type !== 'number') targetInput.select();
+                        if (targetInput instanceof HTMLInputElement && targetInput.type !== 'number' && targetInput.type !== 'date') {
+                            targetInput.select();
+                        }
                     }
                 }
             }
@@ -218,18 +230,18 @@ export function SelectedOrdersTable({
                         <TableHeader>
                             <TableRow className="bg-monchito-purple/5 hover:bg-monchito-purple/5 border-b border-monchito-purple/10 h-12 sticky top-0 z-10">
                                 <TableHead className="w-[30px] p-1 text-center text-[10px] font-black text-monchito-purple uppercase tracking-widest">#</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Recibo</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Empresaria</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">N° de pedido</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Tipo</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Catálogo</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right">Valor pedido</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right">Abono</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Tipo documento</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Factura</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right">Valor factura</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Fecha ingreso</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right">Saldo</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Recibo</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Empresaria</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">N° de pedido</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Tipo</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Catálogo</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Valor pedido</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Abono</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Tipo documento</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Factura</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Valor factura</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Fecha ingreso</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Saldo</TableHead>
                                 <TableHead className="w-[30px] p-1"></TableHead>
                             </TableRow>
                         </TableHeader>
@@ -253,10 +265,10 @@ export function SelectedOrdersTable({
                                         <TableCell className="p-1 w-[30px] text-center py-4">
                                             <CheckCircle className="h-3.5 w-3.5 text-emerald-500 mx-auto" />
                                         </TableCell>
-                                        <TableCell className="py-4 px-2 font-mono text-xs font-medium">#{order.receiptNumber}</TableCell>
-                                        <TableCell className="py-4 px-2 text-xs font-bold">{order.clientName}</TableCell>
-                                        <TableCell className="py-4 px-2 text-xs font-medium">{order.orderNumber || '---'}</TableCell>
-                                        <TableCell className="py-4 px-2 text-[10px]">
+                                        <TableCell className="py-4 px-2 font-mono text-xs font-medium text-center">#{order.receiptNumber}</TableCell>
+                                        <TableCell className="py-4 px-2 text-xs font-bold text-center">{order.clientName}</TableCell>
+                                        <TableCell className="py-4 px-2 text-xs font-medium text-center">{order.orderNumber || '---'}</TableCell>
+                                        <TableCell className="py-4 px-2 text-[10px] text-center">
                                             <span className={`px-2 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-tighter shadow-sm ${
                                                 order.type === 'CAMBIO' ? 'bg-orange-100 text-orange-700 border-orange-200' :
                                                 order.type === 'REPROGRAMACION' ? 'bg-amber-100 text-amber-700 border-amber-200' :
@@ -267,23 +279,26 @@ export function SelectedOrdersTable({
                                                 {order.type}
                                             </span>
                                         </TableCell>
-                                        <TableCell className="py-4 px-2 text-xs font-medium">{order.brandName}</TableCell>
-                                        <TableCell className="py-4 px-2 text-right font-mono text-xs font-bold">${Number(order.total || 0).toFixed(2)}</TableCell>
-                                        <TableCell className="py-4 px-2 text-right font-mono text-xs font-bold text-blue-600">
-                                            <div className="flex flex-col items-end">
+                                        <TableCell className="py-4 px-2 text-xs font-medium text-center">{order.brandName}</TableCell>
+                                        <TableCell className="py-4 px-2 text-center font-mono text-xs font-bold">${Number(order.total || 0).toFixed(2)}</TableCell>
+                                        <TableCell className="py-4 px-2 text-center font-mono text-xs font-bold text-blue-600">
+                                            <div className="flex flex-col items-center">
                                                 <span>${initialPaid.toFixed(2)}</span>
                                                 {incomingDistributiveCredit > 0 && (
-                                                    <span className="text-[9px] text-emerald-600 flex items-center gap-1">
+                                                    <span className="text-[9px] text-emerald-600 flex items-center justify-center gap-1">
                                                         <ArrowRight className="h-2 w-2" /> +${incomingDistributiveCredit.toFixed(2)}
                                                     </span>
                                                 )}
                                             </div>
                                         </TableCell>
-                                        <TableCell className="py-4 px-2">
+                                        <TableCell className="py-4 px-2 text-center">
                                             <select
                                                 value={documentType}
                                                 onChange={(e) => onUpdateDocumentType(order.id, e.target.value)}
-                                                className="h-7 text-[10px] w-24 bg-white border border-monchito-purple/20 rounded px-1 focus:outline-none focus:ring-1 focus:ring-monchito-purple/20"
+                                                onKeyDown={(e) => handleTableKeyDown(e as any, orders.indexOf(orderState), 'documentType')}
+                                                data-row-index={orders.indexOf(orderState)}
+                                                data-field-name="documentType"
+                                                className="h-7 text-[10px] w-24 bg-white border border-monchito-purple/20 rounded px-1 focus:outline-none focus:ring-1 focus:ring-monchito-purple/20 text-center mx-auto"
                                             >
                                                 <option value="FACTURA">FACTURA</option>
                                                 <option value="TICKET">TICKET</option>
@@ -291,18 +306,18 @@ export function SelectedOrdersTable({
                                                 <option value="OTROS">OTROS</option>
                                             </select>
                                         </TableCell>
-                                        <TableCell className="py-4 px-2">
+                                        <TableCell className="py-4 px-2 text-center">
                                             <Input
                                                 value={finalInvoiceNumber}
                                                 onChange={(e) => onUpdateInvoiceNumber(order.id, e.target.value)}
                                                 onKeyDown={(e) => handleTableKeyDown(e, orders.indexOf(orderState), 'finalInvoiceNumber')}
                                                 data-row-index={orders.indexOf(orderState)}
                                                 data-field-name="finalInvoiceNumber"
-                                                className="h-7 text-xs bg-white border-monchito-purple/20 px-2 w-16 focus:ring-monchito-purple/20"
+                                                className="h-7 text-xs bg-white border-monchito-purple/20 px-2 w-24 focus:ring-monchito-purple/20 text-center mx-auto"
                                                 placeholder="#"
                                             />
                                         </TableCell>
-                                        <TableCell className="py-4 px-2">
+                                        <TableCell className="py-4 px-2 text-center">
                                             <Input
                                                 type="number"
                                                 min={0}
@@ -314,19 +329,22 @@ export function SelectedOrdersTable({
                                                 onKeyDown={(e) => handleTableKeyDown(e, orders.indexOf(orderState), 'finalTotal')}
                                                 data-row-index={orders.indexOf(orderState)}
                                                 data-field-name="finalTotal"
-                                                className={`h-7 text-xs px-2 text-right font-mono bg-white border-monchito-purple/20 focus:ring-monchito-purple/20 font-bold w-24 hide-spinner ${mismatch ? 'text-amber-700 bg-amber-50' : 'text-monchito-purple'}`}
+                                                className={`h-7 text-xs px-2 text-center font-mono bg-white border-monchito-purple/20 focus:ring-monchito-purple/20 font-bold w-24 hide-spinner mx-auto ${mismatch ? 'text-amber-700 bg-amber-50' : 'text-monchito-purple'}`}
                                             />
                                         </TableCell>
-                                        <TableCell className="py-4 px-2">
+                                        <TableCell className="py-4 px-2 text-center font-normal">
                                             <Input
                                                 type="date"
                                                 value={entryDate}
                                                 onChange={(e) => onUpdateEntryDate(order.id, e.target.value)}
-                                                className="h-7 text-[10px] px-1 w-24 bg-white border-monchito-purple/20 focus:ring-monchito-purple/20"
+                                                onKeyDown={(e) => handleTableKeyDown(e, orders.indexOf(orderState), 'entryDate')}
+                                                data-row-index={orders.indexOf(orderState)}
+                                                data-field-name="entryDate"
+                                                className="h-7 text-xs px-1 w-28 bg-white border-monchito-purple/20 focus:ring-monchito-purple/20 text-center font-normal mx-auto"
                                             />
                                         </TableCell>
-                                        <TableCell className={`py-4 px-2 text-right font-mono font-bold text-xs`}>
-                                            <div className="flex items-center justify-end gap-2">
+                                        <TableCell className={`py-4 px-2 text-center font-mono font-bold text-xs`}>
+                                            <div className="flex items-center justify-center gap-2">
                                                 <span className={finalBalance < -0.01 ? 'text-emerald-600' : finalBalance > 0.01 ? 'text-amber-600' : 'text-slate-400'}>
                                                     {finalBalance < -0.01 ? 'Favor: ' : ''}${Math.abs(finalBalance).toFixed(2)}
                                                 </span>

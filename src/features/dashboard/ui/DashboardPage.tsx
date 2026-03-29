@@ -201,13 +201,13 @@ export function DashboardPage() {
                     </Card>
 
                     {/* Sales Analytics (Line Chart) */}
-                    <Card className="lg:col-span-8 border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white overflow-hidden flex flex-col">
+                    <Card className="lg:col-span-8 border-monchito-purple/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white overflow-hidden flex flex-col">
                         <div className="p-6 pb-0 flex justify-between items-center">
                             <h4 className="font-black text-slate-800">Analítica de Pedidos</h4>
-                            <div className="flex bg-slate-100 p-1 rounded-lg">
-                                <button onClick={() => setTimeRange('daily')} className={`px-3 py-1 text-[10px] font-bold rounded-md uppercase tracking-widest transition-all ${timeRange === 'daily' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}>Diario</button>
-                                <button onClick={() => setTimeRange('weekly')} className={`px-3 py-1 text-[10px] font-bold rounded-md uppercase tracking-widest transition-all ${timeRange === 'weekly' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}>Semanal</button>
-                                <button onClick={() => setTimeRange('monthly')} className={`px-3 py-1 text-[10px] font-bold rounded-md uppercase tracking-widest transition-all ${timeRange === 'monthly' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}>Mensual</button>
+                            <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
+                                <button onClick={() => setTimeRange('daily')} className={`px-3 py-1 text-[10px] font-black rounded-md uppercase tracking-widest transition-all ${timeRange === 'daily' ? 'bg-monchito-purple shadow-md text-white' : 'text-slate-400 hover:text-monchito-purple hover:bg-monchito-purple/5'}`}>Diario</button>
+                                <button onClick={() => setTimeRange('weekly')} className={`px-3 py-1 text-[10px] font-black rounded-md uppercase tracking-widest transition-all ${timeRange === 'weekly' ? 'bg-monchito-purple shadow-md text-white' : 'text-slate-400 hover:text-monchito-purple hover:bg-monchito-purple/5'}`}>Semanal</button>
+                                <button onClick={() => setTimeRange('monthly')} className={`px-3 py-1 text-[10px] font-black rounded-md uppercase tracking-widest transition-all ${timeRange === 'monthly' ? 'bg-monchito-purple shadow-md text-white' : 'text-slate-400 hover:text-monchito-purple hover:bg-monchito-purple/5'}`}>Mensual</button>
                             </div>
                         </div>
                         <CardContent className="flex-1 p-6 pt-12 flex flex-col">
@@ -301,11 +301,11 @@ export function DashboardPage() {
                     <div className="p-6 flex justify-between items-center border-b border-slate-50">
                         <h4 className="font-black text-slate-800">Facturas / Pedidos Recientes</h4>
                     </div>
-                    <CardContent className="p-0">
+                    <CardContent className="p-0 border-t border-monchito-purple/5">
                         <div className="overflow-x-auto custom-scrollbar">
-                            <table className="text-left border-collapse min-w-[1000px] w-max">
+                            <table className="text-left border-collapse min-w-[1000px] w-full">
                                 <thead>
-                                    <tr className="bg-white text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100/50">
+                                    <tr className="bg-monchito-purple/5 text-[10px] font-black uppercase tracking-widest text-monchito-purple border-b border-monchito-purple/10">
                                         <th className="px-6 py-5">No</th>
                                         <th className="px-6 py-5">Id Cliente / Ref</th>
                                         <th className="px-6 py-5">Nombre Cliente</th>
@@ -315,9 +315,9 @@ export function DashboardPage() {
                                         <th className="px-6 py-5 text-right">Precio</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-50">
+                                <tbody className="divide-y divide-monchito-purple/5">
                                     {oldestOrders.map((order: any, index: number) => (
-                                        <tr key={order.id} className="hover:bg-slate-50/80 transition-colors group cursor-pointer bg-white">
+                                        <tr key={order.id} className="hover:bg-monchito-purple/5 transition-all duration-200 group cursor-pointer bg-white border-b border-monchito-purple/5 last:border-0">
                                             <td className="px-6 py-4 text-sm font-bold text-slate-400">{index + 1}</td>
                                             <td className="px-6 py-4 text-sm font-black text-slate-500">#{order.id.slice(0, 6)}</td>
                                             <td className="px-6 py-4">

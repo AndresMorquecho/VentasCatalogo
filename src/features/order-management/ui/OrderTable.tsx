@@ -20,26 +20,7 @@ const ROW_STATUS_CLASSES: Record<OrderStatus, string> = {
     ENTREGADO: "bg-slate-50/20 hover:bg-slate-50/40",
 }
 
-// Professional color palette for group accents
-const ACCENT_COLORS = [
-    "bg-indigo-600",
-    "bg-emerald-600",
-    "bg-rose-600",
-    "bg-amber-600",
-    "bg-violet-600",
-    "bg-cyan-600",
-    "bg-orange-600",
-    "bg-fuchsia-600"
-];
 
-function getAccentColor(receiptNumber: string) {
-    let hash = 0;
-    for (let i = 0; i < receiptNumber.length; i++) {
-        hash = receiptNumber.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const index = Math.abs(hash) % ACCENT_COLORS.length;
-    return ACCENT_COLORS[index];
-}
 
 function formatDate(dateString: string): string {
     return new Date(dateString).toLocaleDateString('es-EC', {
@@ -58,27 +39,27 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, lastClosur
 
     return (
         <TooltipProvider>
-            <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div className="rounded-2xl border border-monchito-purple/10 bg-white shadow-[0_20px_50px_rgba(107,33,168,0.05)] overflow-hidden">
                 <div className="overflow-x-auto custom-scrollbar">
-                    <table className="text-sm border-collapse min-w-[1200px] w-max">
-                        <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-sm">
-                            <tr className="bg-slate-50/80 border-b border-slate-200 text-[10px] uppercase tracking-wider text-slate-500 font-semibold whitespace-nowrap">
-                                <th className="px-4 py-4 text-left w-[80px]">Origen</th>
-                                <th className="px-4 py-4 text-left w-[160px]">N° Recibo</th>
-                                <th className="px-4 py-4 text-left w-[90px]">N° Ped.</th>
-                                <th className="px-4 py-4 text-left min-w-[160px]">Cliente</th>
-                                <th className="px-4 py-4 text-left min-w-[80px]">Cat.</th>
-                                <th className="px-4 py-4 text-right w-[75px]">Total</th>
-                                <th className="px-4 py-4 text-right w-[75px]">Abono</th>
-                                <th className="px-4 py-4 text-right w-[75px]">Saldo</th>
-                                <th className="px-4 py-4 text-left w-[80px]">Entrega</th>
-                                <th className="px-4 py-4 text-left w-[100px]">Estado</th>
-                                <th className="px-4 py-4 text-center w-[80px]">Acciones</th>
+                    <table className="text-sm border-collapse min-w-[1200px] w-full">
+                        <thead className="sticky top-0 z-10 bg-monchito-purple/5 backdrop-blur-sm">
+                            <tr className="border-b border-monchito-purple/10">
+                                <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest h-12 text-left w-[80px]">Origen</th>
+                                <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left w-[160px]">N° Recibo</th>
+                                <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left w-[90px]">N° Ped.</th>
+                                <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left min-w-[160px]">Cliente</th>
+                                <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left min-w-[80px]">Cat.</th>
+                                <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right w-[75px]">Total</th>
+                                <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right w-[75px]">Abono</th>
+                                <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right w-[75px]">Saldo</th>
+                                <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left w-[80px]">Entrega</th>
+                                <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left w-[100px]">Estado</th>
+                                <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center w-[80px]">Acciones</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100">
+                        <tbody className="divide-y divide-monchito-purple/5">
                             {orders.map((order) => {
-                                const accentColor = getAccentColor(order.receiptNumber);
+
 
                                 // Movement check: Used for delete and visual warnings
                                 // We allow up to 2 payments if one is credit, as that's standard for initial movements
@@ -97,9 +78,9 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, lastClosur
                                 return (
                                     <tr
                                         key={order.id}
-                                        className={`transition-all duration-200 ${ROW_STATUS_CLASSES[order.status as OrderStatus] || "hover:bg-slate-50"} relative group`}
+                                        className={`transition-all duration-200 ${ROW_STATUS_CLASSES[order.status as OrderStatus] || "hover:bg-monchito-purple/5"} relative group whitespace-nowrap`}
                                     >
-                                        <td className="px-4 py-2.5 relative">
+                                        <td className="px-6 py-4 relative">
                                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-tight shadow-sm ${order.salesChannel === 'WHATSAPP' ? 'bg-green-100 text-green-700' :
                                                 order.salesChannel === 'DOMICILIO' ? 'bg-blue-100 text-blue-700' :
                                                     'bg-slate-100 text-slate-600'
@@ -108,16 +89,13 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, lastClosur
                                             </span>
                                         </td>
 
-                                        <td className="px-4 py-2.5">
-                                            <div className="flex items-center gap-3">
-                                                <div className={`w-2 h-2 rounded-full ${accentColor} shadow-sm`} />
-                                                <span className="text-sm tracking-tight text-slate-900 font-extrabold">
-                                                    {order.receiptNumber}
-                                                </span>
-                                            </div>
+                                        <td className="px-6 py-4">
+                                            <span className="text-sm tracking-tight text-slate-700 font-medium">
+                                                {order.receiptNumber}
+                                            </span>
                                         </td>
 
-                                        <td className="px-4 py-2.5 text-xs font-mono font-bold text-slate-600 bg-slate-50/10">
+                                        <td className="px-6 py-4 text-xs font-mono font-bold text-slate-600 bg-slate-50/10">
                                             {order.childOrdersCount && order.childOrdersCount > 0
                                                 ? <span className="text-monchito-purple bg-purple-50 px-2 py-1 rounded-md border border-purple-100 italic whitespace-nowrap">{order.childOrdersCount + 1} pedidos</span>
                                                 : (order.orderNumber || '---')}
@@ -125,9 +103,9 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, lastClosur
 
 
 
-                                        <td className="px-4 py-2.5 font-semibold text-slate-700 truncate max-w-[200px] whitespace-nowrap">{order.clientName}</td>
+                                        <td className="px-6 py-4 font-semibold text-slate-700 truncate max-w-[200px]">{order.clientName}</td>
 
-                                        <td className="px-4 py-2.5">
+                                        <td className="px-6 py-4">
                                             <div className="flex items-center gap-2">
                                                 {(() => {
                                                     const brands = new Set<string>();
@@ -151,35 +129,35 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, lastClosur
                                             </div>
                                         </td>
 
-                                        <td className="px-4 py-2.5 text-right font-bold text-slate-900">
+                                        <td className="px-6 py-4 text-right font-bold text-slate-900">
                                             {(() => {
                                                 const total = (order.childOrders || []).reduce((sum, child) => sum + Number(child.total || 0), Number(order.total || 0));
                                                 return formatCurrency(total);
                                             })()}
                                         </td>
-                                        <td className="px-4 py-2.5 text-right text-emerald-600 font-semibold">
+                                        <td className="px-6 py-4 text-right text-emerald-600 font-semibold">
                                             {(() => {
                                                 const paid = (order.childOrders || []).reduce((sum, child) => sum + getPaidAmount(child), getPaidAmount(order));
                                                 return formatCurrency(paid);
                                             })()}
                                         </td>
-                                        <td className="px-4 py-2.5 text-right font-black text-rose-600">
+                                        <td className="px-6 py-4 text-right font-black text-rose-600">
                                             {(() => {
                                                 const pending = (order.childOrders || []).reduce((sum, child) => sum + getPendingAmount(child), getPendingAmount(order));
                                                 return formatCurrency(pending);
                                             })()}
                                         </td>
 
-                                        <td className="px-4 py-2.5 text-xs text-slate-500 font-medium whitespace-nowrap">
+                                        <td className="px-6 py-4 text-xs text-slate-500 font-medium">
                                             {order.possibleDeliveryDate ? formatDate(order.possibleDeliveryDate) : '---'}
                                         </td>
 
-                                        <td className="px-4 py-2.5">
+                                        <td className="px-6 py-4">
                                             <OrderStatusBadge status={order.status as OrderStatus} />
                                         </td>
 
-                                        <td className="px-4 py-2.5">
-                                            <div className="flex justify-center items-center gap-1.5">
+                                        <td className="px-6 py-4">
+                                            <div className="flex justify-center items-center gap-2">
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"

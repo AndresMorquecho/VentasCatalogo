@@ -64,7 +64,7 @@ export function DateRangePicker({
           onClick={() => !disabled && setIsOpen(!isOpen)}
           disabled={disabled}
           className={`
-            w-full h-9 px-3 pr-20 text-sm text-left
+            w-full h-9 px-3 pr-20 text-xs text-left
             bg-white border border-slate-200 rounded-lg
             focus:outline-none focus:ring-2 focus:ring-monchito-purple/20
             transition-all

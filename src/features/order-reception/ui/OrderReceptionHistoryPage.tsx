@@ -135,18 +135,18 @@ export function OrderReceptionHistoryPage() {
                 </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden min-h-[400px]">
+            <div className="bg-white rounded-2xl border border-monchito-purple/10 shadow-xl overflow-hidden min-h-[400px]">
                 <Table>
-                    <TableHeader className="bg-slate-50/50">
-                        <TableRow className="border-slate-100 hover:bg-transparent">
-                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400 py-4 px-6">Fecha Recepción</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400 py-4 px-6">N° Recibo</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400 py-4 px-6">Empresaria / Cliente</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400 py-4 px-6">N° Factura</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400 py-4 px-6 text-right">Valor Estimado</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400 py-4 px-6 text-right">Valor Real</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400 py-4 px-6 text-center">Estado</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400 py-4 px-6 text-right">Acción</TableHead>
+                    <TableHeader className="bg-monchito-purple/5">
+                        <TableRow className="border-monchito-purple/10 hover:bg-transparent">
+                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-monchito-purple py-4 px-6">Fecha Recepción</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-monchito-purple py-4 px-6">N° Recibo</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-monchito-purple py-4 px-6">Empresaria / Cliente</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-monchito-purple py-4 px-6">N° Factura</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-monchito-purple py-4 px-6 text-right">Valor Estimado</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-monchito-purple py-4 px-6 text-right">Valor Real</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-monchito-purple py-4 px-6 text-center">Estado</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-monchito-purple py-4 px-6 text-right">Acción</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -167,7 +167,7 @@ export function OrderReceptionHistoryPage() {
                             </TableRow>
                         ) : (
                             orders.map((order) => (
-                                <TableRow key={order.id} className="hover:bg-slate-50/30 border-slate-50 transition-colors">
+                                <TableRow key={order.id} className="hover:bg-monchito-purple/5 border-monchito-purple/5 transition-all duration-200">
                                     <TableCell className="font-bold text-slate-700 py-4 px-6">
                                         {formatDate(order.receptionDate!)}
                                     </TableCell>

@@ -58,10 +58,10 @@ export function OrderFilters({ statusFilter, onStatusChange, searchQuery, onSear
                             size="sm"
                             onClick={() => onStatusChange(f.value)}
                             className={cn(
-                                "h-8 px-3 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all whitespace-nowrap",
+                                "h-8 px-3 text-[10px] font-black uppercase tracking-wider rounded-md transition-all whitespace-nowrap",
                                 statusFilter === f.value 
-                                    ? "bg-white text-monchito-purple shadow-sm hover:bg-white" 
-                                    : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                                    ? "bg-monchito-purple text-white shadow-md hover:bg-monchito-purple/90" 
+                                    : "text-slate-500 hover:text-monchito-purple hover:bg-monchito-purple/5"
                             )}
                         >
                             {f.label}

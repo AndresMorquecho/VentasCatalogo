@@ -66,13 +66,17 @@ function SearchableSelect({
     value,
     onChange,
     placeholder,
-    disabled = false
+    disabled = false,
+    onKeyDownNavigation,
+    navId
 }: {
     options: Option[],
     value: string,
     onChange: (val: string) => void,
     placeholder: string,
-    disabled?: boolean
+    disabled?: boolean,
+    onKeyDownNavigation?: (e: React.KeyboardEvent) => void,
+    navId?: string
 }) {
     const [isOpen, setIsOpen] = useState(false)
     const [searchTerm, setSearchTerm] = useState("")
@@ -90,20 +94,74 @@ function SearchableSelect({
         return () => document.removeEventListener("mousedown", handleClickOutside)
     }, [])
 
+    const [highlightedIndex, setHighlightedIndex] = useState(-1)
+
     const filteredOptions = options.filter(option =>
         option.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (option.subLabel && option.subLabel.toLowerCase().includes(searchTerm.toLowerCase()))
     )
 
+    // Reset highlighted index when search or open state changes
+    useEffect(() => {
+        setHighlightedIndex(-1)
+    }, [searchTerm, isOpen])
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (disabled) return;
+        
+        if (!isOpen) {
+            if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                setIsOpen(true);
+                setSearchTerm("");
+            }
+            return;
+        }
+
+        switch (e.key) {
+            case 'ArrowDown':
+                e.preventDefault();
+                setHighlightedIndex(prev => (prev < filteredOptions.length - 1 ? prev + 1 : prev));
+                break;
+            case 'ArrowUp':
+                e.preventDefault();
+                setHighlightedIndex(prev => (prev > 0 ? prev - 1 : 0));
+                break;
+            case 'Enter':
+                e.preventDefault();
+                if (highlightedIndex >= 0 && highlightedIndex < filteredOptions.length) {
+                    onChange(filteredOptions[highlightedIndex].id);
+                    setIsOpen(false);
+                }
+                break;
+            case 'Escape':
+                e.preventDefault();
+                setIsOpen(false);
+                break;
+            case 'Tab':
+                // Let tab function normally but close the dropdown
+                setIsOpen(false);
+                break;
+        }
+    };
+
     return (
         <div className="relative" ref={wrapperRef}>
             <div
-                className={`flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm items-center justify-between overflow-hidden ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                tabIndex={disabled ? -1 : 0}
+                className={`flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm items-center justify-between overflow-hidden focus:outline-none focus:ring-1 focus:ring-monchito-purple ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-monchito-purple/50 transition-colors'}`}
                 onClick={() => {
                     if (disabled) return;
                     setIsOpen(!isOpen)
                     if (!isOpen) setSearchTerm("") // Reset search on open
                 }}
+                onKeyDown={(e) => {
+                    handleKeyDown(e);
+                    if (!isOpen && onKeyDownNavigation) {
+                        onKeyDownNavigation(e);
+                    }
+                }}
+                data-nav={navId}
             >
                 <span className={selectedOption ? "text-foreground" : "text-muted-foreground"}>
                     {selectedOption ? `${selectedOption.label} ${selectedOption.subLabel ? `(${selectedOption.subLabel})` : ''}` : placeholder}
@@ -119,6 +177,7 @@ function SearchableSelect({
                             placeholder="Buscar..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
+                            onKeyDown={handleKeyDown}
                             className="h-8"
                         />
                     </div>
@@ -126,10 +185,10 @@ function SearchableSelect({
                         {filteredOptions.length === 0 ? (
                             <div className="px-2 py-3 text-sm text-muted-foreground text-center">No se encontraron resultados</div>
                         ) : (
-                            filteredOptions.map((option) => (
+                            filteredOptions.map((option, idx) => (
                                 <div
                                     key={option.id}
-                                    className={`relative flex cursor-default select-none items-center rounded-sm px-3 py-2 text-sm outline-none hover:bg-indigo-50 hover:text-indigo-900 transition-colors ${option.id === value ? "bg-indigo-100 text-indigo-900 font-medium" : ""}`}
+                                    className={`relative flex cursor-default select-none items-center rounded-sm px-3 py-2 text-sm outline-none transition-colors ${idx === highlightedIndex ? "bg-monchito-purple/10 text-monchito-purple font-bold" : "hover:bg-indigo-50 hover:text-indigo-900"} ${option.id === value ? "bg-monchito-purple/5" : ""}`}
                                     onClick={() => {
                                         onChange(option.id)
                                         setIsOpen(false)
@@ -139,6 +198,9 @@ function SearchableSelect({
                                         <span>{option.label}</span>
                                         {option.subLabel && <span className="text-[10px] opacity-70">{option.subLabel}</span>}
                                     </div>
+                                    {option.id === value && (
+                                        <div className="ml-auto w-2 h-2 rounded-full bg-monchito-purple" />
+                                    )}
                                 </div>
                             ))
                         )}
@@ -755,71 +817,128 @@ export function OrderFormPage() {
     // Total deposit is now the sum of manual row deposits
     const totalRowDeposit = formik.values.brandItems.reduce((sum, item) => sum + Number(item.deposit || 0), 0);
 
-    const handleTableKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, rowIndex: number, fieldName: string) => {
-        const input = e.currentTarget;
-        let selectionStart: number | null = null;
-        
-        try {
-            selectionStart = input.selectionStart;
-        } catch (e) {
-            // type="number" does not support selectionStart in some browsers
+    const handleHeaderKeyDown = (e: React.KeyboardEvent, fieldName: string) => {
+        const fields = [
+            'receiptNumber', 'createdAt', 'clientId',
+            'salesChannel', 'type', 'orderNumber', 'quantity', 
+            'brandId', 'total', 'possibleDeliveryDate', 'addButton'
+        ];
+        const currentIndex = fields.indexOf(fieldName);
+
+        if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+            const isInput = e.currentTarget.tagName === 'INPUT';
+            const isSelect = e.currentTarget.tagName === 'SELECT';
+            
+            let selectionAtBoundary = true;
+            if (isInput) {
+                const input = e.currentTarget as HTMLInputElement;
+                try {
+                    // Try to get selection, if supported by the input type
+                    if (input.selectionStart !== null) {
+                        if (e.key === 'ArrowRight') {
+                            selectionAtBoundary = input.selectionStart === input.value.length;
+                        } else {
+                            selectionAtBoundary = input.selectionStart === 0;
+                        }
+                    } else if (input.type === 'date' || input.type === 'number') {
+                        // For date/number where we can't reliably get cursor position, 
+                        // we don't jump with arrows to avoid breaking internal navigation 
+                        // (like moving between day/month/year). Only TAB should jump here
+                        // unless the field is empty.
+                        selectionAtBoundary = false; 
+                    }
+                } catch(err) {
+                    selectionAtBoundary = false;
+                }
+            } else if (isSelect) {
+                // Selects don't have internal cursor, so they always jump
+                selectionAtBoundary = true;
+            }
+
+            if (selectionAtBoundary) {
+                const direction = e.key === 'ArrowRight' ? 1 : -1;
+                const nextIndex = currentIndex + direction;
+                if (nextIndex >= 0 && nextIndex < fields.length) {
+                    e.preventDefault();
+                    const target = document.querySelector(`[data-nav="${fields[nextIndex]}"]`) as HTMLElement;
+                    if (target) {
+                        target.focus();
+                        if (target instanceof HTMLInputElement && target.type !== 'number' && target.type !== 'date') {
+                            target.select();
+                        }
+                    }
+                }
+            }
         }
 
-        const valueLength = input.value.length;
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            const jumps: Record<string, string> = {
+                'receiptNumber': 'salesChannel',
+                'createdAt': 'orderNumber',
+                'clientId': 'brandId',
+                'salesChannel': 'receiptNumber',
+                'orderNumber': 'createdAt',
+                'brandId': 'clientId',
+                'quantity': 'receiptNumber',
+                'total': 'createdAt',
+                'possibleDeliveryDate': 'clientId'
+            };
+            
+            const targetName = jumps[fieldName];
+            if (targetName) {
+                e.preventDefault();
+                const target = document.querySelector(`[data-nav="${targetName}"]`) as HTMLElement;
+                if (target) target.focus();
+            }
+        }
+    };
+
+    const handleTableKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, rowIndex: number, fieldName: string) => {
+        const input = e.currentTarget;
+        let selectionAtBoundary = false;
+        
+        try {
+            if (input.selectionStart !== null) {
+                if (e.key === 'ArrowRight') selectionAtBoundary = input.selectionStart === input.value.length;
+                else if (e.key === 'ArrowLeft') selectionAtBoundary = input.selectionStart === 0;
+            } else if (input.type === 'number') {
+                // For number inputs, jump only if empty or if we want to force it.
+                // But the user wants traversal, so we can't jump if we don't know position.
+                selectionAtBoundary = false;
+            }
+        } catch(e) {}
 
         if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
             e.preventDefault();
             const direction = e.key === 'ArrowDown' ? 1 : -1;
             const targetRowIndex = rowIndex + direction;
-            
             if (targetRowIndex >= 0 && targetRowIndex < formik.values.brandItems.length) {
-                const targetInput = document.querySelector(
-                    `[data-row-index="${targetRowIndex}"][data-field-name="${fieldName}"]`
-                ) as HTMLInputElement;
-                
+                const targetInput = document.querySelector(`[data-row-index="${targetRowIndex}"][data-field-name="${fieldName}"]`) as HTMLInputElement;
                 if (targetInput) {
                     targetInput.focus();
-                    if (targetInput.type !== 'number') {
-                         targetInput.select();
-                    }
+                    if (targetInput.type !== 'number') targetInput.select();
                 }
             }
-        } else if (e.key === 'ArrowLeft') {
-            // Move to previous column if at start of input (or if numeric input and we can't detect position)
-            if (selectionStart === 0 || input.type === 'number') {
-                const fields = ['orderNumber', 'total', 'deposit'];
-                const currentIndex = fields.indexOf(fieldName);
-                if (currentIndex > 0) {
-                    const prevField = fields[currentIndex - 1];
-                    const targetInput = document.querySelector(
-                        `[data-row-index="${rowIndex}"][data-field-name="${prevField}"]`
-                    ) as HTMLInputElement;
-                    if (targetInput) {
-                        e.preventDefault();
-                        targetInput.focus();
-                        if (targetInput.type !== 'number') {
-                            targetInput.select();
-                        }
-                    }
+        } else if (e.key === 'ArrowLeft' && selectionAtBoundary) {
+            const fields = ['orderNumber', 'total', 'deposit'];
+            const currentIndex = fields.indexOf(fieldName);
+            if (currentIndex > 0) {
+                const targetInput = document.querySelector(`[data-row-index="${rowIndex}"][data-field-name="${fields[currentIndex - 1]}"]`) as HTMLInputElement;
+                if (targetInput) {
+                    e.preventDefault();
+                    targetInput.focus();
+                    if (targetInput.type !== 'number') targetInput.select();
                 }
             }
-        } else if (e.key === 'ArrowRight') {
-            // Move to next column if at end of input
-            if (selectionStart === valueLength || input.type === 'number') {
-                const fields = ['orderNumber', 'total', 'deposit'];
-                const currentIndex = fields.indexOf(fieldName);
-                if (currentIndex < fields.length - 1) {
-                    const nextField = fields[currentIndex + 1];
-                    const targetInput = document.querySelector(
-                        `[data-row-index="${rowIndex}"][data-field-name="${nextField}"]`
-                    ) as HTMLInputElement;
-                    if (targetInput) {
-                        e.preventDefault();
-                        targetInput.focus();
-                        if (targetInput.type !== 'number') {
-                            targetInput.select();
-                        }
-                    }
+        } else if (e.key === 'ArrowRight' && selectionAtBoundary) {
+            const fields = ['orderNumber', 'total', 'deposit'];
+            const currentIndex = fields.indexOf(fieldName);
+            if (currentIndex < fields.length - 1) {
+                const targetInput = document.querySelector(`[data-row-index="${rowIndex}"][data-field-name="${fields[currentIndex + 1]}"]`) as HTMLInputElement;
+                if (targetInput) {
+                    e.preventDefault();
+                    targetInput.focus();
+                    if (targetInput.type !== 'number') targetInput.select();
                 }
             }
         }
@@ -1104,6 +1223,8 @@ export function OrderFormPage() {
                                     <Input
                                         {...formik.getFieldProps('receiptNumber')}
                                         disabled={isLoadingReceiptNumber || isEditing}
+                                        onKeyDown={e => handleHeaderKeyDown(e, 'receiptNumber')}
+                                        data-nav="receiptNumber"
                                         className="h-8 text-sm font-mono font-bold text-monchito-purple bg-monchito-purple/5"
                                     />
                                     {!isEditing && (
@@ -1130,6 +1251,8 @@ export function OrderFormPage() {
                                     type="date"
                                     {...formik.getFieldProps('createdAt')}
                                     disabled={isEditing}
+                                    onKeyDown={e => handleHeaderKeyDown(e, 'createdAt')}
+                                    data-nav="createdAt"
                                     className="h-8 text-sm"
                                 />
                             </div>
@@ -1141,6 +1264,8 @@ export function OrderFormPage() {
                                     onChange={(val) => formik.setFieldValue('clientId', val)}
                                     placeholder="Ingrese nombre o cédula..."
                                     disabled={isEditing}
+                                    onKeyDownNavigation={e => handleHeaderKeyDown(e, 'clientId')}
+                                    navId="clientId"
                                 />
                                 {totalCredit > 0 && (
                                     <p className="text-xs text-green-600 font-bold mt-1">Saldo a favor: ${totalCredit.toFixed(2)}</p>
@@ -1183,7 +1308,9 @@ export function OrderFormPage() {
                         <select
                             value={currentItem.salesChannel}
                             onChange={(e) => setCurrentItem({ ...currentItem, salesChannel: e.target.value as SalesChannel })}
-                            className="h-8 w-full rounded-md border border-input text-xs px-2 py-1"
+                            onKeyDown={e => handleHeaderKeyDown(e, 'salesChannel')}
+                            data-nav="salesChannel"
+                            className="h-8 w-full rounded-md border border-input text-xs px-2 py-1 focus:ring-1 focus:ring-monchito-purple outline-none"
                         >
                             <option value="OFICINA">OFICINA</option>
                             <option value="WHATSAPP">WHATSAPP</option>
@@ -1195,7 +1322,9 @@ export function OrderFormPage() {
                         <select
                             value={currentItem.type}
                             onChange={(e) => setCurrentItem({ ...currentItem, type: e.target.value as OrderType })}
-                            className="h-8 w-full rounded-md border border-input text-xs px-2 py-1"
+                            onKeyDown={e => handleHeaderKeyDown(e, 'type')}
+                            data-nav="type"
+                            className="h-8 w-full rounded-md border border-input text-xs px-2 py-1 focus:ring-1 focus:ring-monchito-purple outline-none"
                         >
                             <option value="NORMAL">NORMAL</option>
                             <option value="PREVENTA">PREVENTA</option>
@@ -1208,6 +1337,8 @@ export function OrderFormPage() {
                             className="h-8 w-full text-xs font-mono px-2"
                             value={currentItem.orderNumber}
                             onChange={(e) => setCurrentItem({ ...currentItem, orderNumber: e.target.value })}
+                            onKeyDown={e => handleHeaderKeyDown(e, 'orderNumber')}
+                            data-nav="orderNumber"
                             placeholder="Ej: 12345"
                         />
                     </div>
@@ -1218,6 +1349,8 @@ export function OrderFormPage() {
                             className="h-8 w-full text-xs px-2 hide-spinner"
                             value={currentItem.quantity}
                             onChange={(e) => setCurrentItem({ ...currentItem, quantity: Number(e.target.value) })}
+                            onKeyDown={e => handleHeaderKeyDown(e, 'quantity')}
+                            data-nav="quantity"
                         />
                     </div>
                     <div className="w-full sm:flex-1 min-w-[140px] space-y-1">
@@ -1230,6 +1363,8 @@ export function OrderFormPage() {
                                 setCurrentItem({ ...currentItem, brandId: val, brandName: b ? b.name : "" });
                             }}
                             placeholder="Marca..."
+                            onKeyDownNavigation={e => handleHeaderKeyDown(e, 'brandId')}
+                            navId="brandId"
                         />
                     </div>
                     <div className="w-full sm:w-[80px] space-y-1 shrink-0">
@@ -1239,6 +1374,8 @@ export function OrderFormPage() {
                             className="h-8 w-full font-bold text-xs px-2 hide-spinner"
                             value={currentItem.total}
                             onChange={(e) => setCurrentItem({ ...currentItem, total: Number(e.target.value) })}
+                            onKeyDown={e => handleHeaderKeyDown(e, 'total')}
+                            data-nav="total"
                             step="0.01"
                         />
                     </div>
@@ -1249,12 +1386,16 @@ export function OrderFormPage() {
                             className="h-8 w-full text-xs px-2"
                             value={currentItem.possibleDeliveryDate}
                             onChange={(e) => setCurrentItem({ ...currentItem, possibleDeliveryDate: e.target.value })}
+                            onKeyDown={e => handleHeaderKeyDown(e, 'possibleDeliveryDate')}
+                            data-nav="possibleDeliveryDate"
                         />
                     </div>
                     <div className="w-full sm:w-[130px] shrink-0">
                         <Button
                             type="button"
                             onClick={handleAddItem}
+                            onKeyDown={e => handleHeaderKeyDown(e, 'addButton')}
+                            data-nav="addButton"
                             className="h-8 w-full bg-monchito-purple hover:bg-monchito-purple/90 px-3 text-xs font-bold transition-all rounded-lg"
                         >
                             <Plus className="h-3 w-3 mr-1.5" /> Agregar
@@ -1543,6 +1684,7 @@ export function OrderFormPage() {
                     currentDeposit: Number(item.deposit || 0)
                 }))}
                 lockAmount={formik.values.brandItems.length > 1 && totalRowDeposit > 0}
+                forceExactAmount={totalRowDeposit > 0}
             />
 
             {/* Modal de edición de pedido individual */}

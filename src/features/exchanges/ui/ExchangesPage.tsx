@@ -157,11 +157,11 @@ export function ExchangesPage() {
             </div>
           </div>
         ) : (
-          <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <div className="rounded-2xl border border-monchito-purple/10 bg-white shadow-sm overflow-hidden">
             <div className="overflow-x-auto custom-scrollbar">
-              <table className="text-sm border-collapse min-w-[1000px] w-max">
+              <table className="text-sm border-collapse min-w-[1000px] w-full">
                 <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-sm">
-                  <tr className="bg-slate-50/80 border-b border-slate-200 text-[10px] uppercase tracking-wider text-slate-500 font-semibold whitespace-nowrap">
+                  <tr className="bg-monchito-purple/5 border-b border-monchito-purple/10 text-[10px] uppercase tracking-wider text-monchito-purple font-black whitespace-nowrap">
                     <th className="px-4 py-4 text-center w-16">N°</th>
                     <th className="px-6 py-4 text-left">Guía / Lote</th>
                     <th className="px-6 py-4 text-left">Información / Notas</th>
@@ -171,12 +171,12 @@ export function ExchangesPage() {
                     <th className="px-6 py-4 text-center w-10">Fact.</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-monchito-purple/5">
                   {filtered.map((batch, idx) => (
                     <tr 
                       key={batch.id} 
                       onClick={() => setSelectedBatch(batch)}
-                      className="hover:bg-slate-50/40 transition-all cursor-pointer group"
+                      className="hover:bg-monchito-purple/5 transition-all cursor-pointer group border-b border-monchito-purple/5 last:border-0"
                     >
                       <td className="px-4 py-5 text-center">
                         <span className="text-xs font-bold text-slate-400">{idx + 1}</span>

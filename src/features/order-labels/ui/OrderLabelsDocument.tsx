@@ -20,124 +20,104 @@ const styles = StyleSheet.create({
         height: '100%',
         borderWidth: 1,
         borderColor: '#000',
-        padding: 6,
+        padding: 8,
         flexDirection: 'column',
     },
-    // Header row
-    headerRow: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        marginBottom: 2,
-    },
-    logo: {
-        width: 35,
-        height: 35,
-        objectFit: 'contain',
-        marginRight: 6
-    },
-    headerInfo: {
-        flex: 1,
-        flexDirection: 'column',
-    },
-    clientName: {
-        fontSize: 10,
-        fontWeight: 'extrabold',
-        textTransform: 'uppercase',
-    },
-    clientDetails: {
-        fontSize: 8,
-        marginTop: 2,
-        color: '#1e293b',
-        fontWeight: 'bold',
-    },
-    // Middle row
-    middleRow: {
+    upperRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
-        marginVertical: 1,
+        alignItems: 'flex-start',
+        marginBottom: 8,
     },
-    salesChannel: {
-        fontSize: 7,
-        fontWeight: 'bold',
-        width: '25%',
+    logo: {
+        width: 140,
+        height: 35,
+        objectFit: 'contain',
     },
-    brandName: {
-        fontSize: 16,
+    brandPrendasSection: {
+        alignItems: 'flex-end',
+    },
+    brandNameHeader: {
+        fontSize: 12,
         fontWeight: 'extrabold',
-        textAlign: 'center',
-        flex: 1,
         textTransform: 'uppercase',
     },
-    prendasWrapper: {
-        width: '20%',
-        flexDirection: 'column',
-        alignItems: 'center',
-    },
-    prendasLabel: {
-        fontSize: 7,
-        fontWeight: 'bold',
-        marginBottom: 2,
-    },
-    prendasBox: {
-        width: 35,
-        height: 20,
-        borderWidth: 1.5,
-        borderColor: '#000',
-        marginTop: 2,
-    },
-    // Removiendo prendasValue para dejarlo vacío para llenado manual si se desea
-    // o simplemente para seguir el formato idéntico.
-    // Receipt row
-    receiptRow: {
+    prendasContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginVertical: 2,
+        marginTop: 2,
     },
-    receiptLabel: {
-        fontSize: 9,
+    prendasLabel: {
+        fontSize: 8,
         fontWeight: 'bold',
         marginRight: 4,
     },
-    receiptValue: {
-        fontSize: 9,
-        fontFamily: 'Courier', // Using a mono-like font for numbers if possible
+    prendasBox: {
+        width: 30,
+        height: 18,
+        borderWidth: 1,
+        borderColor: '#000',
     },
-    // Data Table
-    tableHeaderRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginTop: 4,
-        paddingBottom: 1,
-    },
-    tableHeaderItem: {
-        fontSize: 8,
-        fontWeight: 'bold',
-        color: '#475569',
-        borderBottomWidth: 0.5,
-        borderBottomColor: '#cbd5e1',
-        paddingBottom: 2,
-    },
-    tableValueRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
+    clientSection: {
         marginBottom: 4,
     },
-    tableValueItem: {
-        fontSize: 8,
+    clientName: {
+        fontSize: 11,
+        fontWeight: 'extrabold',
+        textTransform: 'uppercase',
     },
-    // Footer
-    footerRow: {
+    clientInfoSub: {
+        fontSize: 7.5,
+        fontStyle: 'italic',
+        marginTop: 1,
+        color: '#333',
+    },
+    receiptNumberLine: {
+        fontSize: 9,
+        fontWeight: 'bold',
+        marginBottom: 6,
+        textTransform: 'uppercase',
+    },
+    table: {
+        borderWidth: 0.5,
+        borderColor: '#000',
+    },
+    tableRow: {
+        flexDirection: 'row',
+        borderBottomWidth: 0.5,
+        borderBottomColor: '#000',
+    },
+    tableHeaderCell: {
+        fontSize: 7.5,
+        fontWeight: 'extrabold',
+        padding: 3,
+        textAlign: 'center',
+        borderRightWidth: 0.5,
+        borderRightColor: '#000',
+        backgroundColor: '#f8f8f8',
+    },
+    tableDataCell: {
+        fontSize: 7.5,
+        padding: 3,
+        textAlign: 'center',
+        borderRightWidth: 0.5,
+        borderRightColor: '#000',
+    },
+    footer: {
+        marginTop: 'auto',
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginTop: 'auto',
-        borderTopWidth: 0.5,
-        borderTopColor: '#555',
-        paddingTop: 2,
+        paddingTop: 4,
     },
-    footerItem: {
+    footerLabel: {
         fontSize: 6.5,
-        color: '#222',
+        fontStyle: 'italic',
+        color: '#555',
+    },
+    footerValue: {
+        fontSize: 6.5,
+        fontWeight: 'bold',
+        color: '#000',
     },
     bold: {
         fontWeight: 'bold',
@@ -161,7 +141,7 @@ export const OrderLabelsDocument = ({ orders, clientsMap, user, packingNumber }:
     const currentDate = new Date().toLocaleDateString('es-EC', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const currentTime = new Date().toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit', hour12: false });
     const fullDateTime = `${currentDate} ${currentTime}`;
-    const logoUrl = '/images/mochitopng.png';
+
 
     return (
         <Document>
@@ -177,62 +157,53 @@ export const OrderLabelsDocument = ({ orders, clientsMap, user, packingNumber }:
                         return (
                             <View key={order.id} style={styles.labelContainer}>
                                 <View style={styles.labelContent}>
-                                    {/* Header: Logo + Name + ID/Phone */}
-                                    <View style={styles.headerRow}>
-                                        <Image src={logoUrl} style={styles.logo} />
-                                        <View style={styles.headerInfo}>
-                                            <Text style={styles.clientName}>{order.clientName}</Text>
-                                            <Text style={styles.clientDetails}>
-                                                {client?.identificationNumber || '---'}     {client?.phone1 || ''} {client?.phone2 ? `/ ${client.phone2}` : ''}
-                                            </Text>
+                                    {/* Top: Banner + Brand Info */}
+                                    <View style={styles.upperRow}>
+                                        <Image src={"/images/BannerHeader.jpg"} style={styles.logo} />
+                                        <View style={styles.brandPrendasSection}>
+                                            <Text style={styles.brandNameHeader}>{order.brandName}</Text>
+                                            <View style={styles.prendasContainer}>
+                                                <Text style={styles.prendasLabel}>Prendas:</Text>
+                                                <View style={styles.prendasBox} />
+                                            </View>
                                         </View>
                                     </View>
 
-                                    {/* Middle: Channel | Brand | Prendas */}
-                                    <View style={styles.middleRow}>
-                                        <Text style={styles.salesChannel}>{order.salesChannel || 'OFICINA'}</Text>
-                                        <Text style={styles.brandName}>{order.brandName}</Text>
-                                        <View style={styles.prendasWrapper}>
-                                            <Text style={styles.prendasLabel}>Prendas:</Text>
-                                            <View style={styles.prendasBox} />
+                                    {/* Client info */}
+                                    <View style={styles.clientSection}>
+                                        <Text style={styles.clientName}>{order.clientName}</Text>
+                                        <Text style={styles.clientInfoSub}>
+                                            CEDULA: {client?.identificationNumber || '---'} - TLF.: {client?.phone1 || '---'}{client?.phone2 ? ` / ${client.phone2}` : ''}
+                                        </Text>
+                                    </View>
+
+                                    <Text style={styles.receiptNumberLine}>
+                                        No de recibo: {order.receiptNumber} {order.type || 'NORMAL'}
+                                    </Text>
+
+                                    {/* Table */}
+                                    <View style={styles.table}>
+                                        <View style={styles.tableRow}>
+                                            <Text style={[styles.tableHeaderCell, { width: '25%' }]}>No de pedido</Text>
+                                            <Text style={[styles.tableHeaderCell, { width: '20%' }]}>Factura</Text>
+                                            <Text style={[styles.tableHeaderCell, { width: '20%' }]}>Valor Factura</Text>
+                                            <Text style={[styles.tableHeaderCell, { width: '15%' }]}>Abono</Text>
+                                            <Text style={[styles.tableHeaderCell, { width: '20%', borderRightWidth: 0 }]}>Saldo</Text>
                                         </View>
-                                    </View>
-
-                                    {/* Receipt Number Row */}
-                                    <View style={styles.receiptRow}>
-                                        <Text style={styles.receiptLabel}>No de recibo:</Text>
-                                        <Text style={styles.receiptValue}>{order.receiptNumber} {order.type || 'NORMAL'}</Text>
-                                    </View>
-
-                                    {/* Data Table Headers */}
-                                    <View style={styles.tableHeaderRow}>
-                                        <Text style={[styles.tableHeaderItem, { width: '20%' }]}>No de pedido:</Text>
-                                        <Text style={[styles.tableHeaderItem, { width: '20%' }]}>Factura:</Text>
-                                        <Text style={[styles.tableHeaderItem, { width: '20%', textAlign: 'right' }]}>Valor factura:</Text>
-                                        <Text style={[styles.tableHeaderItem, { width: '20%', textAlign: 'right' }]}>Abono:</Text>
-                                        <Text style={[styles.tableHeaderItem, { width: '20%', textAlign: 'right' }]}>Saldo:</Text>
-                                    </View>
-
-                                    {/* Data Table Values */}
-                                    <View style={styles.tableValueRow}>
-                                        <Text style={[styles.tableValueItem, { width: '20%' }]}>{order.orderNumber || order.receiptNumber}</Text>
-                                        <Text style={[styles.tableValueItem, { width: '20%' }]}>{order.invoiceNumber || '---'}</Text>
-                                        <Text style={[styles.tableValueItem, { width: '20%', textAlign: 'right' }]}>{effectiveTotal.toFixed(2)}</Text>
-                                        <Text style={[styles.tableValueItem, { width: '20%', textAlign: 'right' }]}>{paid.toFixed(2)}</Text>
-                                        <Text style={[styles.tableValueItem, { width: '20%', textAlign: 'right' }]}>{pendingAmount.toFixed(2)}</Text>
+                                        <View style={[styles.tableRow, { borderBottomWidth: 0 }]}>
+                                            <Text style={[styles.tableDataCell, { width: '25%' }]}>{order.orderNumber || order.receiptNumber}</Text>
+                                            <Text style={[styles.tableDataCell, { width: '20%' }]}>{order.invoiceNumber || '---'}</Text>
+                                            <Text style={[styles.tableDataCell, { width: '20%' }]}>{effectiveTotal.toFixed(2)}</Text>
+                                            <Text style={[styles.tableDataCell, { width: '15%' }]}>{paid.toFixed(2)}</Text>
+                                            <Text style={[styles.tableDataCell, { width: '20%', borderRightWidth: 0 }]}>{pendingAmount.toFixed(2)}</Text>
+                                        </View>
                                     </View>
 
                                     {/* Footer */}
-                                    <View style={styles.footerRow}>
-                                        <Text style={styles.footerItem}>
-                                            <Text style={styles.bold}>Revisado por:</Text> {user?.name || 'Sis'}
-                                        </Text>
-                                        <Text style={styles.footerItem}>
-                                            <Text style={styles.bold}>Packing:</Text> {packingNumber || 'N/A'}
-                                        </Text>
-                                        <Text style={styles.footerItem}>
-                                            <Text style={styles.bold}>Fecha:</Text> {fullDateTime}
-                                        </Text>
+                                    <View style={styles.footer}>
+                                        <Text style={styles.footerLabel}>Revisado por: <Text style={styles.footerValue}>{user?.name || 'Admin'}</Text></Text>
+                                        <Text style={styles.footerLabel}>Packing: <Text style={styles.footerValue}>{packingNumber || 'N/A'}</Text></Text>
+                                        <Text style={styles.footerLabel}>FECHA: <Text style={styles.footerValue}>{fullDateTime}</Text></Text>
                                     </View>
                                 </View>
                             </View>

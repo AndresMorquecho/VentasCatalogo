@@ -11,35 +11,27 @@ const styles = StyleSheet.create({
     logoSection: {
         flexDirection: 'row',
         alignItems: 'center',
-        flex: 1,
     },
     logo: {
-        width: 120,
-        height: 60,
+        width: 280,
+        height: 80,
         objectFit: 'contain',
-    },
-    logoText: {
-        fontSize: 12,
-        marginLeft: 10,
-        fontWeight: 'bold',
-        textTransform: 'uppercase',
-        color: '#1e293b',
     },
     titleSection: {
         alignItems: 'flex-end',
-        flex: 1,
+        justifyContent: 'center',
     },
     title: {
-        fontSize: 16,
+        fontSize: 18,
         fontWeight: 'bold',
-        textTransform: 'uppercase',
-        color: '#1e293b',
+        textTransform: 'none',
+        color: '#000',
     },
     subtitle: {
-        fontSize: 12,
+        fontSize: 18,
         fontWeight: 'bold',
-        marginTop: 4,
-        color: '#475569',
+        marginTop: 2,
+        color: '#000',
     },
     headerRow: {
         flexDirection: 'row',
@@ -81,25 +73,25 @@ const styles = StyleSheet.create({
     },
     tableCell: {
         fontSize: 8,
-        padding: 4,
+        padding: 5,
         borderRight: '0.5pt solid #000',
-        textAlign: 'left',
+        textAlign: 'center',
     },
     tableCellLast: {
         borderRight: 0,
     },
     tableCellRight: {
-        textAlign: 'right',
+        textAlign: 'center',
     },
     // Column widths
-    colReceipt: { width: '12%' },
-    colClient: { width: '25%' },
-    colBrand: { width: '10%' },
-    colOrderNo: { width: '12%' },
-    colDocType: { width: '10%' },
-    colInvNo: { width: '11%' },
-    colAbono: { width: '10%', textAlign: 'right' },
-    colTotal: { width: '10%', textAlign: 'right', borderRight: 0 },
+    colReceipt: { width: '12%', textAlign: 'center' },
+    colClient: { width: '25%', textAlign: 'center' },
+    colBrand: { width: '10%', textAlign: 'center' },
+    colOrderNo: { width: '12%', textAlign: 'center' },
+    colDocType: { width: '10%', textAlign: 'center' },
+    colInvNo: { width: '11%', textAlign: 'center' },
+    colAbono: { width: '10%', textAlign: 'center' },
+    colTotal: { width: '10%', textAlign: 'center', borderRight: 0 },
 
     footer: {
         marginTop: 15,
@@ -118,7 +110,7 @@ interface Props {
     batchId?: string;
 }
 
-export const ReceptionBatchReport: React.FC<Props> = ({ orders, packingNumber, packingTotal, userName, batchId }) => {
+export const ReceptionBatchReport: React.FC<Props> = ({ orders, packingNumber, packingTotal, userName }) => {
     const formattedDate = new Date().toLocaleString('es-EC', {
         day: '2-digit', month: '2-digit', year: 'numeric',
         hour: '2-digit', minute: '2-digit', second: '2-digit',
@@ -151,34 +143,27 @@ export const ReceptionBatchReport: React.FC<Props> = ({ orders, packingNumber, p
             <Page size="A4" orientation="landscape" style={styles.page}>
                 <View style={styles.headerRow}>
                     <View style={styles.logoSection}>
-                        <Image style={styles.logo} src="/images/mochitopng.png" />
-                        <Text style={styles.logoText}>VENTA POR CATÁLOGO</Text>
+                        <Image style={styles.logo} src="/images/BannerHeader.jpg" />
                     </View>
                     <View style={styles.titleSection}>
-                        <Text style={styles.title}>REPORTE DE RECEPCIÓN</Text>
-                        <Text style={styles.subtitle}>PACKING No: {packingNumber || 'N/A'}</Text>
+                        <Text style={styles.title}>Packing No</Text>
+                        <Text style={styles.subtitle}>{packingNumber || 'N/A'}</Text>
                     </View>
                 </View>
 
                 <View style={styles.metaData}>
                     <View style={styles.metaRow}>
-                        <Text style={styles.metaLabel}>FECHA DE PACKING:</Text>
+                        <Text style={styles.metaLabel}>FECHA DE PACK-:</Text>
                         <Text style={styles.metaValue}>{formattedDate}</Text>
                     </View>
                     <View style={styles.metaRow}>
                         <Text style={styles.metaLabel}>INGRESADO POR:</Text>
-                        <Text style={styles.metaValue}>{userName.toUpperCase()}</Text>
+                        <Text style={styles.metaValue}>{userName?.toUpperCase() || 'ADMIN'}</Text>
                     </View>
                     <View style={styles.metaRow}>
                         <Text style={styles.metaLabel}>VALOR PACKING:</Text>
                         <Text style={styles.metaValue}>{Number(packingTotal).toFixed(2)}</Text>
                     </View>
-                    {batchId && (
-                        <View style={styles.metaRow}>
-                            <Text style={styles.metaLabel}>ID INTERNO:</Text>
-                            <Text style={styles.metaValue}>{batchId}</Text>
-                        </View>
-                    )}
                 </View>
 
                 <View style={styles.table}>

@@ -1,16 +1,15 @@
 import { useState, useMemo, useRef, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { useOrderDeliveryList } from "../model/useOrderDelivery"
+import { useOrderDeliveryList, useOrderDeliveryFilterData } from "../model/useOrderDelivery"
 import type { DeliveryFilters } from "../model/useOrderDelivery"
 import { OrderDeliveryTable } from "./OrderDeliveryTable"
 import { DeliverOrderModalNew } from "./DeliverOrderModalNew"
+import { PendingOrdersModal } from "./PendingOrdersModal"
 import type { Order } from "@/entities/order/model/types"
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
-import { Search, History, Truck, RotateCcw, Filter, ChevronDown } from "lucide-react"
+import { Search, History, Truck, RotateCcw, Filter, ChevronDown, PackageOpen } from "lucide-react"
 import { PageHeader } from "@/shared/ui/PageHeader"
-import { useBrandList } from "@/features/brands/api/hooks"
-import { useClientList } from "@/features/clients/api/hooks"
 import { Pagination } from "@/shared/ui/pagination"
 import { DateRangePicker } from "@/shared/ui/filters"
 import type { DateRange } from "react-day-picker"
@@ -18,15 +17,15 @@ import type { DateRange } from "react-day-picker"
 /* --- Searchable Select for Clients --- */
 function SearchableClientSelect({ 
     onSelect, 
-    value 
+    value,
+    clients
 }: { 
     onSelect: (clientId: string) => void, 
-    value: string 
+    value: string,
+    clients: any[]
 }) {
     const [isOpen, setIsOpen] = useState(false)
     const [search, setSearch] = useState("")
-    const { data: clientsResponse } = useClientList({ limit: 100, search })
-    const clients = clientsResponse ? (Array.isArray(clientsResponse) ? clientsResponse : clientsResponse.data) : []
     const wrapperRef = useRef<HTMLDivElement>(null)
 
     const selectedClient = clients.find(c => c.id === value)
@@ -74,10 +73,16 @@ function SearchableClientSelect({
                         >
                             Todas las empresarias
                         </div>
-                        {clients.length === 0 ? (
+                        {clients.filter(c => 
+                            c.firstName.toLowerCase().includes(search.toLowerCase()) || 
+                            c.identificationNumber?.includes(search)
+                        ).length === 0 ? (
                             <div className="px-3 py-4 text-xs text-slate-400 text-center italic">No se encontraron empresarias</div>
                         ) : (
-                            clients.map((c) => (
+                            clients.filter(c => 
+                                c.firstName.toLowerCase().includes(search.toLowerCase()) || 
+                                c.identificationNumber?.includes(search)
+                            ).map((c) => (
                                 <div 
                                     key={c.id}
                                     className={`px-3 py-2.5 text-sm hover:bg-slate-50 transition-colors cursor-pointer rounded-lg flex flex-col ${c.id === value ? "bg-monchito-purple/5 text-monchito-purple" : "text-slate-700"}`}
@@ -220,17 +225,58 @@ export function OrderDeliveryPage() {
         limit
     }), [startDate, endDate, brandId, clientId, orderNumber, searchTerm, page, limit])
 
+    // Query for filter data (Only ones that HAVE orders to deliver)
+    const { data: filterOrdersData } = useOrderDeliveryFilterData()
+
+    // Extract relevant clients and brands from deliverable orders
+    const dynamicClients = useMemo(() => {
+        if (!filterOrdersData) return []
+        const uniques: any[] = []
+        const seen = new Set()
+        filterOrdersData.forEach((o: any) => {
+            if (!seen.has(o.clientId)) {
+                uniques.push({ 
+                    id: o.clientId, 
+                    firstName: o.clientName, 
+                    identificationNumber: o.clientIdentification,
+                    city: o.clientCity 
+                })
+                seen.add(o.clientId)
+            }
+        })
+        return uniques.sort((a,b) => a.firstName.localeCompare(b.firstName))
+    }, [filterOrdersData])
+
+    const dynamicBrands = useMemo(() => {
+        if (!filterOrdersData) return []
+        // Filter by clientId if selected
+        const baseOrders = clientId ? filterOrdersData.filter((o: any) => o.clientId === clientId) : filterOrdersData
+        
+        const uniques: any[] = []
+        const seen = new Set()
+        baseOrders.forEach((o: any) => {
+            if (!seen.has(o.brandId)) {
+                uniques.push({ id: o.brandId, name: o.brandName })
+                seen.add(o.brandId)
+            }
+        })
+        return uniques.sort((a,b) => a.name.localeCompare(b.name))
+    }, [filterOrdersData, clientId])
+
     const { data: response, isLoading, isError, refetch } = useOrderDeliveryList(filters)
     const orders = response?.data || []
     const pagination = response?.pagination
-    
-    const { data: brandsResponse } = useBrandList()
-    const brands = brandsResponse ? (Array.isArray(brandsResponse) ? brandsResponse : brandsResponse.data) : []
 
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
     const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([])
     const [isDeliverModalOpen, setIsDeliverModalOpen] = useState(false)
     const [isBatchMode, setIsBatchMode] = useState(false)
+    const [isPendingModalOpen, setIsPendingModalOpen] = useState(false)
+
+    const selectedClientName = useMemo(() => {
+        if (!clientId) return ""
+        return dynamicClients.find(c => c.id === clientId)?.firstName || ""
+    }, [clientId, dynamicClients])
 
 
     const clearFilters = () => {
@@ -279,6 +325,15 @@ export function OrderDeliveryPage() {
                 icon={Truck}
                 actions={
                     <div className="flex gap-3">
+                        {clientId && (
+                            <Button
+                                onClick={() => setIsPendingModalOpen(true)}
+                                className="h-10 border-monchito-purple/20 bg-monchito-purple/10 text-monchito-purple hover:bg-monchito-purple/20 transition-all px-4 font-black text-[10px] uppercase tracking-tight whitespace-nowrap rounded-xl shadow-sm"
+                            >
+                                <PackageOpen className="mr-1.5 h-3.5 w-3.5" />
+                                Por Ingresar
+                            </Button>
+                        )}
                         <Button variant="outline" onClick={() => navigate('/orders/delivery/history')} className="gap-2 rounded-xl h-10 border-slate-200">
                             <History className="h-4 w-4" />
                             Historial
@@ -296,7 +351,17 @@ export function OrderDeliveryPage() {
                     {/* Cliente Selector - 3 cols */}
                     <div className="lg:col-span-3 space-y-2">
                         <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1">Empresaria</label>
-                        <SearchableClientSelect onSelect={setClientId} value={clientId} />
+                        <SearchableClientSelect onSelect={setClientId} value={clientId} clients={dynamicClients} />
+                    </div>
+
+                    {/* Catálogo - 3 cols */}
+                    <div className="lg:col-span-3 space-y-2">
+                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1">Catálogo / Marca</label>
+                        <SearchableBrandSelect 
+                            brands={dynamicBrands} 
+                            value={brandId} 
+                            onSelect={setBrandId} 
+                        />
                     </div>
 
                     {/* Periodo - 4 cols */}
@@ -311,16 +376,6 @@ export function OrderDeliveryPage() {
                         />
                     </div>
 
-                    {/* Catálogo - 3 cols */}
-                    <div className="lg:col-span-3 space-y-2">
-                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1">Catálogo / Marca</label>
-                        <SearchableBrandSelect 
-                            brands={brands} 
-                            value={brandId} 
-                            onSelect={setBrandId} 
-                        />
-                    </div>
-
                     {/* Mas filtros toggle */}
                     <div className="lg:col-span-2 flex items-end">
                         <Button 
@@ -329,7 +384,7 @@ export function OrderDeliveryPage() {
                             onClick={() => setShowFilters(!showFilters)}
                         >
                             <Filter className="h-4 w-4 mr-2" />
-                            {showFilters ? 'Menos' : 'Más'} Filtros
+                            {showFilters ? 'Menos' : 'Más'}
                         </Button>
                     </div>
 
@@ -398,32 +453,32 @@ export function OrderDeliveryPage() {
 
             {/* Tags / Quick Selection */}
             <div className="flex items-center justify-between px-1">
-                <div className="flex flex-wrap gap-2 text-xs font-medium">
+                <div className="flex flex-wrap gap-2 text-xs font-black">
                     <button
                         onClick={() => setDateCategoryFilter('ALL')}
-                        className={`px-4 py-2 rounded-xl border transition-all ${dateCategoryFilter === 'ALL' ? 'bg-monchito-purple border-monchito-purple text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-monchito-purple/30 hover:text-monchito-purple'}`}
+                        className={`px-4 py-2 rounded-xl border transition-all flex items-center gap-2 ${dateCategoryFilter === 'ALL' ? 'bg-monchito-purple border-monchito-purple text-white shadow-md' : 'bg-white border-slate-200 text-slate-600 hover:border-monchito-purple/30 hover:text-monchito-purple'}`}
                     >
                         Todos
                     </button>
                     <button
                         onClick={() => setDateCategoryFilter('RECENT')}
-                        className={`px-4 py-2 rounded-xl border transition-all flex items-center gap-2 ${dateCategoryFilter === 'RECENT' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-emerald-50/50'}`}
+                        className={`px-4 py-2 rounded-xl border transition-all flex items-center gap-2 ${dateCategoryFilter === 'RECENT' ? 'bg-monchito-purple border-monchito-purple text-white shadow-md' : 'bg-white border-slate-200 text-slate-600 hover:bg-emerald-50/50 hover:text-emerald-600'}`}
                     >
-                        <div className="w-2 h-2 bg-emerald-500 rounded-full" />
+                        <div className={`w-2 h-2 rounded-full ${dateCategoryFilter === 'RECENT' ? 'bg-white' : 'bg-emerald-500'}`} />
                         Reciente
                     </button>
                     <button
                         onClick={() => setDateCategoryFilter('WARN')}
-                        className={`px-4 py-2 rounded-xl border transition-all flex items-center gap-2 ${dateCategoryFilter === 'WARN' ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-amber-50/50'}`}
+                        className={`px-4 py-2 rounded-xl border transition-all flex items-center gap-2 ${dateCategoryFilter === 'WARN' ? 'bg-monchito-purple border-monchito-purple text-white shadow-md' : 'bg-white border-slate-200 text-slate-600 hover:bg-amber-50/50 hover:text-amber-600'}`}
                     >
-                        <div className="w-2 h-2 bg-amber-500 rounded-full" />
+                        <div className={`w-2 h-2 rounded-full ${dateCategoryFilter === 'WARN' ? 'bg-white' : 'bg-amber-500'}`} />
                         5+ Días
                     </button>
                     <button
                         onClick={() => setDateCategoryFilter('CRITICAL')}
-                        className={`px-4 py-2 rounded-xl border transition-all flex items-center gap-2 ${dateCategoryFilter === 'CRITICAL' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-red-50/50'}`}
+                        className={`px-4 py-2 rounded-xl border transition-all flex items-center gap-2 ${dateCategoryFilter === 'CRITICAL' ? 'bg-monchito-purple border-monchito-purple text-white shadow-md' : 'bg-white border-slate-200 text-slate-600 hover:bg-red-50/50 hover:text-red-600'}`}
                     >
-                        <div className="w-2 h-2 bg-red-500 rounded-full" />
+                        <div className={`w-2 h-2 rounded-full ${dateCategoryFilter === 'CRITICAL' ? 'bg-white' : 'bg-red-500'}`} />
                         Crítico (+15)
                     </button>
                 </div>
@@ -476,6 +531,13 @@ export function OrderDeliveryPage() {
                     refetch()
                     setSelectedOrderIds([])
                 }}
+            />
+
+            <PendingOrdersModal 
+                isOpen={isPendingModalOpen}
+                onClose={() => setIsPendingModalOpen(false)}
+                clientId={clientId}
+                clientName={selectedClientName}
             />
         </div>
     )

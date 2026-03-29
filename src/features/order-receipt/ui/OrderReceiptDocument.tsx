@@ -100,9 +100,9 @@ const styles = StyleSheet.create({
     colNo: { width: '13%' },
     colType: { width: '15%' },
     colCat: { width: '19%' },
-    colVal: { width: '14%', textAlign: 'right', paddingRight: 6 },
-    colAbo: { width: '10%', textAlign: 'right', paddingRight: 6 },
-    colSal: { width: '10%', textAlign: 'right', paddingRight: 6 },
+    colVal: { width: '14%', textAlign: 'center' },
+    colAbo: { width: '10%', textAlign: 'center' },
+    colSal: { width: '10%', textAlign: 'center' },
     colDate: { width: '19%', borderRight: 0 },
 
     // Financial Summary Row
@@ -197,7 +197,8 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({ order, child
         hour12: false
     }).replace(',', '');
     
-    const logoUrl = '/images/mochitopng.png';
+    // Nueva imagen proporcionada por el usuario
+    const logoUrl = '/images/BannerHeader.jpg';
 
     const paymentLabels: Record<string, string> = {
         'TRANSFERENCIA': 'Transferencia Bancaria',
@@ -214,20 +215,18 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({ order, child
         <Document>
             <Page size="A4" style={styles.page}>
                 {/* HEADER */}
-                <View style={styles.headerContainer}>
-                    <View style={styles.logoRow}>
-                        <View style={styles.logoGroup}>
-                            <Image style={styles.logo} src={logoUrl} />
-                            <Text style={styles.logoText}>VENTA POR CATÁLOGO</Text>
-                        </View>
-                        <View style={styles.receiptGroup}>
-                            <Text style={styles.receiptLabel}>RECIBO No</Text>
-                            <Text style={styles.receiptNumber}>{receiptNumber || order.receiptNumber || 'ORD-000000'}</Text>
-                        </View>
+                <View style={[styles.logoRow, { marginBottom: 20 }]}>
+                    <Image style={{ width: 320, height: 80, objectFit: 'contain' }} src={logoUrl} />
+                    <View style={styles.receiptGroup}>
+                        <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Recibo No</Text>
+                        <Text style={{ fontSize: 22, fontWeight: 'bold' }}>{receiptNumber || order.receiptNumber || 'ORD-000000'}</Text>
                     </View>
+                </View>
 
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
-                        <View style={{ gap: 2 }}>
+                {/* INFO SECTION */}
+                <View style={{ marginBottom: 15 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                        <View style={{ gap: 3 }}>
                             <View style={styles.infoRow}>
                                 <Text style={styles.label}>Fecha:</Text>
                                 <Text>{formattedDate}</Text>
@@ -241,11 +240,12 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({ order, child
                                 <Text style={{ textTransform: 'uppercase', fontWeight: 'bold' }}>{order.clientName || client?.firstName}</Text>
                             </View>
                         </View>
-                        <View style={{ gap: 2, alignItems: 'flex-end' }}>
+                        <View style={{ gap: 2, alignItems: 'flex-end', paddingTop: 5 }}>
                             <Text style={{ fontSize: 10, fontWeight: 'bold' }}>Teléfonos:  2787237--</Text>
                             <Text style={{ fontSize: 10 }}>Quito - Ecuador</Text>
                         </View>
                     </View>
+                    <View style={{ borderBottom: '1pt solid black', marginTop: 10, width: '100%' }} />
                 </View>
 
                 {/* TABLE */}
@@ -277,37 +277,31 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({ order, child
                             </View>
                         );
                     })}
-                </View>
-
-                {/* FINANCIAL SUMMARY */}
-                <View style={styles.financialRow}>
-                    <View style={styles.finCol1}>
-                        <Text>Forma de pago: {friendlyPayment}</Text>
-                        {(order.paymentMethod === 'TRANSFERENCIA' || order.paymentMethod === 'DEPOSITO') && bank && (
-                            <Text style={{ fontSize: 9, marginTop: 4, fontWeight: 'bold' }}>
-                                Banco: {bank.name} {bank.accountNumber ? `- Cta: ${bank.accountNumber}` : ''}
-                            </Text>
-                        )}
-                        {((order as any).transactionReference || (order.payments && order.payments[0]?.reference)) && (
-                            <Text style={{ fontSize: 9, marginTop: 2, fontWeight: 'bold' }}>
-                                Ref/Comprobante: {(order as any).transactionReference || (order.payments && order.payments[0]?.reference)}
-                            </Text>
-                        )}
+                    
+                    {/* FINANCIAL SUMMARY ROW */}
+                    <View style={{ flexDirection: 'row', fontSize: 10, fontWeight: 'bold', backgroundColor: '#fcfcfc', borderBottom: '1pt solid black' }}>
+                        <View style={[styles.tableCell, { width: '47%', textAlign: 'left', paddingLeft: 6, alignItems: 'flex-start', borderRight: '1pt solid black' }]}>
+                             <Text>Forma de pago: {friendlyPayment}</Text>
+                             {(order.paymentMethod === 'TRANSFERENCIA' || order.paymentMethod === 'DEPOSITO') && bank && (
+                                <Text style={{ fontSize: 8, marginTop: 1 }}>Banco: {bank.name} - {bank.accountNumber || ''}</Text>
+                             )}
+                        </View>
+                        <Text style={[styles.tableCell, styles.colVal, { borderRight: '1pt solid black' }]}>{totalVal.toFixed(2)}</Text>
+                        <Text style={[styles.tableCell, styles.colAbo, { borderRight: '1pt solid black' }]}>{totalAbo.toFixed(2)}</Text>
+                        <Text style={[styles.tableCell, styles.colSal, { borderRight: '1pt solid black' }]}>{totalSal.toFixed(2)}</Text>
+                        <Text style={[styles.tableCell, styles.colDate]} />
                     </View>
-                    <Text style={styles.finColVal}>{totalVal.toFixed(2)}</Text>
-                    <Text style={styles.finColAbo}>{totalAbo.toFixed(2)}</Text>
-                    <Text style={styles.finColSal}>{totalSal.toFixed(2)}</Text>
                 </View>
 
                 {/* FOOTER INFO */}
                 <View style={styles.footerInfo}>
                     <View style={{ flexDirection: 'row', marginBottom: 5 }}>
                         <Text style={{ width: '47%' }}>No de documento: {order.receiptNumber || ""}</Text>
-                        <Text>Teléfono de contacto: {client?.phone1 || ""}</Text>
+                        <Text>Teléfono de contacto: {client?.phone1 || (order as any).clientPhone || ""}</Text>
                     </View>
                     <View style={styles.observations}>
-                        <Text>Observaciones:</Text>
-                        <Text style={{ marginTop: 2 }}>{order.notes || ""}</Text>
+                        <Text style={{ fontWeight: 'bold' }}>Observaciones:</Text>
+                        <Text style={{ marginTop: 2, fontSize: 9 }}>{order.notes || ""}</Text>
                     </View>
                 </View>
 
@@ -321,9 +315,9 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({ order, child
                 </View>
 
                 {/* SIGNATURES */}
-                <View style={styles.signatureContainer}>
+                <View style={[styles.signatureContainer, { marginTop: 40 }]}>
                     <View style={styles.signatureBlock}>
-                        <Text style={styles.signatureName}>{user?.username?.toUpperCase() || order.createdByName?.toUpperCase() || ""}</Text>
+                        <Text style={styles.signatureName}>{user?.username?.toUpperCase() || order.createdByName?.toUpperCase() || "ADMIN"}</Text>
                         <View style={styles.signatureLine} />
                         <Text style={styles.signatureLabel}>Vendedor</Text>
                     </View>

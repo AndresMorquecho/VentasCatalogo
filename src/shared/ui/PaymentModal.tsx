@@ -295,11 +295,11 @@ export function PaymentModal({
                     </DialogTitle>
                 </DialogHeader>
 
-                {/* Validation Error Banner */}
-                {view === 'payment' && (configError || validationError) && (
+                {/* Validation Error Banner - Moved inside Resumen */}
+                {view === 'payment' && configError && (
                     <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2 text-sm font-medium mx-1">
                         <AlertTriangle className="h-4 w-4 shrink-0 text-red-500" />
-                        <span>{configError ?? validationError}</span>
+                        <span>{configError}</span>
                     </div>
                 )}
 
@@ -352,7 +352,7 @@ export function PaymentModal({
                         </div>
 
                         {/* Resumen */}
-                        <div className="bg-monchito-purple/5 border border-monchito-purple/10 rounded-lg p-2">
+                        <div className="bg-monchito-purple/5 border border-monchito-purple/10 rounded-lg p-2 transition-all">
                             <h3 className="text-monchito-purple text-xs font-black uppercase tracking-widest mb-1">
                                 Resumen
                             </h3>
@@ -366,25 +366,29 @@ export function PaymentModal({
                                     <span className="font-bold text-emerald-600">{formatCurrency(totalAmount)}</span>
                                 </div>
                                 <div className="flex justify-between border-t pt-0.5">
-                                    <span className="text-slate-500">{lockAmount ? 'Diferencia:' : 'Restante:'}</span>
+                                    <span className="text-slate-500">{(lockAmount || forceExactAmount) ? 'Diferencia:' : 'Restante:'}</span>
                                     <span className={`font-bold text-lg ${
-                                        lockAmount
-                                            ? splitIsBalanced ? 'text-emerald-600' : 'text-red-600'
+                                        (lockAmount || forceExactAmount)
+                                            ? Math.abs(totalAmount - expectedAmount) < 0.01 ? 'text-emerald-600' : 'text-red-600'
                                             : remaining > 0 ? 'text-red-600' : 'text-emerald-600'
                                     }`}>
-                                        {lockAmount ? (remaining >= 0 ? formatCurrency(remaining) : `-${formatCurrency(Math.abs(remaining))}`) : formatCurrency(remaining)}
+                                        {(lockAmount || forceExactAmount) ? (remaining >= 0 ? formatCurrency(remaining) : `-${formatCurrency(Math.abs(remaining))}`) : formatCurrency(remaining)}
                                     </span>
                                 </div>
-                                {lockAmount && splitIsBalanced && (
-                                    <p className="text-xs text-emerald-600 italic">Distribución completa ✓</p>
-                                )}
-                                {lockAmount && !splitIsBalanced && (
-                                    <p className="text-xs text-red-500 italic font-medium">
+                                
+                                {/* Live Error Messages */}
+                                {(lockAmount || forceExactAmount) && Math.abs(totalAmount - expectedAmount) >= 0.01 && (
+                                    <p className="text-[10px] text-red-500 italic flex items-center gap-1 mt-1 bg-red-50/50 rounded p-1">
+                                        <AlertTriangle className="h-3 w-3" />
                                         {remaining > 0 ? `Falta distribuir ${formatCurrency(remaining)}` : `Excede por ${formatCurrency(Math.abs(remaining))}`}
                                     </p>
                                 )}
-                                {!lockAmount && remaining <= 0 && (
-                                    <p className="text-xs text-emerald-600 italic">El total está cubierto</p>
+
+                                {/* Submited Validation Error (if any) */}
+                                {validationError && (
+                                    <div className="mt-1 text-red-600 text-[10px] italic leading-tight">
+                                        * {validationError}
+                                    </div>
                                 )}
                             </div>
                         </div>
@@ -449,17 +453,17 @@ export function PaymentModal({
                                         )}
                                     </div>
 
-                                    <div className="grid grid-cols-1 sm:grid-cols-7 gap-2">
+                                    <div className="flex flex-wrap gap-3 items-end">
                                         {/* Método — only enabled methods are shown (Requirement 8.2) */}
-                                        <div className="space-y-1">
-                                            <label className="text-xs font-medium text-slate-600">Método</label>
+                                        <div className="flex-1 min-w-[140px] space-y-1">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-monchito-purple/60 px-1">Método</label>
                                             <select
                                                 value={payment.method}
                                                 onChange={(e) => updatePayment(payment.id, { 
                                                     method: e.target.value as PaymentMethod,
                                                     transactionReference: ''
                                                 })}
-                                                className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs"
+                                                className="w-full h-9 px-3 rounded-xl border border-monchito-purple/20 bg-white text-xs focus:ring-2 focus:ring-monchito-purple/20 outline-none transition-all cursor-pointer"
                                             >
                                                 {enabledMethods.map((methodConfig) => {
                                                     const isWalletAlreadyAdded =
@@ -473,6 +477,7 @@ export function PaymentModal({
                                                             key={methodConfig.key}
                                                             value={methodConfig.key}
                                                             disabled={isWalletAlreadyAdded}
+                                                            className="font-medium"
                                                         >
                                                             {methodConfig.key === 'BILLETERA_VIRTUAL'
                                                                 ? `${methodConfig.label} (${formatCurrency(totalCredit)})${isWalletAlreadyAdded ? ' — ya agregada' : ''}`
@@ -483,10 +488,11 @@ export function PaymentModal({
                                             </select>
                                         </div>
 
-                                        {/* Monto - Más pequeño con botón */}
-                                        <div className="space-y-1">
-                                            <label className="text-xs font-medium text-slate-600">Monto</label>
-                                            <div className="flex gap-1">
+                                        {/* Monto */}
+                                        <div className="w-[130px] space-y-1 shrink-0">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-monchito-purple/60 px-1">Monto</label>
+                                            <div className="relative group">
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-monchito-purple/40 font-bold">$</span>
                                                 <Input
                                                     type="number"
                                                     step="0.01"
@@ -494,46 +500,41 @@ export function PaymentModal({
                                                     max={expectedAmount > 0 ? expectedAmount : undefined}
                                                     value={payment.amount || ''}
                                                     onChange={(e) => {
-                                                        // En modo lockAmount: los montos por método SÍ son editables
-                                                        // Solo el total global es fijo
                                                         const value = parseFloat(e.target.value) || 0;
                                                         const limitedValue = (!lockAmount && expectedAmount > 0)
                                                             ? Math.min(value, expectedAmount)
                                                             : value;
                                                         updatePayment(payment.id, { amount: limitedValue });
                                                     }}
-                                                    className="h-8 text-xs font-mono flex-1"
+                                                    className="h-9 pl-6 pr-12 text-xs text-monchito-purple border-monchito-purple/20 rounded-xl bg-white focus:ring-2 focus:ring-monchito-purple/20 hide-spinner"
                                                     placeholder="0.00"
                                                 />
                                                 {expectedAmount > 0 && (
-                                                    <Button
+                                                    <button
                                                         type="button"
-                                                        variant="outline"
-                                                        size="sm"
                                                         onClick={() => updatePayment(payment.id, { amount: remaining + payment.amount })}
-                                                        className="h-8 px-2 text-xs"
-                                                        title="Usar saldo restante"
+                                                        className="absolute right-2 top-1/2 -translate-y-1/2 h-6 px-1.5 text-[9px] font-black uppercase tracking-tighter text-monchito-purple hover:bg-monchito-purple/10 rounded-lg transition-colors"
                                                     >
                                                         Max
-                                                    </Button>
+                                                    </button>
                                                 )}
                                             </div>
                                         </div>
 
                                         {/* Cuenta Bancaria — shown based on method config */}
                                         {paymentMethodConfigService.getMethod(payment.method)?.requiresBankAccount && (
-                                            <div className="space-y-1">
-                                                <label className="text-xs font-medium text-blue-600">Cuenta de Destino</label>
+                                            <div className="flex-1 min-w-[180px] space-y-1">
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-monchito-purple/60 px-1">Cuenta de Destino</label>
                                                 <select
                                                     value={payment.bankAccountId || ''}
                                                     onChange={(e) => updatePayment(payment.id, { bankAccountId: e.target.value })}
-                                                    className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs"
+                                                    className="w-full h-9 px-3 rounded-xl border border-monchito-purple/20 bg-white text-xs focus:ring-2 focus:ring-monchito-purple/20 outline-none transition-all cursor-pointer"
                                                     required
                                                 >
-                                                    <option value="">Seleccionar cuenta...</option>
+                                                    <option value="" className="text-slate-400">Seleccionar cuenta...</option>
                                                     {getAvailableBankAccounts(payment.method).map(account => (
                                                         <option key={account.id} value={account.id}>
-                                                            {account.name} ({account.type === 'CASH' ? 'Efectivo' : 'Banco'})
+                                                            {account.name}
                                                         </option>
                                                     ))}
                                                 </select>
@@ -542,26 +543,26 @@ export function PaymentModal({
 
                                         {/* Referencia — shown based on method config */}
                                         {paymentMethodConfigService.getMethod(payment.method)?.requiresReference && (
-                                            <div className="space-y-1">
-                                                <label className="text-xs font-medium text-blue-600">Referencia</label>
+                                            <div className="w-[150px] space-y-1 shrink-0">
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-monchito-purple/60 px-1">Referencia</label>
                                                 <Input
                                                     value={payment.transactionReference || ''}
                                                     onChange={(e) => updatePayment(payment.id, { transactionReference: e.target.value })}
-                                                    placeholder="Número de referencia"
-                                                    className="h-8 text-xs"
+                                                    placeholder="N° Ref..."
+                                                    className="h-9 text-xs border-monchito-purple/20 rounded-xl bg-white"
                                                     required
                                                 />
                                             </div>
                                         )}
 
-                                        {/* Observaciones - Más grande */}
-                                        <div className="space-y-1 sm:col-span-3">
-                                            <label className="text-xs font-medium text-slate-500">Notas</label>
+                                        {/* Observaciones - Flexible */}
+                                        <div className="flex-[2] min-w-[200px] space-y-1">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-monchito-purple/60 px-1">Notas / Observaciones</label>
                                             <Input
                                                 value={payment.notes || ''}
                                                 onChange={(e) => updatePayment(payment.id, { notes: e.target.value })}
-                                                placeholder="Observación opcional..."
-                                                className="h-8 text-xs"
+                                                placeholder="Notas opcionales..."
+                                                className="h-9 text-xs border-monchito-purple/10 rounded-xl bg-slate-50 focus:bg-white transition-all"
                                             />
                                         </div>
                                     </div>

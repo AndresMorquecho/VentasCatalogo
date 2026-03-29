@@ -66,8 +66,8 @@ export function ReceptionBatchPage() {
                         <div className="flex gap-2">
                             <Button
                                 variant={activeTab === "reception" ? "default" : "outline"}
-                                className={activeTab === "reception" 
-                                    ? "bg-monchito-purple hover:bg-monchito-purple/90 text-white" 
+                                className={activeTab === "reception"
+                                    ? "bg-monchito-purple hover:bg-monchito-purple/90 text-white"
                                     : "border-monchito-purple/20 text-monchito-purple/60 hover:bg-monchito-purple/5 hover:text-monchito-purple"
                                 }
                                 onClick={() => setActiveTab("reception")}
@@ -76,8 +76,8 @@ export function ReceptionBatchPage() {
                             </Button>
                             <Button
                                 variant={activeTab === "history" ? "default" : "outline"}
-                                className={activeTab === "history" 
-                                    ? "bg-monchito-purple hover:bg-monchito-purple/90 text-white" 
+                                className={activeTab === "history"
+                                    ? "bg-monchito-purple hover:bg-monchito-purple/90 text-white"
                                     : "border-monchito-purple/20 text-monchito-purple/60 hover:bg-monchito-purple/5 hover:text-monchito-purple"
                                 }
                                 onClick={() => setActiveTab("history")}
@@ -126,7 +126,7 @@ export function ReceptionBatchPage() {
                         {/* Mensaje cuando no hay datos en ninguna tabla */}
                         {allOrders.length === 0 && selectedOrders.length === 0 && (
                             <div className="flex-1 flex items-center justify-center">
-                                <div className="text-center p-8 border-2 border-dashed border-slate-200 rounded-lg bg-slate-50 text-slate-400">
+                                <div className="text-center p-8 rounded-lg bg-slate-50/50 text-slate-400">
                                     <Truck className="mx-auto h-12 w-12 mb-4 text-slate-300" />
                                     <p className="text-lg font-medium mb-2">No hay pedidos disponibles</p>
                                     <p className="text-sm">Los pedidos aparecerán aquí cuando estén listos para recepción</p>
