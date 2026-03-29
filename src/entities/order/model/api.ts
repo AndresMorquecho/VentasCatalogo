@@ -1,5 +1,6 @@
 import { httpClient } from '@/shared/lib/httpClient';
 import type { Order, OrderPayload, PaginatedResponse } from './types';
+import type { CreditDistribution } from '@/entities/financial-record/model/types';
 
 export interface OrderQueryParams {
     page?: number;
@@ -169,8 +170,6 @@ export const orderApi = {
         data: {
             finalTotal: number;
             invoiceNumber?: string;
-            creditNoteNumber?: string;
-            creditNoteTotal?: number;
             abonoRecepcion?: number;
             bankAccountId?: string;
             paymentMethod?: string;
@@ -190,8 +189,6 @@ export const orderApi = {
             abonoRecepcion: number;
             finalTotal: number;
             finalInvoiceNumber: string;
-            creditNoteNumber?: string;
-            creditNoteTotal?: number;
             documentType?: string;
             entryDate?: string;
             packingNumber?: string;
@@ -245,20 +242,7 @@ export const orderApi = {
                 reference?: string;
             }[];
             notes?: string;
-            creditNoteNumber?: string;
-            creditNoteTotal?: number;
-            invoiceNumber?: string;
-            creditDistribution?: {
-                sourceOrderId: string;
-                totalCreditAmount: number;
-                distributions: {
-                    targetOrderId?: string;
-                    amount: number;
-                    description: string;
-                    isCashReturn?: boolean;
-                    bankAccountId?: string;
-                }[];
-            };
+            creditDistributions?: CreditDistribution[];
         }
     ): Promise<Order> => {
         return httpClient.post<Order>(`/orders/${orderId}/deliver`, data);
@@ -276,7 +260,7 @@ export const orderApi = {
             paymentMethod: string;
             reference?: string;
         }[],
-        creditDistributions?: any[]
+        creditDistributions?: CreditDistribution[]
     ): Promise<any> => {
         return httpClient.post<any>('/orders/batch-deliver', { orderIds, payments, creditDistributions });
     },

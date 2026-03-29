@@ -55,26 +55,32 @@ export function CreditDistributionModal({
   const [remainingAction, setRemainingAction] = useState<'wallet' | 'return'>(initialRemainingAction || 'wallet')
   const [selectedReturnAccountId, setSelectedReturnAccountId] = useState<string>('')
 
+  // Fetch bank accounts for the "Return to client" option
   const { data: accountsResponse } = useQuery({
     queryKey: ['bank-accounts'],
     queryFn: () => bankAccountApi.getAll({ limit: 100 }),
     enabled: isOpen
   })
 
-  const activeAccounts = accountsResponse?.data || []
+  const activeAccounts = accountsResponse?.data || [] // Fetch all, don't filter to troubleshoot missing accounts
 
+  // Default to first CASH account or first available
   useEffect(() => {
     if (activeAccounts.length > 0 && !selectedReturnAccountId) {
       const cashAcc = activeAccounts.find(a => a.type === 'CASH') || activeAccounts[0]
-      if (cashAcc) setSelectedReturnAccountId(cashAcc.id)
+      if (cashAcc) {
+        setSelectedReturnAccountId(cashAcc.id)
+      }
     }
   }, [activeAccounts, selectedReturnAccountId])
 
+  // Reset or Initialize when modal opens
   useEffect(() => {
     if (isOpen) {
       if (initialDistribution && initialDistribution.distributions.length > 0) {
         const orderDistributions = initialDistribution.distributions.filter(d => !!d.targetOrderId)
         const totalOtherDist = initialDistribution.distributions.find(d => !d.targetOrderId)
+        
         setDistributions(orderDistributions)
         if (totalOtherDist) {
           setRemainingAction(totalOtherDist.isCashReturn ? 'return' : 'wallet')
@@ -100,11 +106,12 @@ export function CreditDistributionModal({
       if (order) {
         const maxAmount = Math.min(remaining, order.pendingAmount)
         if (maxAmount > 0) {
-          setDistributions(prev => [...prev, {
+          const newDistribution: CreditDistributionItem = {
             targetOrderId: orderId,
             amount: maxAmount,
             description: `Aplicación de saldo a favor - Origen: Pedido ${sourceOrder.receiptNumber}, Destino: Pedido ${order.receiptNumber}`
-          }])
+          }
+          setDistributions(prev => [...prev, newDistribution])
         }
       }
     } else {
@@ -115,16 +122,27 @@ export function CreditDistributionModal({
   const handleAmountChange = (orderId: string, newAmount: number) => {
     const order = availableOrders.find(o => o.id === orderId)
     if (!order) return
+
     const currentDist = distributions.find(d => d.targetOrderId === orderId)
     if (!currentDist) return
-    const otherDist = distributions.filter(d => d.targetOrderId !== orderId).reduce((s, d) => s + d.amount, 0)
-    const maxAvailable = creditAmount - otherDist
-    const validAmount = Math.max(0, Math.min(newAmount, Math.min(order.pendingAmount, maxAvailable)))
-    setDistributions(prev => prev.map(d => d.targetOrderId === orderId ? { ...d, amount: validAmount } : d))
+
+    const otherDistributions = distributions.filter(d => d.targetOrderId !== orderId).reduce((sum, d) => sum + d.amount, 0)
+    const maxAvailable = creditAmount - otherDistributions
+    const maxAmount = Math.min(order.pendingAmount, maxAvailable)
+    const validAmount = Math.max(0, Math.min(newAmount, maxAmount))
+    
+    setDistributions(prev => 
+      prev.map(d => 
+        d.targetOrderId === orderId 
+          ? { ...d, amount: validAmount }
+          : d
+      )
+    )
   }
 
   const handleConfirm = () => {
     const finalDistributions: CreditDistributionItem[] = [...distributions]
+    
     if (remaining > 0.005) {
       if (remainingAction === 'return') {
         finalDistributions.push({
@@ -140,7 +158,14 @@ export function CreditDistributionModal({
         })
       }
     }
-    onDistribute({ sourceOrderId: sourceOrder.id, totalCreditAmount: creditAmount, distributions: finalDistributions })
+
+    const distribution: CreditDistribution = {
+      sourceOrderId: sourceOrder.id,
+      totalCreditAmount: creditAmount,
+      distributions: finalDistributions
+    }
+
+    onDistribute(distribution)
     onClose()
   }
 
@@ -154,12 +179,14 @@ export function CreditDistributionModal({
           </DialogTitle>
           <div className="space-y-1">
             <p className="text-sm text-slate-600">
-              Recibo: <span className="font-mono font-bold">#{sourceOrder.receiptNumber}</span> |{" "}
-              Pedido: <span className="font-mono font-bold">#{sourceOrder.orderNumber}</span> |{" "}
-              Tipo: <span className="font-medium">{sourceOrder.orderType}</span> |{" "}
+              Recibo: <span className="font-mono font-bold">#{sourceOrder.receiptNumber}</span> | 
+              Pedido: <span className="font-mono font-bold">#{sourceOrder.orderNumber}</span> | 
+              Tipo: <span className="font-medium">{sourceOrder.orderType}</span> | 
               Cliente: <span className="font-medium">{sourceOrder.clientName}</span>
             </p>
-            <p className="text-xs font-semibold text-monchito-purple">Selecciona pedidos y montos a aplicar</p>
+            <p className="text-xs font-semibold text-monchito-purple">
+              Selecciona pedidos y montos a aplicar
+            </p>
           </div>
         </DialogHeader>
 
@@ -172,8 +199,11 @@ export function CreditDistributionModal({
                     const distribution = distributions.find(d => d.targetOrderId === order.id)
                     const isSelected = !!distribution
                     const newBalance = (order.pendingAmount || 0) - (distribution?.amount || 0)
+                    
                     return (
-                      <div key={order.id} className={`border rounded-lg transition-colors ${isSelected ? 'bg-monchito-purple/5 border-monchito-purple/20' : 'bg-white border-slate-200'}`}>
+                      <div key={order.id} className={`border rounded-lg transition-colors ${
+                        isSelected ? 'bg-monchito-purple/5 border-monchito-purple/20' : 'bg-white border-slate-200'
+                      }`}>
                         <div className="px-3 py-2">
                           <div className="flex items-center gap-3">
                             <Checkbox
@@ -216,7 +246,7 @@ export function CreditDistributionModal({
                                     />
                                   </>
                                 ) : (
-                                  <div className="h-8 w-24" />
+                                  <div className="h-8 w-24"></div>
                                 )}
                               </div>
                             </div>
@@ -232,7 +262,7 @@ export function CreditDistributionModal({
             <div className="flex items-center justify-center border-2 border-dashed border-slate-200 rounded-lg h-32 shrink-0">
               <div className="text-center text-slate-400">
                 <Receipt className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">No hay otros pedidos pendientes del mismo cliente</p>
+                <p className="text-sm">No hay otros pedidos del mismo cliente</p>
               </div>
             </div>
           )}
@@ -252,7 +282,7 @@ export function CreditDistributionModal({
                 <span className="font-mono font-bold text-monchito-purple">${remaining.toFixed(2)}</span>
               </div>
             </div>
-
+            
             {remaining > 0.01 && (
               <div className="pt-2 border-t">
                 <p className="text-sm text-slate-600 mb-2">
@@ -261,7 +291,9 @@ export function CreditDistributionModal({
                 <div className="flex gap-4">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
-                      type="radio" name="remainingAction" value="wallet"
+                      type="radio"
+                      name="remainingAction"
+                      value="wallet"
                       checked={remainingAction === 'wallet'}
                       onChange={(e) => setRemainingAction(e.target.value as 'wallet' | 'return')}
                       className="text-monchito-purple focus:ring-monchito-purple"
@@ -270,7 +302,9 @@ export function CreditDistributionModal({
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
-                      type="radio" name="remainingAction" value="return"
+                      type="radio"
+                      name="remainingAction"
+                      value="return"
                       checked={remainingAction === 'return'}
                       onChange={(e) => setRemainingAction(e.target.value as 'wallet' | 'return')}
                       className="text-monchito-purple focus:ring-monchito-purple"
@@ -282,26 +316,36 @@ export function CreditDistributionModal({
                 {remainingAction === 'return' && activeAccounts.length > 0 && (
                   <div className="mt-3 flex items-center gap-3 animate-in fade-in slide-in-from-top-1 duration-200">
                     <Label className="text-xs font-semibold text-slate-500 whitespace-nowrap">Desde la cuenta:</Label>
-                    <Select value={selectedReturnAccountId} onValueChange={setSelectedReturnAccountId}>
+                    <Select
+                      value={selectedReturnAccountId}
+                      onValueChange={setSelectedReturnAccountId}
+                    >
                       <SelectTrigger className="h-9 text-xs border-monchito-purple/20 bg-white min-w-[240px] focus:ring-monchito-purple/20">
                         <SelectValue placeholder="Seleccionar cuenta de origen..." />
                       </SelectTrigger>
                       <SelectContent searchable className="z-[9999]">
                         {activeAccounts.map(acc => (
-                          <SelectItem key={acc.id} value={acc.id} label={`${acc.name} (${acc.bankName || 'Efectivo'})`}>
+                          <SelectItem 
+                            key={acc.id} 
+                            value={acc.id}
+                            label={`${acc.name} (${acc.bankName || 'Efectivo'})`}
+                          >
                             <div className="flex flex-col gap-0.5 w-full">
                               <div className="flex items-center gap-2 font-semibold text-slate-700">
-                                {acc.type === 'CASH'
-                                  ? <WalletIcon className="h-3.5 w-3.5 text-emerald-600" />
-                                  : <Building2 className="h-3.5 w-3.5 text-blue-600" />}
+                                {acc.type === 'CASH' ? <WalletIcon className="h-3.5 w-3.5 text-emerald-600" /> : <Building2 className="h-3.5 w-3.5 text-blue-600" />}
                                 <span>{acc.name}</span>
                                 {acc.bankName && acc.type !== 'CASH' && <span className="text-[10px] text-slate-400 font-normal">({acc.bankName})</span>}
                               </div>
                               <div className="flex justify-between items-center text-[10px] pl-5 pr-1">
-                                <span className={cn("px-1.5 py-0.5 rounded text-[8px] font-bold uppercase", acc.type === 'CASH' ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700")}>
+                                <span className={cn(
+                                  "px-1.5 py-0.5 rounded text-[8px] font-bold uppercase",
+                                  acc.type === 'CASH' ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700"
+                                )}>
                                   {acc.type === 'CASH' ? 'Efectivo' : 'Banco'}
                                 </span>
-                                <span className="font-mono font-bold text-emerald-600 tracking-tight">${Number(acc.currentBalance).toFixed(2)}</span>
+                                <span className="font-mono font-bold text-emerald-600 tracking-tight">
+                                  ${Number(acc.currentBalance).toFixed(2)}
+                                </span>
                               </div>
                             </div>
                           </SelectItem>
@@ -320,8 +364,13 @@ export function CreditDistributionModal({
                 Regresar
               </Button>
             )}
-            <Button variant="outline" onClick={onClose} className="flex-1">Cancelar</Button>
-            <Button onClick={handleConfirm} className="flex-1 bg-monchito-purple hover:bg-monchito-purple/90">
+            <Button variant="outline" onClick={onClose} className="flex-1">
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleConfirm}
+              className="flex-1 bg-monchito-purple hover:bg-monchito-purple/90"
+            >
               Aplicar Distribución
             </Button>
           </div>

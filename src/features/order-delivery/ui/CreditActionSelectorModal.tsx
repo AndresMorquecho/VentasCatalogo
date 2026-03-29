@@ -36,8 +36,8 @@ export function CreditActionSelectorModal({
             Saldo a Favor: ${creditAmount.toFixed(2)}
           </DialogTitle>
           <p className="text-sm text-slate-600">
-            Recibo: <span className="font-mono font-bold">#{sourceOrder.receiptNumber}</span> |{" "}
-            Pedido: <span className="font-mono font-bold">#{sourceOrder.orderNumber}</span> |{" "}
+            Recibo: <span className="font-mono font-bold">#{sourceOrder.receiptNumber}</span> | 
+            Pedido: <span className="font-mono font-bold">#{sourceOrder.orderNumber}</span> | 
             Tipo: <span className="font-medium">{sourceOrder.orderType}</span>
             <br />
             Cliente: <span className="font-medium">{sourceOrder.clientName}</span>

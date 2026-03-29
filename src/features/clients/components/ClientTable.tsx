@@ -48,33 +48,33 @@ export function ClientTable({ clients, isLoading, onEdit, onView, onDelete }: Cl
     }
 
     return (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
+        <div className="bg-white rounded-2xl border border-monchito-purple/10 shadow-[0_20px_50px_rgba(107,33,168,0.05)] overflow-hidden">
             <div className="w-full overflow-x-auto custom-scrollbar rounded-t-2xl">
-                <table className="text-left border-collapse min-w-[1200px] w-max">
+                <table className="text-left border-collapse min-w-[1200px] w-full">
                     <thead>
                         <tr className="bg-monchito-purple/5 border-b border-monchito-purple/10">
-                            <th className="px-4 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest h-12 text-left">
+                            <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest h-12 text-left">
                                 Documento
                             </th>
-                            <th className="px-4 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left">
+                            <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left">
                                 Nombre
                             </th>
-                            <th className="px-4 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left">
+                            <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left">
                                 Ciudad
                             </th>
-                            <th className="px-4 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left">
+                            <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left">
                                 Estado
                             </th>
-                            <th className="px-4 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left">
+                            <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left">
                                 Contacto
                             </th>
-                            <th className="px-4 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left">
+                            <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left">
                                 F. Registro
                             </th>
-                            <th className="px-4 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left">
+                            <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left">
                                 Últ. Pedido
                             </th>
-                            <th className="px-4 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right">
+                            <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right">
                                 Acciones
                             </th>
                         </tr>
@@ -91,18 +91,18 @@ export function ClientTable({ clients, isLoading, onEdit, onView, onDelete }: Cl
                                 <TableRow
                                     key={client.id}
                                     className={cn(
-                                        "border-b border-slate-50 hover:bg-monchito-purple/5 transition-all duration-200",
+                                        "border-b border-monchito-purple/5 hover:bg-monchito-purple/5 transition-all duration-200",
                                         isInactive && "bg-red-50/30 hover:bg-red-50/50",
                                         isNew && "bg-blue-50/20 hover:bg-blue-50/40"
                                     )}
                                 >
-                                    <TableCell className="py-4">
+                                    <TableCell className="px-6 py-4">
                                         <div className="flex flex-col gap-0.5">
                                             <span className="font-mono text-xs font-bold text-slate-700">{client.identificationNumber}</span>
                                             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{client.identificationType.replace('_', ' ')}</span>
                                         </div>
                                     </TableCell>
-                                    <TableCell className="py-4">
+                                    <TableCell className="px-6 py-4">
                                         <div className="flex flex-col gap-0.5">
                                             <span className="text-sm font-bold text-slate-800">{client.firstName}</span>
                                             <span className="text-[10px] font-medium text-slate-400">
@@ -110,10 +110,10 @@ export function ClientTable({ clients, isLoading, onEdit, onView, onDelete }: Cl
                                             </span>
                                         </div>
                                     </TableCell>
-                                    <TableCell className="py-4">
+                                    <TableCell className="px-6 py-4">
                                         <span className="text-xs font-medium text-slate-600">{client.city}</span>
                                     </TableCell>
-                                    <TableCell className="py-4">
+                                    <TableCell className="px-6 py-4">
                                         {client.isBlocked ? (
                                             <Badge variant="destructive" className="text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg">
                                                 Bloqueada
@@ -132,7 +132,7 @@ export function ClientTable({ clients, isLoading, onEdit, onView, onDelete }: Cl
                                             </Badge>
                                         )}
                                     </TableCell>
-                                    <TableCell className="py-4">
+                                    <TableCell className="px-6 py-4">
                                         <div className="flex flex-col gap-0.5">
                                             <div className="flex items-center gap-1.5">
                                                 <span className="text-xs font-medium text-slate-700">{client.phone1}</span>
@@ -147,12 +147,12 @@ export function ClientTable({ clients, isLoading, onEdit, onView, onDelete }: Cl
                                             </span>
                                         </div>
                                     </TableCell>
-                                    <TableCell className="py-4">
+                                    <TableCell className="px-6 py-4">
                                         <span className="text-xs font-medium text-slate-600">
                                             {format(new Date(client.createdAt), "dd/MM/yyyy")}
                                         </span>
                                     </TableCell>
-                                    <TableCell className="py-4">
+                                    <TableCell className="px-6 py-4">
                                         {client.lastOrderDate ? (
                                             <div className="flex flex-col gap-0.5">
                                                 <span className="text-xs font-medium text-slate-700">
@@ -168,8 +168,8 @@ export function ClientTable({ clients, isLoading, onEdit, onView, onDelete }: Cl
                                             <span className="text-xs font-medium text-slate-400 italic">Ninguno</span>
                                         )}
                                     </TableCell>
-                                    <TableCell className="py-4">
-                                        <div className="flex justify-end gap-1">
+                                    <TableCell className="px-6 py-4">
+                                        <div className="flex justify-end gap-2 text-right">
                                             <Button
                                                 variant="ghost"
                                                 size="icon"

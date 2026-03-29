@@ -10,6 +10,7 @@ import { Button } from "@/shared/ui/button"
 import { PackageCheck, RotateCcw } from "lucide-react" // Added RotateCcw
 import type { Order } from "@/entities/order/model/types"
 import { getPaidAmount } from "@/entities/order/model/model"
+import { cn } from "@/shared/lib/utils"
 
 interface OrderReceptionTableProps {
     orders: Order[]
@@ -30,30 +31,33 @@ function formatCurrency(amount: number) {
 
 export function OrderReceptionTable({ orders, onReceive, onReverse, isProcessing }: OrderReceptionTableProps) {
     return (
-        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+        <div className="rounded-2xl border border-monchito-purple/10 bg-white overflow-hidden shadow-sm">
             <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-380px)] min-h-[400px] custom-scrollbar">
-                <Table className="min-w-[1000px]">
-                    <TableHeader className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-sm">
-                        <TableRow className="hover:bg-transparent">
-                        <TableHead>Fecha</TableHead>
-                        <TableHead>N° Recibo</TableHead>
-                        <TableHead>Cliente</TableHead>
-                        <TableHead>Producto</TableHead>
-                        <TableHead className="text-right">Valor Estimado</TableHead>
-                        <TableHead className="text-right">Abonado</TableHead>
-                        <TableHead className="text-right">Acciones</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {orders.length === 0 ? (
-                        <TableRow>
-                            <TableCell colSpan={7} className="h-24 text-center">
-                                No hay pedidos para procesar en esta sección.
-                            </TableCell>
+                <Table className="min-w-[1000px] border-collapse">
+                    <TableHeader className="sticky top-0 z-10 bg-monchito-purple/5 backdrop-blur-sm">
+                        <TableRow className="hover:bg-transparent border-b border-monchito-purple/10">
+                            <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest px-6 py-5">Fecha</TableHead>
+                            <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest px-6 py-5">N° Recibo</TableHead>
+                            <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest px-6 py-5">Cliente</TableHead>
+                            <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest px-6 py-5">Producto</TableHead>
+                            <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest px-6 py-5 text-right">Valor Estimado</TableHead>
+                            <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest px-6 py-5 text-right">Abonado</TableHead>
+                            <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest px-6 py-5 text-right">Acciones</TableHead>
                         </TableRow>
-                    ) : (
-                        orders.map((order) => (
-                            <TableRow key={order.id} className={order.status === 'RECIBIDO_EN_BODEGA' ? 'bg-blue-50/30' : ''}>
+                    </TableHeader>
+                        <TableBody className="divide-y divide-monchito-purple/5">
+                            {orders.length === 0 ? (
+                                <TableRow className="border-b border-monchito-purple/5">
+                                    <TableCell colSpan={7} className="h-24 text-center text-slate-400 font-medium">
+                                        No hay pedidos para procesar en esta sección.
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                orders.map((order) => (
+                                    <TableRow key={order.id} className={cn(
+                                        "border-b border-monchito-purple/5 hover:bg-monchito-purple/5 transition-all duration-200",
+                                        order.status === 'RECIBIDO_EN_BODEGA' ? 'bg-monchito-purple/5' : ''
+                                    )}>
                                 <TableCell>{formatDate(order.createdAt)}</TableCell>
                                 <TableCell className="font-medium">
                                     {order.receiptNumber}

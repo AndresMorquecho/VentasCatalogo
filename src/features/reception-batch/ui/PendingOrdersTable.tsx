@@ -101,6 +101,39 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
         // Let's keep filters as user might move in batches from same search.
     }
 
+    const handleFilterKeyDown = (e: React.KeyboardEvent<HTMLInputElement | HTMLSelectElement>, fieldIndex: number) => {
+        const input = e.currentTarget as HTMLInputElement;
+        let selectionStart: number | null = null;
+        try {
+            selectionStart = input.selectionStart;
+        } catch (e) {}
+
+        const valueLength = (input.value || "").length;
+        const isTextInput = input.tagName === 'INPUT' && (input.type === 'text' || !input.type);
+
+        if (e.key === 'ArrowLeft') {
+            const shouldMove = !isTextInput || selectionStart === 0;
+            if (shouldMove) {
+                const nextTarget = document.querySelector(`[data-filter-index="${fieldIndex - 1}"]`) as HTMLElement;
+                if (nextTarget) {
+                    e.preventDefault();
+                    nextTarget.focus();
+                    if (nextTarget instanceof HTMLInputElement) nextTarget.select();
+                }
+            }
+        } else if (e.key === 'ArrowRight') {
+            const shouldMove = !isTextInput || selectionStart === valueLength;
+            if (shouldMove) {
+                const nextTarget = document.querySelector(`[data-filter-index="${fieldIndex + 1}"]`) as HTMLElement;
+                if (nextTarget) {
+                    e.preventDefault();
+                    nextTarget.focus();
+                    if (nextTarget instanceof HTMLInputElement) nextTarget.select();
+                }
+            }
+        }
+    }
+
     const areAllFilteredSelected = filteredOrders.length > 0 && filteredOrders.every(o => selected.has(o.id));
 
     if (orders.length === 0) {
@@ -118,43 +151,51 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
                 <div className="flex flex-col sm:flex-row gap-2 items-center justify-between">
                     <div className="flex flex-1 gap-2 items-center w-full">
                         {/* Search Input (Client) */}
-                        <div className="relative w-44">
-                            <Search className="absolute left-2 top-1.5 h-3.5 w-3.5 text-monchito-purple/50" />
+                        <div className="relative flex-1 min-w-[150px]">
+                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-monchito-purple/50" />
                             <Input
                                 placeholder="Empresaria..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-7 bg-white border-monchito-purple/20 focus-visible:ring-monchito-purple/20 h-7 text-[10px]"
+                                onKeyDown={(e) => handleFilterKeyDown(e, 0)}
+                                data-filter-index="0"
+                                className="pl-8 bg-white border-monchito-purple/20 focus-visible:ring-monchito-purple/20 h-9 text-xs font-normal"
                             />
                         </div>
 
                         {/* Receipt Filter */}
-                        <div className="relative w-32">
+                        <div className="relative flex-1 min-w-[100px]">
                             <Input
                                 placeholder="N° Recibo..."
                                 value={receiptFilter}
                                 onChange={(e) => setReceiptFilter(e.target.value)}
-                                className="bg-white border-monchito-purple/20 focus-visible:ring-monchito-purple/20 h-7 text-[10px] px-2"
+                                onKeyDown={(e) => handleFilterKeyDown(e, 1)}
+                                data-filter-index="1"
+                                className="bg-white border-monchito-purple/20 focus-visible:ring-monchito-purple/20 h-9 text-xs px-3 font-normal"
                             />
                         </div>
 
                         {/* Order Number Filter */}
-                        <div className="relative w-32">
+                        <div className="relative flex-1 min-w-[100px]">
                             <Input
                                 placeholder="N° Pedido..."
                                 value={orderNumberFilter}
                                 onChange={(e) => setOrderNumberFilter(e.target.value)}
-                                className="bg-white border-monchito-purple/20 focus-visible:ring-monchito-purple/20 h-7 text-[10px] px-2"
+                                onKeyDown={(e) => handleFilterKeyDown(e, 2)}
+                                data-filter-index="2"
+                                className="bg-white border-monchito-purple/20 focus-visible:ring-monchito-purple/20 h-9 text-xs px-3 font-normal"
                             />
                         </div>
 
                         {/* Brand Select */}
-                        <div className="relative w-36">
-                            <Tag className="absolute left-2 top-1.5 h-3.5 w-3.5 text-monchito-purple/50" />
+                        <div className="relative flex-1 min-w-[130px]">
+                            <Tag className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-monchito-purple/50" />
                             <select
                                 value={brandFilter}
                                 onChange={(e) => setBrandFilter(e.target.value)}
-                                className="w-full h-7 pl-7 pr-3 text-[10px] bg-white border border-monchito-purple/20 rounded-md focus:border-monchito-purple focus:outline-none appearance-none font-medium"
+                                onKeyDown={(e) => handleFilterKeyDown(e, 3)}
+                                data-filter-index="3"
+                                className="w-full h-9 pl-8 pr-3 text-xs bg-white border border-monchito-purple/20 rounded-lg focus:border-monchito-purple focus:outline-none appearance-none font-normal"
                             >
                                 <option value="">Todos Catálogos</option>
                                 {availableBrands.map(b => (
@@ -164,11 +205,13 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
                         </div>
 
                         {/* Type Filter */}
-                        <div className="relative w-28">
+                        <div className="relative flex-1 min-w-[90px]">
                             <select
                                 value={typeFilter}
                                 onChange={(e) => setTypeFilter(e.target.value)}
-                                className="w-full h-7 px-2 text-[10px] bg-white border border-monchito-purple/20 rounded-md focus:border-monchito-purple focus:outline-none appearance-none font-medium"
+                                onKeyDown={(e) => handleFilterKeyDown(e, 4)}
+                                data-filter-index="4"
+                                className="w-full h-9 px-3 text-xs bg-white border border-monchito-purple/20 rounded-lg focus:border-monchito-purple focus:outline-none appearance-none font-normal"
                             >
                                 <option value="">Toda Clase</option>
                                 <option value="NORMAL">Normal</option>
@@ -180,13 +223,14 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
                         </div>
 
                         {/* Date Range Picker */}
-                        <div className="relative w-44">
+                        <div className="relative flex-1 min-w-[150px]">
                             <DateRangePicker
                                 value={dateRange}
                                 onChange={setDateRange}
                                 showLabel={false}
                                 placeholder="dd/mm/aaaa"
-                                className="h-7 text-[10px]"
+                                className="h-9 text-xs font-normal"
+                                // Note: DateRangePicker would need internal logic to handle arrow navigation if desired
                             />
                         </div>
                     </div>
@@ -236,14 +280,14 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
                                         className="accent-monchito-purple h-3 w-3 cursor-pointer rounded"
                                     />
                                 </TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Recibo</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Empresaria</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">N° de Pedido</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Tipo</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Catálogo</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right">Valor Pedido</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right">Abono</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Fecha Posible Entrega</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Recibo</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Empresaria</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">N° de Pedido</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Tipo</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Catálogo</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Valor Pedido</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Abono</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Fecha Posible Entrega</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -271,10 +315,10 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
                                                     onClick={(e) => e.stopPropagation()}
                                                 />
                                             </TableCell>
-                                            <TableCell className="py-2 px-2 font-mono text-xs font-medium">#{order.receiptNumber}</TableCell>
-                                            <TableCell className="py-2 px-2 text-xs font-bold">{order.clientName}</TableCell>
-                                            <TableCell className="py-2 px-2 text-xs font-medium">{order.orderNumber || '---'}</TableCell>
-                                            <TableCell className="py-2 px-2 text-[10px]">
+                                            <TableCell className="py-2 px-2 font-mono text-xs font-medium text-center">#{order.receiptNumber}</TableCell>
+                                            <TableCell className="py-2 px-2 text-xs font-bold text-center">{order.clientName}</TableCell>
+                                            <TableCell className="py-2 px-2 text-xs font-medium text-center">{order.orderNumber || '---'}</TableCell>
+                                            <TableCell className="py-2 px-2 text-[10px] text-center">
                                                 <span className={`px-2 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-tighter shadow-sm ${
                                                     order.type === 'CAMBIO' ? 'bg-orange-100 text-orange-700 border-orange-200' :
                                                     order.type === 'REPROGRAMACION' ? 'bg-amber-100 text-amber-700 border-amber-200' :
@@ -285,10 +329,10 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
                                                     {order.type}
                                                 </span>
                                             </TableCell>
-                                            <TableCell className="py-2 px-2 text-xs font-medium">{order.brandName}</TableCell>
-                                            <TableCell className="py-2 px-2 text-right font-mono text-xs font-bold">${order.total.toFixed(2)}</TableCell>
-                                            <TableCell className="py-2 px-2 text-right font-mono text-xs font-bold text-emerald-600">${paid.toFixed(2)}</TableCell>
-                                            <TableCell className="py-2 px-2 text-xs text-muted-foreground italic">
+                                            <TableCell className="py-2 px-2 text-xs font-medium text-center">{order.brandName}</TableCell>
+                                            <TableCell className="py-2 px-2 text-center font-mono text-xs font-bold">${order.total.toFixed(2)}</TableCell>
+                                            <TableCell className="py-2 px-2 text-center font-mono text-xs font-bold text-emerald-600">${paid.toFixed(2)}</TableCell>
+                                            <TableCell className="py-2 px-2 text-xs text-muted-foreground italic text-center">
                                                 {order.possibleDeliveryDate ? new Date(order.possibleDeliveryDate).toLocaleDateString() : '---'}
                                             </TableCell>
                                         </TableRow>
