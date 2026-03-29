@@ -1,5 +1,6 @@
 import { httpClient } from '@/shared/lib/httpClient';
 import type { Order, OrderPayload, PaginatedResponse } from './types';
+import type { CreditDistribution } from '@/entities/financial-record/model/types';
 
 export interface OrderQueryParams {
     page?: number;
@@ -241,6 +242,7 @@ export const orderApi = {
                 reference?: string;
             }[];
             notes?: string;
+            creditDistributions?: CreditDistribution[];
         }
     ): Promise<Order> => {
         return httpClient.post<Order>(`/orders/${orderId}/deliver`, data);
@@ -257,9 +259,10 @@ export const orderApi = {
             bankAccountId?: string;
             paymentMethod: string;
             reference?: string;
-        }[]
+        }[],
+        creditDistributions?: CreditDistribution[]
     ): Promise<any> => {
-        return httpClient.post<any>('/orders/batch-deliver', { orderIds, payments });
+        return httpClient.post<any>('/orders/batch-deliver', { orderIds, payments, creditDistributions });
     },
 
     /**

@@ -1,6 +1,7 @@
-import { useRef, useState } from "react"
+import { useRef, useState, useMemo } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import type { Order } from "@/entities/order/model/types"
+import type { CreditDistribution } from "@/entities/financial-record/model/types"
 import { orderApi } from "@/entities/order/model/api"
 import { getPaidAmount } from "@/entities/order/model/model"
 import { PaymentModal, type PaymentModalData, type PaymentContext } from "@/shared/ui/PaymentModal"
@@ -15,12 +16,20 @@ import { PDFPreviewModal } from "@/shared/ui/PDFPreviewModal"
 interface DeliverOrderModalProps {
     order: Order | null;
     orders?: Order[];
+    creditDistributions?: Record<string, CreditDistribution>;
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onSuccess?: () => void;
 }
 
-export function DeliverOrderModalNew({ order, orders = [], open, onOpenChange, onSuccess }: DeliverOrderModalProps) {
+export function DeliverOrderModalNew({ 
+    order, 
+    orders = [], 
+    creditDistributions = {},
+    open, 
+    onOpenChange, 
+    onSuccess 
+}: DeliverOrderModalProps) {
     const isBatch = orders.length > 0
     const activeOrders = isBatch ? orders : (order ? [order] : [])
     const firstOrder = activeOrders[0]
@@ -45,13 +54,21 @@ export function DeliverOrderModalNew({ order, orders = [], open, onOpenChange, o
         }
     })
 
-    // Keep component mounted if we are showing a PDF even if the orders are cleared
-    if (!firstOrder && !pdfPreview.pdfDocument) return null
+    // Calculate totals safely including distributions
+    const totalAmountToCharge = useMemo(() => {
+        return activeOrders.reduce((sum, o) => {
+            const initialPaid = getPaidAmount(o)
+            const incomingDistributiveCredit = Object.values(creditDistributions).reduce((dSum, dist) => {
+                const item = dist.distributions.find(d => d.targetOrderId === o.id)
+                return dSum + (item?.amount || 0)
+            }, 0)
+            
+            const total = o.realInvoiceTotal || o.total || 0
+            const pending = Math.max(0, total - initialPaid - incomingDistributiveCredit)
+            return sum + pending
+        }, 0)
+    }, [activeOrders, creditDistributions])
 
-    // Calculate totals safely
-    const totalEffective = activeOrders.reduce((sum, o) => sum + (o.realInvoiceTotal ?? o.total), 0)
-    const totalPaidBefore = activeOrders.reduce((sum, o) => sum + getPaidAmount(o), 0)
-    const totalAmountToCharge = Math.max(0, totalEffective - totalPaidBefore)
     const currentCreditAmount = creditData?.totalCredit || 0
  
     // Payment context for the modal
@@ -65,8 +82,28 @@ export function DeliverOrderModalNew({ order, orders = [], open, onOpenChange, o
             : `Entrega de pedido ${firstOrder.receiptNumber}`
     } : null
 
+    // Keep component mounted if we are showing a PDF even if the orders are cleared
+    if (!firstOrder && !pdfPreview.pdfDocument) return null
+
     const handlePaymentSubmit = async (data: PaymentModalData) => {
         if (!firstOrder) return;
+
+        // VALIDA QUE TODOS LOS SALDOS A FAVOR HAYAN SIDO DISTRIBUIDOS
+        const ordersWithPendingCredit = activeOrders.filter(o => {
+            const initialPaid = getPaidAmount(o);
+            const finalTotal = Number(o.realInvoiceTotal || o.total || 0);
+            const finalBalance = finalTotal - initialPaid;
+            const creditAmount = finalBalance < -0.01 ? Math.abs(finalBalance) : 0;
+            
+            // Si tiene crédito, DEBE tener un registro de distribución en el record
+            return creditAmount > 0.01 && !creditDistributions[o.id];
+        });
+
+        if (ordersWithPendingCredit.length > 0) {
+            notifyError({ message: `Distribución pendiente: ${ordersWithPendingCredit.map(o => o.receiptNumber).join(', ')}. Existen saldos a favor que deben ser distribuidos antes de finalizar la entrega.` });
+            throw new Error('Pending distribution');
+        }
+
         if (!hasPermission('delivery.confirm')) {
             notifyError({ message: 'No tienes permiso para realizar entregas' })
             throw new Error('No permission')
@@ -95,8 +132,10 @@ export function DeliverOrderModalNew({ order, orders = [], open, onOpenChange, o
                 reference: p.transactionReference || undefined
             }))
 
+            const distributionsList = Object.values(creditDistributions)
+
             if (isBatch) {
-                await orderApi.batchDeliver(activeOrders.map(o => o.id), paymentsToSend)
+                await orderApi.batchDeliver(activeOrders.map(o => o.id), paymentsToSend, distributionsList)
                 
                 // RE-FETCH UPDATED ORDERS TO GET NEW BALANCES FOR PDF
                 const updatedOrders = await Promise.all(
@@ -127,7 +166,8 @@ export function DeliverOrderModalNew({ order, orders = [], open, onOpenChange, o
             } else {
                 await orderApi.deliverOrder(firstOrder.id, {
                     payments: paymentsToSend,
-                    notes: `Entrega al cliente ${firstOrder.clientName}`
+                    notes: `Entrega al cliente ${firstOrder.clientName}`,
+                    creditDistributions: distributionsList
                 });
 
                 // RE-FETCH UPDATED ORDER
@@ -157,6 +197,7 @@ export function DeliverOrderModalNew({ order, orders = [], open, onOpenChange, o
             qc.invalidateQueries({ queryKey: ['orders'] })
             qc.invalidateQueries({ queryKey: ['financial-records'] })
             qc.invalidateQueries({ queryKey: ['client-rewards'] })
+            qc.invalidateQueries({ queryKey: ['client-credit'] })
 
             if (user && firstOrder) {
                 logAction({

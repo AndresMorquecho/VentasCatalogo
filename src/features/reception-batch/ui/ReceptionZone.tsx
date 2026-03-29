@@ -98,15 +98,13 @@ export function ReceptionZone({
                             finalTotal: (o as any).finalTotal || o.total,
                             finalInvoiceNumber: (o as any).finalInvoiceNumber || "",
                             documentType: (o as any).documentType || "FACTURA",
-                            entryDate: (o as any).entryDate || new Date().toISOString().split('T')[0],
-                            creditDistribution: (o as any).creditDistribution // NUEVO: Pasar distribución de crédito
+                            entryDate: (o as any).entryDate || new Date().toISOString().split('T')[0]
                         }))}
                         onRemove={(ids) => onRemove(ids[0])}
                         onUpdateInvoiceTotal={(id, val) => onUpdateOrder(id, { finalTotal: val })}
                         onUpdateInvoiceNumber={(id, val) => onUpdateOrder(id, { finalInvoiceNumber: val })}
                         onUpdateDocumentType={(id, val) => onUpdateOrder(id, { documentType: val })}
                         onUpdateEntryDate={(id, val) => onUpdateOrder(id, { entryDate: val })}
-                        onUpdateCreditDistribution={(id, distribution) => onUpdateOrder(id, { creditDistribution: distribution })} // NUEVO
                     />
                 </div>
             </div>

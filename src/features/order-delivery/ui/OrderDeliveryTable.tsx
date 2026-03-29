@@ -1,3 +1,4 @@
+import { useState } from "react"
 import {
     Table,
     TableBody,
@@ -6,15 +7,21 @@ import {
     TableHeader,
     TableRow,
 } from "@/shared/ui/table"
-import { AlertTriangle } from "lucide-react"
+import { AlertTriangle, DollarSign, ArrowRight } from "lucide-react"
+import { Button } from "@/shared/ui/button"
 import type { Order } from "@/entities/order/model/types"
+import type { CreditDistribution } from "@/entities/financial-record/model/types"
 import { getPaidAmount } from "@/entities/order/model/model"
 import { Badge } from "@/shared/ui/badge"
+import { CreditActionSelectorModal } from "./CreditActionSelectorModal"
+import { CreditDistributionModal } from "./CreditDistributionModal"
 
 interface OrderDeliveryTableProps {
     orders: Order[]
     selectedOrderIds: string[]
     onSelectionChange: (ids: string[]) => void
+    creditDistributions: Record<string, CreditDistribution>
+    onUpdateCreditDistribution: (orderId: string, distribution: CreditDistribution) => void
 }
 
 function formatDate(date: string) {
@@ -31,8 +38,127 @@ function formatCurrency(amount: number) {
 export function OrderDeliveryTable({ 
     orders, 
     selectedOrderIds, 
-    onSelectionChange 
+    onSelectionChange,
+    creditDistributions,
+    onUpdateCreditDistribution
 }: OrderDeliveryTableProps) {
+    const [creditModalState, setCreditModalState] = useState<{
+        selectorOpen: boolean
+        distributionOpen: boolean
+        sourceOrder?: Order
+        creditAmount: number
+        initialRemainingAction?: 'wallet' | 'return'
+    }>({
+        selectorOpen: false,
+        distributionOpen: false,
+        creditAmount: 0,
+        initialRemainingAction: undefined
+    })
+
+    const calculateCreditAmount = (order: Order) => {
+        const initialPaid = getPaidAmount(order);
+        const finalTotal = Number(order.realInvoiceTotal || order.total || 0);
+        const finalBalance = finalTotal - initialPaid;
+        return finalBalance < -0.01 ? Math.abs(finalBalance) : 0;
+    }
+
+    const handleOpenCreditDistribution = (order: Order) => {
+        const creditAmount = calculateCreditAmount(order);
+        if (creditAmount > 0) {
+            const existingDist = creditDistributions[order.id];
+            const isComplex = existingDist && 
+                existingDist.distributions.some(d => !!d.targetOrderId);
+
+            setCreditModalState({
+                selectorOpen: !isComplex,
+                distributionOpen: !!isComplex,
+                sourceOrder: order,
+                creditAmount,
+                initialRemainingAction: undefined
+            });
+        }
+    }
+
+    const handleMoveToWallet = () => {
+        if (creditModalState.sourceOrder) {
+            const distribution: CreditDistribution = {
+                sourceOrderId: creditModalState.sourceOrder.id,
+                totalCreditAmount: creditModalState.creditAmount,
+                distributions: [{
+                    amount: creditModalState.creditAmount,
+                    description: `Saldo completo guardado en billetera virtual - Origen: Pedido ${creditModalState.sourceOrder.receiptNumber}`
+                }]
+            }
+            onUpdateCreditDistribution(creditModalState.sourceOrder.id, distribution);
+        }
+        setCreditModalState({ selectorOpen: false, distributionOpen: false, creditAmount: 0, initialRemainingAction: undefined });
+    }
+
+    const handleReturnToClient = () => {
+        setCreditModalState(prev => ({
+            ...prev,
+            selectorOpen: false,
+            distributionOpen: true,
+            initialRemainingAction: 'return'
+        }));
+    }
+
+    const handleDistributeToOrders = () => {
+        setCreditModalState(prev => ({
+            ...prev,
+            selectorOpen: false,
+            distributionOpen: true,
+            initialRemainingAction: undefined
+        }));
+    }
+
+    const handleCreditDistribution = (distribution: CreditDistribution) => {
+        if (creditModalState.sourceOrder) {
+            onUpdateCreditDistribution(creditModalState.sourceOrder.id, distribution);
+        }
+        setCreditModalState({ selectorOpen: false, distributionOpen: false, creditAmount: 0, initialRemainingAction: undefined });
+    }
+
+    const handleBackToSelector = () => {
+        setCreditModalState(prev => ({
+            ...prev,
+            selectorOpen: true,
+            distributionOpen: false
+        }));
+    }
+
+    const getAvailableOrdersForDistribution = (sourceOrder: Order) => {
+        return orders
+            .filter(o => 
+                o.id !== sourceOrder.id && 
+                o.clientId === sourceOrder.clientId
+            )
+            .map(o => {
+                const initialPaid = getPaidAmount(o);
+                // Incoming from other distributions in current state
+                const incomingFromOthers = Object.entries(creditDistributions).reduce((sum, [orderId, dist]) => {
+                    if (orderId === sourceOrder.id) return sum;
+                    const distToThisOrder = dist.distributions.find(d => d.targetOrderId === o.id);
+                    return sum + (distToThisOrder?.amount || 0);
+                }, 0);
+
+                const totalAmount = Number(o.realInvoiceTotal || o.total || 0);
+                const pendingAmount = Math.max(0, totalAmount - initialPaid - incomingFromOthers);
+                
+                return {
+                    id: o.id,
+                    receiptNumber: o.receiptNumber,
+                    orderNumber: o.orderNumber || '',
+                    clientName: o.clientName,
+                    orderType: (o.type || 'NORMAL') as any,
+                    pendingAmount,
+                    totalAmount,
+                    paidAmount: initialPaid + incomingFromOthers,
+                    brandName: o.brandName
+                };
+            })
+            .filter(o => o.pendingAmount > 0.01);
+    }
     const handleToggleSelect = (order: Order) => {
         if (selectedOrderIds.includes(order.id)) {
             onSelectionChange(selectedOrderIds.filter(id => id !== order.id))
@@ -116,9 +242,16 @@ export function OrderDeliveryTable({
                                 const isSelected = selectedOrderIds.includes(order.id)
                                 const isDisabled = selectedClientId !== null && order.clientId !== selectedClientId
 
-                                const paidAmount = getPaidAmount(order)
+                                const initialPaid = getPaidAmount(order)
+                                const incomingDistributiveCredit = Object.entries(creditDistributions).reduce((sum, [, dist]) => {
+                                    const distToThisOrder = dist.distributions.find(d => d.targetOrderId === order.id);
+                                    return sum + (distToThisOrder?.amount || 0);
+                                }, 0);
+
                                 const totalAmount = order.realInvoiceTotal || order.total || 0
-                                const saldo = Math.max(0, totalAmount - paidAmount)
+                                const saldo = Math.max(0, totalAmount - initialPaid - incomingDistributiveCredit)
+                                const creditAmount = calculateCreditAmount(order)
+                                const hasDistribution = !!creditDistributions[order.id]
 
                                 return (
                                     <TableRow 
@@ -146,16 +279,48 @@ export function OrderDeliveryTable({
                                         </TableCell>
                                         <TableCell className="text-center text-xs font-black text-monchito-purple uppercase tracking-tight whitespace-nowrap">{order.brandName}</TableCell>
                                         <TableCell className="text-center text-xs font-mono font-black text-slate-800 whitespace-nowrap">{formatCurrency(order.total)}</TableCell>
-                                        <TableCell className="text-center text-xs font-mono font-black text-emerald-600 whitespace-nowrap">{formatCurrency(paidAmount)}</TableCell>
+                                        <TableCell className="text-center text-xs font-mono font-black text-emerald-600 whitespace-nowrap">
+                                            <div className="flex flex-col items-center">
+                                                <span>{formatCurrency(initialPaid)}</span>
+                                                {incomingDistributiveCredit > 0 && (
+                                                    <span className="text-[9px] text-emerald-600 flex items-center justify-center gap-1">
+                                                        <ArrowRight className="h-2 w-2" /> +{formatCurrency(incomingDistributiveCredit)}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </TableCell>
                                         <TableCell className="text-center text-xs font-bold text-slate-500 whitespace-nowrap">{formatDate(order.possibleDeliveryDate)}</TableCell>
                                         <TableCell className="text-center text-xs font-mono font-bold text-slate-600 whitespace-nowrap">{order.invoiceNumber || '-'}</TableCell>
                                         <TableCell className="text-center text-xs font-mono font-black text-slate-800 whitespace-nowrap">
                                             {order.realInvoiceTotal ? formatCurrency(order.realInvoiceTotal) : '-'}
                                         </TableCell>
                                         <TableCell className="text-center text-xs font-bold text-slate-700 whitespace-nowrap">{formatDate(order.receptionDate!)}</TableCell>
-                                        <TableCell className={`text-center text-xs font-mono font-black p-4 whitespace-nowrap ${saldo > 0.01 ? 'text-red-600' : 'text-slate-400'}`}>
-                                            {formatCurrency(saldo)}
-                                            {saldo > 0.01 && <AlertTriangle className="inline-block ml-1 h-3 w-3 text-red-500 animate-pulse" />}
+                                        <TableCell className={`text-center text-xs font-mono font-black p-4 whitespace-nowrap`}>
+                                            <div className="flex items-center justify-center gap-2">
+                                                <span className={saldo > 0.01 ? 'text-red-600' : 'text-slate-400'}>
+                                                    {formatCurrency(saldo)}
+                                                    {saldo > 0.01 && <AlertTriangle className="inline-block ml-1 h-3 w-3 text-red-500 animate-pulse" />}
+                                                </span>
+                                                {creditAmount > 0 && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleOpenCreditDistribution(order);
+                                                        }}
+                                                        className={`h-6 px-2 text-[10px] flex items-center gap-1 ${
+                                                            hasDistribution 
+                                                                ? 'bg-monchito-purple text-white border-monchito-purple hover:bg-monchito-purple/90 shadow-sm' 
+                                                                : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
+                                                        }`}
+                                                        title={`Distribuir ${formatCurrency(creditAmount)} de saldo a favor`}
+                                                    >
+                                                        <DollarSign className="h-3 w-3" />
+                                                        {hasDistribution ? 'Ver/Editar' : 'Distribuir'}
+                                                    </Button>
+                                                )}
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 )
@@ -164,6 +329,45 @@ export function OrderDeliveryTable({
                     </TableBody>
                 </Table>
             </div>
+
+            {creditModalState.sourceOrder && (
+                <CreditActionSelectorModal
+                    isOpen={creditModalState.selectorOpen}
+                    onClose={() => setCreditModalState({ selectorOpen: false, distributionOpen: false, creditAmount: 0, initialRemainingAction: undefined })}
+                    sourceOrder={{
+                        id: creditModalState.sourceOrder.id,
+                        receiptNumber: creditModalState.sourceOrder.receiptNumber,
+                        orderNumber: creditModalState.sourceOrder.orderNumber || '',
+                        clientName: creditModalState.sourceOrder.clientName,
+                        orderType: (creditModalState.sourceOrder.type || 'NORMAL') as any
+                    }}
+                    creditAmount={creditModalState.creditAmount}
+                    onMoveToWallet={handleMoveToWallet}
+                    onReturnToClient={handleReturnToClient}
+                    onDistributeToOrders={handleDistributeToOrders}
+                />
+            )}
+
+            {creditModalState.sourceOrder && (
+                <CreditDistributionModal
+                    isOpen={creditModalState.distributionOpen}
+                    onClose={() => setCreditModalState({ selectorOpen: false, distributionOpen: false, creditAmount: 0, initialRemainingAction: undefined })}
+                    sourceOrder={{
+                        id: creditModalState.sourceOrder.id,
+                        receiptNumber: creditModalState.sourceOrder.receiptNumber,
+                        orderNumber: creditModalState.sourceOrder.orderNumber || '',
+                        clientId: creditModalState.sourceOrder.clientId,
+                        clientName: creditModalState.sourceOrder.clientName,
+                        orderType: creditModalState.sourceOrder.type || 'NORMAL'
+                    }}
+                    creditAmount={creditModalState.creditAmount}
+                    availableOrders={getAvailableOrdersForDistribution(creditModalState.sourceOrder)}
+                    onDistribute={handleCreditDistribution}
+                    initialDistribution={creditDistributions[creditModalState.sourceOrder.id]}
+                    initialRemainingAction={creditModalState.initialRemainingAction}
+                    onBack={handleBackToSelector}
+                />
+            )}
         </div>
     )
 }

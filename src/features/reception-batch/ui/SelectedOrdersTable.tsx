@@ -1,12 +1,8 @@
-import { useState } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table"
 import { Input } from "@/shared/ui/input"
-import { Button } from "@/shared/ui/button"
 import type { Order } from "@/entities/order/model/types"
 import type { CreditDistribution } from "@/entities/financial-record/model/types"
-import { X, CheckCircle, DollarSign, ArrowRight } from "lucide-react"
-import { CreditActionSelectorModal } from "./CreditActionSelectorModal"
-import { CreditDistributionModal } from "./CreditDistributionModal"
+import { X, CheckCircle, ArrowRight } from "lucide-react"
 import { getPaidAmount } from "@/entities/order/model/model"
 
 export interface SelectedOrderState {
@@ -25,7 +21,7 @@ interface Props {
     onUpdateInvoiceNumber: (id: string, val: string) => void
     onUpdateDocumentType: (id: string, val: string) => void
     onUpdateEntryDate: (id: string, val: string) => void
-    onUpdateCreditDistribution?: (id: string, distribution: CreditDistribution) => void 
+
 }
 
 export function SelectedOrdersTable({
@@ -35,182 +31,68 @@ export function SelectedOrdersTable({
     onUpdateInvoiceNumber,
     onUpdateDocumentType,
     onUpdateEntryDate,
-    onUpdateCreditDistribution
 }: Props) {
-    const [creditModalState, setCreditModalState] = useState<{
-        selectorOpen: boolean
-        distributionOpen: boolean
-        sourceOrder?: SelectedOrderState
-        creditAmount: number
-        initialRemainingAction?: 'wallet' | 'return'
-    }>({
-        selectorOpen: false,
-        distributionOpen: false,
-        creditAmount: 0,
-        initialRemainingAction: undefined
-    })
-
     const totalEstimate = orders.reduce((sum, o) => sum + Number(o.order.total || 0), 0)
     const totalInvoice = orders.reduce((sum, o) => sum + Number(o.finalTotal || 0), 0)
 
-    const calculateCreditAmount = (orderState: SelectedOrderState) => {
-        const initialPaid = getPaidAmount(orderState.order);
-        const finalBalance = Number(orderState.finalTotal || 0) - initialPaid;
-        return finalBalance < -0.01 ? Math.abs(finalBalance) : 0;
-    }
-
-    const handleOpenCreditDistribution = (orderState: SelectedOrderState) => {
-        const creditAmount = calculateCreditAmount(orderState);
-        if (creditAmount > 0) {
-            const isComplex = orderState.creditDistribution && 
-                orderState.creditDistribution.distributions.some(d => !!d.targetOrderId);
-
-            setCreditModalState({
-                selectorOpen: !isComplex,
-                distributionOpen: !!isComplex,
-                sourceOrder: orderState,
-                creditAmount,
-                initialRemainingAction: undefined
-            });
-        }
-    }
-
-    const handleMoveToWallet = () => {
-        if (creditModalState.sourceOrder && onUpdateCreditDistribution) {
-            const distribution: CreditDistribution = {
-                sourceOrderId: creditModalState.sourceOrder.order.id,
-                totalCreditAmount: creditModalState.creditAmount,
-                distributions: [{
-                    amount: creditModalState.creditAmount,
-                    description: `Saldo completo guardado en billetera virtual - Origen: Pedido ${creditModalState.sourceOrder.order.receiptNumber}`
-                }]
-            }
-            onUpdateCreditDistribution(creditModalState.sourceOrder.order.id, distribution);
-        }
-        setCreditModalState({ selectorOpen: false, distributionOpen: false, creditAmount: 0, initialRemainingAction: undefined });
-    }
-
-    const handleReturnToClient = () => {
-        setCreditModalState(prev => ({
-            ...prev,
-            selectorOpen: false,
-            distributionOpen: true,
-            initialRemainingAction: 'return'
-        }));
-    }
-
-    const handleDistributeToOrders = () => {
-        setCreditModalState(prev => ({
-            ...prev,
-            selectorOpen: false,
-            distributionOpen: true,
-            initialRemainingAction: undefined
-        }));
-    }
-
-    const handleCreditDistribution = (distribution: CreditDistribution) => {
-        if (creditModalState.sourceOrder && onUpdateCreditDistribution) {
-            onUpdateCreditDistribution(creditModalState.sourceOrder.order.id, distribution);
-        }
-        setCreditModalState({ selectorOpen: false, distributionOpen: false, creditAmount: 0, initialRemainingAction: undefined });
-    }
-
-    const handleBackToSelector = () => {
-        setCreditModalState(prev => ({
-            ...prev,
-            selectorOpen: true,
-            distributionOpen: false
-        }));
-    }
-
-    const getAvailableOrdersForDistribution = (sourceOrderState: SelectedOrderState) => {
-        return orders
-            .filter(o => 
-                o.order.id !== sourceOrderState.order.id && 
-                o.order.clientId === sourceOrderState.order.clientId
-            )
-            .map(o => {
-                const initialPaid = getPaidAmount(o.order);
-                const incomingFromOthers = orders.reduce((sum, other) => {
-                    if (other.order.id === sourceOrderState.order.id || !other.creditDistribution) return sum;
-                    const distToThisOrder = other.creditDistribution.distributions.find(d => d.targetOrderId === o.order.id);
-                    return sum + (distToThisOrder?.amount || 0);
-                }, 0);
-
-                const pendingAmount = Math.max(0, Number(o.finalTotal || 0) - initialPaid - incomingFromOthers);
-                
-                return {
-                    id: o.order.id,
-                    receiptNumber: o.order.receiptNumber,
-                    orderNumber: o.order.orderNumber || '',
-                    clientName: o.order.clientName,
-                    orderType: (o.order.type || 'NORMAL') as any,
-                    pendingAmount,
-                    totalAmount: Number(o.finalTotal || 0),
-                    paidAmount: initialPaid + incomingFromOthers,
-                    brandName: o.order.brandName
-                };
-            })
-            .filter(o => o.pendingAmount > 0.01);
-    }
-
-    const handleTableKeyDown = (e: React.KeyboardEvent<HTMLInputElement | HTMLSelectElement>, rowIndex: number, fieldName: string) => {
+    const handleTableKeyDown = (e: React.KeyboardEvent<HTMLElement>, rowIndex: number, fieldName: string) => {
         const input = e.currentTarget as HTMLInputElement;
+        const isInput = input.tagName === 'INPUT';
+        const isNumber = isInput && input.type === 'number';
+        const isDate = isInput && input.type === 'date';
+        const isSelect = input.tagName === 'SELECT';
+
         let selectionStart: number | null = null;
+        let valueLength = 0;
+
         try {
-            selectionStart = input.selectionStart;
+            if (isInput && !isNumber && !isDate) {
+                selectionStart = input.selectionStart;
+                valueLength = input.value.length;
+            }
         } catch (e) {}
 
-        const valueLength = (input.value || "").length;
-        const isNotNumberInput = input.type !== 'number' && input.type !== 'date' && input.tagName !== 'SELECT';
+        const fields = ['documentType', 'finalInvoiceNumber', 'finalTotal', 'entryDate'];
 
         if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-            // For selects, only navigate if alt key is NOT pressed (to allow opening dropdown)
-            if (input.tagName === 'SELECT' && e.altKey) return;
-            
             e.preventDefault();
             const nextIndex = e.key === 'ArrowDown' ? rowIndex + 1 : rowIndex - 1;
             const target = document.querySelector(`[data-row-index="${nextIndex}"][data-field-name="${fieldName}"]`) as HTMLElement;
             if (target) {
                 target.focus();
-                if (target instanceof HTMLInputElement && target.type !== 'number' && target.type !== 'date') {
-                    target.select();
-                }
+                if (target instanceof HTMLInputElement && target.type !== 'number' && target.type !== 'date') target.select();
             }
         } else if (e.key === 'ArrowLeft') {
-            const shouldMove = !isNotNumberInput || selectionStart === 0;
-            if (shouldMove) {
-                const fields = ['documentType', 'finalInvoiceNumber', 'finalTotal', 'entryDate'];
+            const isAtStart = isSelect || isDate || selectionStart === 0;
+            if (isAtStart) {
                 const currentIndex = fields.indexOf(fieldName);
                 if (currentIndex > 0) {
                     const prevField = fields[currentIndex - 1];
-                    const targetInput = document.querySelector(`[data-row-index="${rowIndex}"][data-field-name="${prevField}"]`) as HTMLElement;
-                    if (targetInput) {
+                    const target = document.querySelector(`[data-row-index="${rowIndex}"][data-field-name="${prevField}"]`) as HTMLElement;
+                    if (target) {
                         e.preventDefault();
-                        targetInput.focus();
-                        if (targetInput instanceof HTMLInputElement && targetInput.type !== 'number' && targetInput.type !== 'date') {
-                            targetInput.select();
-                        }
+                        target.focus();
+                        if (target instanceof HTMLInputElement && target.type !== 'number' && target.type !== 'date') target.select();
                     }
                 }
             }
         } else if (e.key === 'ArrowRight') {
-            const shouldMove = !isNotNumberInput || selectionStart === valueLength;
-            if (shouldMove) {
-                const fields = ['documentType', 'finalInvoiceNumber', 'finalTotal', 'entryDate'];
+            const isAtEnd = isSelect || isDate || selectionStart === valueLength;
+            if (isAtEnd) {
                 const currentIndex = fields.indexOf(fieldName);
                 if (currentIndex < fields.length - 1) {
                     const nextField = fields[currentIndex + 1];
-                    const targetInput = document.querySelector(`[data-row-index="${rowIndex}"][data-field-name="${nextField}"]`) as HTMLElement;
-                    if (targetInput) {
+                    const target = document.querySelector(`[data-row-index="${rowIndex}"][data-field-name="${nextField}"]`) as HTMLElement;
+                    if (target) {
                         e.preventDefault();
-                        targetInput.focus();
-                        if (targetInput instanceof HTMLInputElement && targetInput.type !== 'number' && targetInput.type !== 'date') {
-                            targetInput.select();
-                        }
+                        target.focus();
+                        if (target instanceof HTMLInputElement && target.type !== 'number' && target.type !== 'date') target.select();
                     }
                 }
             }
+        } else if (e.key === 'Enter' && isDate) {
+             e.preventDefault();
+             if ('showPicker' in input) (input as any).showPicker();
         }
     }
 
@@ -230,18 +112,18 @@ export function SelectedOrdersTable({
                         <TableHeader>
                             <TableRow className="bg-monchito-purple/5 hover:bg-monchito-purple/5 border-b border-monchito-purple/10 h-12 sticky top-0 z-10">
                                 <TableHead className="w-[30px] p-1 text-center text-[10px] font-black text-monchito-purple uppercase tracking-widest">#</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Recibo</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Empresaria</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">N° de pedido</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Tipo</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Catálogo</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Valor pedido</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Abono</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Tipo documento</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Factura</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Valor factura</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Fecha ingreso</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Saldo</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Recibo</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Empresaria</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">N° de pedido</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Tipo</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Catálogo</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right">Valor pedido</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right">Abono</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Tipo documento</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Factura</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right">Valor factura</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest">Fecha ingreso</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right">Saldo</TableHead>
                                 <TableHead className="w-[30px] p-1"></TableHead>
                             </TableRow>
                         </TableHeader>
@@ -256,8 +138,6 @@ export function SelectedOrdersTable({
                                 }, 0);
 
                                 const finalBalance = Number(finalTotal || 0) - initialPaid - incomingDistributiveCredit;
-                                const creditAmount = calculateCreditAmount(orderState);
-                                const hasCreditDistribution = !!orderState.creditDistribution;
                                 const mismatch = Math.abs(Number(order.total || 0) - Number(finalTotal || 0)) > 0.01;
 
                                 return (
@@ -265,10 +145,10 @@ export function SelectedOrdersTable({
                                         <TableCell className="p-1 w-[30px] text-center py-4">
                                             <CheckCircle className="h-3.5 w-3.5 text-emerald-500 mx-auto" />
                                         </TableCell>
-                                        <TableCell className="py-4 px-2 font-mono text-xs font-medium text-center">#{order.receiptNumber}</TableCell>
-                                        <TableCell className="py-4 px-2 text-xs font-bold text-center">{order.clientName}</TableCell>
-                                        <TableCell className="py-4 px-2 text-xs font-medium text-center">{order.orderNumber || '---'}</TableCell>
-                                        <TableCell className="py-4 px-2 text-[10px] text-center">
+                                        <TableCell className="py-4 px-2 font-mono text-xs font-medium">#{order.receiptNumber}</TableCell>
+                                        <TableCell className="py-4 px-2 text-xs font-bold">{order.clientName}</TableCell>
+                                        <TableCell className="py-4 px-2 text-xs font-medium">{order.orderNumber || '---'}</TableCell>
+                                        <TableCell className="py-4 px-2 text-[10px]">
                                             <span className={`px-2 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-tighter shadow-sm ${
                                                 order.type === 'CAMBIO' ? 'bg-orange-100 text-orange-700 border-orange-200' :
                                                 order.type === 'REPROGRAMACION' ? 'bg-amber-100 text-amber-700 border-amber-200' :
@@ -279,26 +159,26 @@ export function SelectedOrdersTable({
                                                 {order.type}
                                             </span>
                                         </TableCell>
-                                        <TableCell className="py-4 px-2 text-xs font-medium text-center">{order.brandName}</TableCell>
-                                        <TableCell className="py-4 px-2 text-center font-mono text-xs font-bold">${Number(order.total || 0).toFixed(2)}</TableCell>
-                                        <TableCell className="py-4 px-2 text-center font-mono text-xs font-bold text-blue-600">
-                                            <div className="flex flex-col items-center">
+                                        <TableCell className="py-4 px-2 text-xs font-medium">{order.brandName}</TableCell>
+                                        <TableCell className="py-4 px-2 text-right font-mono text-xs font-bold">${Number(order.total || 0).toFixed(2)}</TableCell>
+                                        <TableCell className="py-4 px-2 text-right font-mono text-xs font-bold text-blue-600">
+                                            <div className="flex flex-col items-end">
                                                 <span>${initialPaid.toFixed(2)}</span>
                                                 {incomingDistributiveCredit > 0 && (
-                                                    <span className="text-[9px] text-emerald-600 flex items-center justify-center gap-1">
+                                                    <span className="text-[9px] text-emerald-600 flex items-center gap-1">
                                                         <ArrowRight className="h-2 w-2" /> +${incomingDistributiveCredit.toFixed(2)}
                                                     </span>
                                                 )}
                                             </div>
                                         </TableCell>
-                                        <TableCell className="py-4 px-2 text-center">
+                                        <TableCell className="py-4 px-2">
                                             <select
                                                 value={documentType}
                                                 onChange={(e) => onUpdateDocumentType(order.id, e.target.value)}
-                                                onKeyDown={(e) => handleTableKeyDown(e as any, orders.indexOf(orderState), 'documentType')}
+                                                onKeyDown={(e) => handleTableKeyDown(e, orders.indexOf(orderState), 'documentType')}
                                                 data-row-index={orders.indexOf(orderState)}
                                                 data-field-name="documentType"
-                                                className="h-7 text-[10px] w-24 bg-white border border-monchito-purple/20 rounded px-1 focus:outline-none focus:ring-1 focus:ring-monchito-purple/20 text-center mx-auto"
+                                                className="h-7 text-[10px] w-24 bg-white border border-monchito-purple/20 rounded px-1 focus:outline-none focus:ring-1 focus:ring-monchito-purple/20"
                                             >
                                                 <option value="FACTURA">FACTURA</option>
                                                 <option value="TICKET">TICKET</option>
@@ -306,33 +186,33 @@ export function SelectedOrdersTable({
                                                 <option value="OTROS">OTROS</option>
                                             </select>
                                         </TableCell>
-                                        <TableCell className="py-4 px-2 text-center">
+                                        <TableCell className="py-4 px-2">
                                             <Input
                                                 value={finalInvoiceNumber}
                                                 onChange={(e) => onUpdateInvoiceNumber(order.id, e.target.value)}
                                                 onKeyDown={(e) => handleTableKeyDown(e, orders.indexOf(orderState), 'finalInvoiceNumber')}
                                                 data-row-index={orders.indexOf(orderState)}
                                                 data-field-name="finalInvoiceNumber"
-                                                className="h-7 text-xs bg-white border-monchito-purple/20 px-2 w-24 focus:ring-monchito-purple/20 text-center mx-auto"
+                                                className="h-7 text-xs bg-white border-monchito-purple/20 px-2 w-16 focus:ring-monchito-purple/20"
                                                 placeholder="#"
                                             />
                                         </TableCell>
-                                        <TableCell className="py-4 px-2 text-center">
+                                        <TableCell className="py-4 px-2">
                                             <Input
-                                                type="number"
-                                                min={0}
+                                                type="text"
+                                                inputMode="decimal"
                                                 value={finalTotal}
                                                 onChange={(e) => {
-                                                    const val = parseFloat(e.target.value);
-                                                    onUpdateInvoiceTotal(order.id, isNaN(val) ? 0 : val);
+                                                    const val = e.target.value.replace(/[^0-9.]/g, '');
+                                                    onUpdateInvoiceTotal(order.id, Number(val));
                                                 }}
                                                 onKeyDown={(e) => handleTableKeyDown(e, orders.indexOf(orderState), 'finalTotal')}
                                                 data-row-index={orders.indexOf(orderState)}
                                                 data-field-name="finalTotal"
-                                                className={`h-7 text-xs px-2 text-center font-mono bg-white border-monchito-purple/20 focus:ring-monchito-purple/20 font-bold w-24 hide-spinner mx-auto ${mismatch ? 'text-amber-700 bg-amber-50' : 'text-monchito-purple'}`}
+                                                className={`h-7 text-xs px-2 text-right font-mono bg-white border-monchito-purple/20 focus:ring-monchito-purple/20 font-bold w-24 hide-spinner ${mismatch ? 'text-amber-700 bg-amber-50' : 'text-monchito-purple'}`}
                                             />
                                         </TableCell>
-                                        <TableCell className="py-4 px-2 text-center font-normal">
+                                        <TableCell className="py-4 px-2">
                                             <Input
                                                 type="date"
                                                 value={entryDate}
@@ -340,31 +220,13 @@ export function SelectedOrdersTable({
                                                 onKeyDown={(e) => handleTableKeyDown(e, orders.indexOf(orderState), 'entryDate')}
                                                 data-row-index={orders.indexOf(orderState)}
                                                 data-field-name="entryDate"
-                                                className="h-7 text-xs px-1 w-28 bg-white border-monchito-purple/20 focus:ring-monchito-purple/20 text-center font-normal mx-auto"
+                                                className="h-7 text-[10px] px-1 w-24 bg-white border-monchito-purple/20 focus:ring-monchito-purple/20"
                                             />
                                         </TableCell>
-                                        <TableCell className={`py-4 px-2 text-center font-mono font-bold text-xs`}>
-                                            <div className="flex items-center justify-center gap-2">
-                                                <span className={finalBalance < -0.01 ? 'text-emerald-600' : finalBalance > 0.01 ? 'text-amber-600' : 'text-slate-400'}>
-                                                    {finalBalance < -0.01 ? 'Favor: ' : ''}${Math.abs(finalBalance).toFixed(2)}
-                                                </span>
-                                                {creditAmount > 0 && (
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        onClick={() => handleOpenCreditDistribution(orderState)}
-                                                        className={`h-6 px-2 text-[10px] flex items-center gap-1 ${
-                                                            hasCreditDistribution 
-                                                                ? 'bg-monchito-purple text-white border-monchito-purple hover:bg-monchito-purple/90 shadow-sm' 
-                                                                : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
-                                                        }`}
-                                                        title={`Distribuir $${creditAmount.toFixed(2)} de saldo a favor`}
-                                                    >
-                                                        <DollarSign className="h-3 w-3" />
-                                                        {hasCreditDistribution ? 'Ver/Editar' : 'Distribuir'}
-                                                    </Button>
-                                                )}
-                                            </div>
+                                        <TableCell className={`py-4 px-2 text-right font-mono font-bold text-xs`}>
+                                            <span className={finalBalance < -0.01 ? 'text-emerald-600' : finalBalance > 0.01 ? 'text-amber-600' : 'text-slate-400'}>
+                                                {finalBalance < -0.01 ? 'Favor: ' : ''}${Math.abs(finalBalance).toFixed(2)}
+                                            </span>
                                         </TableCell>
                                         <TableCell className="p-1 w-[30px] text-center py-4">
                                             <button
@@ -391,45 +253,6 @@ export function SelectedOrdersTable({
                     </div>
                 </div>
             </div>
-
-            {creditModalState.sourceOrder && (
-                <CreditActionSelectorModal
-                    isOpen={creditModalState.selectorOpen}
-                    onClose={() => setCreditModalState({ selectorOpen: false, distributionOpen: false, creditAmount: 0, initialRemainingAction: undefined })}
-                    sourceOrder={{
-                        id: creditModalState.sourceOrder.order.id,
-                        receiptNumber: creditModalState.sourceOrder.order.receiptNumber,
-                        orderNumber: creditModalState.sourceOrder.order.orderNumber || '',
-                        clientName: creditModalState.sourceOrder.order.clientName,
-                        orderType: (creditModalState.sourceOrder.order.type || 'NORMAL') as any
-                    }}
-                    creditAmount={creditModalState.creditAmount}
-                    onMoveToWallet={handleMoveToWallet}
-                    onReturnToClient={handleReturnToClient}
-                    onDistributeToOrders={handleDistributeToOrders}
-                />
-            )}
-
-            {creditModalState.sourceOrder && (
-                <CreditDistributionModal
-                    isOpen={creditModalState.distributionOpen}
-                    onClose={() => setCreditModalState({ selectorOpen: false, distributionOpen: false, creditAmount: 0, initialRemainingAction: undefined })}
-                    sourceOrder={{
-                        id: creditModalState.sourceOrder.order.id,
-                        receiptNumber: creditModalState.sourceOrder.order.receiptNumber,
-                        orderNumber: creditModalState.sourceOrder.order.orderNumber || '',
-                        clientId: creditModalState.sourceOrder.order.clientId,
-                        clientName: creditModalState.sourceOrder.order.clientName,
-                        orderType: creditModalState.sourceOrder.order.type || 'NORMAL'
-                    }}
-                    creditAmount={creditModalState.creditAmount}
-                    availableOrders={getAvailableOrdersForDistribution(creditModalState.sourceOrder)}
-                    onDistribute={handleCreditDistribution}
-                    initialDistribution={creditModalState.sourceOrder.creditDistribution}
-                    initialRemainingAction={creditModalState.initialRemainingAction}
-                    onBack={handleBackToSelector}
-                />
-            )}
         </div>
     )
 }

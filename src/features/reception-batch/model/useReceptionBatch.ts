@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { orderApi } from '@/entities/order/model/api';
 import type { Order } from '@/entities/order/model/types';
 import { useToast } from '@/shared/ui/use-toast';
-import { getPaidAmount } from '@/entities/order/model/model';
 
 export const useReceptionBatch = () => {
     const { showToast } = useToast();
@@ -166,25 +165,6 @@ export const useReceptionBatch = () => {
     };
 
     const handleSaveBatch = () => {
-        // 1. Validation: Verify no order has pending distribution
-        const ordersWithPendingCredit = selectedOrders.filter(o => {
-            const finalTotal = (o as any).finalTotal ?? Number(o.total);
-            const paid = getPaidAmount(o);
-            const abono = (o as any).abonoRecepcion || 0;
-            const balance = finalTotal - (paid + abono);
-            
-            // If balance < -0.01, it has surplus credit. Must have distribution.
-            return balance < -0.01 && !(o as any).creditDistribution;
-        });
-
-        if (ordersWithPendingCredit.length > 0) {
-            showToast(
-                `Distribución pendiente: ${ordersWithPendingCredit.map(o => o.receiptNumber).join(', ')}. Existen saldos a favor sin distribuir.`,
-                "error"
-            );
-            return;
-        }
-
         const items = selectedOrders.map(o => ({
             orderId: o.id,
             finalTotal: (o as any).finalTotal || Number(o.total),

@@ -13,6 +13,8 @@ import { PageHeader } from "@/shared/ui/PageHeader"
 import { Pagination } from "@/shared/ui/pagination"
 import { DateRangePicker } from "@/shared/ui/filters"
 import type { DateRange } from "react-day-picker"
+import type { CreditDistribution } from "@/entities/financial-record/model/types"
+import { getPaidAmount } from "@/entities/order/model/model"
 
 /* --- Searchable Select for Clients --- */
 function SearchableClientSelect({ 
@@ -272,6 +274,14 @@ export function OrderDeliveryPage() {
     const [isDeliverModalOpen, setIsDeliverModalOpen] = useState(false)
     const [isBatchMode, setIsBatchMode] = useState(false)
     const [isPendingModalOpen, setIsPendingModalOpen] = useState(false)
+    const [creditDistributions, setCreditDistributions] = useState<Record<string, CreditDistribution>>({})
+
+    const handleUpdateCreditDistribution = (orderId: string, distribution: CreditDistribution) => {
+        setCreditDistributions(prev => ({
+            ...prev,
+            [orderId]: distribution
+        }))
+    }
 
     const selectedClientName = useMemo(() => {
         if (!clientId) return ""
@@ -287,6 +297,7 @@ export function OrderDeliveryPage() {
         setSearchTerm("")
         setDateCategoryFilter("ALL")
         setSelectedOrderIds([])
+        setCreditDistributions({}) // Clear distributions on filter reset
         setPage(1)
     }
 
@@ -316,6 +327,15 @@ export function OrderDeliveryPage() {
     }
 
     const selectedOrders = orders.filter(o => selectedOrderIds.includes(o.id))
+
+    const pendingDistributionCount = useMemo(() => {
+        return selectedOrders.filter(o => {
+            const initialPaid = getPaidAmount(o)
+            const finalTotal = Number(o.realInvoiceTotal || o.total || 0)
+            const balance = finalTotal - initialPaid
+            return balance < -0.01 && !creditDistributions[o.id]
+        }).length
+    }, [selectedOrders, creditDistributions])
 
     return (
         <div className="space-y-6">
@@ -440,13 +460,20 @@ export function OrderDeliveryPage() {
                     >
                         Cancelar Selección
                     </Button>
-                    <Button 
-                        className="bg-monchito-purple hover:bg-monchito-purple/90 text-white font-medium px-6 rounded-xl h-9 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                        onClick={handleBatchDeliver}
-                        disabled={selectedOrderIds.length === 0}
-                    >
-                        Proceder con Entrega
-                    </Button>
+                    <div className="flex flex-col items-end gap-1">
+                        <Button 
+                            className="bg-monchito-purple hover:bg-monchito-purple/90 text-white font-medium px-6 rounded-xl h-9 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                            onClick={handleBatchDeliver}
+                            disabled={selectedOrderIds.length === 0 || pendingDistributionCount > 0}
+                        >
+                            Proceder con Entrega
+                        </Button>
+                        {pendingDistributionCount > 0 && (
+                            <span className="text-[10px] text-amber-600 font-bold animate-pulse">
+                                Hay {pendingDistributionCount} saldos por distribuir
+                            </span>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -500,6 +527,8 @@ export function OrderDeliveryPage() {
                             orders={displayedOrders} 
                             selectedOrderIds={selectedOrderIds}
                             onSelectionChange={setSelectedOrderIds}
+                            creditDistributions={creditDistributions}
+                            onUpdateCreditDistribution={handleUpdateCreditDistribution}
                         />
                          {pagination && pagination.pages > 1 && (
                             <div className="p-4 border-t border-slate-100">
@@ -519,6 +548,7 @@ export function OrderDeliveryPage() {
             <DeliverOrderModalNew
                 order={isBatchMode ? null : selectedOrder}
                 orders={isBatchMode ? selectedOrders : []}
+                creditDistributions={creditDistributions}
                 open={isDeliverModalOpen}
                 onOpenChange={(open) => {
                     setIsDeliverModalOpen(open)
@@ -530,6 +560,7 @@ export function OrderDeliveryPage() {
                 onSuccess={() => {
                     refetch()
                     setSelectedOrderIds([])
+                    setCreditDistributions({}) // Clear distributions on success
                 }}
             />
 
