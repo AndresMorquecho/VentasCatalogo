@@ -227,7 +227,7 @@ export function OrderDeliveryTable({
                             <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4">Factura / NC</TableHead>
                             <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4">Valor Factura</TableHead>
                             <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4">Fecha Ingreso</TableHead>
-                            <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4">Saldo</TableHead>
+                            <TableHead className="sticky right-0 z-20 bg-slate-50 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4 shadow-[-5px_0_10px_-5px_rgba(0,0,0,0.1)] border-l border-slate-200">Saldo</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -256,7 +256,7 @@ export function OrderDeliveryTable({
                                 return (
                                     <TableRow 
                                         key={order.id} 
-                                        className={`transition-colors hover:bg-slate-50 cursor-pointer ${isSelected ? 'bg-monchito-purple/5' : ''}`}
+                                        className={`group transition-colors hover:bg-slate-50 cursor-pointer ${isSelected ? 'bg-monchito-purple/5' : ''}`}
                                         onClick={() => !isDisabled && handleToggleSelect(order)}
                                     >
                                         <TableCell className="text-center py-3" onClick={(e) => e.stopPropagation()}>
@@ -295,12 +295,19 @@ export function OrderDeliveryTable({
                                             {order.realInvoiceTotal ? formatCurrency(order.realInvoiceTotal) : '-'}
                                         </TableCell>
                                         <TableCell className="text-center text-xs font-bold text-slate-700 whitespace-nowrap">{formatDate(order.receptionDate!)}</TableCell>
-                                        <TableCell className={`text-center text-xs font-mono font-black p-4 whitespace-nowrap`}>
+                                        <TableCell className={`sticky right-0 z-10 bg-white text-center text-xs font-mono font-black p-4 whitespace-nowrap shadow-[-5px_0_10px_-5px_rgba(0,0,0,0.1)] border-l border-slate-200 group-hover:bg-slate-50 ${isSelected ? '!bg-[#fdfaff]' : ''}`}>
                                             <div className="flex items-center justify-center gap-2">
-                                                <span className={saldo > 0.01 ? 'text-red-600' : 'text-slate-400'}>
-                                                    {formatCurrency(saldo)}
-                                                    {saldo > 0.01 && <AlertTriangle className="inline-block ml-1 h-3 w-3 text-red-500 animate-pulse" />}
-                                                </span>
+                                                {creditAmount > 0 ? (
+                                                    <span className="text-emerald-600 font-black animate-pulse-subtle">
+                                                        +{formatCurrency(creditAmount)}
+                                                    </span>
+                                                ) : (
+                                                    <span className={saldo > 0.01 ? 'text-red-600' : 'text-slate-400'}>
+                                                        {formatCurrency(saldo)}
+                                                        {saldo > 0.01 && <AlertTriangle className="inline-block ml-1 h-3 w-3 text-red-500 animate-pulse" />}
+                                                    </span>
+                                                )}
+                                                
                                                 {creditAmount > 0 && (
                                                     <Button
                                                         size="sm"
@@ -312,7 +319,7 @@ export function OrderDeliveryTable({
                                                         className={`h-6 px-2 text-[10px] flex items-center gap-1 ${
                                                             hasDistribution 
                                                                 ? 'bg-monchito-purple text-white border-monchito-purple hover:bg-monchito-purple/90 shadow-sm' 
-                                                                : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
+                                                                : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50 shadow-sm'
                                                         }`}
                                                         title={`Distribuir ${formatCurrency(creditAmount)} de saldo a favor`}
                                                     >
