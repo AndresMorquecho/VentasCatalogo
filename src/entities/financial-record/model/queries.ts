@@ -1,19 +1,34 @@
-// Financial Record React Query Hooks
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { financialRecordApi } from './api';
+import type { TransactionCardsParams } from './api';
+import type { TransactionCardDTO } from './transactionCard.types';
 import type { FinancialRecord, CreateFinancialRecordPayload, UpdateFinancialRecordPayload } from './types';
 import type { PaginatedResponse } from '@/entities/order/model/types';
 
 // Query Keys
 export const financialRecordKeys = {
   all: ['financial-records'] as const,
+  cards: (params?: TransactionCardsParams) => ['financial-records', 'cards', params] as const,
   detail: (id: string) => ['financial-records', id] as const,
   byClient: (clientId: string) => ['financial-records', 'client', clientId] as const,
   byOrder: (orderId: string) => ['financial-records', 'order', orderId] as const,
   byDateRange: (startDate: string, endDate: string) =>
     ['financial-records', 'date-range', startDate, endDate] as const
 };
+
+/**
+ * PRIMARY HOOK — returns TransactionCardDTO[] from the backend.
+ * Frontend does ZERO financial logic on this data.
+ */
+export const useTransactionCards = (params?: TransactionCardsParams) => {
+  return useQuery({
+    queryKey: financialRecordKeys.cards(params),
+    queryFn: () => financialRecordApi.getCards(params),
+    staleTime: 30_000,
+  });
+};
+
+
 
 /**
  * Get all financial records

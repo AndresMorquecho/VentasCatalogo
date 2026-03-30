@@ -57,7 +57,7 @@ export function OrderDeliveryTable({
 
     const calculateCreditAmount = (order: Order) => {
         const initialPaid = getPaidAmount(order);
-        const finalTotal = Number(order.realInvoiceTotal || order.total || 0);
+        const finalTotal = Number(order.realInvoiceTotal ?? order.total ?? 0);
         const finalBalance = finalTotal - initialPaid;
         return finalBalance < -0.01 ? Math.abs(finalBalance) : 0;
     }
@@ -142,7 +142,7 @@ export function OrderDeliveryTable({
                     return sum + (distToThisOrder?.amount || 0);
                 }, 0);
 
-                const totalAmount = Number(o.realInvoiceTotal || o.total || 0);
+                const totalAmount = Number(o.realInvoiceTotal ?? o.total ?? 0);
                 const pendingAmount = Math.max(0, totalAmount - initialPaid - incomingFromOthers);
                 
                 return {
@@ -248,7 +248,7 @@ export function OrderDeliveryTable({
                                     return sum + (distToThisOrder?.amount || 0);
                                 }, 0);
 
-                                const totalAmount = order.realInvoiceTotal || order.total || 0
+                                const totalAmount = order.realInvoiceTotal ?? order.total ?? 0
                                 const saldo = Math.max(0, totalAmount - initialPaid - incomingDistributiveCredit)
                                 const creditAmount = calculateCreditAmount(order)
                                 const hasDistribution = !!creditDistributions[order.id]

@@ -5,8 +5,39 @@ import type {
   CreateFinancialRecordPayload,
   UpdateFinancialRecordPayload
 } from './types';
+import type { TransactionCardDTO } from './transactionCard.types';
+
+export interface TransactionCardsParams {
+  clientId?: string;
+  startDate?: string;
+  endDate?: string;
+  createdBy?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface TransactionCardsResponse {
+  data: TransactionCardDTO[];
+  pagination: {
+    page: number;
+    limit: number;
+    totalRecords: number;
+    totalCards: number;
+    pages: number;
+  };
+}
 
 export const financialRecordApi = {
+  /**
+   * Get all financial records as TransactionCardDTO[]
+   * This is the PREFERRED endpoint — frontend renders only, no logic.
+   */
+  getCards: async (params?: TransactionCardsParams): Promise<TransactionCardsResponse> => {
+    const q = new URLSearchParams();
+    if (params) Object.entries(params).forEach(([k, v]) => { if (v !== undefined) q.append(k, String(v)); });
+    return httpClient.get<TransactionCardsResponse>(`/financial-records/cards${q.toString() ? `?${q}` : ''}`);
+  },
+
   /**
    * Get all financial records with pagination and filters
    */

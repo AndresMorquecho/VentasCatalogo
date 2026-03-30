@@ -56,15 +56,21 @@ export function DeliverOrderModalNew({
 
     // Calculate totals safely including distributions
     const totalAmountToCharge = useMemo(() => {
+        if (activeOrders.length === 0) return 0;
+        
         return activeOrders.reduce((sum, o) => {
             const initialPaid = getPaidAmount(o)
+            
+            // All-time distributions targeting this order in the current session
             const incomingDistributiveCredit = Object.values(creditDistributions).reduce((dSum, dist) => {
-                const item = dist.distributions.find(d => d.targetOrderId === o.id)
+                const item = dist.distributions?.find(d => d.targetOrderId === o.id)
                 return dSum + (item?.amount || 0)
             }, 0)
             
-            const total = o.realInvoiceTotal || o.total || 0
+            // Precedence: Real Invoice Total > Estimated Total
+            const total = o.realInvoiceTotal ?? o.total ?? 0
             const pending = Math.max(0, total - initialPaid - incomingDistributiveCredit)
+            
             return sum + pending
         }, 0)
     }, [activeOrders, creditDistributions])
@@ -134,6 +140,11 @@ export function DeliverOrderModalNew({
 
             const distributionsList = Object.values(creditDistributions)
 
+            // Formatear método de pago para el PDF
+            const paymentMethodString = data.payments.length > 1
+                ? data.payments.map(p => `${p.method === 'BILLETERA_VIRTUAL' ? 'Billetera' : p.method}: $${p.amount.toFixed(2)}`).join(' | ')
+                : (data.payments[0]?.method || 'EFECTIVO');
+
             if (isBatch) {
                 await orderApi.batchDeliver(activeOrders.map(o => o.id), paymentsToSend, distributionsList)
                 
@@ -149,7 +160,7 @@ export function DeliverOrderModalNew({
                     const { prepareBatchDeliveryReceiptForPreview } = await import("../lib/generateDeliveryReceiptWithPreview")
                     const { document, fileName, title } = await prepareBatchDeliveryReceiptForPreview(updatedOrders, {
                         amountPaidNow: totalPaid,
-                        method: data.payments.length > 1 ? 'MIXTO' : (data.payments[0]?.method || 'EFECTIVO'),
+                        method: paymentMethodString,
                         user: user?.username || 'Administrador',
                         currentCreditAmount: currentCreditAmount,
                         hasCurrentCredit: currentCreditAmount > 0
@@ -177,7 +188,7 @@ export function DeliverOrderModalNew({
                 try {
                     const { document, fileName, title } = await prepareDeliveryReceiptForPreview(deliveredOrder, {
                         amountPaidNow: totalPaid,
-                        method: data.payments.length > 1 ? 'MIXTO' : (data.payments[0]?.method || 'EFECTIVO'),
+                        method: paymentMethodString,
                         user: deliveredOrder.deliveredByName || user?.username || 'Administrador',
                         currentCreditAmount: currentCreditAmount,
                         hasCurrentCredit: currentCreditAmount > 0

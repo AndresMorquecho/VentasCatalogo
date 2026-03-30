@@ -1,18 +1,16 @@
 import { useState, useMemo, useEffect } from "react"
-import { useTransactions } from "../model/hooks"
+import { useTransactionCards } from "@/entities/financial-record/model/queries"
 import { TransactionsTable } from "./TransactionsTable"
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
 import { Search, Loader2, X, DollarSign } from "lucide-react"
 import { useDebounce } from "@/shared/lib/hooks"
-import { Pagination } from "@/shared/ui/pagination"
 import { PageHeader } from "@/shared/ui/PageHeader"
 import { DateRangePicker } from "@/shared/ui/filters"
 import { ClientSearchSelect } from "@/shared/ui/filters/ClientSearchSelect"
 import { UserSearchSelect } from "@/shared/ui/filters/UserSearchSelect"
 import type { DateRange } from "react-day-picker"
 import { useBankAccounts } from "@/entities/bank-account"
-
 const ACCOUNT_TYPE_OPTIONS = [
     { value: "", label: "Todas las cuentas" },
     { value: "CASH", label: "Efectivo" },
@@ -40,16 +38,13 @@ export function TransactionsPage() {
     const endDate = dateRange?.to ? dateRange.to.toISOString().split('T')[0] : ""
 
     const filters = useMemo(() => ({
-        referenceNumber: debouncedSearch.length >= 3 ? debouncedSearch : undefined,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
-        accountType: accountType || undefined,
-        bankAccountId: bankAccountId || undefined,
         clientId: clientId || undefined,
         createdBy: createdBy || undefined,
         page,
         limit
-    }), [debouncedSearch, startDate, endDate, accountType, bankAccountId, clientId, createdBy, page, limit]);
+    }), [startDate, endDate, clientId, createdBy, page, limit]);
 
     useEffect(() => {
         setPage(1)
@@ -73,9 +68,9 @@ export function TransactionsPage() {
         setCreatedBy(undefined)
     }, [accountType]);
 
-    const { data: response, isLoading } = useTransactions(filters)
-    const transactions = response?.data || []
-    const pagination = response?.pagination
+    const { data: response, isLoading } = useTransactionCards(filters)
+    const cardList = response?.data ?? []
+    const pagination = response?.pagination;
 
     const hasFilters = !!(searchTerm || dateRange?.from || accountType || bankAccountId || clientId || createdBy)
 
@@ -195,17 +190,92 @@ export function TransactionsPage() {
                     <Loader2 className="animate-spin h-8 w-8 text-slate-400" />
                 </div>
             ) : (
-                <div className="space-y-4">
-                    <TransactionsTable transactions={transactions} />
+                <div className="space-y-6">
+                    <TransactionsTable cards={cardList} isLoading={isLoading} />
                     
-                    {pagination && (
-                        <Pagination
-                            currentPage={page}
-                            totalPages={pagination.pages}
-                            onPageChange={setPage}
-                            totalItems={pagination.total}
-                            itemsPerPage={limit}
-                        />
+                    {/* Pagination Controls */}
+                    {pagination && pagination.pages > 1 && (
+                        <div className="flex items-center justify-between bg-white px-4 py-3 rounded-lg border border-slate-200 shadow-sm">
+                            <div className="flex flex-1 justify-between sm:hidden">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                                    disabled={page === 1}
+                                >
+                                    Anterior
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setPage(p => Math.min(pagination.pages, p + 1))}
+                                    disabled={page === pagination.pages}
+                                >
+                                    Siguiente
+                                </Button>
+                            </div>
+                            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                                <div>
+                                    <p className="text-sm text-slate-700 font-medium">
+                                        Mostrando <span className="font-bold">{(page - 1) * limit + 1}</span> a <span className="font-bold">{Math.min(page * limit, pagination.totalRecords)}</span> de{' '}
+                                        <span className="font-bold">{pagination.totalRecords}</span> resultados
+                                    </p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setPage(1)}
+                                        disabled={page === 1}
+                                        className="h-8 w-8 p-0"
+                                    >
+                                        «
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setPage(p => Math.max(1, p - 1))}
+                                        disabled={page === 1}
+                                        className="text-xs font-semibold"
+                                    >
+                                        Anterior
+                                    </Button>
+                                    
+                                    <div className="flex items-center gap-1 mx-2">
+                                        <span className="text-xs font-bold text-slate-400 uppercase tracking-tighter">Página</span>
+                                        <Input 
+                                            type="number"
+                                            value={page}
+                                            onChange={(e) => {
+                                                const val = parseInt(e.target.value);
+                                                if (!isNaN(val) && val >= 1 && val <= pagination.pages) {
+                                                    setPage(val);
+                                                }
+                                            }}
+                                            className="w-12 h-8 text-center p-0 font-bold"
+                                        />
+                                        <span className="text-xs font-bold text-slate-400 uppercase tracking-tighter">de {pagination.pages}</span>
+                                    </div>
+
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setPage(p => Math.min(pagination.pages, p + 1))}
+                                        disabled={page === pagination.pages}
+                                        className="text-xs font-semibold"
+                                    >
+                                        Siguiente
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setPage(pagination.pages)}
+                                        disabled={page === pagination.pages}
+                                        className="h-8 w-8 p-0"
+                                    >
+                                        »
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
                     )}
                 </div>
             )}

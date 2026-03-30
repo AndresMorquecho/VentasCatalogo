@@ -271,8 +271,28 @@ export function OrderDeliveryPage() {
 
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
     const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([])
+    const [selectedOrdersMap, setSelectedOrdersMap] = useState<Record<string, Order>>({})
+    
+    const handleSelectionChange = (ids: string[]) => {
+        setSelectedOrderIds(ids);
+        
+        // Mantener objetos de pedidos seleccionados para persistencia entre páginas/filtros
+        setSelectedOrdersMap(prev => {
+            const newMap: Record<string, Order> = {};
+            ids.forEach(id => {
+                if (prev[id]) {
+                    newMap[id] = prev[id];
+                } else {
+                    const fromCurrent = orders.find(o => o.id === id);
+                    if (fromCurrent) newMap[id] = fromCurrent;
+                }
+            });
+            return newMap;
+        });
+    }
+
+    const isBatchMode = selectedOrderIds.length > 1 || (selectedOrderIds.length === 1 && !selectedOrder)
     const [isDeliverModalOpen, setIsDeliverModalOpen] = useState(false)
-    const [isBatchMode, setIsBatchMode] = useState(false)
     const [isPendingModalOpen, setIsPendingModalOpen] = useState(false)
     const [creditDistributions, setCreditDistributions] = useState<Record<string, CreditDistribution>>({})
 
@@ -297,6 +317,7 @@ export function OrderDeliveryPage() {
         setSearchTerm("")
         setDateCategoryFilter("ALL")
         setSelectedOrderIds([])
+        setSelectedOrdersMap({})
         setCreditDistributions({}) // Clear distributions on filter reset
         setPage(1)
     }
@@ -322,11 +343,10 @@ export function OrderDeliveryPage() {
 
     const handleBatchDeliver = () => {
         if (selectedOrderIds.length === 0) return
-        setIsBatchMode(true)
         setIsDeliverModalOpen(true)
     }
 
-    const selectedOrders = orders.filter(o => selectedOrderIds.includes(o.id))
+    const selectedOrders = useMemo(() => Object.values(selectedOrdersMap), [selectedOrdersMap])
 
     const pendingDistributionCount = useMemo(() => {
         return selectedOrders.filter(o => {
@@ -526,7 +546,7 @@ export function OrderDeliveryPage() {
                         <OrderDeliveryTable 
                             orders={displayedOrders} 
                             selectedOrderIds={selectedOrderIds}
-                            onSelectionChange={setSelectedOrderIds}
+                            onSelectionChange={handleSelectionChange}
                             creditDistributions={creditDistributions}
                             onUpdateCreditDistribution={handleUpdateCreditDistribution}
                         />
@@ -554,12 +574,12 @@ export function OrderDeliveryPage() {
                     setIsDeliverModalOpen(open)
                     if (!open) {
                         setSelectedOrder(null)
-                        setIsBatchMode(false)
                     }
                 }}
                 onSuccess={() => {
                     refetch()
                     setSelectedOrderIds([])
+                    setSelectedOrdersMap({})
                     setCreditDistributions({}) // Clear distributions on success
                 }}
             />

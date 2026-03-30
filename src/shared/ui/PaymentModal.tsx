@@ -110,20 +110,25 @@ export function PaymentModal({
     console.log('PaymentModal - Credit data:', creditData);
     console.log('PaymentModal - Total credit calculated:', totalCredit);
 
-    // Actualizar el monto cuando cambie initialAmount (solo si se proporciona)
+    // Sincronizar el monto cuando abre el modal o initialAmount cambia
     useEffect(() => {
-        if (initialAmount && initialAmount > 0) {
-            setPayments(prev => {
-                const firstPayment = prev[0];
-                if (firstPayment && firstPayment.amount !== initialAmount) {
-                    return prev.map((payment, index) => 
-                        index === 0 ? { ...payment, amount: initialAmount } : payment
-                    );
-                }
-                return prev;
-            });
+        if (open) {
+            const cashAccount = bankAccountsResponse?.data?.find(a => a.type === 'CASH');
+            const firstMethod = paymentMethodConfigService.getEnabledMethods()[0];
+            const defaultMethod: PaymentMethod = (firstMethod?.key ?? 'EFECTIVO') as PaymentMethod;
+
+            setPayments([{
+                id: '1',
+                method: defaultMethod,
+                amount: initialAmount || 0,
+                bankAccountId: defaultMethod === 'EFECTIVO' ? (cashAccount?.id || '') : '',
+                transactionReference: '',
+                notes: ''
+            }]);
+            
+            setValidationError(null);
         }
-    }, [initialAmount]);
+    }, [open, initialAmount, bankAccountsResponse, enabledMethods]);
 
     // Calculate totals
     const totalAmount = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
