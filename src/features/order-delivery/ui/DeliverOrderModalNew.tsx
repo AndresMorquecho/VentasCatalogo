@@ -139,6 +139,13 @@ export function DeliverOrderModalNew({
             }))
 
             const distributionsList = Object.values(creditDistributions)
+            
+            console.log('[DeliverOrderModalNew] Submitting:', {
+                isBatch,
+                activeOrderId: firstOrder?.id,
+                distributionsList: JSON.stringify(distributionsList, null, 2),
+                fullCreditDistributions: JSON.stringify(creditDistributions, null, 2)
+            })
 
             // Formatear método de pago para el PDF
             const paymentMethodString = data.payments.length > 1
@@ -207,8 +214,10 @@ export function DeliverOrderModalNew({
 
             qc.invalidateQueries({ queryKey: ['orders'] })
             qc.invalidateQueries({ queryKey: ['financial-records'] })
+            qc.invalidateQueries({ queryKey: ['transactions'] })
             qc.invalidateQueries({ queryKey: ['client-rewards'] })
             qc.invalidateQueries({ queryKey: ['client-credit'] })
+            qc.invalidateQueries({ queryKey: ['bank-accounts'] })
 
             if (user && firstOrder) {
                 logAction({

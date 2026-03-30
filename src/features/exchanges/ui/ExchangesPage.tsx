@@ -1,14 +1,14 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Plus, 
   Search, 
-  Calendar,
-  Package,
-  Truck,
+  RotateCcw,
+  Replace,
+  ArrowRightLeft,
   ChevronRight,
   ClipboardList,
-  CheckCircle2
+  ListOrdered
 } from 'lucide-react';
 
 import { Button } from '../../../shared/ui/button';
@@ -16,26 +16,28 @@ import { Input } from '../../../shared/ui/input';
 import { Badge } from '../../../shared/ui/badge';
 import { Label } from '../../../shared/ui/label';
 import { PageHeader } from '../../../shared/ui/PageHeader';
-import { useExchangeBatches, useUpdateExchangeBatchStatus } from '../model/useExchanges';
-import { useToast } from '../../../shared/ui/use-toast';
-import { ConfirmDialog } from '../../../shared/ui/confirm-dialog';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../../shared/ui/dialog';
-import type { ExchangeBatch } from '../model/types';
 import { DateRangePicker } from '@/shared/ui/filters/DateRangePicker';
 import type { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useOrderList } from '@/entities/order/model/hooks';
+import { Pagination } from '@/shared/ui/pagination';
+import { useDebounce } from '@/shared/lib/hooks';
+import type { Order } from '@/entities/order/model/types';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../../shared/ui/dialog';
 
 const STATUS_LABELS: Record<string, string> = {
-  ENVIADO: 'Enviado',
-  EN_BODEGA: 'En Bodega',
+  POR_RECIBIR: 'Enviado',
+  RECIBIDO_EN_BODEGA: 'En Bodega',
   ENTREGADO: 'Entregado al Cliente',
+  CANCELADO: 'Cancelado',
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  ENVIADO: 'bg-blue-100 text-blue-700 border-blue-200',
-  EN_BODEGA: 'bg-amber-100 text-amber-700 border-amber-200',
+  POR_RECIBIR: 'bg-blue-100 text-blue-700 border-blue-200',
+  RECIBIDO_EN_BODEGA: 'bg-amber-100 text-amber-700 border-amber-200',
   ENTREGADO: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  CANCELADO: 'bg-red-100 text-red-700 border-red-200',
 };
 
 const fmtDate = (d: string | null | undefined) => {
@@ -43,117 +45,144 @@ const fmtDate = (d: string | null | undefined) => {
   return format(new Date(d), 'dd/MM/yyyy HH:mm', { locale: es });
 };
 
+function formatCurrency(amount: number): string {
+    return `$${amount.toFixed(2)}`;
+}
+
+const parseExchangeNotesDetailed = (notes: string) => {
+    const regex = /CAMBIO DE \[([^\s]+)\s+(.*?)\s*x(\d+):\s*([\s\S]*?)\]\s*POR\s*\[(.*?)\s*x(\d+):\s*([\s\S]*?)\]/i;
+    const match = notes?.match(regex);
+    if (match) {
+        return {
+            originalOrder: match[1],
+            originalBrand: match[2],
+            originalQty: match[3],
+            originalDesc: match[4],
+            newBrand: match[5],
+            newQty: match[6],
+            newDesc: match[7]
+        };
+    }
+    return {
+        originalOrder: 'N/A',
+        originalBrand: 'N/A',
+        originalQty: '-',
+        originalDesc: notes || 'Sin detalles',
+        newBrand: 'N/A',
+        newQty: '-',
+        newDesc: 'Sin detalles'
+    };
+};
+
 export function ExchangesPage() {
   const navigate = useNavigate();
-  const { showToast } = useToast();
-  const [search, setSearch] = useState('');
-  const [selectedBatch, setSelectedBatch] = useState<ExchangeBatch | null>(null);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [pendingTransition, setPendingTransition] = useState<{ id: string; nextStatus: string } | null>(null);
+  const [searchText, setSearchText] = useState('');
+  const debouncedSearch = useDebounce(searchText, 500)
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [page, setPage] = useState(1);
+  const limit = 50; // Increased limit so groups display correctly
+  
+  const [selectedGroup, setSelectedGroup] = useState<Order[] | null>(null);
 
-  const { data: batches = [], isLoading, refetch } = useExchangeBatches({
-    dateFrom: dateRange?.from?.toISOString(),
-    dateTo: dateRange?.to?.toISOString(),
-  });
-  const updateStatus = useUpdateExchangeBatchStatus();
+  // Reset page on filter change
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, dateRange]);
 
-  const handleUpdateStatus = (e: React.MouseEvent | null, id: string, nextStatus: string) => {
-    e?.stopPropagation();
-    setPendingTransition({ id, nextStatus });
-    setConfirmOpen(true);
+  const filters = {
+    type: 'CAMBIO',
+    search: debouncedSearch,
+    startDate: dateRange?.from ? dateRange.from.toISOString().split('T')[0] : undefined,
+    endDate: dateRange?.to ? dateRange.to.toISOString().split('T')[0] : undefined,
+    page,
+    limit,
   };
 
-  const onConfirmTransition = async () => {
-    if (!pendingTransition) return;
-    try {
-      await updateStatus.mutateAsync({ id: pendingTransition.id, newStatus: pendingTransition.nextStatus });
-      showToast(`Estado de guía actualizado a ${STATUS_LABELS[pendingTransition.nextStatus]}`, 'success');
-      setPendingTransition(null);
-      setSelectedBatch(null);
-      refetch();
-    } catch (err: any) {
-      showToast(err.response?.data?.message || err.message || 'Error al actualizar estado', 'error');
-    }
+  const { data: response, isLoading } = useOrderList(filters);
+  const orders = response?.data || [];
+  const pagination = response?.pagination;
+
+  const clearFilters = () => {
+    setSearchText('');
+    setDateRange(undefined);
+    setPage(1);
   };
 
-  const filtered = (batches as ExchangeBatch[] || []).filter(
-    (b) =>
-      (b.batchNumber?.toLowerCase() || '').includes(search.toLowerCase()) ||
-      (b.trackingGuide?.toLowerCase() || '').includes(search.toLowerCase()) ||
-      (b.notes?.toLowerCase() || '').includes(search.toLowerCase())
-  );
+  const groupedOrders = React.useMemo(() => {
+    const groups: Record<string, Order[]> = {};
+    orders.forEach(order => {
+      const gId = order.receiptNumber || `temp-${order.id}`;
+      if (!groups[gId]) {
+        groups[gId] = [];
+      }
+      groups[gId].push(order);
+    });
+    return Object.values(groups);
+  }, [orders]);
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Guías de Cambio"
-        description="Historial y gestión de lotes enviados al proveedor"
-        icon={Truck}
+        title="Gestión de Cambios"
+        description="Historial y estado de los cambios agrupados por guía de envío"
+        icon={Replace}
         actions={
-          <Button
-            onClick={() => navigate('/exchanges/new')}
-            className="bg-monchito-purple hover:bg-monchito-purple/90 text-white font-black rounded-xl shadow-lg shadow-monchito-purple/20 transition-all flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" /> Nueva Guía
-          </Button>
+          <div className="flex gap-3">
+             <Button variant="outline" onClick={clearFilters} title="Limpiar todos los filtros" className="h-10 w-10 p-0 rounded-xl">
+                 <RotateCcw className="h-4 w-4 text-slate-500" />
+             </Button>
+             <Button
+               onClick={() => navigate('/exchanges/new')}
+               className="bg-monchito-purple hover:bg-monchito-purple/90 text-white font-black rounded-xl shadow-lg transition-all flex items-center gap-2 h-10 px-6 tracking-wide"
+             >
+               <Plus className="h-4 w-4" /> Nuevo Cambio
+             </Button>
+          </div>
         }
       />
 
       <div className="space-y-4">
         {/* Filter and Search */}
-        <div className="flex flex-col md:flex-row items-end gap-3 bg-slate-50/50 p-4 rounded-2xl border border-slate-100 mb-2">
-          <div className="w-full md:flex-1 min-w-0">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block ml-1">Búsqueda de Guía</Label>
+        <div className="flex flex-col md:flex-row items-end gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-2">
+          <div className="w-full md:flex-1 min-w-[280px]">
+            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 block ml-1">Buscar Cliente o Guía</Label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <Input
-                placeholder="N° guía, notas o responsable..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 h-10 border-slate-200 rounded-xl bg-white shadow-sm focus:ring-monchito-purple/20 text-sm w-full"
+                placeholder="Nombre, N° de guía, descripción..."
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                className="pl-9 h-11 border-slate-200 rounded-xl bg-slate-50 focus:ring-monchito-purple/20 text-sm w-full"
               />
             </div>
           </div>
-          <div className="w-full md:w-64">
+          <div className="w-full md:w-[320px]">
             <DateRangePicker 
               value={dateRange}
               onChange={setDateRange}
               showLabel={true}
               label="Rango de Fechas (Registro)"
-              className="rounded-xl border-slate-200 h-10 w-full"
+              className="w-full"
+              buttonClassName="h-11 rounded-xl bg-slate-50 border-slate-200"
+              labelClassName="!text-[10px] !font-black uppercase tracking-widest !text-slate-400 !mb-1.5 !ml-1"
             />
           </div>
-          {(dateRange?.from || dateRange?.to || search) && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={(e: React.MouseEvent) => {
-                e.preventDefault();
-                setDateRange(undefined);
-                setSearch('');
-              }} 
-              className="text-slate-400 hover:text-monchito-purple font-bold h-10 px-4 w-full md:w-auto mt-2 md:mt-0"
-            >
-              Limpiar
-            </Button>
-          )}
         </div>
 
         {/* Content Table */}
         {isLoading ? (
           <div className="py-20 flex flex-col items-center justify-center gap-3">
              <div className="h-10 w-10 border-4 border-monchito-purple border-t-transparent rounded-full animate-spin" />
-             <p className="text-sm font-bold text-slate-400 animate-pulse">Cargando guías...</p>
+             <p className="text-sm font-bold text-slate-400 animate-pulse">Cargando guías de cambios...</p>
           </div>
-        ) : filtered.length === 0 ? (
+        ) : groupedOrders.length === 0 ? (
           <div className="py-24 flex flex-col items-center justify-center gap-4 bg-white border border-slate-200 rounded-2xl text-slate-300 shadow-sm">
             <div className="p-4 bg-slate-50 rounded-full">
               <ClipboardList className="h-10 w-10" />
             </div>
             <div className="text-center">
               <p className="text-slate-500 font-bold">No se encontraron guías</p>
-              <p className="text-xs mt-1">Registra una nueva guía de envío para comenzar</p>
+              <p className="text-xs mt-1">Intenta con otros filtros o registra una nueva guía</p>
             </div>
           </div>
         ) : (
@@ -162,188 +191,269 @@ export function ExchangesPage() {
               <table className="text-sm border-collapse min-w-[1000px] w-full">
                 <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-sm">
                   <tr className="bg-monchito-purple/5 border-b border-monchito-purple/10 text-[10px] uppercase tracking-wider text-monchito-purple font-black whitespace-nowrap">
-                    <th className="px-4 py-4 text-center w-16">N°</th>
-                    <th className="px-6 py-4 text-left">Guía / Lote</th>
-                    <th className="px-6 py-4 text-left">Información / Notas</th>
-                    <th className="px-6 py-4 text-left">Estado</th>
-                    <th className="px-6 py-4 text-left">Pedidos</th>
-                    <th className="px-6 py-4 text-left">Fecha Registro</th>
-                    <th className="px-6 py-4 text-center w-10">Fact.</th>
+                    <th className="px-4 py-4 text-center w-12">N°</th>
+                    <th className="px-4 py-4 text-left">Cliente</th>
+                    <th className="px-4 py-4 text-center">N° de Guía</th>
+                    <th className="px-4 py-4 text-center">Fecha</th>
+                    <th className="px-4 py-4 text-center">Enviado</th>
+                    <th className="px-4 py-4 text-center">En Bodega</th>
+                    <th className="px-4 py-4 text-center">Recibido</th>
+                    <th className="px-4 py-4 text-center w-12">Detalles</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-monchito-purple/5">
-                  {filtered.map((batch, idx) => (
-                    <tr 
-                      key={batch.id} 
-                      onClick={() => setSelectedBatch(batch)}
-                      className="hover:bg-monchito-purple/5 transition-all cursor-pointer group border-b border-monchito-purple/5 last:border-0"
-                    >
-                      <td className="px-4 py-5 text-center">
-                        <span className="text-xs font-bold text-slate-400">{idx + 1}</span>
-                      </td>
-                      <td className="px-6 py-5">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-monchito-purple shadow-sm" />
-                          <span className="font-mono font-black text-monchito-purple text-sm tracking-tight">
-                            {batch.trackingGuide || batch.batchNumber}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-5 max-w-xs">
-                        <p className="text-sm font-semibold text-slate-700 truncate">{batch.notes || 'Sin notas adicionales'}</p>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis">Registrado por: {batch.createdByName || 'Sistema'}</p>
-                      </td>
-                      <td className="px-6 py-5">
-                        <Badge className={`${STATUS_COLORS[batch.status]} border font-black uppercase text-[9px] tracking-widest px-2.5 py-1 rounded-xl shadow-sm`}>
-                          {STATUS_LABELS[batch.status]}
-                        </Badge>
-                      </td>
-                      <td className="px-6 py-5">
-                        <div className="flex items-center gap-1.5 font-bold text-slate-600 text-xs bg-slate-100 w-fit px-2 py-1 rounded-lg">
-                          <Package className="h-3 w-3" />
-                          {batch.items?.length || 0}
-                        </div>
-                      </td>
-                      <td className="px-6 py-5">
-                        <span className="text-xs font-bold text-slate-500 whitespace-nowrap uppercase tracking-tighter">
-                          {fmtDate(batch.createdAt)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-5 text-center">
-                        <div className="flex justify-center">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 group-hover:text-monchito-purple hover:bg-monchito-purple/5 transition-colors">
-                            <ChevronRight className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {groupedOrders.map((group, idx) => {
+                    const first = group[0];
+                    const count = group.length;
+                    const enviado = group.filter(o => o.status === 'POR_RECIBIR').length;
+                    const enBodega = group.filter(o => o.status === 'RECIBIDO_EN_BODEGA').length;
+                    const entregado = group.filter(o => o.status === 'ENTREGADO').length;
+
+                    return (
+                      <tr 
+                        key={first.receiptNumber} 
+                        onClick={() => setSelectedGroup(group)}
+                        className="hover:bg-monchito-purple/5 transition-all cursor-pointer group-row border-b border-monchito-purple/5 last:border-0"
+                      >
+                        <td className="px-4 py-5 text-center border-r border-slate-50">
+                           <span className="text-xs font-bold text-slate-400">
+                               {skipOffset(page, limit) + idx + 1}
+                           </span>
+                        </td>
+                        <td className="px-4 py-5 border-r border-slate-50">
+                           <p className="font-bold text-slate-800 text-sm truncate max-w-[200px]">{first.clientName}</p>
+                        </td>
+                        <td className="px-4 py-5 border-r border-slate-50 text-center">
+                           <Badge variant="outline" className="text-[10px] font-black font-mono px-2 py-0.5 border-monchito-purple/20 text-monchito-purple uppercase tracking-widest bg-monchito-purple/5 rounded">
+                             {first.receiptNumber}
+                           </Badge>
+                        </td>
+                        <td className="px-4 py-5 border-r border-slate-50 text-center">
+                           <span className="text-xs font-semibold text-slate-600">
+                               {fmtDate(first.createdAt).split(' ')[0]}
+                           </span>
+                        </td>
+                        <td className="px-4 py-5 border-r border-slate-50 text-center">
+                           <span className={`text-xs font-bold ${enviado > 0 ? 'text-blue-600' : 'text-slate-300'}`}>
+                             {enviado} de {count}
+                           </span>
+                        </td>
+                        <td className="px-4 py-5 border-r border-slate-50 text-center">
+                           <span className={`text-xs font-bold ${enBodega > 0 ? 'text-amber-600' : 'text-slate-300'}`}>
+                             {enBodega} de {count}
+                           </span>
+                        </td>
+                        <td className="px-4 py-5 border-r border-slate-50 text-center">
+                           <span className={`text-xs font-bold ${entregado > 0 ? 'text-emerald-600' : 'text-slate-300'}`}>
+                             {entregado} de {count}
+                           </span>
+                        </td>
+                        <td className="px-4 py-5 text-center">
+                          <div className="flex justify-center">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-monchito-purple hover:bg-monchito-purple/10 transition-colors">
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
+            {pagination && pagination.pages > 1 && (
+                <div className="p-4 border-t border-slate-100 bg-slate-50/50">
+                    <Pagination
+                        currentPage={page}
+                        totalPages={pagination.pages}
+                        onPageChange={setPage}
+                        totalItems={pagination.total}
+                        itemsPerPage={limit}
+                    />
+                </div>
+            )}
           </div>
         )}
       </div>
+      
+      {/* Detail Modal Configured to look like Registro de Ventas */}
+      <Dialog open={!!selectedGroup} onOpenChange={(open) => !open && setSelectedGroup(null)}>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto flex flex-col rounded-3xl p-0 gap-0 border-none shadow-2xl">
+          {selectedGroup && (() => {
+               const firstOrder = selectedGroup[0];
+               const totalAmount = selectedGroup.reduce((acc, curr) => acc + Number(curr.total || 0), 0);
+               const isAllDelivered = selectedGroup.every(o => o.status === 'ENTREGADO');
+               const isAllBodega = selectedGroup.every(o => o.status === 'RECIBIDO_EN_BODEGA');
+               let globalStatus = 'Diversos';
+               if (isAllDelivered) globalStatus = 'ENTREGADO';
+               else if (isAllBodega) globalStatus = 'RECIBIDO_EN_BODEGA';
+               else if (selectedGroup.every(o => o.status === 'POR_RECIBIR')) globalStatus = 'POR_RECIBIR';
 
-      {/* Detail Modal (Dialog Horizontal Rectangular) */}
-      <Dialog open={!!selectedBatch} onOpenChange={(open) => !open && setSelectedBatch(null)}>
-        <DialogContent className="max-w-4xl w-full p-0 gap-0 rounded-3xl overflow-hidden border-none shadow-2xl">
-          {selectedBatch && (
+               return (
             <>
-              <DialogHeader className="p-6 bg-monchito-purple text-white relative">
-                <div className="flex items-center justify-between">
-                   <div className="space-y-1">
-                      <DialogTitle className="text-white text-xl font-black flex items-center gap-2 uppercase tracking-tight">
-                        <Truck className="h-6 w-6" /> Detalle de Guía
-                      </DialogTitle>
-                      <p className="text-white/70 text-sm font-medium">
-                        Consultando pedidos asociados a la guía {selectedBatch.trackingGuide || selectedBatch.batchNumber}
-                      </p>
-                   </div>
-                   <Badge className="bg-white/20 text-white border-white/30 font-black uppercase text-[10px] tracking-widest px-3 py-1 rounded-full">
-                     {selectedBatch.status}
-                   </Badge>
-                </div>
-              </DialogHeader>
-
-              <div className="p-6 bg-slate-50 overflow-y-auto max-h-[60vh]">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                  <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Pedidos</p>
-                    <p className="text-2xl font-black text-slate-800">{selectedBatch.items?.length || 0}</p>
-                  </div>
-                  <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Estado / Tiempo</p>
-                    <p className="text-[11px] font-black text-monchito-purple uppercase leading-tight mb-1">{STATUS_LABELS[selectedBatch.status]}</p>
-                    <p className="text-[9px] font-bold text-slate-400 whitespace-nowrap">
-                      {selectedBatch.status === 'ENVIADO' && `Enviado: ${fmtDate(selectedBatch.sentAt || selectedBatch.createdAt)}`}
-                      {selectedBatch.status === 'EN_BODEGA' && `Recibido: ${fmtDate(selectedBatch.receivedAt)}`}
-                      {selectedBatch.status === 'ENTREGADO' && `Entregado: ${fmtDate(selectedBatch.deliveredAt)}`}
-                    </p>
-                  </div>
-                  <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm md:col-span-2">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Notas del Lote</p>
-                    <p className="text-xs font-semibold text-slate-600 line-clamp-2">{selectedBatch.notes || 'Sin notas'}</p>
-                    <p className="text-[9px] text-slate-300 font-bold uppercase mt-1">LOTE ID: {selectedBatch.id.substring(0,8)}... | {selectedBatch.createdByName || 'Admin'}</p>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-1 mt-2">Listado de Pedidos</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {selectedBatch.items?.map((item) => (
-                      <div 
-                        key={item.id} 
-                        className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between hover:border-monchito-purple/30 transition-all group"
-                      >
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                             <span className="font-bold text-slate-800 text-sm">{item.clientName}</span>
-                              <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-slate-200 text-slate-500 font-bold uppercase tracking-tight">
-                                {item.receiptNumber}
-                              </Badge>
-                              <Badge className={`${item.financialProcessed ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-100 text-slate-400 border-slate-200'} text-[8px] h-4 font-black uppercase tracking-tighter`}>
-                                {item.financialProcessed ? 'Procesado' : 'Por Procesar'}
-                              </Badge>
-                           </div>
-                          <p className="text-[11px] font-bold text-slate-400 flex items-center gap-1 uppercase tracking-tighter">
-                             <Calendar className="h-3 w-3" /> {new Date(item.createdAt).toLocaleDateString()}
-                          </p>
+                <DialogHeader className="px-6 pt-6 pb-4 border-b border-slate-100 bg-white">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-[10px] font-black uppercase text-monchito-purple tracking-widest mb-1">Registro de Cambios</p>
+                            <DialogTitle className="text-2xl font-black text-slate-800 tracking-tight">Guía {firstOrder.receiptNumber}</DialogTitle>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm font-black text-slate-800">${Number(item.orderTotal).toFixed(2)}</p>
-                          <p className="text-[10px] font-bold text-green-600 uppercase tracking-tight">Abonado: ${Number(item.paidAmount).toFixed(2)}</p>
+                        <div className="flex flex-col items-end gap-1">
+                            <Badge className={`${STATUS_COLORS[globalStatus] || 'bg-slate-100 text-slate-700'} border font-black uppercase text-[10px] tracking-widest px-3 py-1 rounded-full shadow-sm`}>
+                                {STATUS_LABELS[globalStatus] || globalStatus}
+                            </Badge>
+                            <p className="text-[10px] text-muted-foreground font-medium italic mt-1">Canal: {firstOrder.salesChannel}</p>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {selectedBatch.items?.length === 0 && (
-                    <div className="py-20 text-center text-slate-400 bg-white rounded-3xl border border-dashed border-slate-200">
-                      No hay pedidos en esta guía
                     </div>
-                  )}
-                </div>
-              </div>
+                </DialogHeader>
 
-              <DialogFooter className="p-6 bg-white border-t border-slate-100 flex flex-col sm:flex-row gap-3">
-                 <Button 
-                   variant="outline" 
-                   className="flex-1 rounded-xl h-11 font-bold text-slate-500 hover:bg-slate-50 transition-all active:scale-95"
-                   onClick={() => setSelectedBatch(null)}
-                 >
-                   Cerrar Detalle
-                 </Button>
-                 {selectedBatch.status === 'ENVIADO' && (
-                   <Button 
-                     className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-black h-11 rounded-xl shadow-lg shadow-amber-500/20 transition-all active:scale-95 flex items-center justify-center gap-2"
-                     onClick={() => handleUpdateStatus(null, selectedBatch.id, 'EN_BODEGA')}
-                   >
-                     < Truck className="h-4 w-4" /> Marcar: En Bodega
-                   </Button>
-                 )}
-                 {selectedBatch.status === 'EN_BODEGA' && (
-                   <Button 
-                     className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-black h-11 rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-95 flex items-center justify-center gap-2"
-                     onClick={() => handleUpdateStatus(null, selectedBatch.id, 'ENTREGADO')}
-                   >
-                     < CheckCircle2 className="h-4 w-4" /> Marcar: Entregado
-                   </Button>
-                 )}
-              </DialogFooter>
+                <div className="px-6 py-6 bg-slate-50/50">
+                    {/* Global Summary Card Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                        <div className="bg-white border border-slate-100 p-4 rounded-xl shadow-sm">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Cliente</p>
+                            <p className="font-bold text-slate-800 truncate">{firstOrder.clientName}</p>
+                            <p className="text-[10px] text-slate-500 mt-1 uppercase">Items: <span className="font-black text-monchito-purple">{selectedGroup.length}</span></p>
+                        </div>
+
+                        <div className="bg-white border border-slate-100 p-4 rounded-xl shadow-sm">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Estado General</p>
+                            <div className="flex justify-between items-baseline mb-0.5">
+                                <span className="text-xs text-slate-500 font-semibold">Enviados:</span>
+                                <span className="font-black text-blue-600">{selectedGroup.filter(o => o.status === 'POR_RECIBIR').length}</span>
+                            </div>
+                            <div className="flex justify-between items-baseline mb-0.5">
+                                <span className="text-xs text-slate-500 font-semibold">En Bodega:</span>
+                                <span className="font-black text-amber-600">{selectedGroup.filter(o => o.status === 'RECIBIDO_EN_BODEGA').length}</span>
+                            </div>
+                            <div className="flex justify-between items-baseline">
+                                <span className="text-xs text-slate-500 font-semibold">Entregados:</span>
+                                <span className="font-black text-emerald-600">{selectedGroup.filter(o => o.status === 'ENTREGADO').length}</span>
+                            </div>
+                        </div>
+
+                        <div className="bg-white border border-slate-100 p-4 rounded-xl shadow-sm">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Registro</p>
+                            <p className="font-bold text-slate-700 text-sm leading-tight">{fmtDate(firstOrder.createdAt).split(' ')[0]}</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase mt-2">Recepción bod.</p>
+                            <p className="font-bold text-amber-700 text-[11px] leading-tight">{firstOrder.receptionDate ? fmtDate(firstOrder.receptionDate).split(' ')[0] : 'Pendiente'}</p>
+                        </div>
+
+                        <div className="bg-white border border-slate-100 p-4 rounded-xl shadow-sm">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Gestionado por</p>
+                            <div className="flex items-center gap-2 mt-1">
+                                <div className="w-8 h-8 rounded-full bg-monchito-purple/10 text-monchito-purple border border-monchito-purple/20 flex items-center justify-center text-xs font-black">
+                                    {(firstOrder.createdByName || 'U').charAt(0)}
+                                </div>
+                                <div>
+                                    <p className="font-bold text-slate-700 text-sm truncate">{firstOrder.createdByName || 'S/N'}</p>
+                                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Vendedor</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Associated Orders Table */}
+                    <div className="mb-4">
+                        <div className="flex justify-between items-end mb-3 border-b-2 border-monchito-purple/10 pb-2">
+                            <div className="flex items-center gap-2">
+                                <ListOrdered className="w-5 h-5 text-monchito-purple" />
+                                <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest">Desglose de la Guía</h4>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">Total del Recibo</p>
+                                <p className="text-2xl font-black text-monchito-purple leading-none">{formatCurrency(totalAmount)}</p>
+                            </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-slate-200 overflow-hidden bg-white shadow-xl">
+                            <div className="overflow-x-auto custom-scrollbar">
+                                <table className="w-full text-xs text-left border-collapse min-w-[1400px]">
+                                    <thead>
+                                        <tr className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase font-bold text-slate-500">
+                                            <th className="px-4 py-4 border-r border-slate-100 text-center" colSpan={4}>Información de lo que se Devuelve (Original)</th>
+                                            <th className="px-2 w-8 text-center text-slate-300 border-r border-slate-100">
+                                               <ArrowRightLeft className="w-3 h-3 mx-auto" />
+                                            </th>
+                                            <th className="px-4 py-4 border-r border-slate-100 text-center" colSpan={6}>Información del Reemplazo Solicitado (Cambio)</th>
+                                        </tr>
+                                        <tr className="bg-slate-50 border-b border-slate-200 text-[9px] uppercase font-black text-slate-400 bg-slate-100/30">
+                                            {/* Original */}
+                                            <th className="px-4 py-3 border-r border-slate-100 w-28 text-slate-500">N° Pedido</th>
+                                            <th className="px-4 py-3 border-r border-slate-100 text-center w-12 text-slate-500">Cant</th>
+                                            <th className="px-4 py-3 border-r border-slate-100 w-28 text-slate-500">Catálogo</th>
+                                            <th className="px-4 py-3 border-r border-slate-100 min-w-[200px] text-slate-500">Descripción del Cambio</th>
+                                            {/* Middle */}
+                                            <th className="px-2 text-center border-r border-slate-100 bg-slate-50"></th>
+                                            {/* New */}
+                                            <th className="px-4 py-3 border-r border-slate-100 w-28 text-monchito-purple/70">Pedido por</th>
+                                            <th className="px-4 py-3 border-r border-slate-100 text-center w-12 text-monchito-purple/70">Cant</th>
+                                            <th className="px-4 py-3 border-r border-slate-100 w-28 text-monchito-purple/70">Catálogo</th>
+                                            <th className="px-4 py-3 border-r border-slate-100 min-w-[200px] text-monchito-purple/70">Descripción</th>
+                                            <th className="px-4 py-3 border-r border-slate-100 w-28 text-center text-monchito-purple/70">Entrega</th>
+                                            <th className="px-4 py-3 text-center w-28 text-monchito-purple/70">Estado</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 bg-white">
+                                        {selectedGroup.map((child) => {
+                                            const parsed = parseExchangeNotesDetailed(child.notes || '');
+                                            return (
+                                            <tr key={child.id} className="hover:bg-slate-50 transition-colors">
+                                                {/* Original Info */}
+                                                <td className="px-4 py-5 font-black text-slate-400 border-r border-slate-100">{parsed.originalOrder}</td>
+                                                <td className="px-4 py-5 text-center font-black text-slate-500 border-r border-slate-100 bg-slate-50/50">{parsed.originalQty}</td>
+                                                <td className="px-4 py-5 font-bold text-slate-700 border-r border-slate-100">{parsed.originalBrand}</td>
+                                                <td className="px-4 py-5 font-medium text-slate-600 border-r border-slate-100">
+                                                    <p className="line-clamp-2" title={parsed.originalDesc}>{parsed.originalDesc}</p>
+                                                </td>
+                                                
+                                                <td className="px-2 py-5 text-center text-slate-300 border-r border-slate-100 bg-slate-50/50">
+                                                    <ArrowRightLeft className="w-4 h-4 mx-auto text-monchito-purple/30" />
+                                                </td>
+                                                
+                                                {/* Replacement Info */}
+                                                <td className="px-4 py-5 font-black text-slate-800 border-r border-slate-100">
+                                                   <Badge variant="outline" className="text-[9px] w-full justify-center px-1 py-0.5 uppercase font-black text-slate-500 border-slate-200">
+                                                     {child.salesChannel}
+                                                   </Badge>
+                                                </td>
+                                                <td className="px-4 py-5 text-center font-black text-monchito-purple border-r border-slate-100 bg-monchito-purple/5">{parsed.newQty}</td>
+                                                <td className="px-4 py-5 font-bold text-monchito-purple border-r border-slate-100">{parsed.newBrand}</td>
+                                                <td className="px-4 py-5 font-bold text-monchito-purple border-r border-slate-100">
+                                                    <p className="line-clamp-2" title={parsed.newDesc}>{parsed.newDesc}</p>
+                                                </td>
+                                                <td className="px-4 py-5 text-center font-bold text-slate-600 border-r border-slate-100 whitespace-nowrap">
+                                                    {child.possibleDeliveryDate ? fmtDate(child.possibleDeliveryDate).split(' ')[0] : 'N/A'}
+                                                </td>
+                                                
+                                                <td className="px-4 py-5 text-center">
+                                                    <Badge className={`${STATUS_COLORS[child.status] || 'bg-slate-100 text-slate-700'} border font-black uppercase text-[8px] tracking-widest px-2 py-1 rounded-xl shadow-sm`}>
+                                                        {STATUS_LABELS[child.status] || child.status}
+                                                    </Badge>
+                                                </td>
+                                            </tr>
+                                        )})}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <DialogFooter className="px-6 py-4 bg-white border-t border-slate-100 justify-end">
+                    <Button 
+                        variant="outline" 
+                        className="rounded-xl h-11 font-bold text-slate-600 hover:bg-slate-50 transition-all active:scale-95 px-8 shadow-sm"
+                        onClick={() => setSelectedGroup(null)}
+                    >
+                        Cerrar Detalles
+                    </Button>
+                </DialogFooter>
             </>
-          )}
+          );})()}
         </DialogContent>
       </Dialog>
-      <ConfirmDialog
-        open={confirmOpen}
-        onOpenChange={setConfirmOpen}
-        onConfirm={onConfirmTransition}
-        title="Confirmar Cambio de Estado"
-        description={`¿Estás seguro que deseas marcar esta guía como "${pendingTransition ? STATUS_LABELS[pendingTransition.nextStatus] : ''}"? Esta acción dejará constancia en el historial de tiempos.`}
-        confirmText="Confirmar Acción"
-        cancelText="Cancelar"
-      />
     </div>
   );
 }
+
+const skipOffset = (page: number, limit: number) => (page - 1) * limit;

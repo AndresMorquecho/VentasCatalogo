@@ -6,6 +6,7 @@ export interface OrderQueryParams {
     page?: number;
     limit?: number;
     status?: string;
+    type?: string;
     clientId?: string;
     brandId?: string;
     search?: string;
@@ -321,5 +322,13 @@ export const orderApi = {
             });
         }
         return httpClient.get<PaginatedResponse<any>>(`/orders/reception-batches${queryParams.toString() ? `?${queryParams.toString()}` : ''}`);
+    },
+
+    /**
+     * Dismantle order (Mode Hostile with block OR Normal)
+     * @endpoint POST /api/orders/:id/dismantle
+     */
+    dismantleOrder: async (orderId: string, payload: { mode: 'BLOCK' | 'NORMAL', reason: string }): Promise<void> => {
+        return httpClient.post<void>(`/orders/${orderId}/dismantle`, payload);
     }
 };

@@ -32,6 +32,7 @@ import { useCashClosurePreview } from "@/features/cash-closure/api/hooks"
 import { PaymentModal, type PaymentModalData } from "@/shared/ui/PaymentModal"
 import { usePDFPreview } from "@/shared/hooks/usePDFPreview"
 import { PDFPreviewModal } from "@/shared/ui/PDFPreviewModal"
+import { AlertTriangle, Lock } from "lucide-react"
 
 /* --- Validation Schema --- */
 const validationSchema = Yup.object({
@@ -246,6 +247,8 @@ export function OrderFormPage() {
     const [editModalOpen, setEditModalOpen] = useState(false)
     const [orderToEdit, setOrderToEdit] = useState<any>(null)
     const [editRowIndex, setEditRowIndex] = useState<number | null>(null)
+    const [blockModalOpen, setBlockModalOpen] = useState(false)
+    const [blockedClientInfo, setBlockedClientInfo] = useState<{ name: string, reason: string } | null>(null)
     
     // Estados para confirmación de eliminación
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
@@ -1261,7 +1264,17 @@ export function OrderFormPage() {
                                 <SearchableSelect
                                     options={clientOptions}
                                     value={formik.values.clientId}
-                                    onChange={(val) => formik.setFieldValue('clientId', val)}
+                                    onChange={(val) => {
+                                        const client = clients.find((c: any) => c.id === val);
+                                        if (client?.isBlocked) {
+                                            setBlockedClientInfo({ 
+                                                name: client.firstName, 
+                                                reason: client.blockedReason || 'El cliente ha sido bloqueado por desmantelamiento de pedidos previos o comportamiento irregular.' 
+                                            });
+                                            setBlockModalOpen(true);
+                                        }
+                                        formik.setFieldValue('clientId', val);
+                                    }}
                                     placeholder="Ingrese nombre o cédula..."
                                     disabled={isEditing}
                                     onKeyDownNavigation={e => handleHeaderKeyDown(e, 'clientId')}
@@ -1738,6 +1751,45 @@ export function OrderFormPage() {
                     onPrint={pdfPreview.printPDF}
                 />
             )}
+
+            {/* Blocked Client Modal */}
+            <Dialog open={blockModalOpen} onOpenChange={setBlockModalOpen}>
+                <DialogContent className="max-w-md rounded-2xl p-0 overflow-hidden border-none shadow-2xl">
+                    <div className="bg-red-50 p-6 flex items-center gap-4 border-b border-red-100">
+                        <div className="bg-red-100 p-3 rounded-xl">
+                            <Lock className="h-6 w-6 text-red-600" />
+                        </div>
+                        <div>
+                            <DialogTitle className="text-xl font-black text-red-900">Empresaria Bloqueada</DialogTitle>
+                        </div>
+                    </div>
+                    <div className="p-6 space-y-4 text-center">
+                        <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-2">
+                            <AlertTriangle className="h-8 w-8 text-red-600" />
+                        </div>
+                        <p className="text-sm font-bold text-slate-700">
+                            La empresaria <span className="text-red-600 font-black">{blockedClientInfo?.name}</span> se encuentra bloqueada en el sistema.
+                        </p>
+                        <div className="bg-slate-100 p-4 rounded-xl border border-slate-200">
+                            <p className="text-[10px] uppercase font-black text-slate-400 mb-1">Motivo del bloqueo:</p>
+                            <p className="text-xs font-medium text-slate-600 italic">
+                                "{blockedClientInfo?.reason}"
+                            </p>
+                        </div>
+                        <p className="text-[11px] text-slate-400 font-medium">
+                            Por favor regularice su situación antes de continuar con la toma de pedidos.
+                        </p>
+                    </div>
+                    <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+                        <Button 
+                            className="bg-slate-900 hover:bg-slate-800 text-white font-black rounded-lg text-xs"
+                            onClick={() => setBlockModalOpen(false)}
+                        >
+                            Entendido
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

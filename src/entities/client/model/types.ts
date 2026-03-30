@@ -36,6 +36,7 @@ export interface Client {
     lastOrderDate?: string;
     lastBrandName?: string;
     isBlocked: boolean;
+    blockedReason?: string | null;
     createdByName?: string;
 
     createdAt: string;

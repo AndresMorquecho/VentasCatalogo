@@ -1,10 +1,10 @@
 import { useState, useMemo, useRef, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { useOrderDeliveryList, useOrderDeliveryFilterData } from "../model/useOrderDelivery"
-import type { DeliveryFilters } from "../model/useOrderDelivery"
-import { OrderDeliveryTable } from "./OrderDeliveryTable"
-import { DeliverOrderModalNew } from "./DeliverOrderModalNew"
-import { PendingOrdersModal } from "./PendingOrdersModal"
+import { useOrderDeliveryList, useOrderDeliveryFilterData } from "@/features/order-delivery/model/useOrderDelivery"
+import type { DeliveryFilters } from "@/features/order-delivery/model/useOrderDelivery"
+import { OrderDeliveryTable } from "@/features/order-delivery/ui/OrderDeliveryTable"
+import { DeliverOrderModalNew } from "@/features/order-delivery/ui/DeliverOrderModalNew"
+import { PendingOrdersModal } from "@/features/order-delivery/ui/PendingOrdersModal"
 import type { Order } from "@/entities/order/model/types"
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
@@ -364,8 +364,8 @@ export function OrderDeliveryPage() {
     return (
         <div className="space-y-6">
             <PageHeader 
-                title="Entrega al Cliente" 
-                description="Gestión de entregas finales y cobro de saldos pendientes"
+                title="Entrega de Cambios" 
+                description="Gestión de entregas finales de cambios y cobro de saldos"
                 icon={Truck}
                 actions={
                     <div className="flex gap-3">
@@ -378,7 +378,7 @@ export function OrderDeliveryPage() {
                                 Por Ingresar
                             </Button>
                         )}
-                        <Button variant="outline" onClick={() => navigate('/orders/delivery/history')} className="gap-2 rounded-xl h-10 border-slate-200">
+                        <Button variant="outline" onClick={() => navigate('/exchanges/delivery/history')} className="gap-2 rounded-xl h-10 border-slate-200">
                             <History className="h-4 w-4" />
                             Historial
                         </Button>
@@ -468,7 +468,7 @@ export function OrderDeliveryPage() {
                     </div>
                     <div>
                         <p className="text-slate-900 font-bold text-sm leading-none mb-1">
-                            {selectedOrderIds.length > 0 ? `${selectedOrderIds.length} pedidos para entrega` : 'Selecciona pedidos para entregar'}
+                            {selectedOrderIds.length > 0 ? `${selectedOrderIds.length} cambios para entrega` : 'Selecciona cambios para entregar'}
                         </p>
                         {selectedOrders.length > 0 && (
                             <p className="text-slate-500 text-xs font-medium truncate max-w-[300px]">{selectedOrders[0]?.clientName}</p>
@@ -553,7 +553,6 @@ export function OrderDeliveryPage() {
                             onSelectionChange={handleSelectionChange}
                             creditDistributions={creditDistributions}
                             onUpdateCreditDistribution={handleUpdateCreditDistribution}
-                            onSuccess={refetch}
                         />
                          {pagination && pagination.pages > 1 && (
                             <div className="p-4 border-t border-slate-100">

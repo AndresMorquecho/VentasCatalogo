@@ -31,6 +31,8 @@ const LoyaltyPage = lazy(() => import('@/features/loyalty').then(m => ({ default
 const AdminUsersPage = lazy(() => import('@/features/users').then(m => ({ default: m.AdminUsersPage })));
 const ExchangesPage = lazy(() => import('@/features/exchanges/ui/ExchangesPage').then(m => ({ default: m.ExchangesPage })));
 const NewExchangePage = lazy(() => import('@/features/exchanges/ui/NewExchangePage').then(m => ({ default: m.NewExchangePage })));
+const ExchangesReceptionPage = lazy(() => import('@/features/exchanges/ui/ExchangesReceptionPage').then(m => ({ default: m.ReceptionBatchPage })));
+const ExchangesDeliveryPage = lazy(() => import('@/features/exchanges/ui/ExchangesDeliveryPage').then(m => ({ default: m.OrderDeliveryPage })));
 const LoginPage = lazy(() => import('@/features/auth/ui/LoginPage').then(m => ({ default: m.LoginPage })));
 const OrderFormPage = lazy(() => import('@/features/order-management/ui/OrderFormPage').then(m => ({ default: m.OrderFormPage })));
 
@@ -75,6 +77,10 @@ const protectedChildren = [
     { path: 'rewards', element: <ProtectedRoute permission="loyalty.view"><LoyaltyPage /></ProtectedRoute> },
     { path: 'exchanges', element: <ProtectedRoute permission="exchanges.view"><ExchangesPage /></ProtectedRoute> },
     { path: 'exchanges/new', element: <ProtectedRoute permission="exchanges.manage"><NewExchangePage /></ProtectedRoute> },
+    { path: 'exchanges/edit/:id', element: <ProtectedRoute permission="exchanges.manage"><NewExchangePage /></ProtectedRoute> },
+    { path: 'exchanges/group/:receiptNumber', element: <ProtectedRoute permission="exchanges.manage"><NewExchangePage /></ProtectedRoute> },
+    { path: 'exchanges/reception', element: <ProtectedRoute permission="exchanges.manage"><ExchangesReceptionPage /></ProtectedRoute> },
+    { path: 'exchanges/delivery', element: <ProtectedRoute permission="exchanges.manage"><ExchangesDeliveryPage /></ProtectedRoute> },
     {
         path: 'admin/users',
         element: <ProtectedRoute adminOnly><AdminUsersPage /></ProtectedRoute>,

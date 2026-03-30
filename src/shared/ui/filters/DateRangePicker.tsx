@@ -13,7 +13,9 @@ interface DateRangePickerProps extends Omit<React.ButtonHTMLAttributes<HTMLButto
   onChange: (range: DateRange | undefined) => void;
   label?: string;
   placeholder?: string;
-  className?: string;
+  className?: string; // Appiled to container
+  buttonClassName?: string;
+  labelClassName?: string;
   showLabel?: boolean;
 }
 
@@ -23,6 +25,8 @@ export function DateRangePicker({
   label = 'Rango de Fechas',
   placeholder = 'Seleccionar rango',
   className: containerClassName = '',
+  buttonClassName = '',
+  labelClassName = '',
   showLabel = true,
   ...props
 }: DateRangePickerProps) {
@@ -53,7 +57,7 @@ export function DateRangePicker({
   return (
     <div className={`relative ${containerClassName}`}>
       {showLabel && (
-        <Label className="text-xs font-medium mb-1.5 block text-slate-700">
+        <Label className={`text-xs font-medium mb-1.5 block text-slate-700 ${labelClassName}`}>
           {label}
         </Label>
       )}
@@ -67,10 +71,10 @@ export function DateRangePicker({
             if (props.onClick) props.onClick(e);
           }}
           className={`
-            w-full h-9 px-3 pr-20 text-xs text-left
+            w-full px-3 pr-20 text-xs text-left
             bg-white border border-slate-200 rounded-lg
             focus:outline-none focus:ring-2 focus:ring-monchito-purple/20
-            transition-all
+            transition-all ${buttonClassName || 'h-9'}
             ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-slate-300 cursor-pointer'}
             ${value?.from ? 'text-slate-900 font-medium' : 'text-slate-500'}
           `}

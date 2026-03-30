@@ -19,7 +19,7 @@ export interface TransactionFilters {
 export const useTransactions = (filters?: TransactionFilters) => {
     return useQuery({
         queryKey: ['transactions', filters],
-        queryFn: () => financialRecordApi.getAll(filters),
+        queryFn: () => financialRecordApi.getCards(filters),
         placeholderData: (prev) => prev
     });
 };

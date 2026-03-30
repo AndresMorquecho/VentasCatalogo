@@ -15,6 +15,16 @@ import { getPaidAmount } from "@/entities/order/model/model"
 import { Badge } from "@/shared/ui/badge"
 import { CreditActionSelectorModal } from "./CreditActionSelectorModal"
 import { CreditDistributionModal } from "./CreditDistributionModal"
+import { MoreHorizontal, Trash2, Info } from "lucide-react"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/shared/ui/dropdown-menu"
+import { DismantleModal } from "./DismantleModal"
 
 interface OrderDeliveryTableProps {
     orders: Order[]
@@ -22,6 +32,7 @@ interface OrderDeliveryTableProps {
     onSelectionChange: (ids: string[]) => void
     creditDistributions: Record<string, CreditDistribution>
     onUpdateCreditDistribution: (orderId: string, distribution: CreditDistribution) => void
+    onSuccess?: () => void
 }
 
 function formatDate(date: string) {
@@ -40,7 +51,8 @@ export function OrderDeliveryTable({
     selectedOrderIds, 
     onSelectionChange,
     creditDistributions,
-    onUpdateCreditDistribution
+    onUpdateCreditDistribution,
+    onSuccess
 }: OrderDeliveryTableProps) {
     const [creditModalState, setCreditModalState] = useState<{
         selectorOpen: boolean
@@ -53,6 +65,14 @@ export function OrderDeliveryTable({
         distributionOpen: false,
         creditAmount: 0,
         initialRemainingAction: undefined
+    })
+
+    const [dismantleModal, setDismantleModal] = useState<{
+        isOpen: boolean
+        order: Order | null
+    }>({
+        isOpen: false,
+        order: null
     })
 
     const calculateCreditAmount = (order: Order) => {
@@ -224,10 +244,12 @@ export function OrderDeliveryTable({
                             <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4">Valor Pedido</TableHead>
                             <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4">Abono</TableHead>
                             <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4">Fecha Posible Entrega</TableHead>
-                            <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4">Factura / NC</TableHead>
-                            <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4">Valor Factura</TableHead>
-                            <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4">Fecha Ingreso</TableHead>
-                            <TableHead className="sticky right-0 z-20 bg-slate-50 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4 shadow-[-5px_0_10px_-5px_rgba(0,0,0,0.1)] border-l border-slate-200">Saldo</TableHead>
+                            <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4 whitespace-nowrap">Factura / NC</TableHead>
+                            <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4 whitespace-nowrap">Valor Factura</TableHead>
+                            <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4 whitespace-nowrap">Fecha Ingreso</TableHead>
+                            <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4 whitespace-nowrap">Saldo</TableHead>
+                            <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4 whitespace-nowrap">Distribución</TableHead>
+                            <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4 whitespace-nowrap">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -295,7 +317,7 @@ export function OrderDeliveryTable({
                                             {order.realInvoiceTotal ? formatCurrency(order.realInvoiceTotal) : '-'}
                                         </TableCell>
                                         <TableCell className="text-center text-xs font-bold text-slate-700 whitespace-nowrap">{formatDate(order.receptionDate!)}</TableCell>
-                                        <TableCell className={`sticky right-0 z-10 bg-white text-center text-xs font-mono font-black p-4 whitespace-nowrap shadow-[-5px_0_10px_-5px_rgba(0,0,0,0.1)] border-l border-slate-200 group-hover:bg-slate-50 ${isSelected ? '!bg-[#fdfaff]' : ''}`}>
+                                        <TableCell className="text-center text-xs font-mono font-black p-4 whitespace-nowrap">
                                             <div className="flex items-center justify-center gap-2">
                                                 {creditAmount > 0 ? (
                                                     <span className="text-emerald-600 font-black animate-pulse-subtle">
@@ -307,27 +329,54 @@ export function OrderDeliveryTable({
                                                         {saldo > 0.01 && <AlertTriangle className="inline-block ml-1 h-3 w-3 text-red-500 animate-pulse" />}
                                                     </span>
                                                 )}
-                                                
-                                                {creditAmount > 0 && (
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleOpenCreditDistribution(order);
-                                                        }}
-                                                        className={`h-6 px-2 text-[10px] flex items-center gap-1 ${
-                                                            hasDistribution 
-                                                                ? 'bg-monchito-purple text-white border-monchito-purple hover:bg-monchito-purple/90 shadow-sm' 
-                                                                : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50 shadow-sm'
-                                                        }`}
-                                                        title={`Distribuir ${formatCurrency(creditAmount)} de saldo a favor`}
-                                                    >
-                                                        <DollarSign className="h-3 w-3" />
-                                                        {hasDistribution ? 'Ver/Editar' : 'Distribuir'}
-                                                    </Button>
-                                                )}
                                             </div>
+                                        </TableCell>
+
+                                        <TableCell className="text-center p-4">
+                                            {creditAmount > 0 ? (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleOpenCreditDistribution(order);
+                                                    }}
+                                                    className={`h-7 px-3 text-[10px] font-black uppercase tracking-tight flex items-center gap-2 transition-all ${
+                                                        hasDistribution 
+                                                            ? 'bg-monchito-purple text-white border-monchito-purple hover:bg-monchito-purple/90 shadow-md' 
+                                                            : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300'
+                                                    }`}
+                                                >
+                                                    <DollarSign className="h-3 w-3" />
+                                                    {hasDistribution ? 'Ver/Editar' : 'Distribuir'}
+                                                </Button>
+                                            ) : (
+                                                <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Al día</span>
+                                            )}
+                                        </TableCell>
+
+                                        <TableCell className="text-center p-4" onClick={(e) => e.stopPropagation()}>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" className="h-8 w-8 p-0 rounded-full hover:bg-slate-100">
+                                                        <MoreHorizontal className="h-4 w-4 text-slate-400" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end" className="w-[180px] rounded-xl border-slate-200 shadow-xl">
+                                                    <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-slate-400">Opciones de Pedido</DropdownMenuLabel>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem 
+                                                        className="text-amber-600 focus:text-amber-700 focus:bg-amber-50 cursor-pointer font-bold gap-2 py-2.5 rounded-lg"
+                                                        onClick={() => setDismantleModal({ isOpen: true, order })}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                        Desmantelar
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem className="text-slate-600 font-bold gap-2 py-2.5 rounded-lg">
+                                                        <Info className="h-4 w-4" /> Ver Detalles
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
                                         </TableCell>
                                     </TableRow>
                                 )
@@ -373,6 +422,18 @@ export function OrderDeliveryTable({
                     initialDistribution={creditDistributions[creditModalState.sourceOrder.id]}
                     initialRemainingAction={creditModalState.initialRemainingAction}
                     onBack={handleBackToSelector}
+                />
+            )}
+
+            {dismantleModal.order && (
+                <DismantleModal
+                    isOpen={dismantleModal.isOpen}
+                    onClose={() => setDismantleModal({ isOpen: false, order: null })}
+                    order={dismantleModal.order}
+                    onSuccess={() => {
+                        onSuccess?.();
+                        setDismantleModal({ isOpen: false, order: null });
+                    }}
                 />
             )}
         </div>

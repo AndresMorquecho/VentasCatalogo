@@ -1,16 +1,18 @@
 import { useState, useMemo, useEffect } from "react"
-import { useTransactionCards } from "@/entities/financial-record/model/queries"
+import { useTransactions } from "../model/hooks"
 import { TransactionsTable } from "./TransactionsTable"
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
 import { Search, Loader2, X, DollarSign } from "lucide-react"
 import { useDebounce } from "@/shared/lib/hooks"
+import { Pagination } from "@/shared/ui/pagination"
 import { PageHeader } from "@/shared/ui/PageHeader"
 import { DateRangePicker } from "@/shared/ui/filters"
 import { ClientSearchSelect } from "@/shared/ui/filters/ClientSearchSelect"
 import { UserSearchSelect } from "@/shared/ui/filters/UserSearchSelect"
 import type { DateRange } from "react-day-picker"
 import { useBankAccounts } from "@/entities/bank-account"
+
 const ACCOUNT_TYPE_OPTIONS = [
     { value: "", label: "Todas las cuentas" },
     { value: "CASH", label: "Efectivo" },
@@ -20,7 +22,7 @@ const ACCOUNT_TYPE_OPTIONS = [
 
 export function TransactionsPage() {
     const [page, setPage] = useState(1)
-    const [limit] = useState(12)
+    const [limit] = useState(50)
     const [searchTerm, setSearchTerm] = useState("")
     const debouncedSearch = useDebounce(searchTerm, 1000)
 
@@ -33,44 +35,55 @@ export function TransactionsPage() {
     const { data: bankAccountsData } = useBankAccounts()
     const bankAccounts = bankAccountsData?.data || []
 
+    // Filter bank accounts based on selected account type
+    const filteredBankAccounts = useMemo(() => {
+        if (!accountType) return bankAccounts
+        
+        const typeMap: Record<string, string> = {
+            'CASH': 'CASH',
+            'BANK_ACCOUNT': 'BANK',
+            'WALLET': 'VIRTUAL'
+        }
+        
+        const targetType = typeMap[accountType]
+        console.log('[TransactionsPage] Filtering accounts:', { accountType, targetType, totalAccounts: bankAccounts.length })
+        const filtered = bankAccounts.filter((acc: any) => {
+            console.log('[TransactionsPage] Account:', { name: acc.name, type: acc.type, matches: acc.type === targetType })
+            return acc.type === targetType
+        })
+        console.log('[TransactionsPage] Filtered accounts:', filtered.length)
+        return filtered
+    }, [accountType, bankAccounts])
+
     // Convert DateRange to strings for API
     const startDate = dateRange?.from ? dateRange.from.toISOString().split('T')[0] : ""
     const endDate = dateRange?.to ? dateRange.to.toISOString().split('T')[0] : ""
 
     const filters = useMemo(() => ({
+        referenceNumber: debouncedSearch.length >= 3 ? debouncedSearch : undefined,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
+        accountType: accountType || undefined,
+        bankAccountId: bankAccountId || undefined,
         clientId: clientId || undefined,
         createdBy: createdBy || undefined,
         page,
         limit
-    }), [startDate, endDate, clientId, createdBy, page, limit]);
+    }), [debouncedSearch, startDate, endDate, accountType, bankAccountId, clientId, createdBy, page, limit]);
 
     useEffect(() => {
         setPage(1)
     }, [debouncedSearch, startDate, endDate, accountType, bankAccountId, clientId, createdBy]);
 
-    const filteredBankAccounts = useMemo(() => {
-        if (!accountType) return bankAccounts;
-        if (accountType === 'BANK_ACCOUNT') {
-            return bankAccounts.filter((acc: any) => acc.type === 'BANK');
-        }
-        if (accountType === 'CASH') {
-            return bankAccounts.filter((acc: any) => acc.type === 'CASH');
-        }
-        return bankAccounts;
-    }, [bankAccounts, accountType]);
-
     // Reset sub-filters when account type changes
     useEffect(() => {
         setBankAccountId("")
         setClientId(undefined)
-        setCreatedBy(undefined)
     }, [accountType]);
 
-    const { data: response, isLoading } = useTransactionCards(filters)
-    const cardList = response?.data ?? []
-    const pagination = response?.pagination;
+    const { data: response, isLoading } = useTransactions(filters)
+    const cards = response?.data || []
+    const pagination = response?.pagination
 
     const hasFilters = !!(searchTerm || dateRange?.from || accountType || bankAccountId || clientId || createdBy)
 
@@ -80,13 +93,8 @@ export function TransactionsPage() {
         setAccountType("")
         setBankAccountId("")
         setClientId(undefined)
-        setCreatedBy("")
+        setCreatedBy(undefined)
     }
-
-    // Show bank account filter only when BANK_ACCOUNT or CASH is selected
-    const showBankAccountFilter = accountType === "BANK_ACCOUNT" || accountType === "CASH"
-    // Show client filter only when WALLET is selected
-    const showClientFilter = accountType === "WALLET"
 
     return (
         <div className="space-y-6">
@@ -96,7 +104,7 @@ export function TransactionsPage() {
                 icon={DollarSign}
             />
 
-            <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 space-y-4">
+            <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 mb-6 space-y-4">
                 {/* First row: Search, Date Range, and User */}
                 <div className="flex flex-wrap gap-4 items-end">
                     <div className="w-full md:w-64">
@@ -137,7 +145,7 @@ export function TransactionsPage() {
                     )}
                 </div>
 
-                {/* Second row: Account Type and conditional filters */}
+                {/* Second row: Account Type, Bank Account, and Client */}
                 <div className="flex flex-wrap gap-4 items-end">
                     <div className="w-full md:w-48">
                         <label className="text-xs font-medium text-muted-foreground mb-1 block">Tipo de Cuenta</label>
@@ -152,36 +160,30 @@ export function TransactionsPage() {
                         </select>
                     </div>
 
-                    {showBankAccountFilter && (
-                        <div className="w-full md:w-64">
-                            <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                                {accountType === 'CASH' ? 'Caja' : 'Cuenta Bancaria'}
-                            </label>
-                            <select
-                                value={bankAccountId}
-                                onChange={(e) => setBankAccountId(e.target.value)}
-                                className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                            >
-                                <option value="">Todas las cuentas</option>
-                                {filteredBankAccounts.map((acc: any) => (
-                                    <option key={acc.id} value={acc.id}>
-                                        {acc.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
+                    <div className="w-full md:w-64">
+                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Cuenta</label>
+                        <select
+                            value={bankAccountId}
+                            onChange={(e) => setBankAccountId(e.target.value)}
+                            className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                        >
+                            <option value="">Todas las cuentas</option>
+                            {filteredBankAccounts.map((acc: any) => (
+                                <option key={acc.id} value={acc.id}>
+                                    {acc.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
 
-                    {showClientFilter && (
-                        <div className="w-full md:w-64">
-                            <ClientSearchSelect
-                                value={clientId}
-                                onChange={setClientId}
-                                label="Cliente"
-                                placeholder="Buscar cliente..."
-                            />
-                        </div>
-                    )}
+                    <div className="w-full md:w-64">
+                        <ClientSearchSelect
+                            value={clientId}
+                            onChange={setClientId}
+                            label="Cliente"
+                            placeholder="Buscar cliente..."
+                        />
+                    </div>
                 </div>
             </div>
 
@@ -190,97 +192,19 @@ export function TransactionsPage() {
                     <Loader2 className="animate-spin h-8 w-8 text-slate-400" />
                 </div>
             ) : (
-                <div className="space-y-6">
-                    <TransactionsTable cards={cardList} isLoading={isLoading} />
-                    
-                    {/* Pagination Controls */}
-                    {pagination && pagination.pages > 1 && (
-                        <div className="flex items-center justify-between bg-white px-4 py-3 rounded-lg border border-slate-200 shadow-sm">
-                            <div className="flex flex-1 justify-between sm:hidden">
-                                <Button
-                                    variant="outline"
-                                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                                    disabled={page === 1}
-                                >
-                                    Anterior
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    onClick={() => setPage(p => Math.min(pagination.pages, p + 1))}
-                                    disabled={page === pagination.pages}
-                                >
-                                    Siguiente
-                                </Button>
-                            </div>
-                            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-                                <div>
-                                    <p className="text-sm text-slate-700 font-medium">
-                                        Mostrando <span className="font-bold">{(page - 1) * limit + 1}</span> a <span className="font-bold">{Math.min(page * limit, pagination.totalRecords)}</span> de{' '}
-                                        <span className="font-bold">{pagination.totalRecords}</span> resultados
-                                    </p>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => setPage(1)}
-                                        disabled={page === 1}
-                                        className="h-8 w-8 p-0"
-                                    >
-                                        «
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => setPage(p => Math.max(1, p - 1))}
-                                        disabled={page === 1}
-                                        className="text-xs font-semibold"
-                                    >
-                                        Anterior
-                                    </Button>
-                                    
-                                    <div className="flex items-center gap-1 mx-2">
-                                        <span className="text-xs font-bold text-slate-400 uppercase tracking-tighter">Página</span>
-                                        <Input 
-                                            type="number"
-                                            value={page}
-                                            onChange={(e) => {
-                                                const val = parseInt(e.target.value);
-                                                if (!isNaN(val) && val >= 1 && val <= pagination.pages) {
-                                                    setPage(val);
-                                                }
-                                            }}
-                                            className="w-12 h-8 text-center p-0 font-bold"
-                                        />
-                                        <span className="text-xs font-bold text-slate-400 uppercase tracking-tighter">de {pagination.pages}</span>
-                                    </div>
-
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => setPage(p => Math.min(pagination.pages, p + 1))}
-                                        disabled={page === pagination.pages}
-                                        className="text-xs font-semibold"
-                                    >
-                                        Siguiente
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => setPage(pagination.pages)}
-                                        disabled={page === pagination.pages}
-                                        className="h-8 w-8 p-0"
-                                    >
-                                        »
-                                    </Button>
-                                </div>
-                            </div>
-                        </div>
+                <>
+                    <TransactionsTable cards={cards} isLoading={false} />
+                    {pagination && (
+                        <Pagination
+                            currentPage={page}
+                            totalPages={pagination.pages}
+                            onPageChange={setPage}
+                            totalItems={pagination.totalCards}
+                            itemsPerPage={limit}
+                        />
                     )}
-                </div>
+                </>
             )}
-
-
         </div>
     )
 }
