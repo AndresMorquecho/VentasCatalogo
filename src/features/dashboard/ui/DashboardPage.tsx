@@ -260,16 +260,16 @@ export function DashboardPage() {
                                                             className="absolute w-4 h-4 -translate-x-1/2 rounded-full border-[3px] border-indigo-500 bg-white z-20 cursor-pointer transition-all duration-300 shadow-lg group-hover/point:scale-150 group-hover/point:bg-indigo-500"
                                                             style={{ bottom: `calc(${ht(item.created)}% - 8px)`, left: '50%' }}
                                                         >
-                                                            <div className="opacity-0 group-hover/point:opacity-100 absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-slate-900/95 backdrop-blur-sm text-white text-[10px] px-3 py-2 rounded-xl font-black whitespace-nowrap shadow-2xl transition-all scale-75 group-hover/point:scale-100">
-                                                                📦 Recibidos: {item.created}
+                                                            <div className="opacity-0 group-hover/point:opacity-100 absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-slate-900/95 backdrop-blur-sm text-white text-[10px] px-3 py-2 rounded-xl font-black whitespace-nowrap shadow-2xl transition-all scale-75 group-hover/point:scale-100 flex items-center gap-2">
+                                                                <Package className="h-3 w-3 text-indigo-400" /> Recibidos: {item.created}
                                                             </div>
                                                         </div>
                                                         <div
                                                             className="absolute w-4 h-4 -translate-x-1/2 rounded-full border-[3px] border-emerald-500 bg-white z-20 cursor-pointer transition-all duration-300 shadow-lg group-hover/point:scale-150 group-hover/point:bg-emerald-500"
                                                             style={{ bottom: `calc(${ht(item.delivered)}% - 8px)`, left: '50%' }}
                                                         >
-                                                            <div className="opacity-0 group-hover/point:opacity-100 absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-slate-900/95 backdrop-blur-sm text-white text-[10px] px-3 py-2 rounded-xl font-black whitespace-nowrap shadow-2xl transition-all scale-75 group-hover/point:scale-100 translate-y-[-24px]">
-                                                                ✅ Entregas: {item.delivered}
+                                                            <div className="opacity-0 group-hover/point:opacity-100 absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-slate-900/95 backdrop-blur-sm text-white text-[10px] px-3 py-2 rounded-xl font-black whitespace-nowrap shadow-2xl transition-all scale-75 group-hover/point:scale-100 translate-y-[-24px] flex items-center gap-2">
+                                                                <CheckCircle2 className="h-3 w-3 text-emerald-400" /> Entregas: {item.delivered}
                                                             </div>
                                                         </div>
                                                     </div>
