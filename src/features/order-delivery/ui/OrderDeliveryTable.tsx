@@ -337,7 +337,9 @@ export function OrderDeliveryTable({
                                         <TableCell className="px-6 py-4 text-center">
                                             <div className="flex flex-col items-center justify-center gap-0.5 text-center">
                                                 <span className="text-sm font-bold text-slate-800 leading-tight whitespace-nowrap">{order.clientName}</span>
-                                                <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">{order.clientId}</span>
+                                                {order.clientIdentification && (
+                                                    <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">{order.clientIdentification}</span>
+                                                )}
                                             </div>
                                         </TableCell>
                                         <TableCell className="px-6 py-4 text-center text-xs font-mono text-slate-600 whitespace-nowrap">{order.orderNumber || '-'}</TableCell>

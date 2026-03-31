@@ -3,7 +3,7 @@ import { useTransactions } from "../model/hooks"
 import { TransactionsTable } from "./TransactionsTable"
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
-import { Search, Loader2, X, DollarSign } from "lucide-react"
+import { Search, Loader2, RotateCcw, DollarSign, Filter, Activity } from "lucide-react"
 import { useDebounce } from "@/shared/lib/hooks"
 import { Pagination } from "@/shared/ui/pagination"
 import { PageHeader } from "@/shared/ui/PageHeader"
@@ -14,17 +14,17 @@ import type { DateRange } from "react-day-picker"
 import { useBankAccounts } from "@/entities/bank-account"
 
 const ACCOUNT_TYPE_OPTIONS = [
-    { value: "", label: "Todas las cuentas" },
-    { value: "CASH", label: "Efectivo" },
-    { value: "BANK_ACCOUNT", label: "Banco" },
-    { value: "WALLET", label: "Billetera Virtual" },
+    { value: "", label: "Todas las Cuentas" },
+    { value: "CASH", label: "Caja Efectivo" },
+    { value: "BANK_ACCOUNT", label: "Cuentas Bancarias" },
+    { value: "WALLET", label: "Saldos a Favor (Wallet)" },
 ]
 
 export function TransactionsPage() {
     const [page, setPage] = useState(1)
     const [limit] = useState(50)
     const [searchTerm, setSearchTerm] = useState("")
-    const debouncedSearch = useDebounce(searchTerm, 1000)
+    const debouncedSearch = useDebounce(searchTerm, 500)
 
     const [dateRange, setDateRange] = useState<DateRange | undefined>()
     const [accountType, setAccountType] = useState("")
@@ -35,27 +35,13 @@ export function TransactionsPage() {
     const { data: bankAccountsData } = useBankAccounts()
     const bankAccounts = bankAccountsData?.data || []
 
-    // Filter bank accounts based on selected account type
     const filteredBankAccounts = useMemo(() => {
         if (!accountType) return bankAccounts
-        
-        const typeMap: Record<string, string> = {
-            'CASH': 'CASH',
-            'BANK_ACCOUNT': 'BANK',
-            'WALLET': 'VIRTUAL'
-        }
-        
+        const typeMap: Record<string, string> = { 'CASH': 'CASH', 'BANK_ACCOUNT': 'BANK', 'WALLET': 'VIRTUAL' }
         const targetType = typeMap[accountType]
-        console.log('[TransactionsPage] Filtering accounts:', { accountType, targetType, totalAccounts: bankAccounts.length })
-        const filtered = bankAccounts.filter((acc: any) => {
-            console.log('[TransactionsPage] Account:', { name: acc.name, type: acc.type, matches: acc.type === targetType })
-            return acc.type === targetType
-        })
-        console.log('[TransactionsPage] Filtered accounts:', filtered.length)
-        return filtered
+        return bankAccounts.filter((acc: any) => acc.type === targetType)
     }, [accountType, bankAccounts])
 
-    // Convert DateRange to strings for API
     const startDate = dateRange?.from ? dateRange.from.toISOString().split('T')[0] : ""
     const endDate = dateRange?.to ? dateRange.to.toISOString().split('T')[0] : ""
 
@@ -75,17 +61,13 @@ export function TransactionsPage() {
         setPage(1)
     }, [debouncedSearch, startDate, endDate, accountType, bankAccountId, clientId, createdBy]);
 
-    // Reset sub-filters when account type changes
     useEffect(() => {
         setBankAccountId("")
-        setClientId(undefined)
     }, [accountType]);
 
     const { data: response, isLoading } = useTransactions(filters)
     const cards = response?.data || []
     const pagination = response?.pagination
-
-    const hasFilters = !!(searchTerm || dateRange?.from || accountType || bankAccountId || clientId || createdBy)
 
     const handleClear = () => {
         setSearchTerm("")
@@ -97,114 +79,127 @@ export function TransactionsPage() {
     }
 
     return (
-        <div className="space-y-6">
-            <PageHeader
-                title="Transacciones Financieras"
-                description="Registro centralizado de depósitos, transferencias y cheques"
-                icon={DollarSign}
-            />
+        <div className="min-h-screen bg-[#fcfaff]">
+            <div className="px-4 lg:px-12 pt-12 space-y-12">
+                <PageHeader
+                    title="Control de Movimientos"
+                    description="Trazabilidad total de fondos, arqueo de caja y auditoría transaccional."
+                    icon={DollarSign}
+                    actions={
+                        <Button 
+                            variant="outline" 
+                            onClick={handleClear} 
+                            className="h-10 px-4 gap-2 rounded-xl border-slate-200 text-slate-500 hover:text-monchito-purple transition-all duration-300"
+                        >
+                            <RotateCcw className="h-4 w-4" />
+                            <span className="text-xs font-black uppercase tracking-widest">Reiniciar Filtros</span>
+                        </Button>
+                    }
+                />
 
-            <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 mb-6 space-y-4">
-                {/* First row: Search, Date Range, and User */}
-                <div className="flex flex-wrap gap-4 items-end">
-                    <div className="w-full md:w-64">
-                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Buscar Comprobante</label>
-                        <div className="relative">
-                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="N° Comprobante..."
-                                className="pl-9"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
+                {/* Glassmorphic Filter Panel */}
+                <div className="bg-white/80 backdrop-blur-md p-8 rounded-3xl border border-slate-100 shadow-[0_15px_50px_rgba(0,0,0,0.03)] focus-within:shadow-[0_20px_60px_rgba(0,0,0,0.05)] transition-all duration-500">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-6">
+                        <div className="space-y-2">
+                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 flex items-center gap-2">
+                                <Search className="h-3 w-3" /> Buscar Comprobante
+                             </label>
+                             <div className="relative">
+                                <Input
+                                    placeholder="N° de referencia o recibo..."
+                                    className="h-11 bg-white border-slate-200 rounded-xl px-4 font-bold text-slate-700 shadow-sm transition-all focus:ring-monchito-purple/20 focus:border-monchito-purple"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
+                             </div>
+                        </div>
+
+                        <div className="space-y-2">
+                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 flex items-center gap-2">
+                                <Filter className="h-3 w-3" /> Tipo de Cuenta
+                             </label>
+                             <select
+                                value={accountType}
+                                onChange={(e) => setAccountType(e.target.value)}
+                                className="w-full h-11 bg-white border-slate-200 rounded-xl px-4 font-bold text-slate-700 shadow-sm transition-all focus:ring-monchito-purple/20 focus:border-monchito-purple outline-none appearance-none cursor-pointer"
+                            >
+                                {ACCOUNT_TYPE_OPTIONS.map(opt => (
+                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="space-y-2">
+                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 flex items-center gap-2">
+                                <Activity className="h-3 w-3" /> Depósito / Caja
+                             </label>
+                             <select
+                                value={bankAccountId}
+                                onChange={(e) => setBankAccountId(e.target.value)}
+                                className="w-full h-11 bg-white border-slate-200 rounded-xl px-4 font-bold text-slate-700 shadow-sm transition-all focus:ring-monchito-purple/20 focus:border-monchito-purple outline-none appearance-none cursor-pointer"
+                            >
+                                <option value="">Todas las cuentas</option>
+                                {filteredBankAccounts.map((acc: any) => (
+                                    <option key={acc.id} value={acc.id}>{acc.name}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="space-y-2">
+                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Periodo</label>
+                             <DateRangePicker value={dateRange} onChange={setDateRange} label="" />
+                        </div>
+
+                        <div className="lg:col-span-2 space-y-2">
+                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Filtrar por Empresaria</label>
+                             <ClientSearchSelect value={clientId} onChange={setClientId} label="" />
+                        </div>
+
+                        <div className="lg:col-span-2 space-y-2">
+                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Usuario del Sistema</label>
+                             <UserSearchSelect value={createdBy} onChange={setCreatedBy} label="" />
                         </div>
                     </div>
-
-                    <div className="w-full md:w-auto min-w-[280px]">
-                        <DateRangePicker
-                            value={dateRange}
-                            onChange={setDateRange}
-                            label="Rango de Fechas"
-                            placeholder="Seleccionar periodo"
-                        />
-                    </div>
-
-                    <div className="w-full md:w-48">
-                        <UserSearchSelect
-                            value={createdBy}
-                            onChange={setCreatedBy}
-                            label="Usuario"
-                            placeholder="Buscar usuario..."
-                        />
-                    </div>
-
-                    {hasFilters && (
-                        <Button variant="ghost" size="icon" onClick={handleClear} className="mb-0.5" title="Limpiar filtros">
-                            <X className="h-4 w-4" />
-                        </Button>
-                    )}
                 </div>
 
-                {/* Second row: Account Type, Bank Account, and Client */}
-                <div className="flex flex-wrap gap-4 items-end">
-                    <div className="w-full md:w-48">
-                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Tipo de Cuenta</label>
-                        <select
-                            value={accountType}
-                            onChange={(e) => setAccountType(e.target.value)}
-                            className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                        >
-                            {ACCOUNT_TYPE_OPTIONS.map(opt => (
-                                <option key={opt.value} value={opt.value}>{opt.label}</option>
-                            ))}
-                        </select>
-                    </div>
+                {/* Table Section */}
+                <div className="space-y-6 pb-12">
+                     <div className="flex items-center justify-between">
+                         <div className="flex items-center gap-2">
+                            <Activity className="h-4 w-4 text-monchito-purple" />
+                            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Libro Diario Transaccional</h2>
+                        </div>
+                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-full border border-slate-100">
+                             Resultados: {pagination?.totalCards || 0}
+                        </div>
+                     </div>
 
-                    <div className="w-full md:w-64">
-                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Cuenta</label>
-                        <select
-                            value={bankAccountId}
-                            onChange={(e) => setBankAccountId(e.target.value)}
-                            className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                        >
-                            <option value="">Todas las cuentas</option>
-                            {filteredBankAccounts.map((acc: any) => (
-                                <option key={acc.id} value={acc.id}>
-                                    {acc.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="w-full md:w-64">
-                        <ClientSearchSelect
-                            value={clientId}
-                            onChange={setClientId}
-                            label="Cliente"
-                            placeholder="Buscar cliente..."
-                        />
+                    <div className="bg-white/80 backdrop-blur-md rounded-3xl shadow-[0_15px_50px_rgba(0,0,0,0.03)] border border-slate-100 overflow-hidden min-h-[400px]">
+                        {isLoading ? (
+                            <div className="flex flex-col items-center justify-center p-32 gap-4 text-slate-400">
+                                <Loader2 className="animate-spin h-10 w-10 text-monchito-purple" />
+                                <span className="font-black text-xs uppercase tracking-widest">Sincronizando movimientos...</span>
+                            </div>
+                        ) : (
+                            <>
+                                <TransactionsTable cards={cards} isLoading={false} />
+                                {pagination && pagination.pages > 1 && (
+                                    <div className="p-6 border-t border-slate-50 bg-slate-50/10">
+                                        <Pagination
+                                            currentPage={page}
+                                            totalPages={pagination.pages}
+                                            onPageChange={setPage}
+                                            totalItems={pagination.totalCards}
+                                            itemsPerPage={limit}
+                                        />
+                                    </div>
+                                )}
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
-
-            {isLoading ? (
-                <div className="flex justify-center py-12">
-                    <Loader2 className="animate-spin h-8 w-8 text-slate-400" />
-                </div>
-            ) : (
-                <>
-                    <TransactionsTable cards={cards} isLoading={false} />
-                    {pagination && (
-                        <Pagination
-                            currentPage={page}
-                            totalPages={pagination.pages}
-                            onPageChange={setPage}
-                            totalItems={pagination.totalCards}
-                            itemsPerPage={limit}
-                        />
-                    )}
-                </>
-            )}
         </div>
     )
 }
+

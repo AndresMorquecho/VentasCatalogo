@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { usePaymentSearch, usePaymentOperations } from "../model/hooks";
-import { getPaidAmount } from "@/entities/order/model/model";
+import { getPaidAmount, getEffectiveTotal } from "@/entities/order/model/model";
 import { Input } from "@/shared/ui/input";
 import { Search, DollarSign, Wallet, FileText, Printer, Filter } from "lucide-react";
 import { Button } from "@/shared/ui/button";
@@ -368,8 +368,10 @@ export function PaymentsPage() {
                                         reference: p.reference,
                                         receiptNumber: p.receiptNumber,
                                         description: p.description,
+                                        createdBy: p.createdByName || p.createdBy,
                                         financialRecords: p.financialRecords || []
                                     }))}
+                                        orderTotal={getEffectiveTotal(selectedOrder)}
                                         onDelete={handleDeletePayment}
                                     />
                                 </div>
