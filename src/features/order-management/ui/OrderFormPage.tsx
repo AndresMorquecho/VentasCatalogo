@@ -34,6 +34,9 @@ import { usePDFPreview } from "@/shared/hooks/usePDFPreview"
 import { PDFPreviewModal } from "@/shared/ui/PDFPreviewModal"
 import { AlertTriangle, Lock } from "lucide-react"
 
+const DRAFT_KEY = 'ventascatalogo_new_order_draft';
+const ITEM_DRAFT_KEY = 'ventascatalogo_current_item_draft';
+
 /* --- Validation Schema --- */
 const validationSchema = Yup.object({
     clientId: Yup.string().required("El cliente es requerido"),
@@ -272,17 +275,37 @@ export function OrderFormPage() {
         }
     })
 
+    const getInitialCurrentItem = () => {
+        if (!isEditing) {
+            const savedItem = localStorage.getItem(ITEM_DRAFT_KEY);
+            if (savedItem) {
+                try {
+                    return JSON.parse(savedItem);
+                } catch(e) {
+                    console.error("Error parsing current item draft", e);
+                }
+            }
+        }
+        return {
+            brandId: "",
+            brandName: "",
+            quantity: 1,
+            total: 0,
+            type: "NORMAL" as OrderType,
+            possibleDeliveryDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            salesChannel: "OFICINA" as SalesChannel,
+            orderNumber: "",
+        };
+    };
+
     // State for the item being added
-    const [currentItem, setCurrentItem] = useState({
-        brandId: "",
-        brandName: "",
-        quantity: 1,
-        total: 0,
-        type: "NORMAL" as OrderType,
-        possibleDeliveryDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        salesChannel: "OFICINA" as SalesChannel,
-        orderNumber: "",
-    })
+    const [currentItem, setCurrentItem] = useState(getInitialCurrentItem())
+
+    useEffect(() => {
+        if (!isEditing) {
+            localStorage.setItem(ITEM_DRAFT_KEY, JSON.stringify(currentItem));
+        }
+    }, [currentItem, isEditing]);
 
 
 
@@ -374,7 +397,12 @@ export function OrderFormPage() {
             await Promise.all([
                 queryClient.invalidateQueries({ queryKey: ['orders'] }),
                 queryClient.invalidateQueries({ queryKey: ['financial-records'] }),
-                queryClient.invalidateQueries({ queryKey: ['transactions'] })
+                queryClient.invalidateQueries({ queryKey: ['transactions'] }),
+                // Invalidate client wallet balance so it updates without refresh
+                queryClient.invalidateQueries({ queryKey: ['client-credit', formik.values.clientId] }),
+                queryClient.invalidateQueries({ queryKey: ['client-credits-summary'] }),
+                // This ensures the client list (which might show balances) is also updated
+                queryClient.invalidateQueries({ queryKey: ['clients'] })
             ]);
 
             // Map orderNumbers from original form values back to the created orders
@@ -406,6 +434,10 @@ export function OrderFormPage() {
                 
                 notifySuccess(`Se han creado ${createdOrders.length} pedidos exitosamente.`);
                 
+                if (!isEditing) {
+                    localStorage.removeItem(DRAFT_KEY);
+                    localStorage.removeItem(ITEM_DRAFT_KEY);
+                }
                 // NO navegar automáticamente - dejar que el usuario vea el PDF primero
                 // El usuario puede cerrar el modal y luego navegar manualmente
             } catch (pdfError) {
@@ -413,6 +445,10 @@ export function OrderFormPage() {
                 notifyError(pdfError, "Error al preparar el recibo PDF.")
                 // Si falla el PDF, navegar de todos modos
                 notifySuccess(`Se han creado ${createdOrders.length} pedidos exitosamente.`);
+                if (!isEditing) {
+                    localStorage.removeItem(DRAFT_KEY);
+                    localStorage.removeItem(ITEM_DRAFT_KEY);
+                }
                 navigate('/orders');
             }
         } catch (error: any) {
@@ -423,8 +459,23 @@ export function OrderFormPage() {
         }
     }
 
-    const formik = useFormik({
-        initialValues: {
+    const getInitialValues = () => {
+        if (!isEditing) {
+            const savedDraft = localStorage.getItem(DRAFT_KEY);
+            if (savedDraft) {
+                try {
+                    const parsed = JSON.parse(savedDraft);
+                    return {
+                        ...parsed,
+                        createdAt: new Date().toISOString().split('T')[0],
+                        transactionDate: new Date().toISOString().split('T')[0]
+                    };
+                } catch(e) {
+                    console.error("Error parsing order draft", e);
+                }
+            }
+        }
+        return {
             clientId: "",
             receiptNumber: "",
             salesChannel: "OFICINA" as SalesChannel,
@@ -435,7 +486,11 @@ export function OrderFormPage() {
             transactionDate: new Date().toISOString().split('T')[0],
             paymentMethod: "EFECTIVO",
             notes: "",
-        },
+        };
+    };
+
+    const formik = useFormik({
+        initialValues: getInitialValues(),
         validationSchema,
         enableReinitialize: true,
         onSubmit: async () => {
@@ -450,6 +505,12 @@ export function OrderFormPage() {
             notifyError(null, "Hay campos inválidos en el formulario. Por favor revisa los datos marcados.")
         }
     }, [formik.submitCount, formik.isValid])
+
+    useEffect(() => {
+        if (!isEditing) {
+            localStorage.setItem(DRAFT_KEY, JSON.stringify(formik.values));
+        }
+    }, [formik.values, isEditing]);
 
     const generateNextReceiptNumber = async () => {
         try {

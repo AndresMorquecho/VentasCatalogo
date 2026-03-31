@@ -187,6 +187,39 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({ order, child
     const totalAbo = allOrders.reduce((sum, o) => sum + Number(getPaidAmount(o)), 0);
     const totalSal = totalVal - totalAbo;
 
+    // Obtener desglose de métodos de pago — siempre iterar sobre los pagos reales
+    const paymentBreakdown: { method: string, amount: number }[] = [];
+    const methodsMap = new Map<string, number>();
+
+    allOrders.forEach(o => {
+        o.payments?.forEach((p: any) => {
+            if (p.financialRecords && p.financialRecords.length > 0) {
+                // Usar los registros financieros que tienen el método exacto (EFECTIVO, BILLETERA_VIRTUAL, etc.)
+                p.financialRecords.forEach((fr: any) => {
+                    const m = fr.paymentMethod || p.method || 'OTROS';
+                    // Normalizar CREDITO_CLIENTE → BILLETERA_VIRTUAL para consistencia en el recibo
+                    const normalized = (m === 'CREDITO_CLIENTE' || m === 'SALDO_A_FAVOR') ? 'BILLETERA_VIRTUAL' : m;
+                    if (normalized !== 'SPLIT_PAYMENT') {
+                        methodsMap.set(normalized, (methodsMap.get(normalized) || 0) + Number(fr.amount));
+                    }
+                });
+            } else if (p.method && p.method !== 'SPLIT_PAYMENT') {
+                // Fallback: usar el método directo del pago
+                const normalized = (p.method === 'CREDITO_CLIENTE' || p.method === 'SALDO_A_FAVOR') ? 'BILLETERA_VIRTUAL' : p.method;
+                methodsMap.set(normalized, (methodsMap.get(normalized) || 0) + Number(p.amount));
+            }
+        });
+    });
+
+    if (methodsMap.size > 0) {
+        methodsMap.forEach((amount, method) => {
+            paymentBreakdown.push({ method, amount });
+        });
+    } else {
+        // Fallback absoluto si no hay pagos vinculados
+        paymentBreakdown.push({ method: order.paymentMethod, amount: totalAbo });
+    }
+
     const formattedDate = new Date().toLocaleString('es-EC', { 
         day: '2-digit', 
         month: '2-digit', 
@@ -282,6 +315,10 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({ order, child
                     <View style={{ flexDirection: 'row', fontSize: 10, fontWeight: 'bold', backgroundColor: '#fcfcfc', borderBottom: '1pt solid black' }}>
                         <View style={[styles.tableCell, { width: '47%', textAlign: 'left', paddingLeft: 6, alignItems: 'flex-start', borderRight: '1pt solid black' }]}>
                              <Text>Forma de pago: {friendlyPayment}</Text>
+                             {/* Se eliminó el desglose de aquí para moverlo arriba de observaciones */}
+                             {(order.paymentMethod === 'TRANSFERENCIA' || order.paymentMethod === 'DEPOSITO') && bank && (
+                                <Text style={{ fontSize: 8, marginTop: 1 }}>Banco: {bank.name} - {bank.accountNumber || ''}</Text>
+                             )}
                              {(order.paymentMethod === 'TRANSFERENCIA' || order.paymentMethod === 'DEPOSITO') && bank && (
                                 <Text style={{ fontSize: 8, marginTop: 1 }}>Banco: {bank.name} - {bank.accountNumber || ''}</Text>
                              )}
@@ -299,6 +336,19 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({ order, child
                         <Text style={{ width: '47%' }}>No de documento: {order.receiptNumber || ""}</Text>
                         <Text>Teléfono de contacto: {client?.phone1 || (order as any).clientPhone || ""}</Text>
                     </View>
+                    
+                    {/* DESGLOSE DE ABONOS */}
+                    {paymentBreakdown.length > 0 && (
+                        <View style={{ marginTop: 5, marginBottom: 10 }}>
+                            <Text style={{ fontSize: 10, fontWeight: 'bold', borderBottom: '0.5pt solid #eee', paddingBottom: 2, marginBottom: 3 }}>Desglose de Pago:</Text>
+                            {paymentBreakdown.map((pb, idx) => (
+                                <Text key={idx} style={{ fontSize: 10, marginLeft: 5, marginBottom: 2 }}>
+                                    • Abono {paymentLabels[pb.method] || pb.method}: <Text style={{ fontWeight: 'bold' }}>${pb.amount.toFixed(2)}</Text>
+                                </Text>
+                            ))}
+                        </View>
+                    )}
+
                     <View style={styles.observations}>
                         <Text style={{ fontWeight: 'bold' }}>Observaciones:</Text>
                         <Text style={{ marginTop: 2, fontSize: 9 }}>{order.notes || ""}</Text>

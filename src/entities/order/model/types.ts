@@ -1,7 +1,7 @@
 export type OrderStatus = 'POR_RECIBIR' | 'RECIBIDO_EN_BODEGA' | 'ENTREGADO';
 export type SalesChannel = 'OFICINA' | 'WHATSAPP' | 'DOMICILIO';
 export type OrderType = 'NORMAL' | 'PREVENTA' | 'REPROGRAMACION' | 'CATALOGO' | 'CAMBIO';
-export type PaymentMethod = 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE' | 'CREDITO_CLIENTE';
+export type PaymentMethod = 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE' | 'CREDITO_CLIENTE' | 'SPLIT_PAYMENT';
 
 export interface OrderItem {
     id: string;
@@ -24,6 +24,7 @@ export type OrderPayment = {
     receiptNumber?: string;
     createdAt: string;
     description?: string;
+    financialRecords?: any[];
 }
 
 export interface Order {

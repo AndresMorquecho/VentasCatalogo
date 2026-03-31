@@ -72,8 +72,8 @@ export function RechargeWalletModal({ open, onOpenChange }: RechargeWalletModalP
                     client_id: values.clientId,
                     amount: Number(values.amount),
                     payment_method: values.paymentMethod as any,
-                    bank_account_id: values.paymentMethod === "EFECTIVO" ? undefined : values.bankAccountId,
-                    reference: values.paymentMethod === "EFECTIVO" ? undefined : values.reference,
+                    bank_account_id: values.bankAccountId || undefined,
+                    reference: values.reference || undefined,
                     notes: values.notes,
                 };
 
