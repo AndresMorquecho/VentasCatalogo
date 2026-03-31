@@ -69,6 +69,7 @@ export interface Order {
     // Relations
     clientId: string;
     clientName: string;
+    clientIdentification?: string;
     items: OrderItem[];
     notes?: string;
     createdByName?: string;   // Usuario que creó el pedido

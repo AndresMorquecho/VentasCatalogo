@@ -1,5 +1,6 @@
 import { createElement } from 'react';
 import { PaymentReceiptDocument } from '../ui/PaymentReceiptDocument';
+import { clientApi } from '@/shared/api/clientApi';
 import type { Order } from '@/entities/order/model/types';
 
 /**
@@ -9,7 +10,15 @@ import type { Order } from '@/entities/order/model/types';
  */
 export async function preparePaymentReceiptForPreview(order: Order, payments: any[], userName: string) {
     try {
-        const element = createElement(PaymentReceiptDocument, { order, payments, userName } as any);
+        // Fetch client details to get identificationNumber, phone, etc.
+        let client = null;
+        try {
+            client = await clientApi.getById(order.clientId);
+        } catch (error) {
+            console.warn('Could not fetch client details for PDF:', error);
+        }
+
+        const element = createElement(PaymentReceiptDocument, { order, payments, userName, client } as any);
         
         return {
             document: element,
@@ -21,3 +30,4 @@ export async function preparePaymentReceiptForPreview(order: Order, payments: an
         throw error;
     }
 }
+
