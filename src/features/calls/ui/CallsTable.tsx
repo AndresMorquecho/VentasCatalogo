@@ -3,21 +3,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/shared/ui/button';
 import { Eye } from 'lucide-react';
 import type { CallGroup } from '@/entities/call/model/api';
+import type { Call } from '@/entities/call/model/types';
 import { CallGroupDetailsModal } from './CallGroupDetailsModal';
 
 const CALL_REASONS_MAP: Record<string, string> = {
     'REACTIVACION': 'Reactivación',
     'COBRO': 'Cobranza',
-    'SEGUIMIENTO_PEDIDO': 'Seguimiento de Pedido',
-    'OFERTA': 'Oferta',
     'OTRO': 'Otro'
 };
 
 interface CallsTableProps {
     groups: CallGroup[];
+    onEditCall?: (call: Call) => void;
 }
 
-export function CallsTable({ groups }: CallsTableProps) {
+export function CallsTable({ groups, onEditCall }: CallsTableProps) {
     const [selectedGroup, setSelectedGroup] = useState<CallGroup | null>(null);
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
@@ -96,6 +96,10 @@ export function CallsTable({ groups }: CallsTableProps) {
                 open={isDetailsOpen}
                 onOpenChange={setIsDetailsOpen}
                 group={selectedGroup}
+                onEditCall={(call) => {
+                    onEditCall?.(call);
+                    setIsDetailsOpen(false);
+                }}
             />
         </>
     );

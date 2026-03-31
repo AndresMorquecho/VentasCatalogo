@@ -22,7 +22,7 @@ import { useBankAccountList } from "@/features/bank-accounts/api/hooks";
 import { useNotifications } from "@/shared/lib/notifications";
 import { walletApi } from "../api/walletApi";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Wallet, User, Banknote, CreditCard, FileText, Plus } from "lucide-react";
+import { Loader2, Wallet, User, Banknote, CreditCard, FileText, Plus, CheckCircle } from "lucide-react";
 
 interface RechargeWalletModalProps {
     open: boolean;
@@ -41,6 +41,11 @@ const validationSchema = Yup.object({
     reference: Yup.string().when("paymentMethod", {
         is: (val: string) => val !== "EFECTIVO",
         then: (schema) => schema.required("Referencia requerida"),
+        otherwise: (schema) => schema.notRequired(),
+    }),
+    controlValidation: Yup.string().when("paymentMethod", {
+        is: (val: string) => val === "TRANSFERENCIA" || val === "DEPOSITO",
+        then: (schema) => schema.required("Control/Validación requerido"),
         otherwise: (schema) => schema.notRequired(),
     }),
 });
@@ -62,6 +67,7 @@ export function RechargeWalletModal({ open, onOpenChange }: RechargeWalletModalP
             paymentMethod: "EFECTIVO",
             bankAccountId: "",
             reference: "",
+            controlValidation: "",
             notes: "",
         },
         validationSchema,
@@ -74,6 +80,7 @@ export function RechargeWalletModal({ open, onOpenChange }: RechargeWalletModalP
                     payment_method: values.paymentMethod as any,
                     bank_account_id: values.bankAccountId || undefined,
                     reference: values.reference || undefined,
+                    control_validation: values.controlValidation || undefined,
                     notes: values.notes,
                 };
 
@@ -215,11 +222,13 @@ export function RechargeWalletModal({ open, onOpenChange }: RechargeWalletModalP
                                                 <SelectValue placeholder="Seleccione cuenta..." />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                {filteredBankAccounts.map((acc) => (
-                                                    <SelectItem key={acc.id} value={acc.id} label={`${acc.name} - ${acc.bankName}`}>
-                                                        {acc.name} - {acc.bankName}
-                                                    </SelectItem>
-                                                ))}
+                                                {filteredBankAccounts.map((acc) => {
+                                                    return (
+                                                        <SelectItem key={acc.id} value={acc.id} label={acc.name}>
+                                                            {acc.name}
+                                                        </SelectItem>
+                                                    );
+                                                })}
                                             </SelectContent>
                                         </Select>
                                         {formik.touched.bankAccountId && formik.errors.bankAccountId && (
@@ -227,12 +236,12 @@ export function RechargeWalletModal({ open, onOpenChange }: RechargeWalletModalP
                                         )}
                                     </div>
 
-                                    <div className="space-y-2">
+                                     <div className="space-y-2">
                                         <Label className="text-[10px] font-black uppercase text-slate-500 flex items-center gap-2 mb-1.5 opacity-70">
-                                            <FileText className="h-3 w-3" /> Comprobante / N° de Referencia
+                                            <FileText className="h-3 w-3" /> COMPROBANTE / TRANSACCIÓN / DOC 
                                         </Label>
                                         <Input
-                                            placeholder="N° de transacción"
+                                            placeholder="N° de transacción o documento"
                                             className="h-11 border-slate-200 font-bold text-sm bg-slate-50/30"
                                             {...formik.getFieldProps("reference")}
                                         />
@@ -240,6 +249,22 @@ export function RechargeWalletModal({ open, onOpenChange }: RechargeWalletModalP
                                             <p className="text-[10px] font-bold text-red-500 uppercase">{formik.errors.reference as string}</p>
                                         )}
                                     </div>
+ 
+                                    {(formik.values.paymentMethod === "TRANSFERENCIA" || formik.values.paymentMethod === "DEPOSITO") && (
+                                        <div className="space-y-2 animate-in fade-in slide-in-from-right-2 duration-300">
+                                            <Label className="text-[10px] font-black uppercase text-slate-500 flex items-center gap-2 mb-1.5 opacity-70">
+                                                <CheckCircle className="h-3 w-3" /> CONTROL / VALIDACIÓN
+                                            </Label>
+                                            <Input
+                                                placeholder="Código de validación o control"
+                                                className="h-11 border-slate-200 font-bold text-sm bg-slate-50/30"
+                                                {...formik.getFieldProps("controlValidation")}
+                                            />
+                                            {formik.touched.controlValidation && formik.errors.controlValidation && (
+                                                <p className="text-[10px] font-bold text-red-500 uppercase">{formik.errors.controlValidation as string}</p>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>

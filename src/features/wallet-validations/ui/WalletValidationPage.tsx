@@ -204,8 +204,13 @@ export function WalletValidationPage() {
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="text-xs font-black text-primary font-mono">{r.reference || '—'}</div>
+                                            {r.controlValidation && (
+                                                <div className="text-[10px] font-black text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded mt-1 inline-block uppercase italic">
+                                                    Control: {r.controlValidation}
+                                                </div>
+                                            )}
                                             <div className="text-[9px] text-slate-400 font-bold uppercase truncate max-w-[150px]">
-                                                {r.bankAccount?.bankName} ({r.bankAccount?.name})
+                                                {r.bankAccount?.name || '—'}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-right">

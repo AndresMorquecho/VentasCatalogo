@@ -1,10 +1,11 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
-import { Phone, Clock, DollarSign, TrendingUp, MessageCircle, MoreHorizontal } from 'lucide-react';
+import { Phone, Clock, DollarSign, MoreHorizontal } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface Props {
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    onSelect?: (typeId: string) => void;
 }
 
 const CALL_TYPES = [
@@ -31,28 +32,6 @@ const CALL_TYPES = [
         enabled: true
     },
     {
-        id: 'SEGUIMIENTO',
-        title: 'Seguimiento de Pedido',
-        description: 'Verificar estado de pedidos en tránsito',
-        icon: TrendingUp,
-        color: 'text-blue-600',
-        bgColor: 'bg-blue-50',
-        borderColor: 'border-blue-200',
-        hoverBg: 'hover:bg-blue-100',
-        enabled: false
-    },
-    {
-        id: 'OFERTA',
-        title: 'Oferta/Promoción',
-        description: 'Informar sobre nuevos catálogos y ofertas',
-        icon: MessageCircle,
-        color: 'text-purple-600',
-        bgColor: 'bg-purple-50',
-        borderColor: 'border-purple-200',
-        hoverBg: 'hover:bg-purple-100',
-        enabled: false
-    },
-    {
         id: 'OTRO',
         title: 'Otro',
         description: 'Registro manual de llamada',
@@ -61,22 +40,22 @@ const CALL_TYPES = [
         bgColor: 'bg-slate-50',
         borderColor: 'border-slate-200',
         hoverBg: 'hover:bg-slate-100',
-        enabled: false
+        enabled: true
     }
 ];
 
-export function CallTypeSelectionModal({ open, onOpenChange }: Props) {
+export function CallTypeSelectionModal({ open, onOpenChange, onSelect }: Props) {
     const navigate = useNavigate();
 
     const handleTypeSelect = (typeId: string) => {
+        onOpenChange(false);
         if (typeId === 'REACTIVACION') {
-            onOpenChange(false);
             navigate('/calls/reactivation');
         } else if (typeId === 'COBRO') {
-            onOpenChange(false);
             navigate('/calls/collection');
+        } else if (onSelect) {
+            onSelect(typeId);
         }
-        // Otros tipos no implementados aún
     };
 
     return (

@@ -6,6 +6,7 @@ export interface WalletRechargePayload {
     payment_method: 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE';
     bank_account_id?: string;
     reference?: string;
+    control_validation?: string;
     notes?: string;
 }
 
@@ -15,6 +16,7 @@ export interface InstantRechargePayload {
     paymentMethod: 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE';
     bankAccountId: string;
     reference?: string;
+    controlValidation?: string;
     notes?: string;
 }
 

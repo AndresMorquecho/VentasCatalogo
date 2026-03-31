@@ -5,7 +5,7 @@
  * Supports enabling/disabling payment methods without code changes (Requirement 8.3).
  */
 
-export type PaymentMethodKey = 'EFECTIVO' | 'BILLETERA_VIRTUAL' | 'TRANSFERENCIA';
+export type PaymentMethodKey = 'EFECTIVO' | 'BILLETERA_VIRTUAL' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE';
 
 export interface PaymentMethodConfig {
   /** Internal key used in API payloads */
@@ -61,6 +61,24 @@ const DEFAULT_PAYMENT_METHODS: PaymentMethodConfig[] = [
     requiresReference: true,
     isWallet: false,
     order: 3,
+  },
+  {
+    key: 'DEPOSITO',
+    label: 'Depósito',
+    enabled: true,
+    requiresBankAccount: true,
+    requiresReference: true,
+    isWallet: false,
+    order: 4,
+  },
+  {
+    key: 'CHEQUE',
+    label: 'Cheque',
+    enabled: true,
+    requiresBankAccount: true,
+    requiresReference: true,
+    isWallet: false,
+    order: 5,
   },
 ];
 

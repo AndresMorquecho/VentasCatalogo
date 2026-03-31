@@ -173,7 +173,7 @@ export function WalletRechargeQuick({ clientId, onBack, onRechargeSuccess }: Pro
                     <option value="">Seleccionar cuenta...</option>
                     {filteredAccounts.map(acc => (
                         <option key={acc.id} value={acc.id}>
-                            {acc.name} — {acc.bankName}
+                            {acc.name}
                         </option>
                     ))}
                 </select>

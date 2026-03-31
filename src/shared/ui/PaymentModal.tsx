@@ -282,7 +282,7 @@ export function PaymentModal({
         if (method === 'EFECTIVO') {
             return bankAccounts.filter(acc => acc.type === 'CASH');
         }
-        if (method === 'TRANSFERENCIA') {
+        if (['TRANSFERENCIA', 'DEPOSITO', 'CHEQUE'].includes(method)) {
             return bankAccounts.filter(acc => acc.type === 'BANK');
         }
         return [];

@@ -131,6 +131,17 @@ const groupedItems = [
     }
 ]
 
+const adminGroups = [
+    {
+        title: "Configuración",
+        icon: Settings2,
+        items: [
+            { title: "Configuraciones", url: "/admin/settings", icon: Settings2 },
+            { title: "Usuarios y Roles", url: "/admin/users", icon: Users },
+        ]
+    }
+]
+
 const getAvatarColor = (name: string) => {
     const colors = [
         "bg-red-500", "bg-blue-500", "bg-green-500", "bg-amber-500",
@@ -154,7 +165,8 @@ export function AppSidebar() {
     // Track which group is open (null means all closed)
     // Initial state: try to find the group that contains the current location
     const [openGroupTitle, setOpenGroupTitle] = useState<string | null>(() => {
-        const activeGroup = groupedItems.find(group => 
+        const allGroups = [...groupedItems, ...adminGroups];
+        const activeGroup = allGroups.find(group => 
             group.items.some(item => location.pathname === item.url || location.pathname.startsWith(item.url + '/'))
         );
         return activeGroup ? activeGroup.title : null;
@@ -162,7 +174,8 @@ export function AppSidebar() {
 
     // Auto-expand if navigating to a child
     useEffect(() => {
-        const activeGroup = groupedItems.find(group => 
+        const allGroups = [...groupedItems, ...adminGroups];
+        const activeGroup = allGroups.find(group => 
             group.items.some(item => location.pathname === item.url || location.pathname.startsWith(item.url + '/'))
         );
         if (activeGroup && activeGroup.title !== openGroupTitle) {
@@ -233,22 +246,18 @@ export function AppSidebar() {
                 {adminMode && (
                     <SidebarGroup className="p-0">
                         <SidebarGroupLabel className="px-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">
-                            Configuración
+                            Sistema
                         </SidebarGroupLabel>
                         <SidebarGroupContent>
-                            <SidebarMenu>
-                                <SidebarMenuItem>
-                                    <SidebarMenuButton 
-                                        asChild 
-                                        tooltip="Usuarios y Roles"
-                                        className="h-10 rounded-xl hover:bg-slate-100 transition-all duration-300"
-                                    >
-                                        <Link to="/admin/users">
-                                            <Settings2 className="size-5" />
-                                            <span className="font-semibold tracking-tight">Usuarios y Roles</span>
-                                        </Link>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
+                            <SidebarMenu className="gap-2">
+                                {adminGroups.map((group) => (
+                                    <SidebarNavGroup 
+                                        key={group.title} 
+                                        group={group} 
+                                        isOpen={openGroupTitle === group.title}
+                                        onToggle={() => setOpenGroupTitle(prev => prev === group.title ? null : group.title)}
+                                    />
+                                ))}
                             </SidebarMenu>
                         </SidebarGroupContent>
                     </SidebarGroup>

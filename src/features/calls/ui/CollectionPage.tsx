@@ -5,15 +5,13 @@ import { Label } from '@/shared/ui/label';
 import { Badge } from '@/shared/ui/badge';
 import { Search, Phone, DollarSign, ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react';
 import { useClientList } from '@/features/clients/api/hooks';
-import { useCreateCall } from '@/entities/call/model/hooks';
 import { useDebounce } from '@/shared/lib/hooks';
 import { Pagination } from '@/shared/ui/pagination';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import type { Client } from '@/entities/client/model/types';
-import type { CallResult } from '@/entities/call/model/types';
-import { callResultsMap, CALL_RESULTS } from '@/entities/call';
 import { useNotifications } from '@/shared/lib/notifications';
 import { useNavigate } from 'react-router-dom';
+import { CallFormModal } from './CallFormModal';
 
 export function CollectionPage() {
     const navigate = useNavigate();
@@ -22,7 +20,6 @@ export function CollectionPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const debouncedSearch = useDebounce(searchTerm, 1000);
     const { notifySuccess, notifyError } = useNotifications();
-    const { mutateAsync: createCall } = useCreateCall();
     const [expandedClient, setExpandedClient] = useState<string | null>(null);
 
     // Fetch clients with pending payments excluding those called today with COBRANZA reason
@@ -39,8 +36,7 @@ export function CollectionPage() {
     const pagination = response?.pagination;
 
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-    const [result, setResult] = useState<CallResult>('NO_CONTESTA');
-    const [notes, setNotes] = useState('');
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
     // Reset page on search
     useEffect(() => {
@@ -49,31 +45,7 @@ export function CollectionPage() {
 
     const handleCallClick = (client: Client) => {
         setSelectedClient(client);
-        setResult('NO_CONTESTA');
-        setNotes('');
-    };
-
-    const handleSaveCall = async () => {
-        if (!selectedClient) return;
-
-        try {
-            await createCall({
-                clientId: selectedClient.id,
-                reason: 'COBRO',
-                result,
-                notes: notes || null
-            });
-            
-            notifySuccess(`Llamada a ${selectedClient.firstName} registrada`);
-            setSelectedClient(null);
-            setNotes('');
-            
-            // Refetch to update the list (backend will exclude this client now)
-            refetch();
-        } catch (error) {
-            console.error('Error saving call:', error);
-            notifyError(error, 'Error al guardar la llamada');
-        }
+        setIsModalOpen(true);
     };
 
     const toggleExpand = (clientId: string) => {
@@ -261,63 +233,15 @@ export function CollectionPage() {
                 />
             )}
 
-            {/* Quick Call Form - Appears when client is selected */}
-            {selectedClient && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-                        <h3 className="text-lg font-bold text-monchito-purple mb-4">
-                            Registrar llamada a {selectedClient.firstName}
-                        </h3>
-                        
-                        <div className="space-y-4">
-                            <div className="grid gap-2">
-                                <Label htmlFor="result" className="text-xs font-medium text-slate-600">
-                                    Resultado
-                                </Label>
-                                <select
-                                    id="result"
-                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-monchito-purple"
-                                    value={result}
-                                    onChange={(e) => setResult(e.target.value as CallResult)}
-                                >
-                                    {CALL_RESULTS.map(r => (
-                                        <option key={r} value={r}>{callResultsMap[r]}</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div className="grid gap-2">
-                                <Label htmlFor="notes" className="text-xs font-medium text-slate-600">
-                                    Observaciones (opcional)
-                                </Label>
-                                <textarea
-                                    id="notes"
-                                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-monchito-purple"
-                                    placeholder="Detalles de la llamada..."
-                                    value={notes}
-                                    onChange={(e) => setNotes(e.target.value)}
-                                />
-                            </div>
-
-                            <div className="flex gap-2 pt-2">
-                                <Button
-                                    variant="outline"
-                                    onClick={() => setSelectedClient(null)}
-                                    className="flex-1"
-                                >
-                                    Cancelar
-                                </Button>
-                                <Button
-                                    onClick={handleSaveCall}
-                                    className="flex-1 bg-monchito-purple hover:bg-monchito-purple/90"
-                                >
-                                    Guardar
-                                </Button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <CallFormModal
+                open={isModalOpen}
+                onOpenChange={setIsModalOpen}
+                initialClient={selectedClient || undefined}
+                initialReason="COBRO"
+                onSuccess={() => {
+                    refetch();
+                }}
+            />
         </div>
     );
 }

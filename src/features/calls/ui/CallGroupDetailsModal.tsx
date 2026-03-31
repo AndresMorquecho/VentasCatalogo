@@ -1,15 +1,16 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
 import { Badge } from '@/shared/ui/badge';
+import { Button } from '@/shared/ui/button';
+import { Edit } from 'lucide-react';
 import { callResultsMap } from '@/entities/call';
 import type { CallGroup } from '@/entities/call/model/api';
+import type { Call } from '@/entities/call/model/types';
 import { useClients } from '@/entities/client/model/hooks';
 
 const CALL_REASONS_MAP: Record<string, string> = {
     'REACTIVACION': 'Reactivación',
     'COBRO': 'Cobranza',
-    'SEGUIMIENTO_PEDIDO': 'Seguimiento de Pedido',
-    'OFERTA': 'Oferta',
     'OTRO': 'Otro'
 };
 
@@ -17,9 +18,10 @@ interface CallGroupDetailsModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     group: CallGroup | null;
+    onEditCall?: (call: Call) => void;
 }
 
-export function CallGroupDetailsModal({ open, onOpenChange, group }: CallGroupDetailsModalProps) {
+export function CallGroupDetailsModal({ open, onOpenChange, group, onEditCall }: CallGroupDetailsModalProps) {
     const { data: clientsResponse } = useClients();
     const clients = clientsResponse?.data || [];
 
@@ -75,6 +77,7 @@ export function CallGroupDetailsModal({ open, onOpenChange, group }: CallGroupDe
                                 <TableHead className="text-xs font-bold text-slate-600">Cliente</TableHead>
                                 <TableHead className="text-xs font-bold text-slate-600">Resultado</TableHead>
                                 <TableHead className="text-xs font-bold text-slate-600">Observaciones</TableHead>
+                                <TableHead className="text-right text-xs font-bold text-slate-600">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -95,8 +98,18 @@ export function CallGroupDetailsModal({ open, onOpenChange, group }: CallGroupDe
                                             {callResultsMap[call.result] || call.result}
                                         </span>
                                     </TableCell>
-                                    <TableCell className="max-w-[300px] text-xs text-slate-600">
+                                    <TableCell className="max-w-[200px] text-xs text-slate-600 truncate">
                                         {call.notes || '-'}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-8 w-8 p-0 text-monchito-purple"
+                                            onClick={() => onEditCall?.(call as any)}
+                                        >
+                                            <Edit className="h-4 w-4" />
+                                        </Button>
                                     </TableCell>
                                 </TableRow>
                             ))}

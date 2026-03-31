@@ -35,6 +35,7 @@ const ExchangesReceptionPage = lazy(() => import('@/features/exchanges/ui/Exchan
 const ExchangesDeliveryPage = lazy(() => import('@/features/exchanges/ui/ExchangesDeliveryPage').then(m => ({ default: m.OrderDeliveryPage })));
 const LoginPage = lazy(() => import('@/features/auth/ui/LoginPage').then(m => ({ default: m.LoginPage })));
 const OrderFormPage = lazy(() => import('@/features/order-management/ui/OrderFormPage').then(m => ({ default: m.OrderFormPage })));
+const SettingsPage = lazy(() => import('@/features/system-settings/ui/SettingsPage').then(m => ({ default: m.SettingsPage })));
 
 // Loading Component
 const PageLoader = () => (
@@ -84,6 +85,10 @@ const protectedChildren = [
     {
         path: 'admin/users',
         element: <ProtectedRoute adminOnly><AdminUsersPage /></ProtectedRoute>,
+    },
+    {
+        path: 'admin/settings',
+        element: <ProtectedRoute adminOnly><SettingsPage /></ProtectedRoute>,
     },
 ];
 

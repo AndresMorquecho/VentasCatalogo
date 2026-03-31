@@ -4,10 +4,12 @@ import { Input } from '@/shared/ui/input';
 import { Label } from '@/shared/ui/label';
 import { Plus, Search, Phone } from 'lucide-react';
 import { useGroupedCalls } from '@/entities/call/model/hooks';
-import { CallTypeSelectionModal } from './CallTypeSelectionModal';
-import { CallsTable } from './CallsTable';
 import { useDebounce } from '@/shared/lib/hooks';
 import { PageHeader } from '@/shared/ui/PageHeader';
+import { CallFormModal } from './CallFormModal';
+import { CallTypeSelectionModal } from './CallTypeSelectionModal';
+import { CallsTable } from './CallsTable';
+import { type CallReason } from '@/entities/call';
 
 import {
     CALL_RESULTS,
@@ -16,7 +18,8 @@ import {
 
 const CALL_REASONS_MAP: Record<string, string> = {
     'REACTIVACION': 'Reactivación',
-    'COBRO': 'Cobranza'
+    'COBRO': 'Cobranza',
+    'OTRO': 'Otro'
 };
 
 export function CallsPage() {
@@ -34,6 +37,20 @@ export function CallsPage() {
     });
 
     const [isTypeModalOpen, setIsTypeModalOpen] = useState(false);
+    const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+    const [selectedReason, setSelectedReason] = useState<CallReason>('OTRO');
+    const [editingCall, setEditingCall] = useState<any>(null);
+
+    const handleTypeSelect = (typeId: string) => {
+        setSelectedReason(typeId as CallReason);
+        setEditingCall(null);
+        setIsFormModalOpen(true);
+    };
+
+    const handleEditCall = (call: any) => {
+        setEditingCall(call);
+        setIsFormModalOpen(true);
+    };
 
     return (
         <div className="space-y-6">
@@ -109,14 +126,27 @@ export function CallsPage() {
             {isLoading ? (
                 <div className="flex justify-center p-8">Cargando...</div>
             ) : (
-                <CallsTable groups={groups || []} />
+                <CallsTable 
+                    groups={groups || []} 
+                    onEditCall={handleEditCall}
+                />
             )}
 
             <CallTypeSelectionModal
                 open={isTypeModalOpen}
                 onOpenChange={setIsTypeModalOpen}
+                onSelect={handleTypeSelect}
+            />
+
+            <CallFormModal 
+                open={isFormModalOpen}
+                onOpenChange={setIsFormModalOpen}
+                call={editingCall}
+                initialReason={selectedReason as any}
+                onSuccess={() => {
+                    setEditingCall(null);
+                }}
             />
         </div>
     );
 }
-
