@@ -247,9 +247,9 @@ export function OrderDeliveryTable({
                             <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4 whitespace-nowrap">Factura / NC</TableHead>
                             <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4 whitespace-nowrap">Valor Factura</TableHead>
                             <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4 whitespace-nowrap">Fecha Ingreso</TableHead>
-                            <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4 whitespace-nowrap">Saldo</TableHead>
-                            <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4 whitespace-nowrap">Distribución</TableHead>
-                            <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4 whitespace-nowrap">Acciones</TableHead>
+                            <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4 whitespace-nowrap sticky right-[250px] bg-slate-50 z-20 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)] border-l border-slate-200">Saldo</TableHead>
+                            <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4 whitespace-nowrap sticky right-[100px] bg-slate-50 z-20 border-l border-slate-200">Distribución</TableHead>
+                            <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4 whitespace-nowrap sticky right-0 bg-slate-50 z-20 border-l border-slate-200">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -317,7 +317,7 @@ export function OrderDeliveryTable({
                                             {order.realInvoiceTotal ? formatCurrency(order.realInvoiceTotal) : '-'}
                                         </TableCell>
                                         <TableCell className="text-center text-xs font-bold text-slate-700 whitespace-nowrap">{formatDate(order.receptionDate!)}</TableCell>
-                                        <TableCell className="text-center text-xs font-mono font-black p-4 whitespace-nowrap">
+                                        <TableCell className={`text-center text-xs font-mono font-black p-4 whitespace-nowrap sticky right-[250px] z-10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.05)] border-l border-slate-100 ${isSelected ? 'bg-monchito-purple/5' : 'bg-white'} group-hover:bg-slate-50`}>
                                             <div className="flex items-center justify-center gap-2">
                                                 {creditAmount > 0 ? (
                                                     <span className="text-emerald-600 font-black animate-pulse-subtle">
@@ -332,7 +332,7 @@ export function OrderDeliveryTable({
                                             </div>
                                         </TableCell>
 
-                                        <TableCell className="text-center p-4">
+                                        <TableCell className={`text-center p-4 sticky right-[100px] z-10 border-l border-slate-100 ${isSelected ? 'bg-monchito-purple/5' : 'bg-white'} group-hover:bg-slate-50`}>
                                             {creditAmount > 0 ? (
                                                 <Button
                                                     size="sm"
@@ -355,7 +355,7 @@ export function OrderDeliveryTable({
                                             )}
                                         </TableCell>
 
-                                        <TableCell className="text-center p-4" onClick={(e) => e.stopPropagation()}>
+                                        <TableCell className={`text-center p-4 sticky right-0 z-10 border-l border-slate-100 ${isSelected ? 'bg-monchito-purple/5' : 'bg-white'} group-hover:bg-slate-50`} onClick={(e) => e.stopPropagation()}>
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
                                                     <Button variant="ghost" className="h-8 w-8 p-0 rounded-full hover:bg-slate-100">
