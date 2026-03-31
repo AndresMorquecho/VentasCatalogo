@@ -107,21 +107,50 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
 
     const formik = useFormik({
         initialValues: {
-            identificationType: client?.identificationType || "CEDULA" as IdentificationType,
+            identificationType: (client?.identificationType?.toUpperCase() || "CEDULA") as IdentificationType,
             identificationNumber: client?.identificationNumber || "",
-            firstName: client?.firstName || "",
+            firstName: client?.firstName?.toUpperCase() || "",
             country: client?.country || "Ecuador",
-            province: client?.province || "",
-            city: client?.city || "",
+            province: (() => {
+                if (!client?.province) return "";
+                const match = Object.keys(ECUADOR_DATA).find(
+                    k => k.toLowerCase() === client.province.toLowerCase()
+                );
+                return match || client.province;
+            })(),
+            city: (() => {
+                if (!client?.city || !client?.province) return client?.city || "";
+                const provMatch = Object.keys(ECUADOR_DATA).find(
+                    k => k.toLowerCase() === client.province.toLowerCase()
+                );
+                const cities = provMatch ? ECUADOR_DATA[provMatch] : [];
+                const cityMatch = cities.find(
+                    c => c.toLowerCase() === client.city.toLowerCase()
+                );
+                return cityMatch || client.city;
+            })(),
             address: client?.address || "",
             neighborhood: client?.neighborhood || "",
             sector: client?.sector || "",
             email: client?.email || "",
             reference: client?.reference || "",
             phone1: client?.phone1 || "",
-            operator1: client?.operator1 || "Claro",
+            operator1: (() => {
+                if (!client?.operator1) return "Claro";
+                const match = OPERATORS.find(
+                    op => op.toLowerCase() === client.operator1.toLowerCase()
+                );
+                return match || client.operator1;
+            })(),
             phone2: client?.phone2 || "",
-            operator2: client?.operator2 || "",
+            operator2: (() => {
+                const val = client?.operator2;
+                if (!val) return "";
+                const match = OPERATORS.find(
+                    op => op.toLowerCase() === val.toLowerCase()
+                );
+                return match || val;
+            })(),
             birthDate: client?.birthDate ? client.birthDate.split('T')[0] : "",
             isWhatsApp: client?.isWhatsApp || false,
             referredById: client?.referredById || "",

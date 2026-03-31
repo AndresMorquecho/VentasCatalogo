@@ -28,6 +28,43 @@ const SelectContext = React.createContext<SelectContextType>({
   registerLabel: () => {},
 })
 
+// ---------------------------------------------------------------------------
+// Helpers to extract SelectItem metadata from the children tree without
+// actually rendering them (avoids the SelectContent open-gate problem).
+// ---------------------------------------------------------------------------
+interface ItemMeta { value: string; label?: string; text?: React.ReactNode }
+
+function extractItems(children: React.ReactNode): ItemMeta[] {
+  const items: ItemMeta[] = []
+  React.Children.forEach(children, (child) => {
+    if (!React.isValidElement(child)) return
+    const el = child as React.ReactElement<any>
+    // A SelectItem has a string `value` prop
+    if (typeof el.props?.value === "string") {
+      items.push({ value: el.props.value, label: el.props.label, text: el.props.children })
+    }
+    // Recurse into container children (SelectContent, SelectGroup, divs, etc.)
+    if (el.props?.children) {
+      items.push(...extractItems(el.props.children))
+    }
+  })
+  return items
+}
+
+function resolveLabel(item: ItemMeta): string {
+  if (item.label) return item.label
+  if (typeof item.text === "string") return item.text
+  if (typeof item.text === "number") return String(item.text)
+  const parts: string[] = []
+  React.Children.forEach(item.text as React.ReactNode, (c) => {
+    if (typeof c === "string" || typeof c === "number") parts.push(String(c))
+  })
+  return parts.join("")
+}
+
+// ---------------------------------------------------------------------------
+// Main Select component
+// ---------------------------------------------------------------------------
 export const Select: React.FC<SelectProps> = ({ value, onValueChange, children }) => {
   const [open, setOpen] = React.useState(false)
   const [searchValue, setSearchValue] = React.useState("")
@@ -40,28 +77,39 @@ export const Select: React.FC<SelectProps> = ({ value, onValueChange, children }
     })
   }, [])
 
-  // Limpiar búsqueda al cerrar
+  // Pre-register all labels from children tree on every render so that
+  // SelectValue can display the correct label even before the dropdown opens.
+  React.useLayoutEffect(() => {
+    const items = extractItems(children)
+    items.forEach(item => {
+      const label = resolveLabel(item)
+      if (item.value && label) {
+        setLabels(prev => {
+          if (prev[item.value] === label) return prev
+          return { ...prev, [item.value]: label }
+        })
+      }
+    })
+  }, [children])
+
+  // Clear search on close
   React.useEffect(() => {
     if (!open) setSearchValue("")
   }, [open])
 
   return (
-    <SelectContext.Provider value={{ 
-      value, 
-      onValueChange, 
-      open, 
-      setOpen, 
-      searchValue, 
-      setSearchValue, 
-      labels, 
-      registerLabel 
+    <SelectContext.Provider value={{
+      value,
+      onValueChange,
+      open,
+      setOpen,
+      searchValue,
+      setSearchValue,
+      labels,
+      registerLabel
     }}>
       <div className="relative">
         {children}
-        {/* Render children hidden to collect labels on mount */}
-        <div className="hidden" aria-hidden="true">
-          {children}
-        </div>
       </div>
     </SelectContext.Provider>
   )
@@ -70,7 +118,7 @@ export const Select: React.FC<SelectProps> = ({ value, onValueChange, children }
 export const SelectTrigger = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HTMLButtonElement>>(
   ({ className, children, ...props }, ref) => {
     const { setOpen, open } = React.useContext(SelectContext)
-    
+
     return (
       <button
         ref={ref}
@@ -100,7 +148,7 @@ SelectTrigger.displayName = "SelectTrigger"
 export const SelectValue: React.FC<{ placeholder?: string }> = ({ placeholder }) => {
   const { value, labels } = React.useContext(SelectContext)
   const label = value ? labels[value] : undefined
-  
+
   return (
     <span className={cn("block truncate", !label && "text-muted-foreground")}>
       {label || placeholder}
@@ -108,15 +156,15 @@ export const SelectValue: React.FC<{ placeholder?: string }> = ({ placeholder })
   )
 }
 
-export const SelectContent: React.FC<{ children: React.ReactNode; searchable?: boolean; className?: string }> = ({ 
-  children, 
+export const SelectContent: React.FC<{ children: React.ReactNode; searchable?: boolean; className?: string }> = ({
+  children,
   searchable = false,
   className
 }) => {
   const { open, setOpen, searchValue, setSearchValue } = React.useContext(SelectContext)
-  
+
   if (!open) return null
-  
+
   return (
     <>
       <div
@@ -147,18 +195,17 @@ export const SelectContent: React.FC<{ children: React.ReactNode; searchable?: b
   )
 }
 
-export const SelectItem: React.FC<{ value: string; children: React.ReactNode; label?: string }> = ({ 
-  value, 
+export const SelectItem: React.FC<{ value: string; children: React.ReactNode; label?: string }> = ({
+  value,
   children,
-  label: explicitLabel 
+  label: explicitLabel
 }) => {
   const { value: selectedValue, onValueChange, setOpen, registerLabel, searchValue } = React.useContext(SelectContext)
   const isSelected = selectedValue === value
-  
+
   const label = React.useMemo(() => {
     if (explicitLabel) return explicitLabel
     if (typeof children === "string") return children
-    // Fallback simple para elementos que contienen texto
     return React.Children.toArray(children)
       .filter(child => typeof child === "string" || typeof child === "number")
       .join("")
@@ -172,7 +219,7 @@ export const SelectItem: React.FC<{ value: string; children: React.ReactNode; la
   if (searchValue && !label.toLowerCase().includes(searchValue.toLowerCase())) {
     return null
   }
-  
+
   return (
     <div
       onClick={() => {
@@ -207,4 +254,3 @@ export const SelectLabel: React.FC<{ children: React.ReactNode }> = ({ children 
 export const SelectSeparator: React.FC = () => {
   return <div className="-mx-1 my-1 h-px bg-muted" />
 }
-

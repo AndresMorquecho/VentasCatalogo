@@ -6,7 +6,7 @@ import { ClientForm } from "./ClientForm";
 import { ClientDetailModal } from "./ClientDetailModal";
 import { Input } from "@/shared/ui/input";
 import { Button } from "@/shared/ui/button";
-import { AlertCircle, RotateCw, Search } from "lucide-react";
+import { AlertCircle, RotateCw, Search, Bell } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
 import {
     Dialog,
@@ -20,6 +20,7 @@ import { logAction } from "@/shared/lib/auditService";
 import { useNotifications } from "@/shared/lib/notifications";
 import { useDebounce } from "@/shared/lib/hooks";
 import { Pagination } from "@/shared/ui/pagination";
+import { differenceInDays } from "date-fns";
 import {
     Select,
     SelectContent,
@@ -32,6 +33,8 @@ import { Filter, X, Loader2 } from "lucide-react";
 import { DateRangePicker } from "@/shared/ui/filters";
 import type { DateRange } from "react-day-picker";
 
+const DATA_UPDATE_THRESHOLD_DAYS = 90;
+
 export function ClientList({ triggerCreate, onTriggerHandled }: { 
     triggerCreate?: boolean;
     onTriggerHandled?: () => void;
@@ -43,6 +46,7 @@ export function ClientList({ triggerCreate, onTriggerHandled }: {
     const [status, setStatus] = useState<string>("ALL");
     const [city, setCity] = useState("");
     const [dateRange, setDateRange] = useState<DateRange | undefined>();
+    const [showOnlyOutdated, setShowOnlyOutdated] = useState(false);
     const debouncedCity = useDebounce(city, 500);
 
     // Convert DateRange to ISO strings for API
@@ -61,6 +65,22 @@ export function ClientList({ triggerCreate, onTriggerHandled }: {
 
     const clients = response?.data || [];
     const pagination = response?.pagination;
+
+    // Count clients that need data update (> 90 days)
+    const outdatedCount = clients.filter((c: Client) => {
+        const lastUpdate = c.lastDataUpdate ? new Date(c.lastDataUpdate) : null;
+        const days = lastUpdate ? differenceInDays(new Date(), lastUpdate) : DATA_UPDATE_THRESHOLD_DAYS + 1;
+        return days > DATA_UPDATE_THRESHOLD_DAYS;
+    }).length;
+
+    // Filtered clients if showing only outdated
+    const displayedClients = showOnlyOutdated
+        ? clients.filter((c: Client) => {
+            const lastUpdate = c.lastDataUpdate ? new Date(c.lastDataUpdate) : null;
+            const days = lastUpdate ? differenceInDays(new Date(), lastUpdate) : DATA_UPDATE_THRESHOLD_DAYS + 1;
+            return days > DATA_UPDATE_THRESHOLD_DAYS;
+          })
+        : clients;
 
     // Remove the limit: 500 fetch which causes slow loading
     // We will let the backend handle referential integrity during delete
@@ -99,6 +119,7 @@ export function ClientList({ triggerCreate, onTriggerHandled }: {
         setStatus("ALL");
         setCity("");
         setDateRange(undefined);
+        setShowOnlyOutdated(false);
         setPage(1);
     };
 
@@ -184,6 +205,49 @@ export function ClientList({ triggerCreate, onTriggerHandled }: {
     return (
         <div className="space-y-3 sm:space-y-4">
 
+            {/* Alert Banner: Outdated Clients */}
+            {outdatedCount > 0 && !showOnlyOutdated && (
+                <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200 shadow-sm">
+                    <Bell className="h-5 w-5 text-amber-600 mt-0.5 shrink-0 animate-pulse" />
+                    <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-amber-800">
+                            {outdatedCount} empresaria{outdatedCount > 1 ? 's necesitan' : ' necesita'} actualizar sus datos
+                        </p>
+                        <p className="text-xs text-amber-600 mt-0.5">
+                            Han pasado más de 3 meses sin actualizar la información de contacto de estas empresarias.
+                        </p>
+                    </div>
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setShowOnlyOutdated(true)}
+                        className="shrink-0 border-amber-300 text-amber-700 hover:bg-amber-100 text-xs font-bold"
+                    >
+                        Ver ahora
+                    </Button>
+                </div>
+            )}
+
+            {/* Active outdated filter indicator */}
+            {showOnlyOutdated && (
+                <div className="flex items-center justify-between p-3 rounded-xl bg-amber-50 border border-amber-200">
+                    <div className="flex items-center gap-2">
+                        <Bell className="h-4 w-4 text-amber-600" />
+                        <span className="text-xs font-bold text-amber-700">
+                            Mostrando solo empresarias con datos desactualizados ({outdatedCount})
+                        </span>
+                    </div>
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setShowOnlyOutdated(false)}
+                        className="text-xs text-amber-700 hover:bg-amber-100 h-7"
+                    >
+                        <X className="h-3 w-3 mr-1" /> Quitar filtro
+                    </Button>
+                </div>
+            )}
+
             {/* Filters Bar */}
             <Card className="border-slate-200 bg-slate-50/30">
                 <CardContent className="p-3 sm:p-4 space-y-4">
@@ -268,7 +332,7 @@ export function ClientList({ triggerCreate, onTriggerHandled }: {
             )}
 
             <ClientTable
-                clients={clients}
+                clients={displayedClients}
                 isLoading={isLoading}
                 onEdit={handleEdit}
                 onView={handleView}

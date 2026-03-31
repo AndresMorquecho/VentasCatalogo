@@ -5,11 +5,14 @@ import {
     TableRow,
 } from "@/shared/ui/table";
 import { Button } from "@/shared/ui/button";
-import { Pencil, Trash2, Filter, Phone, Eye } from "lucide-react";
+import { Pencil, Trash2, Filter, Phone, Eye, RefreshCw } from "lucide-react";
 import type { Client } from "@/entities/client/model/types";
 import { cn } from "@/shared/lib/utils";
 import { format, differenceInDays } from "date-fns";
 import { Badge } from "@/shared/ui/badge";
+
+// 90 days = 3 months threshold for data update reminder
+const DATA_UPDATE_THRESHOLD_DAYS = 90;
 
 interface ClientTableProps {
     clients: Client[];
@@ -74,6 +77,9 @@ export function ClientTable({ clients, isLoading, onEdit, onView, onDelete }: Cl
                             <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left">
                                 Últ. Pedido
                             </th>
+                            <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left">
+                                Actualización
+                            </th>
                             <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right">
                                 Acciones
                             </th>
@@ -87,13 +93,19 @@ export function ClientTable({ clients, isLoading, onEdit, onView, onDelete }: Cl
                             const isActive = !isNew && differenceInDays(new Date(), lastOrder!) <= 30;
                             const isInactive = !isNew && !isActive;
 
+                            // Check if client data needs update (> 90 days since last update)
+                            const lastUpdate = client.lastDataUpdate ? new Date(client.lastDataUpdate) : null;
+                            const daysSinceUpdate = lastUpdate ? differenceInDays(new Date(), lastUpdate) : DATA_UPDATE_THRESHOLD_DAYS + 1;
+                            const needsDataUpdate = daysSinceUpdate > DATA_UPDATE_THRESHOLD_DAYS;
+
                             return (
                                 <TableRow
                                     key={client.id}
                                     className={cn(
                                         "border-b border-monchito-purple/5 hover:bg-monchito-purple/5 transition-all duration-200",
-                                        isInactive && "bg-red-50/30 hover:bg-red-50/50",
-                                        isNew && "bg-blue-50/20 hover:bg-blue-50/40"
+                                        needsDataUpdate && "bg-amber-50/40 hover:bg-amber-50/60",
+                                        !needsDataUpdate && isInactive && "bg-red-50/30 hover:bg-red-50/50",
+                                        !needsDataUpdate && isNew && "bg-blue-50/20 hover:bg-blue-50/40"
                                     )}
                                 >
                                     <TableCell className="px-6 py-4">
@@ -166,6 +178,32 @@ export function ClientTable({ clients, isLoading, onEdit, onView, onDelete }: Cl
                                             </div>
                                         ) : (
                                             <span className="text-xs font-medium text-slate-400 italic">Ninguno</span>
+                                        )}
+                                    </TableCell>
+                                    <TableCell className="px-6 py-4">
+                                        {needsDataUpdate ? (
+                                            <div className="flex flex-col gap-1">
+                                                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300 text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-lg flex items-center gap-1 w-fit">
+                                                    <RefreshCw className="h-2.5 w-2.5" />
+                                                    Desactualizada
+                                                </Badge>
+                                                {lastUpdate && (
+                                                    <span className="text-[9px] text-slate-400">
+                                                        Hace {daysSinceUpdate}d
+                                                    </span>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col gap-0.5">
+                                                <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200 text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-lg w-fit">
+                                                    Al día
+                                                </Badge>
+                                                {lastUpdate && (
+                                                    <span className="text-[9px] text-slate-400">
+                                                        {format(lastUpdate, "dd/MM/yyyy")}
+                                                    </span>
+                                                )}
+                                            </div>
                                         )}
                                     </TableCell>
                                     <TableCell className="px-6 py-4">

@@ -103,10 +103,8 @@ class HttpClient {
   ): Promise<T> {
     const token = this.getToken();
 
-    // Convert body to snake_case if present
-    const body = options.body
-      ? JSON.stringify(this.toSnakeCase(JSON.parse(options.body as string)))
-      : undefined;
+    // Do NOT automatically convert body to snake_case
+    const body = options.body;
 
     const config: RequestInit = {
       ...options,
@@ -123,8 +121,6 @@ class HttpClient {
 
       if (response.status === 304) {
         console.log(`[HttpClient] 304 Not Modified for ${endpoint}`);
-        // If 304 and we have no data in TanStack Query yet, this might return undefined
-        // Ideally the browser should have substituted the body.
       }
 
       if (response.status === 401) {
@@ -136,14 +132,12 @@ class HttpClient {
         let errorMsg = `Request failed with status ${response.status}`;
         let errorCode = undefined;
         try {
-          // Attempt to parse the error response body
           const errorData = await response.json();
           if (errorData.error) {
             errorMsg = typeof errorData.error === 'string' ? errorData.error : errorData.error.message;
             errorCode = errorData.error.code;
           }
         } catch (e) {
-          // ignore parsing error if the response wasn't JSON
         }
 
         const error: any = new Error(errorMsg);
@@ -158,7 +152,6 @@ class HttpClient {
 
         const rawData = JSON.parse(text);
 
-        // Handle standard wrapper { success: true, data: ... }
         if (rawData && typeof rawData === 'object' && 'success' in rawData) {
           if (!rawData.success) {
             const error: any = new Error(rawData.error?.message || 'Request failed');
@@ -166,17 +159,14 @@ class HttpClient {
             throw error;
           }
 
-          // CRITICAL FIX: If it's a paginated response, return the full object 
-          // so the frontend can access .data and .pagination
           if ('pagination' in rawData) {
-            return this.toCamelCase(rawData) as T;
+            return rawData as T;
           }
 
-          return this.toCamelCase(rawData.data) as T;
+          return rawData.data as T;
         }
 
-        // Fallback: treat raw response as data
-        return this.toCamelCase(rawData) as T;
+        return rawData as T;
       } catch (error) {
         if (response.status === 304) return undefined as any;
         throw error;

@@ -76,4 +76,5 @@ export interface TransactionCardDTO {
   affectsBank: boolean;
   affectsWallet: boolean;
   isInternal: boolean;
+  notes: string | null;
 }
