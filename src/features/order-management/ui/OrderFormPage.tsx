@@ -400,6 +400,7 @@ export function OrderFormPage() {
                 queryClient.invalidateQueries({ queryKey: ['transactions'] }),
                 // Invalidate client wallet balance so it updates without refresh
                 queryClient.invalidateQueries({ queryKey: ['client-credit', formik.values.clientId] }),
+                queryClient.invalidateQueries({ queryKey: ['client-credits', formik.values.clientId] }),
                 queryClient.invalidateQueries({ queryKey: ['client-credits-summary'] }),
                 // This ensures the client list (which might show balances) is also updated
                 queryClient.invalidateQueries({ queryKey: ['clients'] })

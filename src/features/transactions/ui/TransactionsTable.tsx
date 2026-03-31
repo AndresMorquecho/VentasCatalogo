@@ -211,8 +211,16 @@ function TransactionCard({ card }: { card: TransactionCardDTO }) {
                         </div>
                     </div>
 
+                    {/* Observaciones extraídas del campo description/notes */}
+                    {card.notes && (
+                        <div className="bg-slate-50/70 p-3 flex flex-col gap-1 rounded border border-slate-100 mt-3">
+                            <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">Observaciones</span>
+                            <p className="text-xs text-slate-600 whitespace-pre-wrap">{card.notes}</p>
+                        </div>
+                    )}
+
                     {/* Financial flags */}
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap mt-3 gap-1.5">
                         {card.affectsCash  && <span className="text-[10px] flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold"><Banknote className="w-3 h-3" /> Caja</span>}
                         {card.affectsBank  && <span className="text-[10px] flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-semibold"><Building2 className="w-3 h-3" /> Banco</span>}
                         {card.affectsWallet && <span className="text-[10px] flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-semibold"><Wallet className="w-3 h-3" /> Billetera</span>}
