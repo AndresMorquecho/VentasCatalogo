@@ -17,13 +17,13 @@ export function DonutChart({ recovered, outstanding, title }: DonutChartProps) {
   const outstandingPercentage = total > 0 ? (outstanding / total) * 100 : 0;
 
   // Calcular el strokeDasharray para el círculo (radio reducido)
-  const circumference = 2 * Math.PI * 60; // radio = 60 (antes 80)
+  const circumference = 2 * Math.PI * 60; 
   const recoveredDash = (recoveredPercentage / 100) * circumference;
   const outstandingDash = (outstandingPercentage / 100) * circumference;
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm h-[240px] flex flex-col">
-      <h3 className="text-sm font-bold text-slate-900 mb-3 uppercase tracking-wider">{title}</h3>
+    <div className="w-full h-full flex flex-col">
+      <h3 className="text-[10px] font-black text-slate-400 mb-6 uppercase tracking-[0.2em]">{title}</h3>
       
       <div className="flex items-center justify-center gap-6 flex-1 min-h-0">
         {/* Donut Chart SVG - Más pequeño */}

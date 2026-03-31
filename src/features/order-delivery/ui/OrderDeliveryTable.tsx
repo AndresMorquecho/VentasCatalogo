@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useMemo, useCallback } from "react"
 import {
     Table,
     TableBody,
@@ -7,7 +7,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/shared/ui/table"
-import { AlertTriangle, DollarSign, ArrowRight } from "lucide-react"
+import { Eraser, AlertTriangle, DollarSign, ArrowRight, Pin, PinOff } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import type { Order } from "@/entities/order/model/types"
 import type { CreditDistribution } from "@/entities/financial-record/model/types"
@@ -15,16 +15,8 @@ import { getPaidAmount } from "@/entities/order/model/model"
 import { Badge } from "@/shared/ui/badge"
 import { CreditActionSelectorModal } from "./CreditActionSelectorModal"
 import { CreditDistributionModal } from "./CreditDistributionModal"
-import { MoreHorizontal, Trash2, Info } from "lucide-react"
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from "@/shared/ui/dropdown-menu"
 import { DismantleModal } from "./DismantleModal"
+import { cn } from "@/shared/lib/utils"
 
 interface OrderDeliveryTableProps {
     orders: Order[]
@@ -46,9 +38,9 @@ function formatCurrency(amount: number) {
     return `$${amount.toFixed(2)}`
 }
 
-export function OrderDeliveryTable({ 
-    orders, 
-    selectedOrderIds, 
+export function OrderDeliveryTable({
+    orders,
+    selectedOrderIds,
     onSelectionChange,
     creditDistributions,
     onUpdateCreditDistribution,
@@ -75,18 +67,26 @@ export function OrderDeliveryTable({
         order: null
     })
 
-    const calculateCreditAmount = (order: Order) => {
+    const [pinnedCols, setPinnedCols] = useState<string[]>(['Saldo', 'Distribución', 'Acciones']);
+
+    const togglePin = (col: string) => {
+        setPinnedCols(prev => prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col]);
+    };
+
+    const isPinned = (col: string) => pinnedCols.includes(col);
+
+    const calculateCreditAmount = useCallback((order: Order) => {
         const initialPaid = getPaidAmount(order);
         const finalTotal = Number(order.realInvoiceTotal ?? order.total ?? 0);
         const finalBalance = finalTotal - initialPaid;
         return finalBalance < -0.01 ? Math.abs(finalBalance) : 0;
-    }
+    }, []);
 
-    const handleOpenCreditDistribution = (order: Order) => {
+    const handleOpenCreditDistribution = useCallback((order: Order) => {
         const creditAmount = calculateCreditAmount(order);
         if (creditAmount > 0) {
             const existingDist = creditDistributions[order.id];
-            const isComplex = existingDist && 
+            const isComplex = existingDist &&
                 existingDist.distributions.some(d => !!d.targetOrderId);
 
             setCreditModalState({
@@ -97,9 +97,9 @@ export function OrderDeliveryTable({
                 initialRemainingAction: undefined
             });
         }
-    }
+    }, [calculateCreditAmount, creditDistributions]);
 
-    const handleMoveToWallet = () => {
+    const handleMoveToWallet = useCallback(() => {
         if (creditModalState.sourceOrder) {
             const distribution: CreditDistribution = {
                 sourceOrderId: creditModalState.sourceOrder.id,
@@ -112,50 +112,49 @@ export function OrderDeliveryTable({
             onUpdateCreditDistribution(creditModalState.sourceOrder.id, distribution);
         }
         setCreditModalState({ selectorOpen: false, distributionOpen: false, creditAmount: 0, initialRemainingAction: undefined });
-    }
+    }, [creditModalState, onUpdateCreditDistribution]);
 
-    const handleReturnToClient = () => {
+    const handleReturnToClient = useCallback(() => {
         setCreditModalState(prev => ({
             ...prev,
             selectorOpen: false,
             distributionOpen: true,
             initialRemainingAction: 'return'
         }));
-    }
+    }, []);
 
-    const handleDistributeToOrders = () => {
+    const handleDistributeToOrders = useCallback(() => {
         setCreditModalState(prev => ({
             ...prev,
             selectorOpen: false,
             distributionOpen: true,
             initialRemainingAction: undefined
         }));
-    }
+    }, []);
 
-    const handleCreditDistribution = (distribution: CreditDistribution) => {
+    const handleCreditDistribution = useCallback((distribution: CreditDistribution) => {
         if (creditModalState.sourceOrder) {
             onUpdateCreditDistribution(creditModalState.sourceOrder.id, distribution);
         }
         setCreditModalState({ selectorOpen: false, distributionOpen: false, creditAmount: 0, initialRemainingAction: undefined });
-    }
+    }, [creditModalState.sourceOrder, onUpdateCreditDistribution]);
 
-    const handleBackToSelector = () => {
+    const handleBackToSelector = useCallback(() => {
         setCreditModalState(prev => ({
             ...prev,
             selectorOpen: true,
             distributionOpen: false
         }));
-    }
+    }, []);
 
-    const getAvailableOrdersForDistribution = (sourceOrder: Order) => {
+    const getAvailableOrdersForDistribution = useCallback((sourceOrder: Order) => {
         return orders
-            .filter(o => 
-                o.id !== sourceOrder.id && 
+            .filter(o =>
+                o.id !== sourceOrder.id &&
                 o.clientId === sourceOrder.clientId
             )
             .map(o => {
                 const initialPaid = getPaidAmount(o);
-                // Incoming from other distributions in current state
                 const incomingFromOthers = Object.entries(creditDistributions).reduce((sum, [orderId, dist]) => {
                     if (orderId === sourceOrder.id) return sum;
                     const distToThisOrder = dist.distributions.find(d => d.targetOrderId === o.id);
@@ -164,7 +163,7 @@ export function OrderDeliveryTable({
 
                 const totalAmount = Number(o.realInvoiceTotal ?? o.total ?? 0);
                 const pendingAmount = Math.max(0, totalAmount - initialPaid - incomingFromOthers);
-                
+
                 return {
                     id: o.id,
                     receiptNumber: o.receiptNumber,
@@ -178,8 +177,9 @@ export function OrderDeliveryTable({
                 };
             })
             .filter(o => o.pendingAmount > 0.01);
-    }
-    const handleToggleSelect = (order: Order) => {
+    }, [orders, creditDistributions]);
+
+    const handleToggleSelect = useCallback((order: Order) => {
         if (selectedOrderIds.includes(order.id)) {
             onSelectionChange(selectedOrderIds.filter(id => id !== order.id))
         } else {
@@ -192,19 +192,28 @@ export function OrderDeliveryTable({
             }
             onSelectionChange([...selectedOrderIds, order.id])
         }
-    }
+    }, [selectedOrderIds, orders, onSelectionChange]);
+
+    const incomingCreditsMap = useMemo(() => {
+        const map: Record<string, number> = {};
+        Object.entries(creditDistributions).forEach(([_, dist]) => {
+            dist.distributions.forEach(d => {
+                if (d.targetOrderId) {
+                    map[d.targetOrderId] = (map[d.targetOrderId] || 0) + d.amount;
+                }
+            });
+        });
+        return map;
+    }, [creditDistributions]);
 
     const firstSelectedId = selectedOrderIds[0]
     const selectedClientId = firstSelectedId ? orders.find(o => o.id === firstSelectedId)?.clientId : null
 
-    // Helper for toggle all
-    const handleToggleAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleToggleAll = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.checked) {
-            // Selecting all: if a client is already selected, pick all from that client. 
-            // If the list is filtered by a clientId (main page filter), it's safe to select all.
             const targetClient = selectedClientId || (orders.length > 0 ? orders[0].clientId : null);
             if (!targetClient) return;
-            
+
             const idsFromClient = orders
                 .filter(o => o.clientId === targetClient)
                 .map(o => o.id);
@@ -212,50 +221,83 @@ export function OrderDeliveryTable({
         } else {
             onSelectionChange([]);
         }
-    }
+    }, [selectedClientId, orders, onSelectionChange]);
 
-    const allFromClientSelected = orders.length > 0 && selectedClientId && 
+    const allFromClientSelected = orders.length > 0 && selectedClientId &&
         orders.filter(o => o.clientId === selectedClientId).every(o => selectedOrderIds.includes(o.id));
 
     return (
-        <div className="rounded-2xl border border-monchito-purple/10 bg-white overflow-hidden shadow-xl">
-            <div className="overflow-x-auto">
-                <Table className="border-collapse min-w-[2000px] w-full">
-                    <TableHeader className="bg-slate-50 sticky top-0 z-10">
-                        <TableRow className="hover:bg-transparent border-b border-slate-200">
-                            <TableHead className="w-[60px] text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4">
-                                <div className="flex flex-col items-center gap-1">
-                                    <span>Selec.</span>
-                                    <input 
-                                        type="checkbox" 
-                                        className="h-3.5 w-3.5 rounded border-slate-300 text-monchito-purple"
+        <div className="bg-white rounded-2xl border border-monchito-purple/10 shadow-[0_20px_50px_rgba(107,33,168,0.05)] overflow-hidden">
+            <div className="w-full overflow-x-auto custom-scrollbar rounded-t-2xl">
+                <Table className="text-left border-collapse min-w-[2000px] w-full">
+                    <TableHeader>
+                        <TableRow className="bg-monchito-purple/5 border-b border-monchito-purple/10">
+                            <TableHead className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest h-12 text-center">
+                                <div className="flex items-center justify-center gap-2 text-center">
+                                    <input
+                                        type="checkbox"
+                                        className="rounded border-slate-300"
                                         checked={!!allFromClientSelected}
                                         onChange={handleToggleAll}
                                         disabled={orders.length === 0}
                                     />
+                                    <span>Selec.</span>
                                 </div>
                             </TableHead>
-                            <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4">Pedido por</TableHead>
-                            <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4">Recibo</TableHead>
-                            <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4">Empresaria</TableHead>
-                            <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4">No de Pedido</TableHead>
-                            <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4">Tipo</TableHead>
-                            <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4">Catalogo</TableHead>
-                            <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4">Valor Pedido</TableHead>
-                            <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4">Abono</TableHead>
-                            <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4">Fecha Posible Entrega</TableHead>
-                            <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4 whitespace-nowrap">Factura / NC</TableHead>
-                            <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4 whitespace-nowrap">Valor Factura</TableHead>
-                            <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4 whitespace-nowrap">Fecha Ingreso</TableHead>
-                            <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4 whitespace-nowrap sticky right-[250px] bg-slate-50 z-20 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)] border-l border-slate-200">Saldo</TableHead>
-                            <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4 whitespace-nowrap sticky right-[100px] bg-slate-50 z-20 border-l border-slate-200">Distribución</TableHead>
-                            <TableHead className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest py-4 whitespace-nowrap sticky right-0 bg-slate-50 z-20 border-l border-slate-200">Acciones</TableHead>
+                            <TableHead className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Pedido por</TableHead>
+                            <TableHead className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Recibo</TableHead>
+                            <TableHead className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Empresaria</TableHead>
+                            <TableHead className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">No de Pedido</TableHead>
+                            <TableHead className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Tipo</TableHead>
+                            <TableHead className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Catalogo</TableHead>
+                            <TableHead className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">Valor Pedido</TableHead>
+                            <TableHead className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">Abono</TableHead>
+                            <TableHead className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">Fecha Posible Entrega</TableHead>
+                            <TableHead className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">Factura / NC</TableHead>
+                            <TableHead className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">Valor Factura</TableHead>
+                            <TableHead className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">Fecha Ingreso</TableHead>
+                            
+                            <TableHead className={cn(
+                                "px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center transition-all duration-300",
+                                isPinned('Saldo') && "sticky right-[320px] bg-white z-30 shadow-[-10px_0_20px_-10px_rgba(0,0,0,0.1)] border-l border-slate-200 w-[160px] min-w-[160px] max-w-[160px]"
+                            )}>
+                                <div className="flex items-center justify-center gap-2">
+                                    <span>Saldo</span>
+                                    <Button variant="ghost" size="icon" className="h-4 w-4 text-slate-300 hover:text-slate-600" onClick={(e) => { e.stopPropagation(); togglePin('Saldo'); }}>
+                                        {isPinned('Saldo') ? <Pin className="h-3 w-3 rotate-45" /> : <PinOff className="h-3 w-3" />}
+                                    </Button>
+                                </div>
+                            </TableHead>
+                            
+                            <TableHead className={cn(
+                                "px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center transition-all duration-300",
+                                isPinned('Distribución') && "sticky right-[160px] bg-white z-30 border-l border-slate-200 w-[160px] min-w-[160px] max-w-[160px]"
+                            )}>
+                                <div className="flex items-center justify-center gap-2">
+                                    <span>Distribución</span>
+                                    <Button variant="ghost" size="icon" className="h-4 w-4 text-slate-300 hover:text-slate-600" onClick={(e) => { e.stopPropagation(); togglePin('Distribución'); }}>
+                                        {isPinned('Distribución') ? <Pin className="h-3 w-3 rotate-45" /> : <PinOff className="h-3 w-3" />}
+                                    </Button>
+                                </div>
+                            </TableHead>
+                            
+                            <TableHead className={cn(
+                                "px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center transition-all duration-300",
+                                isPinned('Acciones') && "sticky right-0 bg-white z-30 border-l border-slate-200 w-[160px] min-w-[160px] max-w-[160px]"
+                            )}>
+                                <div className="flex items-center justify-center gap-2">
+                                    <span>Acciones</span>
+                                    <Button variant="ghost" size="icon" className="h-4 w-4 text-slate-300 hover:text-slate-600" onClick={(e) => { e.stopPropagation(); togglePin('Acciones'); }}>
+                                        {isPinned('Acciones') ? <Pin className="h-3 w-3 rotate-45" /> : <PinOff className="h-3 w-3" />}
+                                    </Button>
+                                </div>
+                            </TableHead>
                         </TableRow>
                     </TableHeader>
-                    <TableBody>
+                    <TableBody className="stagger-in">
                         {orders.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={14} className="h-24 text-center text-slate-400 font-medium italic">
+                                <TableCell colSpan={16} className="h-24 text-center text-slate-400 font-medium italic">
                                     No hay pedidos listos para entrega.
                                 </TableCell>
                             </TableRow>
@@ -265,10 +307,7 @@ export function OrderDeliveryTable({
                                 const isDisabled = selectedClientId !== null && order.clientId !== selectedClientId
 
                                 const initialPaid = getPaidAmount(order)
-                                const incomingDistributiveCredit = Object.entries(creditDistributions).reduce((sum, [, dist]) => {
-                                    const distToThisOrder = dist.distributions.find(d => d.targetOrderId === order.id);
-                                    return sum + (distToThisOrder?.amount || 0);
-                                }, 0);
+                                const incomingDistributiveCredit = incomingCreditsMap[order.id] || 0;
 
                                 const totalAmount = order.realInvoiceTotal ?? order.total ?? 0
                                 const saldo = Math.max(0, totalAmount - initialPaid - incomingDistributiveCredit)
@@ -276,32 +315,40 @@ export function OrderDeliveryTable({
                                 const hasDistribution = !!creditDistributions[order.id]
 
                                 return (
-                                    <TableRow 
-                                        key={order.id} 
-                                        className={`group transition-colors hover:bg-slate-50 cursor-pointer ${isSelected ? 'bg-monchito-purple/5' : ''}`}
+                                    <TableRow
+                                        key={order.id}
+                                        className={cn(
+                                            "group border-b border-monchito-purple/5 transition-all duration-200 cursor-pointer",
+                                            isSelected ? "bg-monchito-purple/[0.03]" : "hover:bg-monchito-purple/[0.02]"
+                                        )}
                                         onClick={() => !isDisabled && handleToggleSelect(order)}
                                     >
-                                        <TableCell className="text-center py-3" onClick={(e) => e.stopPropagation()}>
-                                            <input 
-                                                type="checkbox" 
+                                        <TableCell className="px-6 py-4">
+                                            <input
+                                                type="checkbox"
                                                 checked={isSelected}
                                                 disabled={isDisabled}
                                                 onChange={() => handleToggleSelect(order)}
                                                 className="h-4 w-4 rounded border-slate-300 text-monchito-purple"
                                             />
                                         </TableCell>
-                                        <TableCell className="text-center text-xs font-bold text-slate-600 uppercase whitespace-nowrap">{order.salesChannel || '-'}</TableCell>
-                                        <TableCell className="text-center text-xs font-mono font-bold text-slate-700 whitespace-nowrap">{order.receiptNumber}</TableCell>
-                                        <TableCell className="text-center text-xs font-bold text-slate-900 whitespace-nowrap">{order.clientName}</TableCell>
-                                        <TableCell className="text-center text-xs font-mono text-slate-600 whitespace-nowrap">{order.orderNumber || '-'}</TableCell>
-                                        <TableCell className="text-center">
+                                        <TableCell className="px-6 py-4 text-center text-xs font-bold text-slate-600 uppercase whitespace-nowrap">{order.salesChannel || '-'}</TableCell>
+                                        <TableCell className="px-6 py-4 text-center text-xs font-mono font-bold text-slate-700 whitespace-nowrap">{order.receiptNumber}</TableCell>
+                                        <TableCell className="px-6 py-4 text-center">
+                                            <div className="flex flex-col items-center justify-center gap-0.5 text-center">
+                                                <span className="text-sm font-bold text-slate-800 leading-tight whitespace-nowrap">{order.clientName}</span>
+                                                <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">{order.clientId}</span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="px-6 py-4 text-center text-xs font-mono text-slate-600 whitespace-nowrap">{order.orderNumber || '-'}</TableCell>
+                                        <TableCell className="px-6 py-4 text-center">
                                             <Badge variant="outline" className="text-[9px] font-black tracking-widest uppercase">
                                                 {order.type || 'NORMAL'}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell className="text-center text-xs font-black text-monchito-purple uppercase tracking-tight whitespace-nowrap">{order.brandName}</TableCell>
-                                        <TableCell className="text-center text-xs font-mono font-black text-slate-800 whitespace-nowrap">{formatCurrency(order.total)}</TableCell>
-                                        <TableCell className="text-center text-xs font-mono font-black text-emerald-600 whitespace-nowrap">
+                                        <TableCell className="px-6 py-4 text-center text-xs font-black text-monchito-purple uppercase tracking-tight whitespace-nowrap">{order.brandName}</TableCell>
+                                        <TableCell className="px-6 py-4 text-center text-xs font-mono font-black text-slate-800 whitespace-nowrap">{formatCurrency(order.total)}</TableCell>
+                                        <TableCell className="px-6 py-4 text-center text-xs font-mono font-black text-emerald-600 whitespace-nowrap">
                                             <div className="flex flex-col items-center">
                                                 <span>{formatCurrency(initialPaid)}</span>
                                                 {incomingDistributiveCredit > 0 && (
@@ -311,28 +358,39 @@ export function OrderDeliveryTable({
                                                 )}
                                             </div>
                                         </TableCell>
-                                        <TableCell className="text-center text-xs font-bold text-slate-500 whitespace-nowrap">{formatDate(order.possibleDeliveryDate)}</TableCell>
-                                        <TableCell className="text-center text-xs font-mono font-bold text-slate-600 whitespace-nowrap">{order.invoiceNumber || '-'}</TableCell>
-                                        <TableCell className="text-center text-xs font-mono font-black text-slate-800 whitespace-nowrap">
+                                        <TableCell className="px-6 py-4 text-center text-xs font-bold text-slate-500 whitespace-nowrap">{formatDate(order.possibleDeliveryDate)}</TableCell>
+                                        <TableCell className="px-6 py-4 text-center text-xs font-mono font-bold text-slate-600 whitespace-nowrap">{order.invoiceNumber || '-'}</TableCell>
+                                        <TableCell className="px-6 py-4 text-center text-xs font-mono font-black text-slate-800 whitespace-nowrap">
                                             {order.realInvoiceTotal ? formatCurrency(order.realInvoiceTotal) : '-'}
                                         </TableCell>
-                                        <TableCell className="text-center text-xs font-bold text-slate-700 whitespace-nowrap">{formatDate(order.receptionDate!)}</TableCell>
-                                        <TableCell className={`text-center text-xs font-mono font-black p-4 whitespace-nowrap sticky right-[250px] z-10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.05)] border-l border-slate-100 ${isSelected ? 'bg-monchito-purple/5' : 'bg-white'} group-hover:bg-slate-50`}>
+                                        <TableCell className="px-6 py-4 text-center text-xs font-bold text-slate-700 whitespace-nowrap">{formatDate(order.receptionDate!)}</TableCell>
+                                        
+                                        <TableCell className={cn(
+                                            "px-6 py-4 transition-all duration-300",
+                                            isPinned('Saldo') && "sticky right-[320px] z-20 shadow-[-10px_0_20px_-10px_rgba(0,0,0,0.1)] border-l border-monchito-purple/5 bg-white group-hover:bg-slate-50 w-[160px] min-w-[160px] max-w-[160px]",
+                                            !isPinned('Saldo') && "text-center"
+                                        )}>
                                             <div className="flex items-center justify-center gap-2">
                                                 {creditAmount > 0 ? (
-                                                    <span className="text-emerald-600 font-black animate-pulse-subtle">
+                                                    <Badge className="bg-emerald-500/10 text-emerald-600 border-none font-black px-3 py-1 rounded-full whitespace-nowrap">
                                                         +{formatCurrency(creditAmount)}
-                                                    </span>
+                                                    </Badge>
                                                 ) : (
-                                                    <span className={saldo > 0.01 ? 'text-red-600' : 'text-slate-400'}>
-                                                        {formatCurrency(saldo)}
-                                                        {saldo > 0.01 && <AlertTriangle className="inline-block ml-1 h-3 w-3 text-red-500 animate-pulse" />}
-                                                    </span>
+                                                    <div className="flex items-center gap-1.5 justify-center">
+                                                        <span className={cn("font-black whitespace-nowrap", saldo > 0.01 ? 'text-red-500' : 'text-slate-400')}>
+                                                            {formatCurrency(saldo)}
+                                                        </span>
+                                                        {saldo > 0.01 && <AlertTriangle className="h-3.5 w-3.5 text-red-500 animate-pulse" />}
+                                                    </div>
                                                 )}
                                             </div>
                                         </TableCell>
 
-                                        <TableCell className={`text-center p-4 sticky right-[100px] z-10 border-l border-slate-100 ${isSelected ? 'bg-monchito-purple/5' : 'bg-white'} group-hover:bg-slate-50`}>
+                                        <TableCell className={cn(
+                                            "px-6 py-4 transition-all duration-300",
+                                            isPinned('Distribución') && "sticky right-[160px] z-20 border-l border-monchito-purple/5 bg-white group-hover:bg-slate-50 w-[160px] min-w-[160px] max-w-[160px]",
+                                            !isPinned('Distribución') && "text-center"
+                                        )}>
                                             {creditAmount > 0 ? (
                                                 <Button
                                                     size="sm"
@@ -341,42 +399,37 @@ export function OrderDeliveryTable({
                                                         e.stopPropagation();
                                                         handleOpenCreditDistribution(order);
                                                     }}
-                                                    className={`h-7 px-3 text-[10px] font-black uppercase tracking-tight flex items-center gap-2 transition-all ${
-                                                        hasDistribution 
-                                                            ? 'bg-monchito-purple text-white border-monchito-purple hover:bg-monchito-purple/90 shadow-md' 
+                                                    className={`h-8 px-4 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 shadow-sm ${hasDistribution
+                                                            ? 'bg-monchito-purple text-white border-monchito-purple hover:bg-monchito-purple/90'
                                                             : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300'
-                                                    }`}
+                                                        }`}
                                                 >
-                                                    <DollarSign className="h-3 w-3" />
+                                                    <DollarSign className="h-3 w-3 mr-1" />
                                                     {hasDistribution ? 'Ver/Editar' : 'Distribuir'}
                                                 </Button>
                                             ) : (
-                                                <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Al día</span>
+                                                <span className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">Al día</span>
                                             )}
                                         </TableCell>
 
-                                        <TableCell className={`text-center p-4 sticky right-0 z-10 border-l border-slate-100 ${isSelected ? 'bg-monchito-purple/5' : 'bg-white'} group-hover:bg-slate-50`} onClick={(e) => e.stopPropagation()}>
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" className="h-8 w-8 p-0 rounded-full hover:bg-slate-100">
-                                                        <MoreHorizontal className="h-4 w-4 text-slate-400" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end" className="w-[180px] rounded-xl border-slate-200 shadow-xl">
-                                                    <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-slate-400">Opciones de Pedido</DropdownMenuLabel>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem 
-                                                        className="text-amber-600 focus:text-amber-700 focus:bg-amber-50 cursor-pointer font-bold gap-2 py-2.5 rounded-lg"
-                                                        onClick={() => setDismantleModal({ isOpen: true, order })}
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                        Desmantelar
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem className="text-slate-600 font-bold gap-2 py-2.5 rounded-lg">
-                                                        <Info className="h-4 w-4" /> Ver Detalles
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
+                                        <TableCell className={cn(
+                                            "px-6 py-4 transition-all duration-300",
+                                            isPinned('Acciones') && "sticky right-0 z-20 border-l border-monchito-purple/5 bg-white group-hover:bg-slate-50 w-[160px] min-w-[160px] max-w-[160px]",
+                                            !isPinned('Acciones') && "text-center"
+                                        )}>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setDismantleModal({ isOpen: true, order });
+                                                }}
+                                                className="h-8 px-4 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 border-amber-200 text-amber-700 hover:bg-amber-500 hover:text-white hover:border-amber-500 active:scale-95 whitespace-nowrap"
+                                                title="Desmantelar Pedido"
+                                            >
+                                                <Eraser className="h-4 w-4 mr-2" />
+                                                <span>Desmantelar</span>
+                                            </Button>
                                         </TableCell>
                                     </TableRow>
                                 )

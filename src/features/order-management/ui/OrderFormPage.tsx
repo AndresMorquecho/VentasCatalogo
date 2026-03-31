@@ -370,10 +370,12 @@ export function OrderFormPage() {
 
             const createdOrders = await orderApi.batchCreate(batchPayload);
 
-            // Invalidar queries
-            await queryClient.invalidateQueries({ queryKey: ['orders'] });
-            await queryClient.invalidateQueries({ queryKey: ['financial-records'] });
-            await queryClient.invalidateQueries({ queryKey: ['transactions'] });
+            // Invalidar queries en paralelo para evitar cascadas
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ['orders'] }),
+                queryClient.invalidateQueries({ queryKey: ['financial-records'] }),
+                queryClient.invalidateQueries({ queryKey: ['transactions'] })
+            ]);
 
             // Map orderNumbers from original form values back to the created orders
             const ordersWithNumbers = createdOrders.map((createdOrder: any, index: number) => {

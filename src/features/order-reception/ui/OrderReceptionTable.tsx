@@ -31,21 +31,21 @@ function formatCurrency(amount: number) {
 
 export function OrderReceptionTable({ orders, onReceive, onReverse, isProcessing }: OrderReceptionTableProps) {
     return (
-        <div className="rounded-2xl border border-monchito-purple/10 bg-white overflow-hidden shadow-sm">
-            <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-380px)] min-h-[400px] custom-scrollbar">
+        <div className="rounded-3xl border border-monchito-purple/10 bg-white/50 backdrop-blur-sm overflow-hidden shadow-2xl premium-shadow">
+            <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-380px)] min-h-[400px] custom-scrollbar px-1">
                 <Table className="min-w-[1000px] border-collapse">
-                    <TableHeader className="sticky top-0 z-10 bg-monchito-purple/5 backdrop-blur-sm">
-                        <TableRow className="hover:bg-transparent border-b border-monchito-purple/10">
-                            <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest px-6 py-5">Fecha</TableHead>
-                            <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest px-6 py-5">N° Recibo</TableHead>
-                            <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest px-6 py-5">Cliente</TableHead>
-                            <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest px-6 py-5">Producto</TableHead>
-                            <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest px-6 py-5 text-right">Valor Estimado</TableHead>
-                            <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest px-6 py-5 text-right">Abonado</TableHead>
-                            <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest px-6 py-5 text-right">Acciones</TableHead>
+                    <TableHeader className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b">
+                        <TableRow className="hover:bg-transparent border-none">
+                            <TableHead className="text-[10px] font-black text-monchito-purple/60 uppercase tracking-[0.2em] px-6 py-6 font-display">Fecha</TableHead>
+                            <TableHead className="text-[10px] font-black text-monchito-purple/60 uppercase tracking-[0.2em] px-6 py-6 font-display">N° Recibo</TableHead>
+                            <TableHead className="text-[10px] font-black text-monchito-purple/60 uppercase tracking-[0.2em] px-6 py-6 font-display">Cliente</TableHead>
+                            <TableHead className="text-[10px] font-black text-monchito-purple/60 uppercase tracking-[0.2em] px-6 py-6 font-display">Producto</TableHead>
+                            <TableHead className="text-[10px] font-black text-monchito-purple/60 uppercase tracking-[0.2em] px-6 py-6 font-display text-right font-display">Valor Estimado</TableHead>
+                            <TableHead className="text-[10px] font-black text-monchito-purple/60 uppercase tracking-[0.2em] px-6 py-6 font-display text-right font-display">Abonado</TableHead>
+                            <TableHead className="text-[10px] font-black text-monchito-purple/60 uppercase tracking-[0.2em] px-6 py-6 font-display text-right font-display">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
-                        <TableBody className="divide-y divide-monchito-purple/5">
+                        <TableBody className="divide-y divide-monchito-purple/5 stagger-in">
                             {orders.length === 0 ? (
                                 <TableRow className="border-b border-monchito-purple/5">
                                     <TableCell colSpan={7} className="h-24 text-center text-slate-400 font-medium">
@@ -55,8 +55,8 @@ export function OrderReceptionTable({ orders, onReceive, onReverse, isProcessing
                             ) : (
                                 orders.map((order) => (
                                     <TableRow key={order.id} className={cn(
-                                        "border-b border-monchito-purple/5 hover:bg-monchito-purple/5 transition-all duration-200",
-                                        order.status === 'RECIBIDO_EN_BODEGA' ? 'bg-monchito-purple/5' : ''
+                                        "border-b border-monchito-purple/5 hover:bg-monchito-purple/5 transition-all duration-500",
+                                        order.status === 'RECIBIDO_EN_BODEGA' ? 'bg-monchito-purple/[0.03]' : ''
                                     )}>
                                 <TableCell>{formatDate(order.createdAt)}</TableCell>
                                 <TableCell className="font-medium">
@@ -71,13 +71,13 @@ export function OrderReceptionTable({ orders, onReceive, onReverse, isProcessing
                                 <TableCell>{order.brandName}</TableCell>
                                 <TableCell className="text-right">{formatCurrency(order.total)}</TableCell>
                                 <TableCell className="text-right">{formatCurrency(getPaidAmount(order))}</TableCell>
-                                <TableCell className="text-right">
+                                <TableCell className="text-right px-6 py-4">
                                     <div className="flex justify-end gap-2">
                                         {order.status === 'RECIBIDO_EN_BODEGA' ? (
                                             <Button
                                                 size="sm"
                                                 variant="outline"
-                                                className="border-amber-200 text-amber-700 hover:bg-amber-50 hover:text-amber-800"
+                                                className="rounded-xl border-amber-200 text-amber-700 hover:bg-amber-50 hover:text-amber-800 transition-all duration-300 font-bold"
                                                 onClick={() => onReverse?.(order.id)}
                                                 disabled={isProcessing === order.id}
                                                 title="Regresar Recepción"
@@ -89,7 +89,7 @@ export function OrderReceptionTable({ orders, onReceive, onReverse, isProcessing
                                             <Button
                                                 size="sm"
                                                 variant="default"
-                                                className="bg-amber-600 hover:bg-amber-700 text-white"
+                                                className="rounded-xl bg-amber-600 hover:bg-amber-700 text-white shadow-lg shadow-amber-600/10 transition-all duration-300 font-bold"
                                                 onClick={() => onReceive(order)}
                                                 disabled={isProcessing === order.id}
                                             >

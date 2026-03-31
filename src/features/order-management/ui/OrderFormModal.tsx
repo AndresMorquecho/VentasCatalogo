@@ -174,9 +174,16 @@ function SearchableSelect({
 
 
 export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProps) {
-    const { data: clientsResponse } = useClientList({ limit: 500 })
-    const { data: bankAccountsResponse } = useBankAccountList({ limit: 500 })
-    const { data: brandsResponse } = useBrandList({ limit: 500 })
+    // Carga de datos en paralelo para evitar cascadas (Vercel Best Practice: async-parallel)
+    const [
+        { data: clientsResponse },
+        { data: bankAccountsResponse },
+        { data: brandsResponse }
+    ] = [
+        useClientList({ limit: 500 }),
+        useBankAccountList({ limit: 500 }),
+        useBrandList({ limit: 500 })
+    ];
 
     const clients = clientsResponse?.data || []
     const bankAccounts = bankAccountsResponse?.data || []

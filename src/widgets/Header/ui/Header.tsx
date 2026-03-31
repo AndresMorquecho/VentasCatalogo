@@ -81,25 +81,25 @@ export function Header() {
                         setIsSearchOpen(true);
                     }}
                     onFocus={() => setIsSearchOpen(true)}
-                    className="w-full h-9 rounded-lg bg-slate-50 border-none pl-8 text-xs sm:text-sm md:w-[200px] lg:w-[320px] focus:ring-1 focus:ring-monchito-purple/20 relative z-0"
+                    className="w-full h-10 rounded-xl bg-slate-100/50 border-none pl-10 text-xs sm:text-sm md:w-[250px] lg:w-[380px] focus:ring-2 focus:ring-monchito-purple/10 transition-all font-semibold tracking-tight relative z-0"
                 />
 
                 {/* Resultados de búsqueda */}
                 {isSearchOpen && results.length > 0 && (
-                    <div className="absolute top-11 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                        <div className="p-1">
+                    <div className="absolute top-12 left-0 right-0 glass rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div className="p-2 space-y-1">
                             {results.map((m) => (
                                 <button
                                     key={m.url}
                                     onClick={() => onSelect(m.url)}
-                                    className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 transition-colors rounded-lg group text-left"
+                                    className="w-full flex items-center gap-4 px-4 py-3 hover:bg-monchito-purple/[0.03] transition-all rounded-xl group text-left"
                                 >
-                                    <div className="p-1.5 rounded-md bg-slate-100 text-slate-500 group-hover:bg-monchito-purple/10 group-hover:text-monchito-purple transition-colors">
+                                    <div className="p-2 rounded-lg bg-slate-100 text-slate-500 group-hover:bg-monchito-purple group-hover:text-white transition-all duration-300">
                                         <m.icon className="h-4 w-4" />
                                     </div>
                                     <div className="flex flex-col min-w-0">
-                                        <span className="text-sm font-bold text-slate-700 leading-none mb-1">{m.title}</span>
-                                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">{m.category}</span>
+                                        <span className="text-sm font-bold text-slate-700 leading-none mb-1.5 transition-colors group-hover:text-monchito-purple">{m.title}</span>
+                                        <span className="text-[10px] text-slate-400 font-black uppercase tracking-[0.1em]">{m.category}</span>
                                     </div>
                                 </button>
                             ))}
@@ -108,26 +108,31 @@ export function Header() {
                 )}
             </div>
 
-            <div className="flex items-center gap-1 sm:gap-2 ml-auto">
-                <span className="text-xs sm:text-sm text-muted-foreground hidden md:inline truncate max-w-[120px] lg:max-w-none">
-                    {user?.name || user?.email}
-                </span>
-                <Button variant="outline" size="icon" className="h-8 w-8 shrink-0">
-                    <Avatar className="h-8 w-8">
-                        <AvatarImage src="/placeholder-user.jpg" alt={user?.name} />
-                        <AvatarFallback>
-                            {user?.name?.charAt(0).toUpperCase() || 'U'}
-                        </AvatarFallback>
-                    </Avatar>
-                </Button>
+            <div className="flex items-center gap-3 ml-auto">
+                <div className="hidden md:flex flex-col items-end mr-2">
+                    <span className="text-sm font-bold text-slate-800 leading-none mb-1">
+                        {user?.name || user?.email?.split('@')[0]}
+                    </span>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
+                        CONECTADO
+                    </span>
+                </div>
+                
+                <Avatar className="h-10 w-10 ring-2 ring-slate-100 ring-offset-2 transition-transform hover:scale-105">
+                    <AvatarImage src="/placeholder-user.jpg" alt={user?.name} />
+                    <AvatarFallback className="bg-monchito-purple/10 text-monchito-purple font-black">
+                        {user?.name?.charAt(0).toUpperCase() || 'U'}
+                    </AvatarFallback>
+                </Avatar>
+
                 <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-8 w-8 shrink-0"
+                    className="h-10 w-10 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
                     onClick={() => setShowLogoutDialog(true)}
                     title="Cerrar sesión"
                 >
-                    <LogOut className="h-4 w-4" />
+                    <LogOut className="h-5 w-5" />
                 </Button>
             </div>
             

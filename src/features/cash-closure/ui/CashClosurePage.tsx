@@ -113,8 +113,11 @@ export function CashClosurePage() {
             }
             setActualAmount(0);
             setShowConfirmModal(false);
-            refetchClosures();
-            await refetchPreview();
+            // Refrescar datos en paralelo para evitar cascadas
+            await Promise.all([
+                refetchClosures(),
+                refetchPreview()
+            ]);
         } catch (error: any) {
             notifyError(error, "Error al crear el cierre de caja");
         }

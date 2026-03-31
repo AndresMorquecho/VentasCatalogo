@@ -44,44 +44,28 @@ import { SidebarNavGroup } from "./SidebarNavGroup"
 // ─── Sidebar Header: banner cuando expandido, logo-botón cuando colapsado ────
 function CollapsibleHeader() {
     return (
-        <>
-            {/* ── EXPANDIDO: banner a la izquierda ── */}
-            <div
-                className="group-data-[collapsible=icon]:hidden flex items-center gap-2 bg-white"
-                style={{ padding: '6px 10px 6px 12px', minHeight: 72 }}
-            >
-                {/* Banner ocupa todo el espacio disponible */}
+        <div className="relative overflow-hidden">
+            {/* --- EXPANDED --- */}
+            <div className="group-data-[collapsible=icon]:hidden flex items-center justify-center p-4 min-h-[80px] relative z-10">
+                <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent pointer-events-none" />
                 <img
                     src="/images/BannerHeader.jpg"
                     alt="TEMU Manager"
-                    style={{
-                        flex: 1,
-                        minWidth: 0,
-                        maxHeight: 56,
-                        objectFit: 'contain',
-                        objectPosition: 'left center',
-                        mixBlendMode: 'multiply',
-                    }}
+                    className="h-12 w-auto object-contain mix-blend-multiply"
                 />
             </div>
 
-            {/* ── COLAPSADO: logo centrado ─── */}
-            <div
-                className="hidden group-data-[collapsible=icon]:flex w-full items-center justify-center bg-white"
-                style={{ minHeight: 56, border: 'none', padding: '8px 0' }}
-            >
+            {/* --- COLLAPSED --- */}
+            <div className="hidden group-data-[collapsible=icon]:flex w-full items-center justify-center py-4 bg-white relative z-10">
                 <img
                     src="/images/mochitopng.png"
                     alt="Logo"
-                    style={{
-                        width: 34,
-                        height: 34,
-                        objectFit: 'contain',
-                        mixBlendMode: 'multiply',
-                    }}
+                    className="w-8 h-8 object-contain mix-blend-multiply transition-transform hover:scale-110 duration-300"
                 />
             </div>
-        </>
+            
+            <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-sidebar-border to-transparent" />
+        </div>
     );
 }
 
@@ -200,18 +184,24 @@ export function AppSidebar() {
                 <CollapsibleHeader />
             </SidebarHeader>
 
-            <SidebarContent className="no-scrollbar">
+            <SidebarContent className="no-scrollbar px-2 py-4 space-y-4">
                 {/* 1. Main / Home Section (Single Items) */}
-                <SidebarGroup>
-                    <SidebarGroupLabel>Principal</SidebarGroupLabel>
+                <SidebarGroup className="p-0">
+                    <SidebarGroupLabel className="px-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">
+                        Principal
+                    </SidebarGroupLabel>
                     <SidebarGroupContent>
                         <SidebarMenu>
                             {topLevelItems.map((item) => (
                                 <SidebarMenuItem key={item.title}>
-                                    <SidebarMenuButton asChild tooltip={item.title}>
+                                    <SidebarMenuButton 
+                                        asChild 
+                                        tooltip={item.title}
+                                        className="h-10 rounded-xl hover:bg-slate-100 transition-all duration-300"
+                                    >
                                         <Link to={item.url}>
-                                            <item.icon />
-                                            <span>{item.title}</span>
+                                            <item.icon className="size-5" />
+                                            <span className="font-semibold tracking-tight">{item.title}</span>
                                         </Link>
                                     </SidebarMenuButton>
                                 </SidebarMenuItem>
@@ -221,10 +211,12 @@ export function AppSidebar() {
                 </SidebarGroup>
 
                 {/* 2. Grouped Sections (Collapsible) */}
-                <SidebarGroup>
-                    <SidebarGroupLabel>Módulos</SidebarGroupLabel>
+                <SidebarGroup className="p-0">
+                    <SidebarGroupLabel className="px-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">
+                        Módulos
+                    </SidebarGroupLabel>
                     <SidebarGroupContent>
-                        <SidebarMenu>
+                        <SidebarMenu className="gap-2">
                             {groupedItems.map((group) => (
                                 <SidebarNavGroup 
                                     key={group.title} 
@@ -239,15 +231,21 @@ export function AppSidebar() {
 
                 {/* 3. Admin-only Config Section */}
                 {adminMode && (
-                    <SidebarGroup>
-                        <SidebarGroupLabel>Configuración</SidebarGroupLabel>
+                    <SidebarGroup className="p-0">
+                        <SidebarGroupLabel className="px-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">
+                            Configuración
+                        </SidebarGroupLabel>
                         <SidebarGroupContent>
                             <SidebarMenu>
                                 <SidebarMenuItem>
-                                    <SidebarMenuButton asChild tooltip="Usuarios y Roles">
+                                    <SidebarMenuButton 
+                                        asChild 
+                                        tooltip="Usuarios y Roles"
+                                        className="h-10 rounded-xl hover:bg-slate-100 transition-all duration-300"
+                                    >
                                         <Link to="/admin/users">
-                                            <Settings2 />
-                                            <span>Usuarios y Roles</span>
+                                            <Settings2 className="size-5" />
+                                            <span className="font-semibold tracking-tight">Usuarios y Roles</span>
                                         </Link>
                                     </SidebarMenuButton>
                                 </SidebarMenuItem>
@@ -258,22 +256,22 @@ export function AppSidebar() {
             </SidebarContent>
 
             {/* Footer */}
-            <SidebarFooter className="border-t">
-                <div className="flex items-center justify-between gap-2 p-2 group-data-[collapsible=icon]:p-2 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:items-center">
-                    <div className="flex items-center gap-3 overflow-hidden group-data-[collapsible=icon]:overflow-visible">
-                        <div className={`h-8 w-8 group-data-[collapsible=icon]:h-7 group-data-[collapsible=icon]:w-7 rounded-full ${avatarColor} flex items-center justify-center shrink-0 shadow-sm transition-all`}>
-                            <span className="text-white font-bold text-sm group-data-[collapsible=icon]:text-xs">{userInitial}</span>
+            <SidebarFooter className="border-t border-slate-100 p-4">
+                <div className="flex items-center justify-between gap-3 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:items-center">
+                    <div className="flex items-center gap-3 overflow-hidden group-data-[collapsible=icon]:ml-1">
+                        <div className={`h-9 w-9 group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8 rounded-xl ${avatarColor} flex items-center justify-center shrink-0 shadow-lg ring-2 ring-white transition-all group-hover:scale-105 duration-300`}>
+                            <span className="text-white font-black text-sm group-data-[collapsible=icon]:text-xs">{userInitial}</span>
                         </div>
                         <div className="flex flex-col min-w-0 group-data-[collapsible=icon]:hidden">
-                            <span className="text-sm font-semibold truncate leading-none mb-1">{userName}</span>
-                            <span className="text-[10px] text-muted-foreground truncate uppercase tracking-widest">{user?.role?.name || 'Vendedor'}</span>
+                            <span className="text-sm font-bold text-slate-900 truncate leading-none mb-1.5">{userName}</span>
+                            <span className="text-[9px] text-slate-400 font-black truncate uppercase tracking-[0.1em]">{user?.role?.name || 'Vendedor'}</span>
                         </div>
                     </div>
 
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50 shrink-0 group-data-[collapsible=icon]:hidden"
+                        className="h-9 w-9 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 shrink-0 group-data-[collapsible=icon]:hidden transition-all"
                         onClick={() => setShowLogoutDialog(true)}
                         title="Cerrar Sesión"
                     >

@@ -6,6 +6,7 @@
 import { useMemo } from 'react';
 import { formatCurrency } from '@/features/portfolio-recovery/types';
 import type { RecoveryTrend } from '@/features/portfolio-recovery/types';
+import { Activity } from 'lucide-react';
 
 interface LineChartProps {
   data: RecoveryTrend[];
@@ -20,92 +21,57 @@ export function LineChart({ data, title }: LineChartProps) {
     
     if (validData.length === 0) return null;
 
-    const width = 800;
-    const height = 400;
+    const width = 1000;
+    const height = 450;
     const padding = { top: 40, right: 40, bottom: 60, left: 80 };
     const chartWidth = width - padding.left - padding.right;
     const chartHeight = height - padding.top - padding.bottom;
-
-    // Encontrar valor máximo para escala
+    
     const maxAmount = Math.max(...validData.map(d => d.totalRecovered));
     const minAmount = Math.min(...validData.map(d => d.totalRecovered));
     
-    // Agregar 10% de padding arriba y abajo para mejor visualización
-    const range = maxAmount - minAmount;
-    const paddedMax = maxAmount + (range * 0.1);
-    const paddedMin = Math.max(0, minAmount - (range * 0.1));
+    const range = maxAmount - minAmount || 1;
+    const paddedMax = maxAmount + (range * 0.15);
+    const paddedMin = Math.max(0, minAmount - (range * 0.05));
 
-    // Crear puntos para la línea
     const points = validData.map((d, i) => {
-      const x = padding.left + (i / (validData.length - 1)) * chartWidth;
+      const x = padding.left + (i / (validData.length - 1 || 1)) * chartWidth;
       const normalizedValue = (d.totalRecovered - paddedMin) / (paddedMax - paddedMin);
       const y = padding.top + chartHeight - (normalizedValue * chartHeight);
       
-      return {
-        x,
-        y,
-        data: d,
-      };
+      return { x, y, data: d };
     });
 
-    // Crear path para la línea
-    const linePath = points.map((p, i) => 
-      `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`
-    ).join(' ');
+    const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+    const areaPath = `M ${points[0].x} ${padding.top + chartHeight} L ${points.map(p => `${p.x} ${p.y}`).join(' L ')} L ${points[points.length - 1].x} ${padding.top + chartHeight} Z`;
 
-    // Crear path para el área (relleno debajo de la línea)
-    const areaPath = `
-      M ${points[0].x} ${padding.top + chartHeight}
-      L ${points.map(p => `${p.x} ${p.y}`).join(' L ')}
-      L ${points[points.length - 1].x} ${padding.top + chartHeight}
-      Z
-    `;
+    const yAxisValues = [0, 1, 2, 3, 4].map(i => paddedMin + ((paddedMax - paddedMin) * i / 4));
 
-    // Calcular valores para el eje Y (5 niveles)
-    const yAxisValues = [];
-    for (let i = 0; i <= 4; i++) {
-      const value = paddedMin + ((paddedMax - paddedMin) * i / 4);
-      yAxisValues.push(value);
-    }
-
-    return {
-      width,
-      height,
-      padding,
-      chartWidth,
-      chartHeight,
-      maxAmount: paddedMax,
-      minAmount: paddedMin,
-      points,
-      linePath,
-      areaPath,
-      validData,
-      yAxisValues,
-    };
+    return { width, height, padding, chartWidth, chartHeight, maxAmount: paddedMax, minAmount: paddedMin, points, linePath, areaPath, validData, yAxisValues };
   }, [data]);
 
   if (!chartData || data.length === 0) {
     return (
-      <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm h-full">
-        <h3 className="text-lg font-bold text-slate-900 mb-4">{title}</h3>
-        <div className="flex flex-col items-center justify-center h-[500px] text-slate-400 bg-slate-50 rounded-lg">
-          <svg className="w-16 h-16 mb-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-          </svg>
-          <p className="text-sm font-semibold">No hay datos suficientes para mostrar tendencias</p>
-          <p className="text-xs mt-1">Las órdenes necesitan tener diferentes fechas de recepción</p>
-        </div>
+      <div className="w-full h-full flex flex-col items-center justify-center min-h-[500px]">
+        <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-8">{title}</h3>
+        <Activity className="w-12 h-12 mb-4 text-slate-200" />
+        <p className="text-sm font-bold text-slate-400 italic">Tendencias en procesamiento...</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm h-full flex flex-col">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-bold text-slate-900">{title}</h3>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-green-500"></div>
-          <span className="text-xs font-semibold text-slate-600">Monto Recuperado</span>
+    <div className="bg-white/80 backdrop-blur-md border-none shadow-[0_15px_50px_rgba(0,0,0,0.03)] rounded-3xl p-10 h-full flex flex-col group">
+      <div className="flex items-center justify-between mb-10">
+        <div className="space-y-1">
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{title}</h3>
+            <p className="text-2xl font-black text-slate-900 font-display">Histórico de Recaudación</p>
+        </div>
+        <div className="flex items-center gap-4 bg-slate-50 px-4 py-2 rounded-2xl border border-slate-100">
+          <div className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 rounded-full bg-monchito-purple shadow-sm shadow-monchito-purple/30"></div>
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Monto Recuperado</span>
+          </div>
         </div>
       </div>
 

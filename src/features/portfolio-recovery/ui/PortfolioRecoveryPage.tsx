@@ -24,16 +24,18 @@ export function PortfolioRecoveryPage() {
   } = usePortfolioFilters();
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#fcfaff]">
       {/* Page Header */}
-      <PageHeader
-        title="Análisis de Recuperación de Cartera"
-        description="Monitoreo y gestión de recuperación de pagos por marca"
-        icon={Wallet}
-      />
+      <div className="px-4 lg:px-12 pt-12">
+        <PageHeader
+          title="Recuperación de Cartera"
+          description="Monitoreo estratégico y gestión operativa de recaudos por marca."
+          icon={Wallet}
+        />
+      </div>
 
       {/* Main Content */}
-      <div className="px-6 pt-4 pb-6 space-y-3">
+      <div className="px-4 lg:px-12 pt-8 pb-12 space-y-12">
         {/* Global Filters */}
         <GlobalFilters
           filterState={filterState}

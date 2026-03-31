@@ -1,44 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,600;0,800;1,400&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 240 10% 98%;
+    --foreground: 240 10% 3.9%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 240 10% 3.9%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    /* Monchito Purple: #570d64 -> hsl(291, 77%, 22%) */
-    --primary: 291 77% 22%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --popover-foreground: 240 10% 3.9%;
+    
+    /* Monchito Premium: More vibrant and deep */
+    --primary: 291 75% 25%;
+    --primary-foreground: 0 0% 98%;
+    
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 291 75% 96%;
+    --accent-foreground: 291 75% 25%;
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 291 77% 22%;
-    --radius: 0.75rem;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 291 75% 25%;
+    --radius: 1rem;
 
-    /* Brand Tokens */
-    --monchito-purple: 291 77% 22%;
+    /* Brand Tokens - Refined */
+    --monchito-purple: 291 75% 25%;
     --monchito-teal: 176 67% 38%;
     --monchito-gold: 49 87% 54%;
 
-    --sidebar-background: 0 0% 98%;
+    /* Sidebar - Classic Light Look */
+    --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary: 291 75% 25%;
     --sidebar-primary-foreground: 0 0% 98%;
     --sidebar-accent: 240 4.8% 95.9%;
     --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-border: 240 5.9% 90%;
+    --sidebar-ring: 291 75% 25%;
   }
 
   .dark {
@@ -79,6 +84,16 @@
 
   body {
     @apply bg-background text-foreground;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background-image: 
+      radial-gradient(at 0% 0%, hsla(291, 75%, 25%, 0.05) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, hsla(176, 67%, 38%, 0.05) 0px, transparent 50%);
+    background-attachment: fixed;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Outfit', sans-serif;
+    @apply tracking-tight font-extrabold;
   }
 }
 
@@ -103,10 +118,39 @@
     appearance: textfield;
   }
 
-  /* Custom Scrollbar */
+  .glass {
+    @apply bg-white/70 backdrop-blur-md border border-white/20 shadow-xl;
+  }
+
+  .glass-dark {
+    @apply bg-slate-900/80 backdrop-blur-md border border-white/10 shadow-2xl;
+  }
+
+  .premium-shadow {
+    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.1);
+  }
+
+  .stagger-in > * {
+    @apply opacity-0 translate-y-4;
+    animation: slide-up 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  }
+
+  .stagger-in > *:nth-child(1) { animation-delay: 0.1s; }
+  .stagger-in > *:nth-child(2) { animation-delay: 0.2s; }
+  .stagger-in > *:nth-child(3) { animation-delay: 0.3s; }
+  .stagger-in > *:nth-child(4) { animation-delay: 0.4s; }
+  .stagger-in > *:nth-child(5) { animation-delay: 0.5s; }
+
+  @keyframes slide-up {
+    to {
+      @apply opacity-100 translate-y-0;
+    }
+  }
+
+  /* Custom Scrollbar - More Refined */
   .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 4px;
+    height: 4px;
   }
 
   .custom-scrollbar::-webkit-scrollbar-track {
@@ -114,34 +158,6 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-slate-200 rounded-full;
-  }
-
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    @apply bg-slate-300;
-  }
-
-  @keyframes bounce-horizontal {
-    0%, 100% {
-      transform: translateY(-50%) translateX(0);
-    }
-    50% {
-      transform: translateY(-50%) translateX(-10px);
-    }
-  }
-  .animate-bounce-horizontal {
-    animation: bounce-horizontal 2s infinite;
-  }
-
-  @keyframes pulse-subtle {
-    0%, 100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.7;
-    }
-  }
-  .animate-pulse-subtle {
-    animation: pulse-subtle 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    @apply bg-slate-300/50 rounded-full hover:bg-monchito-purple/30 transition-colors;
   }
 }

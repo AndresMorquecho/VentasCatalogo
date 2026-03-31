@@ -1,10 +1,5 @@
-/**
- * Gráfico de Velocímetro Profesional
- * Muestra el nivel de riesgo de recuperación con diseño profesional
- * Usa paleta Monchito: Rojo (#ef4444) -> Amarillo (#f59e0b) -> Verde (#10b981)
- */
-
 import { useMemo } from 'react';
+import { cn } from '@/shared/lib/utils';
 
 interface SpeedometerChartProps {
   recoveryRate: number;
@@ -14,10 +9,10 @@ interface SpeedometerChartProps {
 export function SpeedometerChart({ recoveryRate, title }: SpeedometerChartProps) {
   // Determinar el nivel de riesgo
   const riskLevel = useMemo(() => {
-    if (recoveryRate >= 70) return { level: 'Bajo', color: '#10b981', label: 'EXCELENTE', bgColor: '#d1fae5' };
-    if (recoveryRate >= 50) return { level: 'Moderado', color: '#f59e0b', label: 'BUENO', bgColor: '#fef3c7' };
-    if (recoveryRate >= 30) return { level: 'Alto', color: '#f59e0b', label: 'ADVERTENCIA', bgColor: '#fef3c7' };
-    return { level: 'Crítico', color: '#ef4444', label: 'CRÍTICO', bgColor: '#fee2e2' };
+    if (recoveryRate >= 70) return { level: 'Bajo', color: '#10b981', label: 'EXCELENTE', bgColor: 'bg-emerald-50 text-emerald-700 border-emerald-100' };
+    if (recoveryRate >= 50) return { level: 'Moderado', color: '#f59e0b', label: 'BUENO', bgColor: 'bg-amber-50 text-amber-700 border-amber-100' };
+    if (recoveryRate >= 30) return { level: 'Alto', color: '#f59e0b', label: 'ADVERTENCIA', bgColor: 'bg-amber-50 text-amber-700 border-amber-100' };
+    return { level: 'Crítico', color: '#ef4444', label: 'CRÍTICO', bgColor: 'bg-rose-50 text-rose-700 border-rose-100' };
   }, [recoveryRate]);
 
   // Calcular el ángulo de la aguja (de -90° a 90°)
@@ -26,8 +21,8 @@ export function SpeedometerChart({ recoveryRate, title }: SpeedometerChartProps)
   }, [recoveryRate]);
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm h-[240px] flex flex-col">
-      <h3 className="text-sm font-bold text-slate-900 mb-3 uppercase tracking-wider">{title}</h3>
+    <div className="w-full h-full flex flex-col">
+      <h3 className="text-[10px] font-black text-slate-400 mb-6 uppercase tracking-[0.2em]">{title}</h3>
       
       <div className="flex items-center justify-center gap-6 flex-1 min-h-0">
         {/* Columna Izquierda - Velocímetro */}
@@ -134,11 +129,7 @@ export function SpeedometerChart({ recoveryRate, title }: SpeedometerChartProps)
           {/* Indicador de estado */}
           <div className="text-center mt-1">
             <div 
-              className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider"
-              style={{ 
-                backgroundColor: riskLevel.bgColor,
-                color: riskLevel.color 
-              }}
+              className={cn("inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border", riskLevel.bgColor)}
             >
               {riskLevel.label}
             </div>
