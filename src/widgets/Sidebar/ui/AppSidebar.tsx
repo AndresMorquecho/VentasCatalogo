@@ -90,7 +90,7 @@ const groupedItems = [
         items: [
             { title: "Empresarias", url: "/clients", icon: Users, permission: "clients.view" },
             { title: "Pedidos", url: "/orders", icon: Inbox, permission: "orders.view" },
-            { title: "Recepción", url: "/orders/reception", icon: PackageCheck, permission: "reception.view" },
+            { title: "Recepción", url: "/orders/reception/new", icon: PackageCheck, permission: "reception.view" },
             { title: "Entregas", url: "/orders/delivery", icon: Truck, permission: "delivery.view" },
             { title: "Cambios", url: "/exchanges", icon: ArrowLeftRight, permission: "exchanges.view" },
         ]

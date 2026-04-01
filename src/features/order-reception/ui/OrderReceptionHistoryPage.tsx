@@ -129,7 +129,7 @@ export function OrderReceptionHistoryPage() {
                 icon={History}
                 actions={
                     <div className="flex gap-3">
-                        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-2 font-bold text-slate-400">
+                        <Button variant="ghost" size="sm" onClick={() => navigate("/orders/reception/new")} className="gap-2 font-bold text-slate-400 hover:text-monchito-purple hover:bg-monchito-purple/5 transition-colors">
                             <ArrowLeft className="h-4 w-4" />
                             Volver a Recepción
                         </Button>
@@ -149,26 +149,29 @@ export function OrderReceptionHistoryPage() {
                 }
             />
 
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap gap-4 items-end">
-                <div className="flex-1 min-w-[280px]">
-                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1 mb-2 block">Buscar Cliente / Recibo / Factura</label>
+            {/* Filtros alineados con labels estandarizados */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
+                <div className="md:col-span-8">
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1 mb-2 block tracking-[0.1em]">Buscar Cliente / Recibo / Factura</label>
                     <div className="relative">
-                        <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <Input
-                            placeholder="Nombre, recibo, factura..."
-                            className="pl-10 h-11 bg-slate-50 border-slate-200 rounded-xl"
+                            placeholder="Nombre, número de recibo o factura..."
+                            className="pl-10 h-11 bg-slate-50 border-slate-200 rounded-xl font-bold text-slate-900 focus:bg-white transition-all text-sm"
                             value={searchText}
                             onChange={(e) => setSearchText(e.target.value)}
                         />
                     </div>
                 </div>
-                <div className="w-full sm:w-auto min-w-[280px]">
+                
+                <div className="md:col-span-4">
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1 mb-2 block tracking-[0.1em]">Rango de Recepción</label>
                     <DateRangePicker
                         value={dateRange}
                         onChange={setDateRange}
-                        label="Rango de Recepción"
                         placeholder="Seleccionar periodo"
-                        className="h-11"
+                        showLabel={false}
+                        buttonClassName="h-11 bg-slate-50 border-slate-200 rounded-xl font-bold text-slate-900 focus:bg-white transition-all"
                     />
                 </div>
             </div>
