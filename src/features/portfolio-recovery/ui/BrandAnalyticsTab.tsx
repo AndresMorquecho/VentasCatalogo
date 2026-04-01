@@ -114,7 +114,7 @@ export function BrandAnalyticsTab({ filters }: BrandAnalyticsTabProps) {
                 icon={<Package className="h-5 w-5" />}
                 color="info"
                 sparklineData={[65, 60, 62, 58, 55, 50, 48]}
-                description="Total en Bodega"
+                description="Venta Total en Cartera"
             />
             <KpiCard
                 title="Recuperado Total"
@@ -180,7 +180,7 @@ export function BrandAnalyticsTab({ filters }: BrandAnalyticsTabProps) {
                   <div className="text-2xl font-black text-monchito-purple font-display">{formatPercentage(totals.avgRecoveryRate)}</div>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Días Bodega</div>
+                  <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Envejecimiento</div>
                   <div className="text-2xl font-black text-slate-900 font-display">
                     {Math.round(data.items.reduce((sum, b: any) => sum + b.avgDaysInWarehouse, 0) / data.items.length)}d
                   </div>
