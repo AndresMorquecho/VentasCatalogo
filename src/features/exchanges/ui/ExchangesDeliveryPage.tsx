@@ -8,8 +8,10 @@ import { PendingOrdersModal } from "@/features/order-delivery/ui/PendingOrdersMo
 import type { Order } from "@/entities/order/model/types"
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
-import { Search, History, Truck, RotateCcw, Filter, ChevronDown, PackageOpen } from "lucide-react"
+import { Search, History, Truck, RotateCcw, Filter, ChevronDown, PackageOpen, FileDown, Loader2 } from "lucide-react"
 import { PageHeader } from "@/shared/ui/PageHeader"
+import { orderApi } from "@/entities/order/model/api"
+import { exportExchangesToExcel } from "@/shared/lib/exportExcel"
 import { Pagination } from "@/shared/ui/pagination"
 import { DateRangePicker } from "@/shared/ui/filters"
 import type { DateRange } from "react-day-picker"
@@ -204,6 +206,7 @@ export function OrderDeliveryPage() {
     const [searchTerm, setSearchTerm] = useState<string>("")
     
     const [showFilters, setShowFilters] = useState(false)
+    const [isExporting, setIsExporting] = useState(false)
     const [dateCategoryFilter, setDateCategoryFilter] = useState<'ALL' | 'RECENT' | 'WARN' | 'CRITICAL'>('ALL')
 
     // Convert DateRange to strings for API
@@ -346,6 +349,33 @@ export function OrderDeliveryPage() {
         setIsDeliverModalOpen(true)
     }
 
+    const handleExport = async () => {
+        try {
+            setIsExporting(true)
+            const response = await orderApi.getAll({
+                type: 'CAMBIO',
+                status: 'RECIBIDO_EN_BODEGA',
+                brandId: brandId === 'ALL' ? undefined : brandId,
+                clientId: clientId || undefined,
+                startDate: startDate || undefined,
+                endDate: endDate || undefined,
+                search: searchTerm || undefined,
+                page: 1,
+                limit: 1000
+            })
+            
+            if (response && response.data.length > 0) {
+                exportExchangesToExcel(response.data, `Cambios_Por_Entregar_${new Date().toISOString().split('T')[0]}.xlsx`)
+            } else {
+                alert("No hay cambios para exportar con estos filtros")
+            }
+        } catch (error) {
+            console.error("Error exporting exchanges:", error)
+        } finally {
+            setIsExporting(false)
+        }
+    }
+
     const selectedOrders = useMemo(() => {
         const result = Object.values(selectedOrdersMap);
         console.log('[OrderDeliveryPage] Memoized selectedOrders updated:', { count: result.length, ids: result.map(o => o.id) });
@@ -381,6 +411,19 @@ export function OrderDeliveryPage() {
                         <Button variant="outline" onClick={() => navigate('/exchanges/delivery/history')} className="gap-2 rounded-xl h-10 border-slate-200">
                             <History className="h-4 w-4" />
                             Historial
+                        </Button>
+                        <Button 
+                            variant="outline"
+                            onClick={handleExport}
+                            disabled={isExporting}
+                            className="bg-white hover:bg-emerald-50 hover:text-emerald-700 border-slate-200 gap-2 h-10 rounded-xl px-4 font-bold"
+                        >
+                            {isExporting ? (
+                                <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
+                            ) : (
+                                <FileDown className="h-4 w-4 text-emerald-500" />
+                            )}
+                            Exportar Excel
                         </Button>
                         <Button variant="outline" onClick={clearFilters} title="Limpiar todos los filtros" className="h-10 w-10 p-0 rounded-xl border-slate-200 text-slate-400 hover:text-orange-500">
                             <RotateCcw className="h-4 w-4" />

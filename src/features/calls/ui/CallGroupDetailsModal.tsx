@@ -2,11 +2,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/ui/di
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
 import { Badge } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
-import { Edit } from 'lucide-react';
+import { Edit, Trash2 } from 'lucide-react';
 import { callResultsMap } from '@/entities/call';
 import type { CallGroup } from '@/entities/call/model/api';
 import type { Call } from '@/entities/call/model/types';
 import { useClients } from '@/entities/client/model/hooks';
+import { useDeleteCall } from '@/entities/call/model/hooks';
+import { useToast } from '@/shared/ui/use-toast';
 
 const CALL_REASONS_MAP: Record<string, string> = {
     'REACTIVACION': 'Reactivación',
@@ -24,8 +26,27 @@ interface CallGroupDetailsModalProps {
 export function CallGroupDetailsModal({ open, onOpenChange, group, onEditCall }: CallGroupDetailsModalProps) {
     const { data: clientsResponse } = useClients();
     const clients = clientsResponse?.data || [];
+    const deleteCall = useDeleteCall();
+    const { showToast } = useToast();
 
     if (!group) return null;
+
+    const handleDeleteCall = async (id: string, clientName: string) => {
+        if (!confirm(`¿Estás seguro de que deseas eliminar la llamada a ${clientName}?`)) {
+            return;
+        }
+
+        try {
+            await deleteCall.mutateAsync(id);
+            showToast('Llamada eliminada correctamente', 'success');
+            // If it was the last call, close modal
+            if (group.calls.length <= 1) {
+                onOpenChange(false);
+            }
+        } catch (error) {
+            showToast('Error al eliminar la llamada', 'error');
+        }
+    };
 
     const getClientName = (id: string) => {
         const client = clients?.find(c => c.id === id);
@@ -101,7 +122,7 @@ export function CallGroupDetailsModal({ open, onOpenChange, group, onEditCall }:
                                     <TableCell className="max-w-[200px] text-xs text-slate-600 truncate">
                                         {call.notes || '-'}
                                     </TableCell>
-                                    <TableCell className="text-right">
+                                    <TableCell className="text-right space-x-1">
                                         <Button
                                             variant="ghost"
                                             size="sm"
@@ -109,6 +130,15 @@ export function CallGroupDetailsModal({ open, onOpenChange, group, onEditCall }:
                                             onClick={() => onEditCall?.(call as any)}
                                         >
                                             <Edit className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-8 w-8 p-0 text-rose-500 hover:text-rose-600 hover:bg-rose-50"
+                                            disabled={deleteCall.isPending}
+                                            onClick={() => handleDeleteCall(call.id, getClientName(call.clientId))}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
                                         </Button>
                                     </TableCell>
                                 </TableRow>

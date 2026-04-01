@@ -48,7 +48,7 @@ export function InventoryTab() {
       setCampaign('');
       setQuantity('');
     } catch (error: any) {
-      showToast(error.response?.data?.error || 'Error al registrar inventario', 'error');
+      showToast(error.message || 'Error al registrar inventario', 'error');
     }
   };
 

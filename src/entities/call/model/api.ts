@@ -57,6 +57,10 @@ export const callApi = {
 
     delete: async (id: string): Promise<void> => {
         return httpClient.delete<void>(`/calls/${id}`);
+    },
+    
+    deleteBatch: async (ids: string[]): Promise<void> => {
+        return httpClient.delete<void>('/calls/batch', { ids });
     }
 };
 

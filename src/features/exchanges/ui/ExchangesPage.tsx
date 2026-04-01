@@ -8,7 +8,12 @@ import {
   ArrowRightLeft,
   ChevronRight,
   ClipboardList,
-  ListOrdered
+  ListOrdered,
+  FileDown,
+  Loader2,
+  Trash2,
+  Edit,
+  AlertTriangle
 } from 'lucide-react';
 
 import { Button } from '../../../shared/ui/button';
@@ -23,8 +28,14 @@ import { es } from 'date-fns/locale';
 import { useOrderList } from '@/entities/order/model/hooks';
 import { Pagination } from '@/shared/ui/pagination';
 import { useDebounce } from '@/shared/lib/hooks';
+import { exportExchangesToExcel } from '@/shared/lib/exportExcel';
+import { orderApi } from '@/entities/order/model/api';
 import type { Order } from '@/entities/order/model/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../../shared/ui/dialog';
+import { useAuth } from '@/shared/auth';
+import { useNotifications } from '@/shared/lib/notifications';
+import { ConfirmDialog } from '@/shared/ui/confirm-dialog';
+import { useQueryClient } from '@tanstack/react-query';
 
 const STATUS_LABELS: Record<string, string> = {
   POR_RECIBIR: 'Enviado',
@@ -80,9 +91,15 @@ export function ExchangesPage() {
   const debouncedSearch = useDebounce(searchText, 500)
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [page, setPage] = useState(1);
-  const limit = 50; // Increased limit so groups display correctly
+  const limit = 50; 
+  const [isExporting, setIsExporting] = useState(false);
   
   const [selectedGroup, setSelectedGroup] = useState<Order[] | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteData, setDeleteData] = useState<{ isOpen: boolean; receiptNumber: string | null }>({ isOpen: false, receiptNumber: null });
+  
+  const { notifySuccess, notifyError } = useNotifications();
+  const queryClient = useQueryClient();
 
   // Reset page on filter change
   useEffect(() => {
@@ -108,6 +125,61 @@ export function ExchangesPage() {
     setPage(1);
   };
 
+  const handleExport = async () => {
+    try {
+      setIsExporting(true);
+      const response = await orderApi.getAll({
+        type: 'CAMBIO',
+        search: debouncedSearch,
+        startDate: dateRange?.from ? dateRange.from.toISOString().split('T')[0] : undefined,
+        endDate: dateRange?.to ? dateRange.to.toISOString().split('T')[0] : undefined,
+        page: 1,
+        limit: 1000,
+      });
+
+      if (response && response.data.length > 0) {
+        exportExchangesToExcel(response.data, `Historial_Cambios_${new Date().toISOString().split('T')[0]}.xlsx`);
+      } else {
+        alert("No hay cambios para exportar con estos filtros");
+      }
+    } catch (error) {
+      console.error("Error exporting exchanges:", error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission('exchanges.create');
+
+  const handleEditBatch = (receiptNumber: string) => {
+    navigate(`/exchanges/group/${receiptNumber}`);
+  };
+
+  const handleDeleteBatch = async () => {
+    if (!deleteData.receiptNumber) return;
+    
+    try {
+      setIsDeleting(true);
+      const groupToDelete = groupedOrders.find(g => g[0].receiptNumber === deleteData.receiptNumber);
+      if (!groupToDelete) throw new Error("No se encontró el grupo de pedidos");
+      
+      const referenceId = groupToDelete[0].id;
+      
+      await orderApi.delete(referenceId, true); // true para cascade por receipt
+      
+      notifySuccess(`Guía ${deleteData.receiptNumber} eliminada correctamente. Los pedidos originales han vuelto a estado Entregado.`);
+      setSelectedGroup(null);
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+    } catch (error: any) {
+      console.error("Error al eliminar guía:", error);
+      notifyError(error, error.message || "Error al eliminar la guía de cambio.");
+    } finally {
+      setIsDeleting(false);
+      setDeleteData({ isOpen: false, receiptNumber: null });
+    }
+  };
+
   const groupedOrders = React.useMemo(() => {
     const groups: Record<string, Order[]> = {};
     orders.forEach(order => {
@@ -127,16 +199,33 @@ export function ExchangesPage() {
         description="Historial y estado de los cambios agrupados por guía de envío"
         icon={Replace}
         actions={
-          <div className="flex gap-3">
-             <Button variant="outline" onClick={clearFilters} title="Limpiar todos los filtros" className="h-10 w-10 p-0 rounded-xl">
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+             <Button 
+                variant="outline" 
+                onClick={clearFilters} 
+                title="Limpiar todos los filtros" 
+                className="w-full sm:w-10 h-10 p-0 rounded-xl flex items-center justify-center gap-2 sm:gap-0"
+              >
                  <RotateCcw className="h-4 w-4 text-slate-500" />
+                 <span className="sm:hidden font-bold text-slate-500 text-xs">Limpiar Filtros</span>
              </Button>
-             <Button
-               onClick={() => navigate('/exchanges/new')}
-               className="bg-monchito-purple hover:bg-monchito-purple/90 text-white font-black rounded-xl shadow-lg transition-all flex items-center gap-2 h-10 px-6 tracking-wide"
+             <Button 
+                variant="outline"
+                onClick={handleExport}
+                disabled={isExporting}
+                className="w-full sm:w-auto bg-white hover:bg-emerald-50 hover:text-emerald-700 border-slate-200 gap-2 h-10 rounded-xl px-4 font-bold"
              >
-               <Plus className="h-4 w-4" /> Nuevo Cambio
+                {isExporting ? <Loader2 className="h-4 w-4 animate-spin text-emerald-500" /> : <FileDown className="h-4 w-4 text-emerald-500" />}
+                {isExporting ? 'Exportando...' : 'Exportar Excel'}
              </Button>
+             {canCreate && (
+               <Button
+                 onClick={() => navigate('/exchanges/new')}
+                 className="w-full sm:w-auto bg-monchito-purple hover:bg-monchito-purple/90 text-white font-black rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 h-10 px-6 tracking-wide"
+               >
+                 <Plus className="h-4 w-4" /> Nuevo Cambio
+               </Button>
+             )}
           </div>
         }
       />
@@ -282,6 +371,7 @@ export function ExchangesPage() {
           {selectedGroup && (() => {
                const firstOrder = selectedGroup[0];
                const totalAmount = selectedGroup.reduce((acc, curr) => acc + Number(curr.total || 0), 0);
+               const isAnyDelivered = selectedGroup.some(o => o.status === 'ENTREGADO');
                const isAllDelivered = selectedGroup.every(o => o.status === 'ENTREGADO');
                const isAllBodega = selectedGroup.every(o => o.status === 'RECIBIDO_EN_BODEGA');
                let globalStatus = 'Diversos';
@@ -439,10 +529,38 @@ export function ExchangesPage() {
                     </div>
                 </div>
 
-                <DialogFooter className="px-6 py-4 bg-white border-t border-slate-100 justify-end">
+                <DialogFooter className="px-6 py-4 bg-white border-t border-slate-100 flex flex-col sm:flex-row gap-3 justify-between items-center">
+                    <div className="flex gap-2">
+                        {!isAnyDelivered && hasPermission('exchanges.edit') && (
+                            <Button 
+                                variant="outline" 
+                                className="rounded-xl h-11 font-bold text-monchito-purple border-monchito-purple/20 hover:bg-monchito-purple/5 transition-all px-6"
+                                onClick={() => handleEditBatch(firstOrder.receiptNumber!)}
+                            >
+                                <Edit className="w-4 h-4 mr-2" />
+                                Editar Guía
+                            </Button>
+                        )}
+                        {!isAnyDelivered && hasPermission('exchanges.delete') && (
+                            <Button 
+                                variant="ghost" 
+                                className="rounded-xl h-11 font-bold text-red-500 hover:bg-red-50 transition-all px-6"
+                                onClick={() => setDeleteData({ isOpen: true, receiptNumber: firstOrder.receiptNumber! })}
+                            >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Eliminar Todo
+                            </Button>
+                        )}
+                        {isAnyDelivered && (
+                            <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                                <AlertTriangle className="w-4 h-4 text-slate-400" />
+                                <span className="text-[10px] font-bold text-slate-400 uppercase">Guía con items entregados (Restringida)</span>
+                            </div>
+                        )}
+                    </div>
                     <Button 
-                        variant="outline" 
-                        className="rounded-xl h-11 font-bold text-slate-600 hover:bg-slate-50 transition-all active:scale-95 px-8 shadow-sm"
+                        variant="default" 
+                        className="rounded-xl h-11 font-black bg-slate-900 hover:bg-slate-800 text-white transition-all px-8 shadow-lg w-full sm:w-auto"
                         onClick={() => setSelectedGroup(null)}
                     >
                         Cerrar Detalles
@@ -452,6 +570,17 @@ export function ExchangesPage() {
           );})()}
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={deleteData.isOpen}
+        onOpenChange={(open) => !open && setDeleteData({ isOpen: false, receiptNumber: null })}
+        title="Eliminar Guía de Cambio"
+        description={`¿Estás seguro de que deseas eliminar la guía ${deleteData.receiptNumber}? Esto eliminará todos los cambios solicitados y revertirá los pedidos originales al estado "Entregado". Esta acción no se puede deshacer.`}
+        confirmText={isDeleting ? "Eliminando..." : "Sí, eliminar guía"}
+        cancelText="No, mantener"
+        onConfirm={handleDeleteBatch}
+        variant="destructive"
+      />
     </div>
   );
 }

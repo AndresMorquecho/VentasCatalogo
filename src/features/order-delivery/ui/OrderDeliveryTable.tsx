@@ -67,7 +67,13 @@ export function OrderDeliveryTable({
         order: null
     })
 
-    const [pinnedCols, setPinnedCols] = useState<string[]>(['Saldo', 'Distribución', 'Acciones']);
+    const [pinnedCols, setPinnedCols] = useState<string[]>(() => {
+        // En móviles (ancho < 768px), las columnas no están fijas por defecto
+        if (typeof window !== 'undefined' && window.innerWidth < 768) {
+            return [];
+        }
+        return ['Saldo', 'Distribución', 'Acciones'];
+    });
 
     const togglePin = (col: string) => {
         setPinnedCols(prev => prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col]);

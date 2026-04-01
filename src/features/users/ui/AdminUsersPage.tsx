@@ -31,21 +31,22 @@ export function AdminUsersPage() {
                 icon={Users}
             />
 
-            {/* Tabs */}
-            <div className="bg-white rounded-xl border border-slate-200 p-1 flex gap-1 w-fit shadow-sm">
-                {TABS.map(tab => (
-                    <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === tab.id
-                            ? 'bg-slate-900 text-white shadow-sm'
-                            : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
-                            }`}
-                    >
-                        {tab.icon}
-                        {tab.label}
-                    </button>
-                ))}
+            <div className="w-full overflow-x-auto no-scrollbar -mx-1 px-1">
+                <div className="bg-white rounded-xl border border-slate-200 p-1 flex flex-nowrap gap-1 w-max shadow-sm min-w-full sm:min-w-0">
+                    {TABS.map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 whitespace-nowrap ${activeTab === tab.id
+                                ? 'bg-monchito-purple text-white shadow-md shadow-monchito-purple/20'
+                                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+                                }`}
+                        >
+                            {tab.icon}
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {/* Content */}

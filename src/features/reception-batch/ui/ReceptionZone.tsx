@@ -3,6 +3,7 @@ import { Input } from "@/shared/ui/input"
 import { Label } from "@/shared/ui/label"
 import { SelectedOrdersTable } from "./SelectedOrdersTable"
 import { ArrowDown, CheckCircle } from "lucide-react"
+import { useAuth } from "@/shared/auth"
 
 
 interface Props {
@@ -85,6 +86,9 @@ export function ReceptionZone({
         }
     };
 
+    const { hasPermission } = useAuth();
+    const canConfirm = hasPermission('reception.confirm');
+
     return (
         <div className="flex flex-col h-full overflow-hidden">
             {/* Arrow Indicator */}
@@ -140,9 +144,10 @@ export function ReceptionZone({
                         </div>
 
                         <Button 
-                            className="bg-monchito-purple hover:bg-monchito-purple/90 text-white font-bold h-9 px-6 shadow-sm flex items-center gap-2"
-                            disabled={selectedOrders.length === 0 || isProcessing || !packingNumber}
+                            className={`bg-monchito-purple hover:bg-monchito-purple/90 text-white font-bold h-9 px-6 shadow-sm flex items-center gap-2 ${!canConfirm ? 'opacity-50 grayscale' : ''}`}
+                            disabled={selectedOrders.length === 0 || isProcessing || !packingNumber || !canConfirm}
                             onClick={onConfirm}
+                            title={!canConfirm ? "No tienes permiso para confirmar recepciones" : "Confirmar recepción de pedidos"}
                             data-nav-group="batch-header"
                             data-nav-index={2}
                             onKeyDown={(e) => handleMainKeyDown(e, 'batch-header', 2)}

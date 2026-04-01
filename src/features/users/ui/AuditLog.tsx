@@ -9,6 +9,8 @@ import { Button } from '@/shared/ui/button';
 import { Download, AlertTriangle, Info, ShieldAlert } from 'lucide-react';
 import { useDebounce } from '@/shared/lib/hooks';
 import { Pagination } from '@/shared/ui/pagination';
+import { DateRangePicker } from '@/shared/ui/filters';
+import type { DateRange } from 'react-day-picker';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -88,8 +90,10 @@ export function AuditLog() {
     const [userFilter, setUserFilter] = useState<string>('');
     const [moduleFilter, setModuleFilter] = useState<string>('');
     const [severityFilter, setSeverityFilter] = useState<AuditSeverity | ''>('');
-    const [dateFrom, setDateFrom] = useState('');
-    const [dateTo, setDateTo] = useState('');
+    const [dateRange, setDateRange] = useState<DateRange | undefined>();
+
+    const dateFrom = dateRange?.from ? dateRange.from.toISOString().split('T')[0] : '';
+    const dateTo = dateRange?.to ? dateRange.to.toISOString().split('T')[0] : '';
 
     const { response, isLoading, isError } = useAuditLog({
         page,
@@ -114,7 +118,7 @@ export function AuditLog() {
 
     const resetFilters = () => {
         setSearch(''); setUserFilter(''); setModuleFilter(''); setSeverityFilter('');
-        setDateFrom(''); setDateTo(''); setPage(1);
+        setDateRange(undefined); setPage(1);
     };
 
     const todayCritical = entries.filter(e => {
@@ -149,7 +153,6 @@ export function AuditLog() {
                 </div>
             )}
 
-            {/* Filters */}
             <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3">
                 <div className="flex flex-wrap gap-3 items-end">
                     <div className="flex-1 min-w-[180px]">
@@ -172,15 +175,20 @@ export function AuditLog() {
                         <option value="WARNING">Aviso</option>
                         <option value="CRITICAL">Crítico</option>
                     </select>
-                    <div className="flex items-center gap-2">
-                        <input type="date" className="border rounded-md px-3 py-2 text-sm h-10" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPage(1); }} />
-                        <span className="text-slate-400 text-sm">—</span>
-                        <input type="date" className="border rounded-md px-3 py-2 text-sm h-10" value={dateTo} onChange={e => { setDateTo(e.target.value); setPage(1); }} />
+                    
+                    <DateRangePicker 
+                        value={dateRange}
+                        onChange={setDateRange}
+                        className="w-[260px]"
+                        buttonClassName="h-10 rounded-md border-slate-200"
+                    />
+
+                    <div className="flex gap-2">
+                        <Button variant="outline" size="sm" className="h-10 rounded-md" onClick={resetFilters}>Limpiar</Button>
+                        <Button size="sm" className="gap-2 h-10 rounded-md" onClick={() => exportCSV(entries)}>
+                            <Download className="h-4 w-4" /> Exportar CSV
+                        </Button>
                     </div>
-                    <Button variant="outline" size="sm" onClick={resetFilters}>Limpiar</Button>
-                    <Button size="sm" className="gap-2" onClick={() => exportCSV(entries)}>
-                        <Download className="h-4 w-4" /> Exportar CSV
-                    </Button>
                 </div>
                 <p className="text-xs text-slate-400">{pagination?.total ?? 0} registro{pagination?.total !== 1 ? 's' : ''} encontrado{pagination?.total !== 1 ? 's' : ''}.</p>
             </div>
@@ -249,7 +257,7 @@ export function AuditLog() {
             </div>
 
             {/* Pagination */}
-            {pagination && (
+            {pagination && pagination.pages > 1 && (
                 <Pagination
                     currentPage={page}
                     totalPages={pagination.pages}

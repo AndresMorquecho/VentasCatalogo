@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
 import { Button } from '@/shared/ui/button';
-import { Eye } from 'lucide-react';
+import { Eye, Trash2 } from 'lucide-react';
 import type { CallGroup } from '@/entities/call/model/api';
 import type { Call } from '@/entities/call/model/types';
 import { CallGroupDetailsModal } from './CallGroupDetailsModal';
+import { useDeleteBatchCalls } from '@/entities/call/model/hooks';
+import { useToast } from '@/shared/ui/use-toast';
 
 const CALL_REASONS_MAP: Record<string, string> = {
     'REACTIVACION': 'Reactivación',
@@ -20,10 +22,27 @@ interface CallsTableProps {
 export function CallsTable({ groups, onEditCall }: CallsTableProps) {
     const [selectedGroup, setSelectedGroup] = useState<CallGroup | null>(null);
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+    
+    const deleteBatch = useDeleteBatchCalls();
+    const { showToast } = useToast();
 
     const handleViewDetails = (group: CallGroup) => {
         setSelectedGroup(group);
         setIsDetailsOpen(true);
+    };
+
+    const handleDeleteGroup = async (group: CallGroup) => {
+        if (!confirm(`¿Estás seguro de que deseas eliminar este grupo de ${group.callCount} llamadas?`)) {
+            return;
+        }
+
+        const ids = group.calls.map(c => c.id);
+        try {
+            await deleteBatch.mutateAsync(ids);
+            showToast('Grupo de llamadas eliminado correctamente', 'success');
+        } catch (error) {
+            showToast('Error al eliminar el grupo de llamadas', 'error');
+        }
     };
 
     const formatDate = (dateStr: string) => {
@@ -74,7 +93,7 @@ export function CallsTable({ groups, onEditCall }: CallsTableProps) {
                                             {group.callCount} llamadas
                                         </span>
                                     </TableCell>
-                                    <TableCell className="text-right">
+                                    <TableCell className="text-right space-x-2">
                                         <Button
                                             variant="ghost"
                                             size="sm"
@@ -83,6 +102,15 @@ export function CallsTable({ groups, onEditCall }: CallsTableProps) {
                                         >
                                             <Eye className="mr-2 h-4 w-4" />
                                             Ver Detalles
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="text-rose-500 hover:bg-rose-50 hover:text-rose-600"
+                                            disabled={deleteBatch.isPending}
+                                            onClick={() => handleDeleteGroup(group)}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
                                         </Button>
                                     </TableCell>
                                 </TableRow>

@@ -4,8 +4,9 @@ import { useOrderReceptionHistory } from "../model/useOrderReception"
 import type { ReceptionFilters } from "../model/useOrderReception"
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
-import { ArrowLeft, Search, RotateCcw, History } from "lucide-react"
+import { ArrowLeft, Search, RotateCcw, History, FileDown, Loader2 } from "lucide-react"
 import { orderApi } from "@/entities/order/model/api"
+import { exportOrdersToExcel } from "@/shared/lib/exportExcel"
 import { useToast } from "@/shared/ui/use-toast"
 import { useQueryClient } from "@tanstack/react-query"
 import { ConfirmDialog } from "@/shared/ui/confirm-dialog"
@@ -42,6 +43,7 @@ export function OrderReceptionHistoryPage() {
     const [isProcessing, setIsProcessing] = useState<string | null>(null)
     const [confirmOpen, setConfirmOpen] = useState(false)
     const [orderToReverse, setOrderToReverse] = useState<string | null>(null)
+    const [isExporting, setIsExporting] = useState(false)
 
     // Filters
     const filters: ReceptionFilters = {
@@ -86,6 +88,33 @@ export function OrderReceptionHistoryPage() {
         }
     }
 
+    const handleExportExcel = async () => {
+        try {
+            setIsExporting(true);
+            // Fetch ALL history with matching filters
+            const response = await orderApi.getAll({
+                status: 'RECIBIDO_EN_BODEGA',
+                search: debouncedSearch || undefined,
+                startDate: startDate || undefined,
+                endDate: endDate || undefined,
+                page: 1,
+                limit: 1000
+            });
+
+            if (response && response.data.length > 0) {
+                exportOrdersToExcel(response.data, `Historial_Recepciones_Pedidos_${new Date().toISOString().split('T')[0]}.xlsx`);
+                showToast("Exportación completada", "success");
+            } else {
+                showToast("No hay registros para exportar", "warning");
+            }
+        } catch (error) {
+            console.error(error);
+            showToast("Error al exportar", "error");
+        } finally {
+            setIsExporting(false);
+        }
+    }
+
     const clearFilters = () => {
         setSearchText("");
         setDateRange(undefined);
@@ -103,6 +132,15 @@ export function OrderReceptionHistoryPage() {
                         <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-2 font-bold text-slate-400">
                             <ArrowLeft className="h-4 w-4" />
                             Volver a Recepción
+                        </Button>
+                        <Button 
+                            variant="outline" 
+                            onClick={handleExportExcel} 
+                            disabled={isExporting || orders.length === 0}
+                            className="gap-2 rounded-xl h-10 border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300 transition-all"
+                        >
+                            {isExporting ? <Loader2 className="h-4 w-4 animate-spin text-emerald-500" /> : <FileDown className="h-4 w-4 text-emerald-500" />}
+                            {isExporting ? 'Exportando...' : 'Exportar Excel'}
                         </Button>
                         <Button variant="outline" onClick={clearFilters} title="Limpiar todos los filtros" className="h-10 w-10 p-0 rounded-xl">
                             <RotateCcw className="h-4 w-4" />

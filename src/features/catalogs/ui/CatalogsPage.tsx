@@ -15,12 +15,12 @@ export function CatalogsPage() {
         title="Catálogos" 
         icon={BookOpen}
         actions={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 w-full sm:w-auto mt-4 sm:mt-0">
             <Button
               variant={activeTab === 'inventory' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setActiveTab('inventory')}
-              className={activeTab === 'inventory' ? 'bg-monchito-purple hover:bg-monchito-purple/90' : ''}
+              className={activeTab === 'inventory' ? 'bg-monchito-purple hover:bg-monchito-purple/90 flex-1 sm:flex-none' : 'flex-1 sm:flex-none'}
             >
               <Package className="h-4 w-4 mr-2" />
               Inventario
@@ -29,7 +29,7 @@ export function CatalogsPage() {
               variant={activeTab === 'delivery' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setActiveTab('delivery')}
-              className={activeTab === 'delivery' ? 'bg-monchito-purple hover:bg-monchito-purple/90' : ''}
+              className={activeTab === 'delivery' ? 'bg-monchito-purple hover:bg-monchito-purple/90 flex-1 sm:flex-none' : 'flex-1 sm:flex-none'}
             >
               <Send className="h-4 w-4 mr-2" />
               Entrega
@@ -38,7 +38,7 @@ export function CatalogsPage() {
               variant={activeTab === 'history' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setActiveTab('history')}
-              className={activeTab === 'history' ? 'bg-monchito-purple hover:bg-monchito-purple/90' : ''}
+              className={activeTab === 'history' ? 'bg-monchito-purple hover:bg-monchito-purple/90 flex-1 sm:flex-none' : 'flex-1 sm:flex-none'}
             >
               <History className="h-4 w-4 mr-2" />
               Historial

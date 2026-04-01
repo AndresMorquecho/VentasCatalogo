@@ -114,10 +114,22 @@ export function SettingsPage() {
             />
 
             <Tabs defaultValue="general" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 max-w-[400px] mb-6">
-                    <TabsTrigger value="general">Parámetros</TabsTrigger>
-                    <TabsTrigger value="notes">Notimonchitos</TabsTrigger>
-                </TabsList>
+                <div className="w-full overflow-x-auto no-scrollbar -mx-1 px-1 mb-6">
+                    <TabsList className="bg-white rounded-xl border border-slate-200 p-1 flex flex-nowrap gap-1 w-fit shadow-sm">
+                        <TabsTrigger 
+                            value="general" 
+                            className="flex items-center gap-2 px-6 py-2 rounded-lg text-sm font-bold transition-all duration-200 whitespace-nowrap data-[state=active]:bg-monchito-purple data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-monchito-purple/20 data-[state=inactive]:text-slate-500 data-[state=inactive]:hover:text-slate-800 data-[state=inactive]:hover:bg-slate-100"
+                        >
+                            Parámetros
+                        </TabsTrigger>
+                        <TabsTrigger 
+                            value="notes" 
+                            className="flex items-center gap-2 px-6 py-2 rounded-lg text-sm font-bold transition-all duration-200 whitespace-nowrap data-[state=active]:bg-monchito-purple data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-monchito-purple/20 data-[state=inactive]:text-slate-500 data-[state=inactive]:hover:text-slate-800 data-[state=inactive]:hover:bg-slate-100"
+                        >
+                            Notimonchitos
+                        </TabsTrigger>
+                    </TabsList>
+                </div>
 
                 <TabsContent value="general" className="space-y-4">
                     <Card className="border-none shadow-sm outline outline-1 outline-slate-200">
@@ -167,7 +179,7 @@ export function SettingsPage() {
                                 <Button 
                                     onClick={handleSaveConfigs}
                                     disabled={isSaving}
-                                    className="h-12 px-8 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black uppercase text-xs tracking-widest shadow-lg shadow-slate-200 transition-all duration-300 active:scale-95 disabled:opacity-70"
+                                    className="h-12 px-10 rounded-xl bg-monchito-purple hover:bg-monchito-purple/90 text-white font-black uppercase text-xs tracking-widest shadow-lg shadow-monchito-purple/20 transition-all duration-300 active:scale-95 disabled:opacity-70"
                                 >
                                     <Save className="h-4 w-4 mr-2" />
                                     {isSaving ? "Guardando..." : "Guardar Cambios"}
@@ -324,7 +336,7 @@ function NoteModal({ isOpen, onClose, note, onChange, onSave, isSaving }: any) {
                     <Button 
                         onClick={onSave} 
                         disabled={isSaving} 
-                        className="h-12 px-10 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-black uppercase text-[10px] tracking-widest shadow-xl shadow-slate-200 transition-all active:scale-95 disabled:opacity-50"
+                        className="h-12 px-10 rounded-2xl bg-monchito-purple hover:bg-monchito-purple/90 text-white font-black uppercase text-[10px] tracking-widest shadow-xl shadow-monchito-purple/20 transition-all active:scale-95 disabled:opacity-50"
                     >
                         {isSaving ? "Guardando..." : (note?.id ? "Actualizar Nota" : "Crear Plantilla")}
                     </Button>

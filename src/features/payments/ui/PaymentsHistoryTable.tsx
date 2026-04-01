@@ -127,7 +127,6 @@ export function PaymentsHistoryTable({ payments, orderTotal, onDelete, readOnly 
                 <TableBody>
                     {(() => {
                         const baseTotal = Number(orderTotal || 0);
-                        let currentSaldo = baseTotal;
                         
                         // Create initial debt row
                         const initialRow = (
@@ -150,7 +149,12 @@ export function PaymentsHistoryTable({ payments, orderTotal, onDelete, readOnly 
                         );
 
                         const paymentRows = allRows.map((row, idx) => {
-                            currentSaldo -= Number(row.amount || 0);
+                            // Calculate current saldo: baseTotal minus sum of all payments up to this row
+                            const totalPaidUpToThis = allRows
+                                .slice(0, idx + 1)
+                                .reduce((acc, r) => acc + Number(r.amount || 0), 0);
+                            const rowSaldo = baseTotal - totalPaidUpToThis;
+
                             return (
                                 <TableRow key={row.key} className="hover:bg-slate-50/50 transition-colors">
                                     <TableCell className="font-black text-monchito-purple text-xs">
@@ -184,11 +188,11 @@ export function PaymentsHistoryTable({ payments, orderTotal, onDelete, readOnly 
                                         ${Number(row.amount || 0).toFixed(2)}
                                     </TableCell>
                                     <TableCell className="text-right font-black text-monchito-purple text-sm">
-                                        ${currentSaldo.toFixed(2)}
+                                        ${rowSaldo.toFixed(2)}
                                     </TableCell>
                                     {!readOnly && (
                                         <TableCell>
-                                            {!row.isSplitChild && (
+                                            {!row.isSplitChild && idx === allRows.length - 1 && (
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"

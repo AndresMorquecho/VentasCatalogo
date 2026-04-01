@@ -1,5 +1,7 @@
 import { Suspense, lazy } from 'react'
-import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom'
+import { createBrowserRouter, RouterProvider, Navigate, useRouteError, isRouteErrorResponse } from 'react-router-dom'
+import { RefreshCw, AlertTriangle, Home } from 'lucide-react'
+import { Button } from '@/shared/ui/button'
 import { MainLayout } from '@/widgets/Layout'
 import { ProtectedRoute } from '@/shared/auth'
 import { ToastProvider } from '@/shared/ui/use-toast'
@@ -47,6 +49,63 @@ const PageLoader = () => (
     </div>
 );
 
+const RouterErrorBoundary = () => {
+    const error = useRouteError();
+    console.error('Router Error:', error);
+
+    const isChunkLoadError = 
+        (error instanceof Error && error.message.includes('Failed to fetch dynamically imported module')) ||
+        (error instanceof TypeError && error.message.includes('Failed to fetch dynamically imported module'));
+
+    return (
+        <div className="min-h-[80vh] flex items-center justify-center p-6">
+            <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl border border-slate-100 p-8 text-center space-y-6">
+                <div className="mx-auto w-20 h-20 bg-red-50 rounded-full flex items-center justify-center">
+                    <AlertTriangle className="h-10 w-10 text-red-500" />
+                </div>
+                
+                <div className="space-y-2">
+                    <h2 className="text-2xl font-black text-slate-800">¡Ups! Algo salió mal</h2>
+                    <p className="text-slate-500 text-sm font-medium">
+                        {isChunkLoadError 
+                            ? "Hubo un error al cargar una parte de la aplicación. Esto puede deberse a una actualización reciente o a un problema de conexión."
+                            : "Ha ocurrido un error inesperado en la navegación."}
+                    </p>
+                </div>
+
+                {isRouteErrorResponse(error) && (
+                    <div className="bg-slate-50 p-4 rounded-2xl text-xs font-mono text-slate-400 text-left overflow-auto">
+                        {error.status} {error.statusText}
+                    </div>
+                )}
+
+                <div className="flex flex-col gap-3">
+                    <Button 
+                        onClick={() => window.location.reload()} 
+                        className="w-full bg-monchito-purple hover:bg-monchito-purple/90 text-white font-black rounded-xl py-6"
+                    >
+                        <RefreshCw className="h-5 w-5 mr-3" />
+                        Recargar Página
+                    </Button>
+                    
+                    <Button 
+                        variant="ghost"
+                        onClick={() => window.location.href = '/'}
+                        className="w-full text-slate-500 font-bold rounded-xl"
+                    >
+                        <Home className="h-4 w-4 mr-2" />
+                        Ir al Inicio
+                    </Button>
+                </div>
+                
+                <p className="text-[10px] text-slate-300 font-medium pt-4 border-t border-slate-50">
+                    ID del Error: {Date.now().toString(36)}
+                </p>
+            </div>
+        </div>
+    );
+};
+
 const protectedChildren = [
     { index: true, element: <DashboardPage /> },
     { path: 'transactions', element: <ProtectedRoute permission="transactions.view"><TransactionsPage /></ProtectedRoute> },
@@ -77,11 +136,11 @@ const protectedChildren = [
     { path: 'catalogs', element: <ProtectedRoute permission="orders.view"><CatalogsPage /></ProtectedRoute> },
     { path: 'rewards', element: <ProtectedRoute permission="loyalty.view"><LoyaltyPage /></ProtectedRoute> },
     { path: 'exchanges', element: <ProtectedRoute permission="exchanges.view"><ExchangesPage /></ProtectedRoute> },
-    { path: 'exchanges/new', element: <ProtectedRoute permission="exchanges.manage"><NewExchangePage /></ProtectedRoute> },
-    { path: 'exchanges/edit/:id', element: <ProtectedRoute permission="exchanges.manage"><NewExchangePage /></ProtectedRoute> },
-    { path: 'exchanges/group/:receiptNumber', element: <ProtectedRoute permission="exchanges.manage"><NewExchangePage /></ProtectedRoute> },
-    { path: 'exchanges/reception', element: <ProtectedRoute permission="exchanges.manage"><ExchangesReceptionPage /></ProtectedRoute> },
-    { path: 'exchanges/delivery', element: <ProtectedRoute permission="exchanges.manage"><ExchangesDeliveryPage /></ProtectedRoute> },
+    { path: 'exchanges/new', element: <ProtectedRoute permission="exchanges.create"><NewExchangePage /></ProtectedRoute> },
+    { path: 'exchanges/edit/:id', element: <ProtectedRoute permission="exchanges.edit"><NewExchangePage /></ProtectedRoute> },
+    { path: 'exchanges/group/:receiptNumber', element: <ProtectedRoute permission="exchanges.edit"><NewExchangePage /></ProtectedRoute> },
+    { path: 'exchanges/reception', element: <ProtectedRoute permission="exchanges.reception"><ExchangesReceptionPage /></ProtectedRoute> },
+    { path: 'exchanges/delivery', element: <ProtectedRoute permission="exchanges.delivery"><ExchangesDeliveryPage /></ProtectedRoute> },
     {
         path: 'admin/users',
         element: <ProtectedRoute adminOnly><AdminUsersPage /></ProtectedRoute>,
@@ -104,6 +163,7 @@ const router = createBrowserRouter([
                 <MainLayout />
             </ProtectedRoute>
         ),
+        errorElement: <RouterErrorBoundary />,
         children: protectedChildren,
     },
     {

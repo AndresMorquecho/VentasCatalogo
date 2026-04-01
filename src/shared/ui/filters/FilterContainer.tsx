@@ -17,7 +17,7 @@ export function FilterContainer({
 }: FilterContainerProps) {
   return (
     <div className={`bg-white rounded-lg border border-slate-200 p-3 shadow-sm ${className}`}>
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-4">
         {children}
         {hasActiveFilters && onClearFilters && (
           <Button

@@ -23,11 +23,11 @@ export type ModuleKey = typeof MODULES[number];
 // ─── Action Keys per Module ───────────────────────────────────────────────────
 export const MODULE_ACTIONS: Record<ModuleKey, string[]> = {
     dashboard: ['view'],
-    orders: ['view', 'create', 'edit', 'delete'],
-    reception: ['view', 'confirm'],
+    orders: ['view', 'create', 'edit', 'delete', 'save_with_zero_deposit'],
+    reception: ['view', 'confirm', 'delete_batch'],
     delivery: ['view', 'confirm'],
     clients: ['view', 'create', 'edit', 'delete'],
-    transactions: ['view'],
+    transactions: ['view', 'delete'],
     payments: ['view', 'create', 'delete'],
     bank_accounts: ['view', 'create', 'edit', 'delete'],
     inventory: ['view', 'edit'],
@@ -36,7 +36,7 @@ export const MODULE_ACTIONS: Record<ModuleKey, string[]> = {
     calls: ['view', 'create'],
     loyalty: ['view', 'manage_rules', 'manage_prizes'],
     users: ['view', 'create', 'edit', 'delete', 'change_password', 'assign_roles'],
-    exchanges: ['view', 'manage'],
+    exchanges: ['view', 'create', 'edit', 'delete', 'reception', 'delivery'],
 };
 
 // ─── String helper: "module.action" ──────────────────────────────────────────
@@ -72,4 +72,9 @@ export const ACTION_LABELS: Record<string, string> = {
     manage_prizes: 'Gestionar premios',
     change_password: 'Cambiar contraseña',
     assign_roles: 'Asignar roles',
+    save_with_zero_deposit: 'Guardar con abono $0',
+    delete_batch: 'Eliminar lote de recepción',
+    reception: 'Gestionar recepción',
+    delivery: 'Gestionar entrega',
+    manage: 'Gestionar',
 };

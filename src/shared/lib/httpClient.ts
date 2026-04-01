@@ -154,7 +154,10 @@ class HttpClient {
 
         if (rawData && typeof rawData === 'object' && 'success' in rawData) {
           if (!rawData.success) {
-            const error: any = new Error(rawData.error?.message || 'Request failed');
+            const message = typeof rawData.error === 'string' 
+                ? rawData.error 
+                : (rawData.error?.message || 'Request failed');
+            const error: any = new Error(message);
             error.code = rawData.error?.code;
             throw error;
           }
@@ -212,8 +215,11 @@ class HttpClient {
     });
   }
 
-  async delete<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: 'DELETE' });
+  async delete<T>(endpoint: string, body?: any): Promise<T> {
+    return this.request<T>(endpoint, { 
+      method: 'DELETE',
+      body: body ? JSON.stringify(body) : undefined
+    });
   }
 
   async patch<T>(endpoint: string, body: any): Promise<T> {

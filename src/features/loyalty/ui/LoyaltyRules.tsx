@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Edit2, Briefcase, Calendar, Target } from 'lucide-react';
+import { Plus, Edit2, Trash2, Briefcase, Calendar, Target } from 'lucide-react';
 import { useLoyaltyRules, useLoyaltyPrizes } from '../model/hooks';
 import type { LoyaltyRule, LoyaltyRuleFormData, RuleType } from '../model/types';
 import { Button } from '@/shared/ui/button';
@@ -35,6 +35,7 @@ export function LoyaltyRules() {
         isLoading,
         createRule,
         updateRule,
+        deleteRule,
         isCreating,
         isUpdating
     } = useLoyaltyRules();
@@ -46,6 +47,7 @@ export function LoyaltyRules() {
     const { notifySuccess, notifyError } = useNotifications();
 
     const [modalOpen, setModalOpen] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState<LoyaltyRule | null>(null);
     const [editTarget, setEditTarget] = useState<LoyaltyRule | null>(null);
     const [form, setForm] = useState<LoyaltyRuleFormData>(EMPTY_FORM);
 
@@ -93,6 +95,17 @@ export function LoyaltyRules() {
         }
     };
 
+    const handleDelete = async () => {
+        if (!deleteTarget) return;
+        try {
+            await deleteRule(deleteTarget.id);
+            notifySuccess("Regla eliminada correctamente");
+            setDeleteTarget(null);
+        } catch (error) {
+            notifyError(error, "Error al eliminar la regla");
+        }
+    };
+
     const toggleBrand = (brandId: string) => {
         setForm(prev => ({
             ...prev,
@@ -127,6 +140,20 @@ export function LoyaltyRules() {
                             <div className="flex gap-2">
                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:bg-blue-50" onClick={() => openEdit(rule)}>
                                     <Edit2 className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-8 w-8 text-red-500 hover:bg-red-50" 
+                                    onClick={() => {
+                                        if (!hasPermission('loyalty.manage_rules')) {
+                                            notifyError("No tienes permiso para eliminar reglas");
+                                            return;
+                                        }
+                                        setDeleteTarget(rule);
+                                    }}
+                                >
+                                    <Trash2 className="h-4 w-4" />
                                 </Button>
                             </div>
                         </div>
@@ -292,6 +319,23 @@ export function LoyaltyRules() {
                         >
                             {isCreating || isUpdating ? 'Guardando...' : 'Guardar Regla'}
                         </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Confirm Delete */}
+            <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+                <DialogContent className="rounded-3xl max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle className="text-red-600">¿Eliminar regla?</DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-slate-500">
+                        Esta acción borrará la regla <span className="font-bold text-slate-800">"{deleteTarget?.name}"</span>. 
+                        No se puede deshacer. Las recompensas históricas no se verán afectadas, pero esta regla dejará de aplicar para futuros pedidos.
+                    </p>
+                    <DialogFooter className="mt-4 gap-2">
+                        <Button variant="outline" onClick={() => setDeleteTarget(null)} className="rounded-xl flex-1">Cancelar</Button>
+                        <Button variant="destructive" onClick={handleDelete} className="rounded-xl flex-1">Si, eliminar</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

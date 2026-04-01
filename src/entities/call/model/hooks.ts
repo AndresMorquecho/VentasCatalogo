@@ -55,3 +55,13 @@ export function useDeleteCall() {
         }
     });
 }
+
+export function useDeleteBatchCalls() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (ids: string[]) => callApi.deleteBatch(ids),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: KEYS.all });
+        }
+    });
+}

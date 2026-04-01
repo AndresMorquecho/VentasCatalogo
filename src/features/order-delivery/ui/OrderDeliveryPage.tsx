@@ -8,13 +8,16 @@ import { PendingOrdersModal } from "./PendingOrdersModal"
 import type { Order } from "@/entities/order/model/types"
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
-import { Search, History, Truck, RotateCcw, Filter, ChevronDown, PackageOpen } from "lucide-react"
+import { Search, History, Truck, RotateCcw, Filter, ChevronDown, PackageOpen, FileDown, Loader2 } from "lucide-react"
 import { PageHeader } from "@/shared/ui/PageHeader"
+import { orderApi } from "@/entities/order/model/api"
+import { exportOrdersToExcel } from "@/shared/lib/exportExcel"
 import { Pagination } from "@/shared/ui/pagination"
 import { DateRangePicker } from "@/shared/ui/filters"
 import type { DateRange } from "react-day-picker"
 import type { CreditDistribution } from "@/entities/financial-record/model/types"
 import { getPaidAmount } from "@/entities/order/model/model"
+import { useAuth } from "@/shared/auth"
 
 /* --- Searchable Select for Clients --- */
 function SearchableClientSelect({ 
@@ -193,6 +196,8 @@ function SearchableBrandSelect({
 
 export function OrderDeliveryPage() {
     const navigate = useNavigate()
+    const { hasPermission } = useAuth()
+    const canConfirm = hasPermission('delivery.confirm')
 
     // Filter State
     const [page, setPage] = useState(1);
@@ -204,6 +209,7 @@ export function OrderDeliveryPage() {
     const [searchTerm, setSearchTerm] = useState<string>("")
     
     const [showFilters, setShowFilters] = useState(false)
+    const [isExporting, setIsExporting] = useState(false)
     const [dateCategoryFilter, setDateCategoryFilter] = useState<'ALL' | 'RECENT' | 'WARN' | 'CRITICAL'>('ALL')
 
     // Convert DateRange to strings for API
@@ -346,6 +352,32 @@ export function OrderDeliveryPage() {
         setIsDeliverModalOpen(true)
     }
 
+    const handleExport = async () => {
+        try {
+            setIsExporting(true)
+            const response = await orderApi.getAll({
+                status: 'RECIBIDO_EN_BODEGA',
+                brandId: brandId === 'ALL' ? undefined : brandId,
+                clientId: clientId || undefined,
+                startDate: startDate || undefined,
+                endDate: endDate || undefined,
+                search: searchTerm || undefined,
+                page: 1,
+                limit: 1000
+            })
+            
+            if (response && response.data.length > 0) {
+                exportOrdersToExcel(response.data, `Pedidos_Por_Entregar_${new Date().toISOString().split('T')[0]}.xlsx`)
+            } else {
+                alert("No hay pedidos para exportar con estos filtros")
+            }
+        } catch (error) {
+            console.error("Error exporting excel:", error)
+        } finally {
+            setIsExporting(false)
+        }
+    }
+
     const selectedOrders = useMemo(() => {
         const result = Object.values(selectedOrdersMap);
         console.log('[OrderDeliveryPage] Memoized selectedOrders updated:', { count: result.length, ids: result.map(o => o.id) });
@@ -368,22 +400,36 @@ export function OrderDeliveryPage() {
                 description="Gestión de entregas finales y cobro de saldos pendientes"
                 icon={Truck}
                 actions={
-                    <div className="flex gap-3">
+                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto mt-4 sm:mt-0">
                         {clientId && (
                             <Button
                                 onClick={() => setIsPendingModalOpen(true)}
-                                className="h-10 border-monchito-purple/20 bg-monchito-purple/10 text-monchito-purple hover:bg-monchito-purple/20 transition-all px-4 font-black text-[10px] uppercase tracking-tight whitespace-nowrap rounded-xl shadow-sm"
+                                className="w-full sm:w-auto h-10 border-monchito-purple/20 bg-monchito-purple/10 text-monchito-purple hover:bg-monchito-purple/20 transition-all px-4 font-black text-[10px] uppercase tracking-tight whitespace-nowrap rounded-xl shadow-sm"
                             >
                                 <PackageOpen className="mr-1.5 h-3.5 w-3.5" />
                                 Por Ingresar
                             </Button>
                         )}
-                        <Button variant="outline" onClick={() => navigate('/orders/delivery/history')} className="gap-2 rounded-xl h-10 border-slate-200">
+                        <Button variant="outline" onClick={() => navigate('/orders/delivery/history')} className="w-full sm:w-auto gap-2 rounded-xl h-10 border-slate-200">
                             <History className="h-4 w-4" />
                             Historial
                         </Button>
-                        <Button variant="outline" onClick={clearFilters} title="Limpiar todos los filtros" className="h-10 w-10 p-0 rounded-xl border-slate-200 text-slate-400 hover:text-orange-500">
+                        <Button 
+                            variant="outline"
+                            onClick={handleExport}
+                            disabled={isExporting}
+                            className="w-full sm:w-auto bg-white hover:bg-emerald-50 hover:text-emerald-700 border-slate-200 gap-2 h-10 rounded-xl px-4"
+                        >
+                            {isExporting ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <FileDown className="h-4 w-4 text-emerald-600" />
+                            )}
+                            Exportar Excel
+                        </Button>
+                        <Button variant="outline" onClick={clearFilters} title="Limpiar todos los filtros" className="w-full sm:w-10 h-10 p-0 rounded-xl border-slate-200 text-slate-400 hover:text-orange-500 flex items-center justify-center gap-2">
                             <RotateCcw className="h-4 w-4" />
+                            <span className="sm:hidden font-bold">Limpiar Filtros</span>
                         </Button>
                     </div>
                 }
@@ -461,39 +507,40 @@ export function OrderDeliveryPage() {
             </div>
 
             {/* Batch Info Bar - Always visible, disabled when empty */}
-            <div className={`bg-white border border-slate-200 px-6 py-4 rounded-2xl shadow-sm flex items-center justify-between transition-all ${selectedOrderIds.length === 0 ? 'opacity-50' : ''}`}>
-                <div className="flex items-center gap-4">
-                    <div className="bg-monchito-purple/10 p-2.5 rounded-xl">
+            <div className={`bg-white border border-slate-200 px-6 py-4 rounded-2xl shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-all ${selectedOrderIds.length === 0 ? 'opacity-50' : ''}`}>
+                <div className="flex items-center gap-4 w-full md:w-auto">
+                    <div className="bg-monchito-purple/10 p-2.5 rounded-xl shrink-0">
                         <Truck className="h-5 w-5 text-monchito-purple" />
                     </div>
-                    <div>
-                        <p className="text-slate-900 font-bold text-sm leading-none mb-1">
+                    <div className="min-w-0 flex-1">
+                        <p className="text-slate-900 font-bold text-sm leading-none mb-1 truncate">
                             {selectedOrderIds.length > 0 ? `${selectedOrderIds.length} pedidos para entrega` : 'Selecciona pedidos para entregar'}
                         </p>
                         {selectedOrders.length > 0 && (
-                            <p className="text-slate-500 text-xs font-medium truncate max-w-[300px]">{selectedOrders[0]?.clientName}</p>
+                            <p className="text-slate-500 text-xs font-medium truncate max-w-full">{selectedOrders[0]?.clientName}</p>
                         )}
                     </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
                     <Button 
                         variant="outline"
-                        className="text-slate-500 hover:text-slate-700 border-slate-200 h-9 px-4 text-xs font-medium rounded-xl"
+                        className="text-slate-500 hover:text-slate-700 border-slate-200 h-9 px-4 text-xs font-medium rounded-xl w-full sm:w-auto"
                         onClick={() => setSelectedOrderIds([])}
                         disabled={selectedOrderIds.length === 0}
                     >
                         Cancelar Selección
                     </Button>
-                    <div className="flex flex-col items-end gap-1">
+                    <div className="flex flex-col items-stretch sm:items-end gap-1 w-full sm:w-auto">
                         <Button 
-                            className="bg-monchito-purple hover:bg-monchito-purple/90 text-white font-medium px-6 rounded-xl h-9 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                            className={`bg-monchito-purple hover:bg-monchito-purple/90 text-white font-medium px-6 rounded-xl h-9 text-xs disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto ${!canConfirm ? 'opacity-50 grayscale' : ''}`}
                             onClick={handleBatchDeliver}
-                            disabled={selectedOrderIds.length === 0 || pendingDistributionCount > 0}
+                            disabled={selectedOrderIds.length === 0 || pendingDistributionCount > 0 || !canConfirm}
+                            title={!canConfirm ? "No tienes permiso para entregar pedidos" : ""}
                         >
                             Proceder con Entrega
                         </Button>
                         {pendingDistributionCount > 0 && (
-                            <span className="text-[10px] text-amber-600 font-bold animate-pulse">
+                            <span className="text-[10px] text-amber-600 font-bold animate-pulse text-center sm:text-right">
                                 Hay {pendingDistributionCount} saldos por distribuir
                             </span>
                         )}

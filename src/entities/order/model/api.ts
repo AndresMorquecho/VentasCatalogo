@@ -327,5 +327,13 @@ export const orderApi = {
      */
     dismantleOrder: async (orderId: string, payload: { mode: 'BLOCK' | 'NORMAL', reason: string }): Promise<void> => {
         return httpClient.post<void>(`/orders/${orderId}/dismantle`, payload);
+    },
+
+    /**
+     * Reverse delivery (back to RECIBIDO_EN_BODEGA)
+     * @endpoint POST /api/orders/:id/reverse-delivery
+     */
+    reverseDelivery: async (orderId: string): Promise<{ success: boolean }> => {
+        return httpClient.post<{ success: boolean }>(`/orders/${orderId}/reverse-delivery`, {});
     }
 };

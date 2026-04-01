@@ -22,18 +22,19 @@ export const useNotifications = () => {
         // Extract message from error object (Axios/Standard/Backend/String)
         let message = defaultMessage;
         
-        if (typeof err === 'string') {
+        if (typeof err === 'string' && err.length > 0) {
             message = err;
+        } else if (err?.message && err.message !== 'Error' && err.message !== '[object Object]') {
+            // Our custom HttpClient throws Error(backend_error_string)
+            message = err.message;
         } else if (err?.response?.data?.error) {
             message = typeof err.response.data.error === 'string' ? err.response.data.error : defaultMessage;
         } else if (err?.response?.data?.message) {
             message = err.response.data.message;
-        } else if (err?.message) {
-            message = err.message;
         } else if (err?.error?.message) {
             message = err.error.message;
         } else if (err?.error) {
-            message = typeof err.error === 'string' ? err.error : defaultMessage;
+            message = typeof err.error === 'string' ? err.error : (err.error.message || defaultMessage);
         }
 
         // Log to console for dev, but show toast for user

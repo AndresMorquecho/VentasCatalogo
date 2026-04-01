@@ -36,17 +36,20 @@ export default function ClientsPage() {
                 description="Gestiona tu red de empresarias y clientes"
                 icon={Users}
                 actions={
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                         <Button 
                             variant="outline" 
                             onClick={handleExportAll} 
                             disabled={isExporting}
-                            className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                            className="w-full sm:w-auto border-emerald-200 text-emerald-700 hover:bg-emerald-50"
                         >
                             {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
                             Exportar Excel
                         </Button>
-                        <Button onClick={() => setTriggerCreate(true)}>
+                        <Button 
+                            onClick={() => setTriggerCreate(true)}
+                            className="w-full sm:w-auto"
+                        >
                             <Plus className="mr-2 h-4 w-4" /> Nueva Empresaria
                         </Button>
                     </div>

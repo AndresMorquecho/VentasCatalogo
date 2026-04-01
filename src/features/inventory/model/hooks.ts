@@ -44,6 +44,7 @@ export const useInventory = (params?: {
                 emissionDate: order.createdAt,
                 createdByName: order.createdByName || "-",
                 brandName: order.brand?.name || move.brand?.name || "Unknown Brand",
+                orderType: order.type || "PEDIDO",
                 
                 // CLIENT INFO
                 clientName: `${client.firstName} ${client.lastName || ''}`.trim() || order.clientName || "Unknown Client",
@@ -69,9 +70,10 @@ export const useInventory = (params?: {
     }, [movements]);
 
     // 3️⃣ Compute Dashboard Counters (Current view only if paginated)
+    const pendingCount = inventoryData.filter(i => i.status === 'POR_RECIBIR' || i.status === 'PENDING').length;
     const inWarehouseCount = inventoryData.filter(i => i.status === 'ENTRY').length;
     const deliveredTodayCount = inventoryData.filter(i => i.status === 'DELIVERED' && new Date(i.createdAt).toDateString() === new Date().toDateString()).length;
-    const longStorageCount = inventoryData.filter(i => i.daysInWarehouse > 10 && i.status === 'ENTRY').length;
+    const longStorageCount = inventoryData.filter(i => i.daysInWarehouse > 10 && (i.status === 'ENTRY')).length;
 
     return {
         movements: inventoryData,
@@ -79,6 +81,7 @@ export const useInventory = (params?: {
         refetch,
         pagination: response && !Array.isArray(response) ? response.pagination : undefined,
         stats: {
+            pending: pendingCount,
             inWarehouse: inWarehouseCount,
             deliveredToday: deliveredTodayCount,
             longStorage: longStorageCount,

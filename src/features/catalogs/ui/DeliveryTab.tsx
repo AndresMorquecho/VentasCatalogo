@@ -134,7 +134,7 @@ export function DeliveryTab() {
         await createDelivery();
       }
     } catch (error: any) {
-      showToast(error.response?.data?.error || 'Error al validar', 'error');
+      showToast(error.message || 'Error al validar', 'error');
     }
   };
 
@@ -192,7 +192,7 @@ export function DeliveryTab() {
       resetForm();
       setShowPaymentModal(false);
     } catch (error: any) {
-      showToast(error.response?.data?.error || error.message || 'Error al registrar venta', 'error');
+      showToast(error.message || 'Error al registrar venta', 'error');
       throw error; // Re-throw para que PaymentModal maneje el estado de loading
     }
   };
@@ -225,7 +225,7 @@ export function DeliveryTab() {
       showToast('Entrega registrada exitosamente', 'success');
       resetForm();
     } catch (error: any) {
-      showToast(error.response?.data?.error || 'Error al registrar entrega', 'error');
+      showToast(error.message || 'Error al registrar entrega', 'error');
     }
   };
 

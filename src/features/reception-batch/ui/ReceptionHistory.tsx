@@ -1,7 +1,8 @@
 import React, { useState } from "react"
-import { Search, RotateCcw, Edit, Trash2, AlertCircle, Filter, ChevronRight } from "lucide-react"
+import { Search, RotateCcw, Edit, Trash2, AlertCircle, Filter, ChevronRight, FileDown, Loader2 } from "lucide-react"
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
+import { exportReceptionBatchesToExcel } from "@/shared/lib/exportExcel"
 import {
     Table,
     TableBody,
@@ -70,6 +71,7 @@ export function ReceptionHistory({
 
     const { showToast } = useToast()
     const queryClient = useQueryClient()
+    const [isExporting, setIsExporting] = useState(false)
 
     // Real brands from database
     const { data: brandsData } = useBrandList({ limit: 100 });
@@ -89,6 +91,30 @@ export function ReceptionHistory({
         });
         onPageChange(1);
     };
+
+    const handleExportExcel = async () => {
+        try {
+            setIsExporting(true);
+            // Fetch ALL batches that match currently active filters (page=1, limit=1000 to get everything)
+            const allBatchesResponse = await orderApi.getReceptionBatches({
+                ...filters,
+                page: 1,
+                limit: 1000 // Large limit to ensure we get all records
+            });
+
+            if (allBatchesResponse && allBatchesResponse.data.length > 0) {
+                exportReceptionBatchesToExcel(allBatchesResponse.data, `Historial_Recepciones_${new Date().toISOString().split('T')[0]}.xlsx`);
+                showToast("Exportación completada", "success");
+            } else {
+                showToast("No hay datos para exportar", "warning");
+            }
+        } catch (error) {
+            console.error(error);
+            showToast("Error al exportar a Excel", "error");
+        } finally {
+            setIsExporting(false);
+        }
+    }
 
     const handleReverseIndividual = async (orderId: string) => {
         setIsProcessing(orderId)
@@ -158,6 +184,17 @@ export function ReceptionHistory({
                         >
                             <Filter className="h-4 w-4 mr-2" />
                             {showFilters ? 'Menos Filtros' : 'Más Filtros'}
+                        </Button>
+                        <div className="h-10 w-px bg-slate-100 mx-1 hidden md:block" />
+                        <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={handleExportExcel}
+                            disabled={isExporting || batches.length === 0}
+                            className="h-9 px-5 font-bold rounded-lg border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300 transition-all gap-2"
+                        >
+                            {isExporting ? <Loader2 className="h-4 w-4 animate-spin text-emerald-500" /> : <FileDown className="h-4 w-4 text-emerald-500" />}
+                            {isExporting ? 'Exportando...' : 'Exportar Excel'}
                         </Button>
                         <div className="h-10 w-px bg-slate-100 mx-1 hidden md:block" />
                         <div className="text-right px-2">

@@ -8,18 +8,24 @@ import { PageHeader } from '@/shared/ui/PageHeader';
 import { useBrandList } from '@/features/brands/api/hooks';
 import type { DateRange } from 'react-day-picker';
 
-import { PackageOpen, Clock, Truck, Boxes, AlertCircle, RefreshCw } from 'lucide-react';
+import { 
+    PackageOpen, Clock, Truck, Boxes, 
+    AlertCircle, FileDown, Loader2, PackageSearch 
+} from 'lucide-react';
 import { Button } from '@/shared/ui/button';
+import { exportInventoryToExcel } from '@/shared/lib/exportExcel';
 
 export function InventoryPage() {
     const [page, setPage] = useState(1);
-    const [limit] = useState(50);
+    const [limit] = useState(15);
+    const [isExporting, setIsExporting] = useState(false);
 
     // UI State for Filters
     const [searchTerm, setSearchTerm] = useState('');
     const debouncedSearch = useDebounce(searchTerm, 500);
 
-    const [statusFilter, setStatusFilter] = useState('ALL');
+    const [deliveredFilter, setDeliveredFilter] = useState('ALL');
+    const [receivedFilter, setReceivedFilter] = useState('ALL');
     const [brandFilter, setBrandFilter] = useState('');
     const [dateRange, setDateRange] = useState<DateRange | undefined>();
     const [receiptNumber, setReceiptNumber] = useState('');
@@ -29,10 +35,22 @@ export function InventoryPage() {
     const startDate = dateRange?.from ? dateRange.from.toISOString().split('T')[0] : '';
     const endDate = dateRange?.to ? dateRange.to.toISOString().split('T')[0] : '';
 
-    const { movements, stats, isLoading, pagination, refetch } = useInventory({
+    // Map UI filters to API status
+    const apiType = useMemo(() => {
+        if (deliveredFilter === 'SI') return 'DELIVERED';
+        if (receivedFilter === 'SI' && deliveredFilter === 'NO') return 'ENTRY';
+        return undefined;
+    }, [deliveredFilter, receivedFilter]);
+
+    // 📊 Reset to page 1 when any filter changes
+    useEffect(() => {
+        setPage(1);
+    }, [debouncedSearch, brandFilter, deliveredFilter, receivedFilter, dateRange, receiptNumber, orderNumber]);
+
+    const { movements, stats, isLoading, pagination } = useInventory({
         page,
         limit,
-        type: statusFilter === 'ALL' ? undefined : statusFilter,
+        type: apiType,
         brandId: brandFilter,
         search: debouncedSearch,
         startDate,
@@ -41,34 +59,28 @@ export function InventoryPage() {
         orderNumber
     });
 
-    // Reset to page 1 on filter change
-    useEffect(() => {
-        setPage(1);
-    }, [debouncedSearch, statusFilter, brandFilter, startDate, endDate, receiptNumber, orderNumber]);
-
     const clearFilters = () => {
         setSearchTerm('');
-        setStatusFilter('ALL');
+        setDeliveredFilter('ALL');
+        setReceivedFilter('ALL');
         setBrandFilter('');
         setDateRange(undefined);
         setReceiptNumber('');
         setOrderNumber('');
     };
 
-    // Derived Data for Filters (Brands)
+    // Derived Data for Brands
     const { data: brandsRes } = useBrandList();
     const availableBrands = useMemo(() => {
         const brandsEntries = brandsRes ? (Array.isArray(brandsRes) ? brandsRes : (brandsRes.data || [])) : [];
         return Array.isArray(brandsEntries) ? brandsEntries.map((b: any) => b.name).sort() : [];
     }, [brandsRes]);
 
-    // Grouping Logic - Processed to ensure one row per Order in the inventory view
+    // Grouping Logic
     const groupedRows = useMemo(() => {
         if (!movements || movements.length === 0) return [];
 
         const orderMap = new Map<string, any>();
-
-        // Sort movements by date ascending to process flow correctly
         const sortedMovements = [...movements].sort((a, b) => {
             const dateA = new Date(a.createdAt).getTime();
             const dateB = new Date(b.createdAt).getTime();
@@ -76,30 +88,47 @@ export function InventoryPage() {
         });
 
         sortedMovements.forEach(m => {
-            if (!m.orderId) return; // Skip invalid entries
-
+            if (!m.orderId) return;
             if (!orderMap.has(m.orderId)) {
                 orderMap.set(m.orderId, { ...m });
             } else {
                 const existing = orderMap.get(m.orderId);
-                // Update with latest status/dates
                 existing.status = m.status;
                 if (m.type === 'ENTRY') existing.entryDate = m.createdAt;
                 if (m.type === 'DELIVERED') existing.deliveryDate = m.createdAt || m.deliveryDate;
                 if (m.type === 'RETURNED') existing.returnDate = m.createdAt;
-                
-                // Recalculate days 
                 existing.daysInWarehouse = m.daysInWarehouse;
             }
         });
 
-        return Array.from(orderMap.values()).sort((a, b) => {
+        let result = Array.from(orderMap.values());
+
+        if (deliveredFilter !== 'ALL') {
+            const isDelivered = deliveredFilter === 'SI';
+            result = result.filter(r => (r.status === 'DELIVERED') === isDelivered);
+        }
+
+        if (receivedFilter !== 'ALL') {
+            const isReceived = receivedFilter === 'SI';
+            result = result.filter(r => (r.status === 'ENTRY' || r.status === 'DELIVERED') === isReceived);
+        }
+
+        return result.sort((a, b) => {
             const aDate = new Date(a.deliveryDate || a.returnDate || a.createdAt).getTime();
             const bDate = new Date(b.deliveryDate || b.returnDate || b.createdAt).getTime();
             return bDate - aDate;
         });
+    }, [movements, deliveredFilter, receivedFilter]);
 
-    }, [movements]);
+    const handleExport = async () => {
+        if (groupedRows.length === 0) return;
+        setIsExporting(true);
+        try {
+            await exportInventoryToExcel(groupedRows, `Inventario_${new Date().toISOString().split('T')[0]}.xlsx`);
+        } finally {
+            setIsExporting(false);
+        }
+    };
 
     if (isLoading && movements.length === 0) {
         return (
@@ -110,7 +139,7 @@ export function InventoryPage() {
         );
     }
 
-    const hasFilters = debouncedSearch || startDate || endDate || receiptNumber || orderNumber || statusFilter !== 'ALL' || brandFilter;
+    const hasFilters = debouncedSearch || startDate || endDate || receiptNumber || orderNumber || deliveredFilter !== 'ALL' || receivedFilter !== 'ALL' || brandFilter;
 
     return (
         <div className="space-y-6">
@@ -120,20 +149,29 @@ export function InventoryPage() {
                 icon={Boxes}
                 actions={
                     <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="bg-white" 
-                        onClick={() => refetch()}
-                        disabled={isLoading}
+                        onClick={handleExport}
+                        disabled={isExporting || groupedRows.length === 0}
+                        variant="outline"
+                        className="rounded-xl border-slate-200 h-10 font-bold text-xs uppercase tracking-widest gap-2 bg-white shadow-sm hover:bg-slate-50 transition-all text-slate-600"
                     >
-                        <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                        Sincronizar
+                        {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4 text-emerald-600" />}
+                        Exportar Excel
                     </Button>
                 }
             />
 
             {/* KPI Cards */}
             <div className="flex flex-wrap gap-4 w-full">
+                <div className="bg-white px-6 py-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 min-w-[200px] flex-1">
+                    <div className="bg-purple-50 p-3 rounded-xl text-purple-600">
+                        <PackageSearch className="h-6 w-6" />
+                    </div>
+                    <div>
+                        <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-0.5">Por Recibir</p>
+                        <p className="text-2xl font-black text-purple-600 tracking-tight leading-none">{stats?.pending || 0}</p>
+                    </div>
+                </div>
+
                 <div className="bg-white px-6 py-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 min-w-[200px] flex-1">
                     <div className="bg-emerald-50 p-3 rounded-xl text-emerald-600">
                         <PackageOpen className="h-6 w-6" />
@@ -165,12 +203,9 @@ export function InventoryPage() {
                 </div>
             </div>
 
-            {/* Filters */}
             <InventoryFilters
                 search={searchTerm}
                 onSearchChange={setSearchTerm}
-                statusFilter={statusFilter}
-                onStatusChange={setStatusFilter}
                 brandFilter={brandFilter}
                 onBrandChange={setBrandFilter}
                 brands={availableBrands}
@@ -180,10 +215,13 @@ export function InventoryPage() {
                 onReceiptNumberChange={setReceiptNumber}
                 orderNumber={orderNumber}
                 onOrderNumberChange={setOrderNumber}
+                deliveredFilter={deliveredFilter}
+                onDeliveredChange={setDeliveredFilter}
+                receivedFilter={receivedFilter}
+                onReceivedChange={setReceivedFilter}
                 onClear={clearFilters}
             />
 
-            {/* Content Section */}
             {movements.length === 0 ? (
                 <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-slate-200 shadow-sm">
                     {hasFilters ? (
@@ -198,8 +236,7 @@ export function InventoryPage() {
                             <PackageOpen className="h-12 w-12 mx-auto mb-4 text-slate-200" />
                             <h3 className="text-lg font-bold text-slate-400">Inventario Vacío</h3>
                             <p className="text-sm text-slate-300 max-w-xs mx-auto mt-2 text-balance leading-relaxed">
-                                No hay movimientos de inventario registrados. 
-                                Ingrese mercadería en el módulo de Recepción para comenzar.
+                                No hay movimientos de inventario registrados.
                             </p>
                         </>
                     )}
@@ -211,12 +248,15 @@ export function InventoryPage() {
                             Mostrando <span className="text-slate-900">{groupedRows.length}</span> pedidos únicos
                         </p>
                     </div>
-                    <InventoryTable movements={groupedRows} />
+                    <InventoryTable 
+                        movements={groupedRows} 
+                        startIndex={(page - 1) * limit}
+                    />
                 </>
             )}
 
             {pagination && pagination.pages > 1 && (
-                <div className="flex justify-center mt-8">
+                <div className="mt-6 flex justify-center pb-8">
                     <Pagination
                         currentPage={page}
                         totalPages={pagination.pages}

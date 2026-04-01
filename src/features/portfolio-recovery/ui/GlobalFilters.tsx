@@ -74,11 +74,11 @@ export function GlobalFilters({
             }
           }
         }}
-        className="flex-1"
+        className="w-full sm:flex-1 min-w-[200px]"
       />
 
       {/* Estado de Recuperación */}
-      <div className="w-64">
+      <div className="w-full sm:w-64">
         <Label className="text-xs font-medium mb-1.5 block text-slate-700">
           Estado
         </Label>

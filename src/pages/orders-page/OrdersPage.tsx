@@ -60,12 +60,12 @@ export default function OrdersPage() {
                 description="Listado de pedidos"
                 icon={Inbox}
                 actions={
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
                         <Button 
                             variant="outline"
                             onClick={handleExport}
                             disabled={isExporting}
-                            className="bg-white hover:bg-emerald-50 hover:text-emerald-700 border-slate-200"
+                            className="w-full sm:w-auto bg-white hover:bg-emerald-50 hover:text-emerald-700 border-slate-200"
                         >
                             {isExporting ? (
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -74,7 +74,10 @@ export default function OrdersPage() {
                             )}
                             Exportar a Excel
                         </Button>
-                        <Button onClick={() => setTriggerCreate(true)}>
+                        <Button 
+                            onClick={() => setTriggerCreate(true)}
+                            className="w-full sm:w-auto"
+                        >
                             <Plus className="mr-2 h-4 w-4" /> Nuevo Pedido
                         </Button>
                     </div>

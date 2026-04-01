@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react"
+import { useState, useEffect } from "react"
 import { useFormik } from "formik"
 import { useNavigate, useParams } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
@@ -9,6 +9,7 @@ import {
     AlertTriangle, Lock 
 } from "lucide-react"
 
+import { incrementOrderNumber } from "@/shared/lib/utils"
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
 import { AsyncButton } from "@/shared/ui/async-button"
@@ -20,7 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/ui/di
 import { Badge } from "@/shared/ui/badge"
 import { PageHeader } from "@/shared/ui/PageHeader"
 
-import { useCreateOrder, useUpdateOrder, useOrder, useReceiptOrders } from "@/entities/order/model/hooks"
+import { useCreateOrder, useOrder, useReceiptOrders } from "@/entities/order/model/hooks"
 import type { SalesChannel, OrderType } from "@/entities/order/model/types"
 import { getPaidAmount } from "@/entities/order/model/model"
 import { orderApi } from "@/entities/order/model/api"
@@ -36,6 +37,8 @@ import { useCashClosurePreview } from "@/features/cash-closure/api/hooks"
 import { PaymentModal, type PaymentModalData } from "@/shared/ui/PaymentModal"
 import { usePDFPreview } from "@/shared/hooks/usePDFPreview"
 import { PDFPreviewModal } from "@/shared/ui/PDFPreviewModal"
+import { SearchableSelect } from "@/shared/ui/SearchableSelect"
+import { OrderEditModal } from "./OrderEditModal"
 
 const DRAFT_KEY = 'ventascatalogo_new_order_draft';
 const ITEM_DRAFT_KEY = 'ventascatalogo_current_item_draft';
@@ -59,6 +62,7 @@ const validationSchema = Yup.object({
         .min(0, "No negativo")
         .required("Requerido"),
     createdAt: Yup.string().required("Fecha de registro requerida"),
+    isBlocked: Yup.boolean(),
 })
 
 interface BrandItem {
@@ -79,162 +83,6 @@ interface BrandItem {
     status?: string;
 }
 
-/* --- Simple Searchable Select Component --- */
-interface Option {
-    id: string
-    label: string
-    subLabel?: string
-}
-
-function SearchableSelect({
-    options,
-    value,
-    onChange,
-    placeholder,
-    disabled = false,
-    onKeyDownNavigation,
-    navId
-}: {
-    options: Option[],
-    value: string,
-    onChange: (val: string) => void,
-    placeholder: string,
-    disabled?: boolean,
-    onKeyDownNavigation?: (e: React.KeyboardEvent) => void,
-    navId?: string
-}) {
-    const [isOpen, setIsOpen] = useState(false)
-    const [searchTerm, setSearchTerm] = useState("")
-    const wrapperRef = useRef<HTMLDivElement>(null)
-
-    const selectedOption = options.find(o => o.id === value)
-
-    useEffect(() => {
-        function handleClickOutside(event: MouseEvent) {
-            if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
-                setIsOpen(false)
-            }
-        }
-        document.addEventListener("mousedown", handleClickOutside)
-        return () => document.removeEventListener("mousedown", handleClickOutside)
-    }, [])
-
-    const [highlightedIndex, setHighlightedIndex] = useState(-1)
-
-    const filteredOptions = options.filter(option =>
-        option.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (option.subLabel && option.subLabel.toLowerCase().includes(searchTerm.toLowerCase()))
-    )
-
-    // Reset highlighted index when search or open state changes
-    useEffect(() => {
-        setHighlightedIndex(-1)
-    }, [searchTerm, isOpen])
-
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (disabled) return;
-        
-        if (!isOpen) {
-            if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
-                e.preventDefault();
-                setIsOpen(true);
-                setSearchTerm("");
-            }
-            return;
-        }
-
-        switch (e.key) {
-            case 'ArrowDown':
-                e.preventDefault();
-                setHighlightedIndex(prev => (prev < filteredOptions.length - 1 ? prev + 1 : prev));
-                break;
-            case 'ArrowUp':
-                e.preventDefault();
-                setHighlightedIndex(prev => (prev > 0 ? prev - 1 : 0));
-                break;
-            case 'Enter':
-                e.preventDefault();
-                if (highlightedIndex >= 0 && highlightedIndex < filteredOptions.length) {
-                    onChange(filteredOptions[highlightedIndex].id);
-                    setIsOpen(false);
-                }
-                break;
-            case 'Escape':
-                e.preventDefault();
-                setIsOpen(false);
-                break;
-            case 'Tab':
-                // Let tab function normally but close the dropdown
-                setIsOpen(false);
-                break;
-        }
-    };
-
-    return (
-        <div className="relative" ref={wrapperRef}>
-            <div
-                tabIndex={disabled ? -1 : 0}
-                className={`flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm items-center justify-between overflow-hidden focus:outline-none focus:ring-1 focus:ring-monchito-purple ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-monchito-purple/50 transition-colors'}`}
-                onClick={() => {
-                    if (disabled) return;
-                    setIsOpen(!isOpen)
-                    if (!isOpen) setSearchTerm("") // Reset search on open
-                }}
-                onKeyDown={(e) => {
-                    handleKeyDown(e);
-                    if (!isOpen && onKeyDownNavigation) {
-                        onKeyDownNavigation(e);
-                    }
-                }}
-                data-nav={navId}
-            >
-                <span className={selectedOption ? "text-foreground" : "text-muted-foreground"}>
-                    {selectedOption ? `${selectedOption.label} ${selectedOption.subLabel ? `(${selectedOption.subLabel})` : ''}` : placeholder}
-                </span>
-                <span className="opacity-50 text-xs text-muted-foreground">▼</span>
-            </div>
-
-            {isOpen && (
-                <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover text-popover-foreground shadow-lg bg-white dark:bg-slate-950 ring-1 ring-black ring-opacity-5">
-                    <div className="p-2 border-b">
-                        <Input
-                            autoFocus
-                            placeholder="Buscar..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            className="h-8"
-                        />
-                    </div>
-                    <div className="max-h-[250px] overflow-auto py-1">
-                        {filteredOptions.length === 0 ? (
-                            <div className="px-2 py-3 text-sm text-muted-foreground text-center">No se encontraron resultados</div>
-                        ) : (
-                            filteredOptions.map((option, idx) => (
-                                <div
-                                    key={option.id}
-                                    className={`relative flex cursor-default select-none items-center rounded-sm px-3 py-2 text-sm outline-none transition-colors ${idx === highlightedIndex ? "bg-monchito-purple/10 text-monchito-purple font-bold" : "hover:bg-indigo-50 hover:text-indigo-900"} ${option.id === value ? "bg-monchito-purple/5" : ""}`}
-                                    onClick={() => {
-                                        onChange(option.id)
-                                        setIsOpen(false)
-                                    }}
-                                >
-                                    <div className="flex flex-col">
-                                        <span>{option.label}</span>
-                                        {option.subLabel && <span className="text-[10px] opacity-70">{option.subLabel}</span>}
-                                    </div>
-                                    {option.id === value && (
-                                        <div className="ml-auto w-2 h-2 rounded-full bg-monchito-purple" />
-                                    )}
-                                </div>
-                            ))
-                        )}
-                    </div>
-                </div>
-            )}
-        </div>
-    )
-}
 
 export function OrderFormPage() {
     const { id, receiptNumber } = useParams()
@@ -249,7 +97,7 @@ export function OrderFormPage() {
     const { data: order, isLoading: isLoadingOrder } = useOrder(id || "")
     
     const { data: clientsResponse } = useClientList({ limit: 1000 })
-    const { data: brandsResponse } = useBrandList({ limit: 500 })
+    const { data: brandsResponse } = useBrandList({ limit: 1000 })
 
     const clients = clientsResponse?.data || []
     const brands = brandsResponse?.data || []
@@ -259,7 +107,7 @@ export function OrderFormPage() {
     
     const createOrder = useCreateOrder()
     const { notifySuccess, notifyError, notifyLoading, dismiss } = useNotifications()
-    const { user } = useAuth()
+    const { user, hasPermission } = useAuth()
 
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isLoadingReceiptNumber, setIsLoadingReceiptNumber] = useState(false)
@@ -281,6 +129,7 @@ export function OrderFormPage() {
 
     // Estados para modal de pago
     const [paymentModalOpen, setPaymentModalOpen] = useState(false)
+    const [permissionModalOpen, setPermissionModalOpen] = useState(false)
 
     // PDF Preview state
     const [pdfTitle, setPdfTitle] = useState('')
@@ -1142,7 +991,7 @@ export function OrderFormPage() {
                     brandName: "",
                     total: 0,
                     quantity: 1,
-                    orderNumber: ""
+                    orderNumber: incrementOrderNumber(prev.orderNumber)
                 }))
             } catch (error: any) {
                 console.error('Error adding new order:', error)
@@ -1177,7 +1026,7 @@ export function OrderFormPage() {
                 brandName: "",
                 total: 0,
                 quantity: 1,
-                orderNumber: ""
+                orderNumber: incrementOrderNumber(prev.orderNumber)
             }));
         }
     }
@@ -1305,12 +1154,50 @@ export function OrderFormPage() {
             }
         }
 
+        // Validar abono $0
+        const totalAbono = totalRowDeposit + Number(formik.values.creditToUse);
+        const isZeroDeposit = totalAbono <= 0.001; // Usamos un margen pequeño para floats
+
+        if (isZeroDeposit && !hasPermission('orders.save_with_zero_deposit')) {
+            setPermissionModalOpen(true);
+            return;
+        }
+
         // Abrir modal de pago (sin validación de distribución)
         setPaymentModalOpen(true)
     }
 
     return (
         <div className="space-y-4 pb-12">
+            {/* Modal de Permiso Requerido */}
+            <Dialog open={permissionModalOpen} onOpenChange={setPermissionModalOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-orange-600">
+                            <Lock className="h-5 w-5" />
+                            Permiso Requerido
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="p-4 bg-orange-50 border border-orange-100 rounded-xl space-y-3">
+                        <p className="text-sm text-orange-800 leading-relaxed">
+                            No cuentas con el permiso suficiente para guardar un recibo con **abono de $0.00**. 
+                        </p>
+                        <p className="text-[11px] text-orange-700 font-medium">
+                            Por favor, ingresa un abono inicial o solicita autorización a un administrador para habilitar el permiso <code className="bg-orange-200 px-1 rounded text-orange-900 font-bold">orders.save_with_zero_deposit</code>.
+                        </p>
+                    </div>
+                    <div className="flex justify-end pt-2">
+                        <Button 
+                            variant="default" 
+                            className="bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-bold"
+                            onClick={() => setPermissionModalOpen(false)}
+                        >
+                            Entendido
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
             {/* Header Toolbar */}
             <PageHeader
                 title={isEditing ? "Editar Pedido" : "Registro de Pedidos"}
@@ -2032,260 +1919,3 @@ export function OrderFormPage() {
     )
 }
 
-// Componente Modal de Edición Individual
-interface OrderEditModalProps {
-    order: any
-    open: boolean
-    onOpenChange: (open: boolean) => void
-    onSuccess: (updatedOrder: any) => void
-    lastClosureDate: Date | null
-    bankAccounts: any[]
-}
-
-function OrderEditModal({ order, open, onOpenChange, onSuccess, lastClosureDate, bankAccounts }: OrderEditModalProps) {
-    const { notifySuccess, notifyError, notifyLoading, dismiss } = useNotifications()
-    const updateOrder = useUpdateOrder()
-    const queryClient = useQueryClient()
-    const [formData, setFormData] = useState({
-        total: Number(order.total) || 0,
-        deposit: getPaidAmount(order) || 0,
-        possibleDeliveryDate: order.possibleDeliveryDate ? new Date(order.possibleDeliveryDate).toISOString().split('T')[0] : '',
-        orderNumber: order.orderNumber || '',
-        paymentMethod: order.paymentMethod || 'EFECTIVO',
-        bankAccountId: order.bankAccountId || ''
-    })
-
-    const { data: walletData } = useClientCredits(order.clientId || '')
-    const walletBalance = walletData?.reduce((acc: number, curr: any) => acc + Number(curr.amount || 0), 0) || 0
-
-    const filteredBankAccounts = useMemo(() => {
-        if (formData.paymentMethod === 'EFECTIVO') {
-            return bankAccounts.filter(acc => acc.type === 'CASH')
-        }
-        return []
-    }, [bankAccounts, formData.paymentMethod])
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault()
-
-        // 1. Verificar cierre de caja antes de enviar
-        if (lastClosureDate && order.transactionDate) {
-            const transactionDate = new Date(order.transactionDate)
-            if (transactionDate <= lastClosureDate) {
-                notifyError(null, 'No se puede guardar: El periodo de caja para esta fecha ya está cerrado.')
-                return
-            }
-        }
-        
-        // 2. Verificar estado del pedido y movimientos
-        if (order.status !== 'POR_RECIBIR' || (order.payments && order.payments.length > 1)) {
-            let reason = 'No se puede editar: El pedido ya tiene movimientos procesados.';
-            if (order.status === 'RECIBIDO_EN_BODEGA') reason = 'No se puede editar: El pedido ya ha sido receptado en bodega.';
-            if (order.status === 'ENTREGADO') reason = 'No se puede editar: El pedido ya ha sido entregado.';
-            if (order.payments && order.payments.length > 1) reason = 'No se puede editar: El pedido ya tiene abonos adicionales vinculados.';
-            
-            notifyError(null, reason);
-            return;
-        }
-
-        try {
-            notifyLoading('Actualizando datos del pedido...')
-            const productName = order.brand?.name || order.brandName || "Producto"
-            const quantity = Number(order.items?.[0]?.quantity || 1)
-            const unitPrice = quantity > 0 ? formData.total / quantity : 0
-
-            const payload = {
-                total: formData.total,
-                possibleDeliveryDate: formData.possibleDeliveryDate,
-                orderNumber: formData.orderNumber,
-                items: [{
-                    id: order.items?.[0]?.id || crypto.randomUUID(),
-                    productName: productName,
-                    quantity: quantity,
-                    unitPrice: isNaN(unitPrice) ? 0 : unitPrice,
-                    brandId: order.brandId,
-                    brandName: order.brand?.name || order.brandName || "Marca"
-                }],
-                deposit: formData.deposit,
-                paymentMethod: formData.paymentMethod,
-                bankAccountId: formData.bankAccountId
-            }
-
-            console.log('[OrderEditModal] Updating order:', order.id, 'with payload:', payload)
-            
-            await updateOrder.mutateAsync({ id: order.id, data: payload })
-            
-            console.log('[OrderEditModal] Update successful')
-            
-            // Invalidar la query específica del recibo para refrescar caches
-            queryClient.invalidateQueries({ queryKey: ['orders', 'receipt', order.receiptNumber] })
-            
-            dismiss()
-            notifySuccess('Pedido actualizado correctamente.')
-            onSuccess({
-                ...order,
-                ...payload,
-                total: payload.total,
-                possibleDeliveryDate: payload.possibleDeliveryDate,
-                orderNumber: payload.orderNumber,
-                payments: order.payments, // se mantienen igual a nivel de frontend
-            })
-        } catch (error: any) {
-            dismiss()
-            console.error('Error updating order:', error)
-            notifyError(error, 'Error al actualizar el pedido.')
-        }
-    }
-
-    const saldo = formData.total - formData.deposit
-
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-4xl">
-                <DialogHeader>
-                    <DialogTitle className="text-lg font-bold text-slate-800">Editar Pedido</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleSubmit}>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-xs border-collapse">
-                            <thead className="bg-slate-100 text-slate-600 border-b uppercase font-bold text-xs">
-                                <tr>
-                                    <th className="px-3 py-2 border-r text-left">Catálogo</th>
-                                    <th className="px-3 py-2 border-r text-left">N° Pedido</th>
-                                    <th className="px-3 py-2 border-r text-right">Valor Pedido</th>
-                                    <th className="px-3 py-2 border-r text-right">Abono</th>
-                                    <th className="px-3 py-2 border-r text-right">Saldo</th>
-                                    <th className="px-3 py-2 text-left">Posible Entrega</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr className="hover:bg-indigo-50/20 transition-colors">
-                                    <td className="px-3 py-2 border-r">
-                                        <Input
-                                            value={order.brand?.name || order.brandName}
-                                            disabled
-                                            className="h-8 text-xs bg-slate-50 border-none"
-                                        />
-                                    </td>
-                                    <td className="px-3 py-2 border-r">
-                                        <Input
-                                            value={formData.orderNumber}
-                                            onChange={(e) => setFormData({ ...formData, orderNumber: e.target.value })}
-                                            placeholder="Ej: 12345"
-                                            className="h-8 text-xs font-mono"
-                                        />
-                                    </td>
-                                    <td className="px-3 py-2 border-r text-right">
-                                        <div className="flex justify-end items-center gap-1">
-                                            <span className="text-slate-400 text-xs">$</span>
-                                            <input
-                                                type="number"
-                                                step="0.01"
-                                                className="h-7 w-20 text-right font-bold border-none focus:ring-0 outline-none text-xs bg-transparent hide-spinner"
-                                                value={formData.total}
-                                                onChange={(e) => setFormData({ ...formData, total: Number(e.target.value) })}
-                                                required
-                                            />
-                                        </div>
-                                    </td>
-                                    <td className="px-3 py-2 border-r text-right">
-                                        <div className="flex justify-end items-center gap-1">
-                                            <span className="text-green-600 text-xs">$</span>
-                                            <input
-                                                type="number"
-                                                step="0.01"
-                                                className="h-7 w-20 text-right text-green-600 font-bold rounded border-green-100 focus:ring-1 focus:ring-green-500 outline-none text-xs bg-green-50/30 hide-spinner"
-                                                value={formData.deposit}
-                                                onChange={(e) => setFormData({ ...formData, deposit: Number(e.target.value) })}
-                                                required
-                                            />
-                                        </div>
-                                    </td>
-                                    <td className="px-3 py-2 border-r text-right">
-                                        <span className={`font-bold text-xs ${saldo > 0 ? 'text-red-600' : 'text-slate-600'}`}>
-                                            ${saldo.toFixed(2)}
-                                        </span>
-                                    </td>
-                                    <td className="px-3 py-2">
-                                        <Input
-                                            type="date"
-                                            value={formData.possibleDeliveryDate}
-                                            onChange={(e) => setFormData({ ...formData, possibleDeliveryDate: e.target.value })}
-                                            required
-                                            className="h-8 text-xs pr-8"
-                                        />
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                        <div className="space-y-1.5">
-                            <Label className="text-xs font-bold text-slate-600">
-                                Método de Pago:
-                                {formData.paymentMethod === 'BILLETERA_VIRTUAL' && (
-                                    <span className="ml-2 text-emerald-600 font-medium"> (Saldo: ${walletBalance.toFixed(2)})</span>
-                                )}
-                            </Label>
-                            <select
-                                className="w-full h-9 rounded-md border border-slate-200 text-xs px-3 focus:ring-1 focus:ring-monchito-purple outline-none"
-                                value={formData.paymentMethod}
-                                onChange={(e) => {
-                                    const method = e.target.value
-                                    setFormData({ 
-                                        ...formData, 
-                                        paymentMethod: method,
-                                        bankAccountId: method === 'EFECTIVO' 
-                                            ? (bankAccounts.find((a: any) => a.type === 'CASH')?.id || '') 
-                                            : ''
-                                    })
-                                }}
-                            >
-                                <option value="EFECTIVO">EFECTIVO</option>
-                                <option value="BILLETERA_VIRTUAL">BILLETERA VIRTUAL</option>
-                            </select>
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label className="text-xs font-bold text-slate-600">Cuenta Bancaria:</Label>
-                            <select
-                                className="w-full h-9 rounded-md border border-slate-200 text-xs px-3 focus:ring-1 focus:ring-monchito-purple outline-none"
-                                value={formData.bankAccountId}
-                                onChange={(e) => setFormData({ ...formData, bankAccountId: e.target.value })}
-                                disabled={formData.paymentMethod === 'BILLETERA_VIRTUAL'}
-                            >
-                                <option value="">{formData.paymentMethod === 'BILLETERA_VIRTUAL' ? 'No se requiere (Se usa Saldo a Favor)' : 'Seleccione una cuenta...'}</option>
-                                {filteredBankAccounts.map((acc: any) => (
-                                    <option key={acc.id} value={acc.id}>
-                                        {acc.name} ({acc.bankName || (acc.type === 'CASH' ? 'Efectivo' : 'Banco')})
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-
-                    <Separator className="my-4" />
-
-                    <div className="flex gap-2 justify-end">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => onOpenChange(false)}
-                            disabled={updateOrder.isPending}
-                            className="h-8 text-xs"
-                        >
-                            Cancelar
-                        </Button>
-                        <AsyncButton
-                            type="submit"
-                            isLoading={updateOrder.isPending}
-                            className="bg-slate-800 h-8 text-xs"
-                        >
-                            Guardar Cambios
-                        </AsyncButton>
-                    </div>
-                </form>
-            </DialogContent>
-        </Dialog>
-    )
-}

@@ -65,7 +65,7 @@ const DEFAULT_PAYMENT_METHODS: PaymentMethodConfig[] = [
   {
     key: 'DEPOSITO',
     label: 'Depósito',
-    enabled: true,
+    enabled: false,
     requiresBankAccount: true,
     requiresReference: true,
     isWallet: false,
@@ -74,7 +74,7 @@ const DEFAULT_PAYMENT_METHODS: PaymentMethodConfig[] = [
   {
     key: 'CHEQUE',
     label: 'Cheque',
-    enabled: true,
+    enabled: false,
     requiresBankAccount: true,
     requiresReference: true,
     isWallet: false,

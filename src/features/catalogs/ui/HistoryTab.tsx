@@ -78,7 +78,7 @@ export function HistoryTab() {
               setSelectedClientId(id);
               setPage(1);
             }}
-            className="flex-1"
+            className="flex-1 min-w-[200px]"
           />
 
           <BrandFilter
@@ -88,7 +88,7 @@ export function HistoryTab() {
               setSelectedBrandId(id);
               setPage(1);
             }}
-            className="flex-1"
+            className="flex-1 min-w-[200px]"
           />
 
           <DateRangePicker
@@ -97,10 +97,10 @@ export function HistoryTab() {
               setDateRange(range);
               setPage(1);
             }}
-            className="flex-1"
+            className="flex-1 min-w-[200px]"
           />
 
-          <div className="flex-1">
+          <div className="flex-1 min-w-[150px]">
             <Label className="text-xs font-medium mb-1.5 block text-slate-700">
               ¿Hizo Pedido?
             </Label>

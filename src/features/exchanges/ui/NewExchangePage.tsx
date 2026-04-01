@@ -974,7 +974,7 @@ export function NewExchangePage() {
                                     value={formik.values.createdAt}
                                     onChange={formik.handleChange}
                                     disabled={isEditing}
-                                    className="h-9 rounded-xl border-slate-200 bg-white text-xs"
+                                    className="h-9 rounded-xl border-slate-200 bg-white text-xs pl-3 pr-1"
                                 />
                             </div>
                             <div className="md:col-span-8 space-y-1">
@@ -1151,13 +1151,13 @@ export function NewExchangePage() {
                                     className="h-8 text-right font-black text-emerald-600 border-slate-200 rounded-md px-2 text-xs hide-spinner"
                                 />
                             </div>
-                            <div className="w-full sm:w-[135px] space-y-1 shrink-0">
+                            <div className="w-full sm:w-[150px] space-y-1 shrink-0">
                                 <Label className="text-xs font-bold uppercase text-slate-500">Entrega:</Label>
                                 <Input
                                     type="date"
                                     value={currentItem.possibleDeliveryDate}
                                     onChange={(e) => setCurrentItem(prev => ({ ...prev, possibleDeliveryDate: e.target.value }))}
-                                    className="h-8 text-xs border-slate-200 rounded-md px-2"
+                                    className="h-8 text-xs border-slate-200 rounded-md pl-2 pr-1"
                                 />
                             </div>
                             <div className="w-full sm:w-[130px] shrink-0">
@@ -1217,11 +1217,17 @@ export function NewExchangePage() {
                                                         <td className="px-2 py-2 border-r border-slate-50 text-center text-slate-500 font-medium">{item.possibleDeliveryDate}</td>
                                                         <td className="px-2 py-2 text-center text-xs">
                                                             <div className="flex justify-center">
-                                                                {!isEditing && (
+                                                                {(!isEditing || (item.id && item.status !== 'ENTREGADO')) && (
                                                                     <Button 
                                                                         variant="ghost" 
                                                                         size="icon" 
-                                                                        onClick={() => removeItem(idx)} 
+                                                                        onClick={() => {
+                                                                            if (item.id) {
+                                                                                handleDeleteOrder(item);
+                                                                            } else {
+                                                                                removeItem(idx);
+                                                                            }
+                                                                        }} 
                                                                         className="h-8 w-8 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
                                                                     >
                                                                         <X className="h-4 w-4" />
