@@ -10,8 +10,10 @@ import { Badge } from "@/shared/ui/badge";
 import { useNotifications } from "@/shared/lib/notifications";
 import { systemSettingsApi, type NoteTemplate } from "../api/systemSettingsApi";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/shared/ui/dialog";
+import { useAuth } from "@/shared/auth";
 
 export function SettingsPage() {
+    const { hasPermission } = useAuth();
     const { notifySuccess, notifyError } = useNotifications();
     const [isSaving, setIsSaving] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -53,6 +55,10 @@ export function SettingsPage() {
     };
 
     const handleSaveConfigs = async () => {
+        if (!hasPermission('system_config.edit_parameters')) {
+            notifyError("No tienes permiso para editar parámetros del sistema");
+            return;
+        }
         try {
             setIsSaving(true);
             await Promise.all([
@@ -69,6 +75,10 @@ export function SettingsPage() {
     };
 
     const handleDeleteNote = async (id: string) => {
+        if (!hasPermission('system_config.delete_notimonchito')) {
+            notifyError("No tienes permiso para eliminar Notimonchitos");
+            return;
+        }
         if (!window.confirm("¿Está seguro de eliminar esta plantilla? Esta acción no se puede deshacer.")) return;
         try {
             await systemSettingsApi.deleteNote(id);
@@ -83,6 +93,14 @@ export function SettingsPage() {
     const [editingNote, setEditingNote] = useState<Partial<NoteTemplate> | null>(null);
 
     const handleOpenNoteModal = (note?: NoteTemplate) => {
+        const isEditing = !!note?.id;
+        const permission = isEditing ? 'system_config.edit_notimonchito' : 'system_config.create_notimonchito';
+        
+        if (!hasPermission(permission)) {
+            notifyError(`No tienes permiso para ${isEditing ? 'editar' : 'crear'} Notimonchitos`);
+            return;
+        }
+
         setEditingNote(note || { title: "", content: "", isDefault: false, isActive: true });
         setIsNoteModalOpen(true);
     };

@@ -373,6 +373,7 @@ export function PaymentsPage() {
                                     }))}
                                         orderTotal={getEffectiveTotal(selectedOrder)}
                                         onDelete={handleDeletePayment}
+                                        readOnly={!hasPermission('payments.delete')}
                                     />
                                 </div>
                             </div>

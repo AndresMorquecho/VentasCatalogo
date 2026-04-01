@@ -53,7 +53,7 @@ export function LoyaltyRewards() {
     const [form, setForm] = useState<LoyaltyPrizeFormData>(EMPTY_FORM);
 
     const openCreate = () => {
-        if (!hasPermission('loyalty.manage_prizes')) {
+        if (!hasPermission('loyalty.create_prize')) {
             notifyError({ message: "No tienes permiso para crear premios" });
             return;
         }
@@ -63,7 +63,7 @@ export function LoyaltyRewards() {
     };
 
     const openEdit = (prize: LoyaltyPrize) => {
-        if (!hasPermission('loyalty.manage_prizes')) {
+        if (!hasPermission('loyalty.edit_prize')) {
             notifyError({ message: "No tienes permiso para editar premios" });
             return;
         }
@@ -135,8 +135,8 @@ export function LoyaltyRewards() {
                                     size="icon" 
                                     className="h-8 w-8 text-red-500 hover:bg-red-50" 
                                     onClick={() => {
-                                        if (!hasPermission('loyalty.manage_prizes')) {
-                                            notifyError("No tienes permiso para eliminar premios");
+                                        if (!hasPermission('loyalty.delete_prize')) {
+                                            notifyError({ message: "No tienes permiso para eliminar premios" });
                                             return;
                                         }
                                         setDeleteTarget(prize);

@@ -23,7 +23,7 @@ import {
 import { Link, useLocation } from "react-router-dom"
 import { useAuth } from "@/shared/auth"
 import { LogoutDialog } from "@/shared/components/LogoutDialog"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 
 import {
     Sidebar,
@@ -37,6 +37,7 @@ import {
     SidebarFooter,
     SidebarHeader,
     SidebarRail,
+    useSidebar,
 } from "@/shared/ui/sidebar"
 import { Button } from "@/shared/ui/button"
 import { SidebarNavGroup } from "./SidebarNavGroup"
@@ -77,6 +78,7 @@ const topLevelItems = [
         title: "Dashboard",
         url: "/",
         icon: LayoutDashboard,
+        permission: "dashboard.view"
     }
 ]
 
@@ -86,47 +88,47 @@ const groupedItems = [
         title: "Gestión Comercial",
         icon: Store,
         items: [
-            { title: "Empresarias", url: "/clients", icon: Users },
-            { title: "Pedidos", url: "/orders", icon: Inbox },
-            { title: "Recepción", url: "/orders/reception", icon: PackageCheck },
-            { title: "Entregas", url: "/orders/delivery", icon: Truck },
-            { title: "Cambios", url: "/exchanges", icon: ArrowLeftRight },
+            { title: "Empresarias", url: "/clients", icon: Users, permission: "clients.view" },
+            { title: "Pedidos", url: "/orders", icon: Inbox, permission: "orders.view" },
+            { title: "Recepción", url: "/orders/reception", icon: PackageCheck, permission: "reception.view" },
+            { title: "Entregas", url: "/orders/delivery", icon: Truck, permission: "delivery.view" },
+            { title: "Cambios", url: "/exchanges", icon: ArrowLeftRight, permission: "exchanges.view" },
         ]
     },
     {
         title: "Finanzas",
         icon: Banknote, // Represents money/finance
         items: [
-            { title: "Transacciones", url: "/transactions", icon: DollarSign },
-            { title: "Abonos", url: "/payments", icon: DollarSign },
-            { title: "Billetera Virtual", url: "/wallet", icon: Wallet },
-            { title: "Validación de Pagos", url: "/wallet-validations", icon: CheckCircle },
-            { title: "Cuentas Bancarias", url: "/bank-accounts", icon: Store },
-            { title: "Cierre de Caja", url: "/cash-closure", icon: Calculator },
-            { title: "Análisis de Cartera", url: "/cartera", icon: Activity },
+            { title: "Transacciones", url: "/transactions", icon: DollarSign, permission: "transactions.view" },
+            { title: "Abonos", url: "/payments", icon: DollarSign, permission: "payments.view" },
+            { title: "Billetera Virtual", url: "/wallet", icon: Wallet, permission: "wallet.view" },
+            { title: "Validación de Pagos", url: "/wallet-validations", icon: CheckCircle, permission: "wallet_validations.view" },
+            { title: "Cuentas Bancarias", url: "/bank-accounts", icon: Store, permission: "bank_accounts.view" },
+            { title: "Cierre de Caja", url: "/cash-closure", icon: Calculator, permission: "cash_closure.view" },
+            { title: "Análisis de Cartera", url: "/cartera", icon: Activity, permission: "cartera.view" },
         ]
     },
     {
         title: "Inventario",
         icon: Boxes, // Represents storage/boxes
         items: [
-            { title: "Inventario", url: "/inventory", icon: Boxes },
-            { title: "Marcas", url: "/brands", icon: Tag },
-            { title: "Catálogos", url: "/catalogs", icon: Inbox },
+            { title: "Inventario", url: "/inventory", icon: Boxes, permission: "inventory.view" },
+            { title: "Marcas", url: "/brands", icon: Tag, permission: "brands.view" },
+            { title: "Catálogos", url: "/catalogs", icon: Inbox, permission: "catalogs.view" },
         ]
     },
     {
         title: "Seguimiento",
         icon: Activity, // Represents activity monitoring
         items: [
-            { title: "Llamadas", url: "/calls", icon: Phone },
+            { title: "Llamadas", url: "/calls", icon: Phone, permission: "calls.view" },
         ]
     },
     {
         title: "Fidelización",
         icon: Heart,
         items: [
-            { title: "Fid. Recompensas", url: "/rewards", icon: Award },
+            { title: "Fid. Recompensas", url: "/rewards", icon: Award, permission: "loyalty.view" },
         ]
     }
 ]
@@ -136,8 +138,8 @@ const adminGroups = [
         title: "Configuración",
         icon: Settings2,
         items: [
-            { title: "Configuraciones", url: "/admin/settings", icon: Settings2 },
-            { title: "Usuarios y Roles", url: "/admin/users", icon: Users },
+            { title: "Configuraciones", url: "/admin/settings", icon: Settings2, permission: "system_config.view" },
+            { title: "Usuarios y Roles", url: "/admin/users", icon: Users, permission: "users.view" },
         ]
     }
 ]
@@ -157,31 +159,60 @@ const getAvatarColor = (name: string) => {
 };
 
 export function AppSidebar() {
-    const { user, logout, isAdmin } = useAuth();
+    const { user, logout, isAdmin, hasPermission } = useAuth();
     const location = useLocation();
     const adminMode = isAdmin();
     const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+
+    // Filter Items based on permissions
+    const filteredTopLevel = topLevelItems.filter(item => 
+        !item.permission || hasPermission(item.permission as any)
+    );
+
+    const filteredGroups = groupedItems.map(group => ({
+        ...group,
+        items: group.items.filter(item => !item.permission || hasPermission(item.permission as any))
+    })).filter(group => group.items.length > 0);
+
+    const filteredAdminGroups = adminGroups.map(group => ({
+        ...group,
+        items: group.items.filter(item => !item.permission || hasPermission(item.permission as any))
+    })).filter(group => group.items.length > 0);
     
-    // Track which group is open (null means all closed)
     // Initial state: try to find the group that contains the current location
     const [openGroupTitle, setOpenGroupTitle] = useState<string | null>(() => {
-        const allGroups = [...groupedItems, ...adminGroups];
+        const allGroups = [...filteredGroups, ...filteredAdminGroups];
         const activeGroup = allGroups.find(group => 
             group.items.some(item => location.pathname === item.url || location.pathname.startsWith(item.url + '/'))
         );
         return activeGroup ? activeGroup.title : null;
     });
 
-    // Auto-expand if navigating to a child
+    const prevPathRef = useRef(location.pathname);
+
+    const { isMobile, setOpenMobile } = useSidebar();
+
+    // Auto-expand if navigating to a child and handle mobile close
     useEffect(() => {
-        const allGroups = [...groupedItems, ...adminGroups];
-        const activeGroup = allGroups.find(group => 
-            group.items.some(item => location.pathname === item.url || location.pathname.startsWith(item.url + '/'))
-        );
-        if (activeGroup && activeGroup.title !== openGroupTitle) {
-            setOpenGroupTitle(activeGroup.title);
+        // Only run if the path has actually changed
+        if (prevPathRef.current !== location.pathname) {
+            const allGroups = [...filteredGroups, ...filteredAdminGroups];
+            const activeGroup = allGroups.find(group => 
+                group.items.some(item => location.pathname === item.url || location.pathname.startsWith(item.url + '/'))
+            );
+            
+            if (activeGroup) {
+                setOpenGroupTitle(activeGroup.title);
+            }
+
+            // Close mobile sidebar on navigation
+            if (isMobile) {
+                setOpenMobile(false);
+            }
+
+            prevPathRef.current = location.pathname;
         }
-    }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [location.pathname, filteredGroups, filteredAdminGroups, isMobile, setOpenMobile]); 
 
     const handleLogout = () => {
         logout();
@@ -205,7 +236,7 @@ export function AppSidebar() {
                     </SidebarGroupLabel>
                     <SidebarGroupContent>
                         <SidebarMenu>
-                            {topLevelItems.map((item) => (
+                            {filteredTopLevel.map((item) => (
                                 <SidebarMenuItem key={item.title}>
                                     <SidebarMenuButton 
                                         asChild 
@@ -230,7 +261,7 @@ export function AppSidebar() {
                     </SidebarGroupLabel>
                     <SidebarGroupContent>
                         <SidebarMenu className="gap-2">
-                            {groupedItems.map((group) => (
+                            {filteredGroups.map((group) => (
                                 <SidebarNavGroup 
                                     key={group.title} 
                                     group={group} 
@@ -250,7 +281,7 @@ export function AppSidebar() {
                         </SidebarGroupLabel>
                         <SidebarGroupContent>
                             <SidebarMenu className="gap-2">
-                                {adminGroups.map((group) => (
+                                {filteredAdminGroups.map((group) => (
                                     <SidebarNavGroup 
                                         key={group.title} 
                                         group={group} 

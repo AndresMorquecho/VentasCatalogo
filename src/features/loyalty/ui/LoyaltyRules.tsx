@@ -52,7 +52,7 @@ export function LoyaltyRules() {
     const [form, setForm] = useState<LoyaltyRuleFormData>(EMPTY_FORM);
 
     const openCreate = () => {
-        if (!hasPermission('loyalty.manage_rules')) {
+        if (!hasPermission('loyalty.create_rule')) {
             notifyError({ message: "No tienes permiso para crear reglas" });
             return;
         }
@@ -62,7 +62,7 @@ export function LoyaltyRules() {
     };
 
     const openEdit = (rule: LoyaltyRule) => {
-        if (!hasPermission('loyalty.manage_rules')) {
+        if (!hasPermission('loyalty.edit_rule')) {
             notifyError({ message: "No tienes permiso para editar reglas" });
             return;
         }
@@ -146,8 +146,8 @@ export function LoyaltyRules() {
                                     size="icon" 
                                     className="h-8 w-8 text-red-500 hover:bg-red-50" 
                                     onClick={() => {
-                                        if (!hasPermission('loyalty.manage_rules')) {
-                                            notifyError("No tienes permiso para eliminar reglas");
+                                        if (!hasPermission('loyalty.delete_rule')) {
+                                            notifyError({ message: "No tienes permiso para eliminar reglas" });
                                             return;
                                         }
                                         setDeleteTarget(rule);

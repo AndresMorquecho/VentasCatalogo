@@ -7,8 +7,12 @@ import { PendingOrdersTable } from "./PendingOrdersTable"
 import { ReceptionZone } from "./ReceptionZone"
 import { ReceptionHistory } from "./ReceptionHistory"
 import { BatchPrintModal } from "./BatchPrintModal"
+import { useAuth } from "@/shared/auth"
+import { useNotifications } from "@/shared/lib/notifications"
 
 export function ReceptionBatchPage() {
+    const { hasPermission } = useAuth()
+    const { notifyError } = useNotifications()
     const {
         allOrders,
         selectedOrders,
@@ -41,8 +45,28 @@ export function ReceptionBatchPage() {
     const [activeTab, setActiveTab] = useState("reception");
 
     const onEditBatch = (batch: any) => {
+        if (!hasPermission('reception.edit')) {
+            notifyError({ message: 'No tienes permiso para editar recepciones' })
+            return
+        }
         startEditingBatch(batch);
         setActiveTab("reception");
+    };
+
+    const onConfirmBatch = () => {
+        if (!hasPermission('reception.confirm')) {
+            notifyError({ message: 'No tienes permiso para finalizar recepciones' })
+            return
+        }
+        handleSaveBatch();
+    };
+
+    const onDeleteBatch = (id: string) => {
+        if (!hasPermission('reception.delete')) {
+            notifyError({ message: 'No tienes permiso para eliminar recepciones' })
+            return
+        }
+        deleteBatch(id);
     };
 
 
@@ -108,17 +132,17 @@ export function ReceptionBatchPage() {
                         {/* Panel Inferior: Zona de Recepción Actual - Se colapsa si no hay datos */}
                         {selectedOrders.length > 0 && (
                             <div className={allOrders.length > 0 ? "h-96" : "flex-1"}>
-                                <ReceptionZone
+                                <ReceptionZoneIntegration
                                     selectedOrders={selectedOrders}
-                                    onRemove={removeOrder}
-                                    onConfirm={handleSaveBatch}
-                                    isProcessing={isSaving}
+                                    removeOrder={removeOrder}
+                                    onConfirmBatch={onConfirmBatch}
+                                    isSaving={isSaving}
                                     packingNumber={packingNumber}
                                     packingTotal={packingTotal}
                                     setPackingNumber={setPackingNumber}
                                     setPackingTotal={setPackingTotal}
-                                    onUpdateOrder={updateOrderItem}
-                                    isEditing={!!editingBatchId}
+                                    updateOrderItem={updateOrderItem}
+                                    editingBatchId={editingBatchId}
                                 />
                             </div>
                         )}
@@ -139,7 +163,7 @@ export function ReceptionBatchPage() {
                         batches={batches}
                         pagination={pagination}
                         onEdit={onEditBatch}
-                        onDelete={deleteBatch}
+                        onDelete={onDeleteBatch}
                         isDeleting={isDeleting}
                         page={historyPage}
                         onPageChange={setHistoryPage}
@@ -157,4 +181,22 @@ export function ReceptionBatchPage() {
             />
         </div>
     );
+}
+
+// Subcomponent integration for better clarity in the render
+function ReceptionZoneIntegration({ selectedOrders, removeOrder, onConfirmBatch, isSaving, packingNumber, packingTotal, setPackingNumber, setPackingTotal, updateOrderItem, editingBatchId }: any) {
+    return (
+        <ReceptionZone
+            selectedOrders={selectedOrders}
+            onRemove={removeOrder}
+            onConfirm={onConfirmBatch}
+            isProcessing={isSaving}
+            packingNumber={packingNumber}
+            packingTotal={packingTotal}
+            setPackingNumber={setPackingNumber}
+            setPackingTotal={setPackingTotal}
+            onUpdateOrder={updateOrderItem}
+            isEditing={!!editingBatchId}
+        />
+    )
 }

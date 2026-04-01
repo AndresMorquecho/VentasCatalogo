@@ -7,6 +7,8 @@ import { PendingOrdersTable } from "@/features/reception-batch/ui/PendingOrdersT
 import { ReceptionZone } from "@/features/reception-batch/ui/ReceptionZone"
 import { ReceptionHistory } from "@/features/reception-batch/ui/ReceptionHistory"
 import { BatchPrintModal } from "@/features/reception-batch/ui/BatchPrintModal"
+import { useAuth } from "@/shared/auth"
+import { useNotifications } from "@/shared/lib/notifications"
 
 export function ReceptionBatchPage() {
     const {
@@ -38,11 +40,34 @@ export function ReceptionBatchPage() {
         pagination
     } = useReceptionBatch();
 
+    const { hasPermission } = useAuth();
+    const { notifyError } = useNotifications();
+
     const [activeTab, setActiveTab] = useState("reception");
 
     const onEditBatch = (batch: any) => {
+        if (!hasPermission('exchanges.reception')) {
+            notifyError({ message: 'No tienes permiso para editar recepciones de cambios' })
+            return
+        }
         startEditingBatch(batch);
         setActiveTab("reception");
+    };
+
+    const onConfirmBatch = () => {
+        if (!hasPermission('exchanges.reception')) {
+            notifyError({ message: 'No tienes permiso para finalizar recepciones de cambios' })
+            return
+        }
+        handleSaveBatch();
+    };
+
+    const onDeleteBatch = (id: string) => {
+        if (!hasPermission('exchanges.reception')) {
+            notifyError({ message: 'No tienes permiso para eliminar recepciones de cambios' })
+            return
+        }
+        deleteBatch(id);
     };
 
 
@@ -111,7 +136,7 @@ export function ReceptionBatchPage() {
                                 <ReceptionZone
                                     selectedOrders={selectedOrders}
                                     onRemove={removeOrder}
-                                    onConfirm={handleSaveBatch}
+                                    onConfirm={onConfirmBatch}
                                     isProcessing={isSaving}
                                     packingNumber={packingNumber}
                                     packingTotal={packingTotal}
@@ -139,7 +164,7 @@ export function ReceptionBatchPage() {
                         batches={batches}
                         pagination={pagination}
                         onEdit={onEditBatch}
-                        onDelete={deleteBatch}
+                        onDelete={onDeleteBatch}
                         isDeleting={isDeleting}
                         page={historyPage}
                         onPageChange={setHistoryPage}

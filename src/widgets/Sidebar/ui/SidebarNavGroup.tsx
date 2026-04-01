@@ -15,6 +15,7 @@ export type NavItem = {
     title: string
     url: string
     icon?: LucideIcon
+    permission?: string
 }
 
 // Type for a group of items
@@ -35,11 +36,14 @@ export function SidebarNavGroup({ group, isOpen, onToggle }: SidebarNavGroupProp
 
     // Check if any child is active to auto-expand
     const isChildActive = group.items.some(item => location.pathname === item.url || location.pathname.startsWith(item.url + '/'))
+    const handleToggle = () => {
+        onToggle()
+    }
 
     return (
         <SidebarMenuItem>
             <SidebarMenuButton
-                onClick={onToggle}
+                onClick={handleToggle}
                 tooltip={group.title}
                 isActive={isChildActive}
                 className={`

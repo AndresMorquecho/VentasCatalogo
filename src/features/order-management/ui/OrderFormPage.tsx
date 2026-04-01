@@ -485,6 +485,14 @@ export function OrderFormPage() {
 
     // Función para validar si un pedido puede ser eliminado
     const canDeleteOrder = (order: any): { canDelete: boolean; reason?: string } => {
+        // Validar permiso
+        if (!hasPermission('orders.delete')) {
+            return {
+                canDelete: false,
+                reason: 'No tienes permisos para eliminar pedidos (orders.delete).'
+            }
+        }
+
         const editValidation = canEditOrder(order)
         return {
             canDelete: editValidation.canEdit,
@@ -1034,11 +1042,15 @@ export function OrderFormPage() {
     const removeItem = (index: number) => {
         const itemToRemove = formik.values.brandItems[index];
         
-        // If it's an existing order with ID, we should probably warn or handle it differently
-        // but the table already has a Delete button that calls handleDeleteOrder for those.
-        // This removeItem is for local rows only.
+        // If it's an existing order with ID, we should handle it via handleDeleteOrder
         if (isEditing && itemToRemove.id) {
             handleDeleteOrder(itemToRemove);
+            return;
+        }
+
+        // Para remover items locales en modo edición o creación, verificar permiso de eliminar item
+        if (!hasPermission('orders.delete_item')) {
+            notifyError(null, "No tienes permiso para eliminar items individuales de este pedido (orders.delete_item).");
             return;
         }
 
@@ -1179,11 +1191,14 @@ export function OrderFormPage() {
                         </DialogTitle>
                     </DialogHeader>
                     <div className="p-4 bg-orange-50 border border-orange-100 rounded-xl space-y-3">
+                        <p className="text-sm text-orange-800 leading-relaxed font-bold">
+                            Acceso Restringido
+                        </p>
                         <p className="text-sm text-orange-800 leading-relaxed">
-                            No cuentas con el permiso suficiente para guardar un recibo con **abono de $0.00**. 
+                            No cuentas con el permiso suficiente para guardar un recibo con **abono de $0.00**. Si crees que esto es un error, contacta al administrador del sistema.
                         </p>
                         <p className="text-[11px] text-orange-700 font-medium">
-                            Por favor, ingresa un abono inicial o solicita autorización a un administrador para habilitar el permiso <code className="bg-orange-200 px-1 rounded text-orange-900 font-bold">orders.save_with_zero_deposit</code>.
+                            Permiso requerido: <code className="bg-orange-200 px-1 rounded text-orange-900 font-bold">orders.save_with_zero_deposit</code>.
                         </p>
                     </div>
                     <div className="flex justify-end pt-2">

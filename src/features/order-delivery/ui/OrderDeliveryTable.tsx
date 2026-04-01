@@ -17,6 +17,7 @@ import { CreditActionSelectorModal } from "./CreditActionSelectorModal"
 import { CreditDistributionModal } from "./CreditDistributionModal"
 import { DismantleModal } from "./DismantleModal"
 import { cn } from "@/shared/lib/utils"
+import { useAuth } from "@/shared/auth"
 
 interface OrderDeliveryTableProps {
     orders: Order[]
@@ -34,6 +35,7 @@ function formatDate(date: string) {
     })
 }
 
+
 function formatCurrency(amount: number) {
     return `$${amount.toFixed(2)}`
 }
@@ -46,6 +48,7 @@ export function OrderDeliveryTable({
     onUpdateCreditDistribution,
     onSuccess
 }: OrderDeliveryTableProps) {
+    const { hasPermission } = useAuth()
     const [creditModalState, setCreditModalState] = useState<{
         selectorOpen: boolean
         distributionOpen: boolean
@@ -403,6 +406,7 @@ export function OrderDeliveryTable({
                                                 <Button
                                                     size="sm"
                                                     variant="outline"
+                                                    disabled={!hasPermission('delivery.confirm')}
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         handleOpenCreditDistribution(order);
@@ -410,7 +414,7 @@ export function OrderDeliveryTable({
                                                     className={`h-8 px-4 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 shadow-sm ${hasDistribution
                                                             ? 'bg-monchito-purple text-white border-monchito-purple hover:bg-monchito-purple/90'
                                                             : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300'
-                                                        }`}
+                                                        } ${!hasPermission('delivery.confirm') ? 'opacity-50' : ''}`}
                                                 >
                                                     <DollarSign className="h-3 w-3 mr-1" />
                                                     {hasDistribution ? 'Ver/Editar' : 'Distribuir'}
@@ -425,19 +429,21 @@ export function OrderDeliveryTable({
                                             isPinned('Acciones') && "sticky right-0 z-20 border-l border-monchito-purple/5 bg-white group-hover:bg-slate-50 w-[160px] min-w-[160px] max-w-[160px]",
                                             !isPinned('Acciones') && "text-center"
                                         )}>
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setDismantleModal({ isOpen: true, order });
-                                                }}
-                                                className="h-8 px-4 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 border-amber-200 text-amber-700 hover:bg-amber-500 hover:text-white hover:border-amber-500 active:scale-95 whitespace-nowrap"
-                                                title="Desmantelar Pedido"
-                                            >
-                                                <Eraser className="h-4 w-4 mr-2" />
-                                                <span>Desmantelar</span>
-                                            </Button>
+                                            {hasPermission('delivery.dismantle') && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setDismantleModal({ isOpen: true, order });
+                                                    }}
+                                                    className="h-8 px-4 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 border-amber-200 text-amber-700 hover:bg-amber-500 hover:text-white hover:border-amber-500 active:scale-95 whitespace-nowrap"
+                                                    title="Desmantelar Pedido"
+                                                >
+                                                    <Eraser className="h-4 w-4 mr-2" />
+                                                    <span>Desmantelar</span>
+                                                </Button>
+                                            )}
                                         </TableCell>
                                     </TableRow>
                                 )

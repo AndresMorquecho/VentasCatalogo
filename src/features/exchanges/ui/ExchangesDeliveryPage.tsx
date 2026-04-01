@@ -12,6 +12,8 @@ import { Search, History, Truck, RotateCcw, Filter, ChevronDown, PackageOpen, Fi
 import { PageHeader } from "@/shared/ui/PageHeader"
 import { orderApi } from "@/entities/order/model/api"
 import { exportExchangesToExcel } from "@/shared/lib/exportExcel"
+import { useAuth } from "@/shared/auth"
+import { useNotifications } from "@/shared/lib/notifications"
 import { Pagination } from "@/shared/ui/pagination"
 import { DateRangePicker } from "@/shared/ui/filters"
 import type { DateRange } from "react-day-picker"
@@ -195,6 +197,8 @@ function SearchableBrandSelect({
 
 export function OrderDeliveryPage() {
     const navigate = useNavigate()
+    const { hasPermission } = useAuth()
+    const { notifyError } = useNotifications()
 
     // Filter State
     const [page, setPage] = useState(1);
@@ -345,6 +349,10 @@ export function OrderDeliveryPage() {
     if (isError) return <div className="p-8 text-red-500">Error al cargar entregas.</div>
 
     const handleBatchDeliver = () => {
+        if (!hasPermission('exchanges.delivery')) {
+            notifyError({ message: 'No tienes permiso para realizar entregas de cambios' })
+            return
+        }
         if (selectedOrderIds.length === 0) return
         setIsDeliverModalOpen(true)
     }
@@ -399,7 +407,7 @@ export function OrderDeliveryPage() {
                 icon={Truck}
                 actions={
                     <div className="flex gap-3">
-                        {clientId && (
+                        {clientId && hasPermission('exchanges.reception') && (
                             <Button
                                 onClick={() => setIsPendingModalOpen(true)}
                                 className="h-10 border-monchito-purple/20 bg-monchito-purple/10 text-monchito-purple hover:bg-monchito-purple/20 transition-all px-4 font-black text-[10px] uppercase tracking-tight whitespace-nowrap rounded-xl shadow-sm"

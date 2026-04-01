@@ -6,13 +6,19 @@ import { useState } from "react";
 import { clientApi } from "@/shared/api/clientApi";
 import { exportClientsToExcel } from "@/features/clients/lib/exportUtils";
 import { useNotifications } from "@/shared/lib/notifications";
+import { useAuth } from "@/shared/auth";
 
 export default function ClientsPage() {
     const [isExporting, setIsExporting] = useState(false);
     const [triggerCreate, setTriggerCreate] = useState(false);
     const { notifySuccess, notifyError } = useNotifications();
+    const { hasPermission } = useAuth();
 
     const handleExportAll = async () => {
+        if (!hasPermission('clients.view')) {
+            notifyError({ message: 'No tienes permiso para exportar datos' });
+            return;
+        }
         try {
             setIsExporting(true);
             const response = await clientApi.getAll({ limit: 2000 });
@@ -27,6 +33,14 @@ export default function ClientsPage() {
         } finally {
             setIsExporting(false);
         }
+    };
+
+    const handleOpenCreate = () => {
+        if (!hasPermission('clients.create')) {
+            notifyError({ message: 'No tienes permiso para crear empresarias' });
+            return;
+        }
+        setTriggerCreate(true);
     };
 
     return (
@@ -47,7 +61,7 @@ export default function ClientsPage() {
                             Exportar Excel
                         </Button>
                         <Button 
-                            onClick={() => setTriggerCreate(true)}
+                            onClick={handleOpenCreate}
                             className="w-full sm:w-auto"
                         >
                             <Plus className="mr-2 h-4 w-4" /> Nueva Empresaria
