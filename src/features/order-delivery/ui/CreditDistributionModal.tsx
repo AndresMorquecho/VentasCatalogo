@@ -62,7 +62,11 @@ export function CreditDistributionModal({
     enabled: isOpen
   })
 
-  const activeAccounts = accountsResponse?.data || [] // Fetch all, don't filter to troubleshoot missing accounts
+  // Filter out VIRTUAL accounts for refunds in this modal
+  const activeAccounts = (accountsResponse?.data || []).filter(acc => 
+    acc.type !== 'VIRTUAL' && 
+    !acc.name.toUpperCase().includes('VIRTUAL')
+  )
 
   // Default to first CASH account or first available
   useEffect(() => {
@@ -323,7 +327,7 @@ export function CreditDistributionModal({
                       <SelectTrigger className="h-9 text-xs border-monchito-purple/20 bg-white min-w-[240px] focus:ring-monchito-purple/20">
                         <SelectValue placeholder="Seleccionar cuenta de origen..." />
                       </SelectTrigger>
-                      <SelectContent searchable className="z-[9999]">
+                      <SelectContent searchable className="z-[9999]" side="top">
                         {activeAccounts.map(acc => (
                           <SelectItem 
                             key={acc.id} 

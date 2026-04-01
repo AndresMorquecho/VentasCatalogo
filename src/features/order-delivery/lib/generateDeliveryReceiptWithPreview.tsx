@@ -1,49 +1,60 @@
 import { createElement } from 'react';
 import { DeliveryReceiptDocument } from '../ui/DeliveryReceiptDocument';
-import { clientApi } from '@/shared/api/clientApi';
 import type { Order } from '@/entities/order/model/types';
+import type { Client } from '@/entities/client/model/types';
+import { systemSettingsApi } from '@/features/system-settings/api/systemSettingsApi';
+
+interface DeliveryPaymentInfo {
+    amountPaidNow: number;
+    method: string;
+    user: string;
+    currentCreditAmount?: number;
+    hasCurrentCredit?: boolean;
+}
 
 /**
- * Prepara el documento PDF de entrega para preview
+ * Prepara el documento PDF de recibo de entrega para preview
  * Esta función NO descarga automáticamente, sino que retorna el elemento React
  * para ser usado con el PDFPreviewModal
  */
-export const prepareDeliveryReceiptForPreview = async (order: Order, paymentInfo?: any) => {
+export async function prepareDeliveryReceiptForPreview(
+    order: Order | undefined, 
+    orders: Order[] | undefined, 
+    client: Client | undefined, 
+    paymentInfo: DeliveryPaymentInfo, 
+    deliveryId: string
+) {
     try {
-        console.log("Preparando comprobante de entrega para preview...", order);
+        // Fetch settings
+        let settings = { location: "Quito - Ecuador", phone: "2787237", support_phone: "", note: "" };
+        try {
+            const settingsData = await systemSettingsApi.getSettings();
+            settingsData.forEach(s => {
+                if (s.key === 'location') settings.location = s.value;
+                if (s.key === 'phone') settings.phone = s.value;
+                if (s.key === 'support_phone') settings.support_phone = s.value;
+            });
+        } catch (e) {
+            console.warn('Could not fetch settings for PDF delivery preview');
+        }
 
-        // Fetch client details using getById for performance
-        const client = await clientApi.getById(order.clientId);
-
-        const element = createElement(DeliveryReceiptDocument, { order, client, paymentInfo } as any);
-
+        // Crear el elemento React del documento
+        const element = createElement(DeliveryReceiptDocument, { 
+            order, 
+            orders, 
+            client, 
+            paymentInfo, 
+            deliveryId,
+            settings
+        });
+        
         return {
             document: element,
-            fileName: `Entrega-${order.receiptNumber}-${new Date().getTime()}.pdf`,
-            title: `Comprobante de Entrega - ${order.receiptNumber}`
+            fileName: `entrega-${deliveryId || order?.receiptNumber || 'sin-numero'}.pdf`,
+            title: `Comprobante de Entrega - ${deliveryId || '---'}`
         };
     } catch (error) {
-        console.error("Error preparing delivery PDF:", error);
+        console.error('Error preparando comprobante de entrega PDF:', error);
         throw error;
     }
-};
-
-export const prepareBatchDeliveryReceiptForPreview = async (orders: Order[], paymentInfo?: any) => {
-    try {
-        console.log("Preparando comprobantes de entrega por lote para preview...", orders.length);
-
-        // Fetch client details once (all orders are for the same client)
-        const client = await clientApi.getById(orders[0].clientId);
-
-        const element = createElement(DeliveryReceiptDocument, { orders, client, paymentInfo } as any);
-
-        return {
-            document: element,
-            fileName: `Entrega-Lote-${orders.length}-${new Date().getTime()}.pdf`,
-            title: `Comprobantes de Entrega (${orders.length} pedidos)`
-        };
-    } catch (error) {
-        console.error("Error preparing batch delivery PDF:", error);
-        throw error;
-    }
-};
+}

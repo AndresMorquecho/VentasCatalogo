@@ -13,6 +13,7 @@ import { orderApi } from "@/entities/order/model/api"
 import { getPaidAmount } from "@/entities/order/model/model"
 import { useBankAccountList } from "@/features/bank-accounts/api/hooks"
 import { useClientCredit } from "@/features/wallet/model/hooks"
+import type { CreditDistribution } from "@/entities/financial-record/model/types"
 import { generateDeliveryReceipt } from "../lib/generateDeliveryReceipt"
 import { useAuth } from "@/shared/auth/AuthProvider"
 import { useNotifications } from "@/shared/lib/notifications"
@@ -32,18 +33,17 @@ interface DeliverOrderModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onSuccess?: () => void;
-    creditDistributions?: Record<string, import('@/entities/financial-record/model/types').CreditDistribution>;
+    creditDistributions?: Record<string, CreditDistribution>;
 }
 
 export function DeliverOrderModal({ order, orders = [], open, onOpenChange, onSuccess, creditDistributions = {} }: DeliverOrderModalProps) {
     const isBatch = orders.length > 0
-    const activeOrders = isBatch ? orders : (order ? [order] : [])
+    const activeOrders = useMemo(() => isBatch ? orders : (order ? [order] : []), [isBatch, orders, order])
     
     // Filter credit distributions that belong to the orders being delivered in THIS modal
     const relevantDistributions = useMemo(() => {
-        return Object.entries(creditDistributions)
-            .filter(([orderId]) => activeOrders.some(o => o.id === orderId))
-            .map(([_, dist]) => dist)
+        return Object.values(creditDistributions)
+            .filter((dist) => activeOrders.some(o => o.id === dist.sourceOrderId))
     }, [creditDistributions, activeOrders])
 
     const firstOrder = activeOrders[0]
@@ -161,24 +161,52 @@ export function DeliverOrderModal({ order, orders = [], open, onOpenChange, onSu
 
             if (isBatch) {
                 // Batch Deliver uses 'creditDistributions' (plural)
-                await orderApi.batchDeliver(activeOrders.map(o => o.id), paymentsToSend, relevantDistributions)
+                const result = await orderApi.batchDeliver(activeOrders.map(o => o.id), paymentsToSend, relevantDistributions)
+                
+                // PDF generation for batch
+                try {
+                    const deliveredOrders = Array.isArray(result) ? result : (result.orders || activeOrders);
+                    const deliveryId = result.id || result.batchId || `B-${Date.now()}`;
+                    
+                    await generateDeliveryReceipt(
+                        undefined, 
+                        deliveredOrders, 
+                        undefined, // Client is inferred from orders in Document
+                        {
+                            amountPaidNow: currentPaymentsTotal,
+                            method: paymentLines.length > 1 ? 'MIXTO' : (paymentLines[0]?.method || 'EFECTIVO'),
+                            user: user?.username || 'Administrador',
+                            currentCreditAmount: currentCreditAmount,
+                            hasCurrentCredit: hasCurrentCredit
+                        },
+                        deliveryId
+                    )
+                } catch (pdfError) {
+                    console.error("Error PDF Batch", pdfError)
+                }
             } else {
                 // Single Deliver uses 'creditDistribution' (singular)
                 const deliveredOrder = await orderApi.deliverOrder(firstOrder.id, {
                     payments: paymentsToSend,
                     notes: `Entrega al cliente ${firstOrder.clientName}`,
-                    creditDistribution: relevantDistributions[0]
+                    creditDistributions: relevantDistributions // The API expects creditDistributions as an array
                 });
 
-                // PDF generation (simplified to main payment or first one)
+                // PDF generation 
                 try {
-                    await generateDeliveryReceipt(deliveredOrder, {
-                        amountPaidNow: currentPaymentsTotal,
-                        method: paymentLines.length > 1 ? 'MIXTO' : (paymentLines[0]?.method || 'EFECTIVO'),
-                        user: deliveredOrder.deliveredByName || user?.username || 'Administrador',
-                        currentCreditAmount: currentCreditAmount,
-                        hasCurrentCredit: hasCurrentCredit
-                    })
+                    await generateDeliveryReceipt(
+                        deliveredOrder, 
+                        undefined,
+                        undefined, 
+                        {
+                            amountPaidNow: currentPaymentsTotal,
+                            method: paymentLines.length > 1 ? 'MIXTO' : (paymentLines[0]?.method || 'EFECTIVO'),
+                            user: deliveredOrder.deliveredByName || user?.username || 'Administrador',
+                            currentCreditAmount: currentCreditAmount,
+                            hasCurrentCredit: hasCurrentCredit
+                        },
+                        deliveredOrder.receiptNumber
+                    )
                 } catch (pdfError) {
                     console.error("Error PDF", pdfError)
                 }

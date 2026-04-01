@@ -478,6 +478,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                                 id="createdAt"
                                 {...formik.getFieldProps('createdAt')}
                                 disabled
+                                className="pr-8 h-9"
                             />
                             {formik.touched.createdAt && formik.errors.createdAt && (
                                 <p className="text-red-500 text-xs">{formik.errors.createdAt}</p>
@@ -586,6 +587,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                                         <Input
                                             type="date"
                                             value={item.possibleDeliveryDate}
+                                            className="pr-8 h-9"
                                             onChange={(e) => formik.setFieldValue(`brandItems.${index}.possibleDeliveryDate`, e.target.value)}
                                         />
                                     </div>
@@ -695,7 +697,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                                         <>
                                             <div className="space-y-2">
                                                 <Label htmlFor="transactionDate">Fecha Transacción</Label>
-                                                <Input type="date" id="transactionDate" {...formik.getFieldProps('transactionDate')} />
+                                                <Input type="date" id="transactionDate" {...formik.getFieldProps('transactionDate')} className="pr-8 h-9" />
                                                 {formik.touched.transactionDate && formik.errors.transactionDate && (
                                                     <p className="text-red-500 text-xs">{formik.errors.transactionDate}</p>
                                                 )}

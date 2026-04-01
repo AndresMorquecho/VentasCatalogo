@@ -12,6 +12,9 @@ export interface TransactionCardsParams {
   startDate?: string;
   endDate?: string;
   createdBy?: string;
+  referenceNumber?: string;
+  accountType?: string;
+  bankAccountId?: string;
   page?: number;
   limit?: number;
 }

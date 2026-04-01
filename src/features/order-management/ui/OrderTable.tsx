@@ -1,10 +1,11 @@
-import { Eye, Pencil, Trash2 } from "lucide-react"
+import { Eye, Pencil, Trash2, Receipt, User } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import type { Order, OrderStatus } from "@/entities/order/model/types"
 import { getPaidAmount, getPendingAmount } from "@/entities/order/model/model"
 import { OrderStatusBadge } from "./OrderStatusBadge"
 import { useAuth } from "@/shared/auth"
 import { TooltipProvider } from "@/shared/ui/tooltip"
+import { useIsMobile } from "@/shared/hooks/use-mobile"
 
 interface OrderTableProps {
     orders: Order[]
@@ -18,9 +19,9 @@ const ROW_STATUS_CLASSES: Record<OrderStatus, string> = {
     POR_RECIBIR: "bg-amber-50/20 hover:bg-amber-50/40",
     RECIBIDO_EN_BODEGA: "bg-blue-50/20 hover:bg-blue-50/40",
     ENTREGADO: "bg-slate-50/20 hover:bg-slate-50/40",
+    ANULADO: "bg-slate-50/10 opacity-60",
+    DESMANTELADO: "bg-red-50/10 hover:bg-red-50/20",
 }
-
-
 
 function formatDate(dateString: string): string {
     return new Date(dateString).toLocaleDateString('es-EC', {
@@ -36,6 +37,94 @@ function formatCurrency(amount: number): string {
 
 export function OrderTable({ orders, onViewDetails, onEdit, onDelete, lastClosureDate }: OrderTableProps) {
     const { hasPermission } = useAuth()
+    const isMobile = useIsMobile()
+
+    if (isMobile) {
+        return (
+            <div className="space-y-4">
+                {orders.map((order) => {
+                    const total = (order.childOrders || []).reduce((sum, child) => sum + Number(child.total || 0), Number(order.total || 0));
+                    const pending = (order.childOrders || []).reduce((sum, child) => sum + getPendingAmount(child), getPendingAmount(order));
+                    
+                    const paymentCount = order.payments?.length || 0;
+                    const hasRealMovement = order.status !== 'POR_RECIBIR' || paymentCount > 2 || (paymentCount > 1 && !order.payments?.some(p => p.method === 'CREDITO_CLIENTE'));
+                    const isClosed = lastClosureDate && order.transactionDate && new Date(order.transactionDate) <= lastClosureDate;
+                    const canEditReceipt = !isClosed;
+                    const canDeleteReceipt = !hasRealMovement && !isClosed;
+
+                    return (
+                        <div key={order.id} className="bg-white rounded-2xl border border-monchito-purple/10 shadow-sm p-4 space-y-4">
+                            <div className="flex justify-between items-start">
+                                <div className="space-y-1">
+                                    <div className="flex items-center gap-2">
+                                        <Receipt className="h-3.5 w-3.5 text-monchito-purple" />
+                                        <span className="font-black text-slate-900">{order.receiptNumber}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <User className="h-3.5 w-3.5 text-slate-400" />
+                                        <span className="text-sm font-bold text-slate-600 truncate max-w-[200px]">{order.clientName}</span>
+                                    </div>
+                                </div>
+                                <OrderStatusBadge status={order.status as OrderStatus} />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4 py-3 border-y border-slate-50">
+                                <div>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total</p>
+                                    <p className="text-sm font-black text-slate-900">{formatCurrency(total)}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Saldo</p>
+                                    <p className="text-sm font-black text-rose-600">{formatCurrency(pending)}</p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center justify-between pt-2">
+                                <div className="flex items-center gap-4">
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Entrega</span>
+                                        <span className="text-xs font-bold text-slate-600">
+                                            {order.possibleDeliveryDate ? formatDate(order.possibleDeliveryDate) : '---'}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="flex gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        className="h-9 w-9 rounded-xl border-slate-100"
+                                        onClick={() => onViewDetails(order)}
+                                    >
+                                        <Eye className="h-4 w-4 text-indigo-600" />
+                                    </Button>
+                                    {hasPermission('orders.edit') && (
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className={`h-9 w-9 rounded-xl border-slate-100 ${!canEditReceipt ? 'opacity-40' : ''}`}
+                                            onClick={() => canEditReceipt && onEdit(order)}
+                                        >
+                                            <Pencil className="h-4 w-4 text-slate-700" />
+                                        </Button>
+                                    )}
+                                    {hasPermission('orders.delete') && (
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className={`h-9 w-9 rounded-xl border-slate-100 ${!canDeleteReceipt ? 'opacity-40' : ''}`}
+                                            onClick={() => canDeleteReceipt && onDelete(order)}
+                                        >
+                                            <Trash2 className="h-4 w-4 text-red-600" />
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )
+                })}
+            </div>
+        )
+    }
 
     return (
         <TooltipProvider>

@@ -156,10 +156,16 @@ export const SelectValue: React.FC<{ placeholder?: string }> = ({ placeholder })
   )
 }
 
-export const SelectContent: React.FC<{ children: React.ReactNode; searchable?: boolean; className?: string }> = ({
+export const SelectContent: React.FC<{ 
+  children: React.ReactNode; 
+  searchable?: boolean; 
+  className?: string;
+  side?: "top" | "bottom"
+}> = ({
   children,
   searchable = false,
-  className
+  className,
+  side = "bottom"
 }) => {
   const { open, setOpen, searchValue, setSearchValue } = React.useContext(SelectContext)
 
@@ -172,7 +178,8 @@ export const SelectContent: React.FC<{ children: React.ReactNode; searchable?: b
         onClick={() => setOpen(false)}
       />
       <div className={cn(
-        "absolute z-50 top-full mt-1 max-h-96 w-full flex flex-col overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95 slide-in-from-top-2",
+        "absolute z-50 max-h-96 w-full flex flex-col overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95",
+        side === "bottom" ? "top-full mt-1 slide-in-from-top-2" : "bottom-full mb-1 slide-in-from-bottom-2 z-[9999]",
         className
       )}>
         {searchable && (

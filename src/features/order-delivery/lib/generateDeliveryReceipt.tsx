@@ -1,37 +1,66 @@
 import { pdf } from '@react-pdf/renderer';
 import { createElement } from 'react';
 import { DeliveryReceiptDocument } from '../ui/DeliveryReceiptDocument';
-import { clientApi } from '@/shared/api/clientApi';
 import type { Order } from '@/entities/order/model/types';
+import type { Client } from '@/entities/client/model/types';
+import { systemSettingsApi } from '@/features/system-settings/api/systemSettingsApi';
 
-export const generateDeliveryReceipt = async (order: Order, paymentInfo?: any) => {
+interface DeliveryPaymentInfo {
+    amountPaidNow: number;
+    method: string;
+    user: string;
+    currentCreditAmount?: number;
+    hasCurrentCredit?: boolean;
+}
+
+export async function generateDeliveryReceipt(
+    order: Order | undefined, 
+    orders: Order[] | undefined, 
+    client: Client | undefined, 
+    paymentInfo: DeliveryPaymentInfo, 
+    deliveryId: string
+) {
     try {
-        console.log("Generando comprobante de entrega...", order);
+        // Fetch settings
+        let settings = { location: "Quito - Ecuador", phone: "2787237", support_phone: "", note: "" };
+        try {
+            const settingsData = await systemSettingsApi.getSettings();
+            settingsData.forEach(s => {
+                if (s.key === 'location') settings.location = s.value;
+                if (s.key === 'phone') settings.phone = s.value;
+                if (s.key === 'support_phone') settings.support_phone = s.value;
+            });
+        } catch (e) {
+            console.warn('Could not fetch settings for PDF delivery receipt');
+        }
 
-        // Fetch client details using getById for performance
-        const client = await clientApi.getById(order.clientId);
+        const element = createElement(DeliveryReceiptDocument, { 
+            order, 
+            orders, 
+            client, 
+            paymentInfo, 
+            deliveryId,
+            settings
+        });
 
-        const element = createElement(DeliveryReceiptDocument, { order, client, paymentInfo } as any);
-
+        // Generar blob del PDF
         const blob = await pdf(element as any).toBlob();
-
-        const fileName = `Entrega-${order.receiptNumber}-${new Date().getTime()}.pdf`;
+        
+        // Descargar automáticamente
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = fileName;
-
-        // Append to body is crucial for some browsers
+        link.download = `entrega-${deliveryId || order?.receiptNumber || 'sin-numero'}.pdf`;
         document.body.appendChild(link);
         link.click();
-
-        // Cleanup with small delay
+        
+        // Limpieza
         document.body.removeChild(link);
         setTimeout(() => URL.revokeObjectURL(url), 100);
-
+        
         return true;
     } catch (error) {
-        console.error("Error generating delivery PDF:", error);
-        throw error;
+        console.error('Error generando recibo de entrega PDF:', error);
+        return false;
     }
-};
+}

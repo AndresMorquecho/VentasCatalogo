@@ -18,6 +18,14 @@ const STATUS_CONFIG: Record<OrderStatus, { label: string; className: string }> =
         label: "Entregado",
         className: "bg-slate-100 text-slate-800 border border-slate-300"
     },
+    DESMANTELADO: {
+        label: "Desmantelado",
+        className: "bg-red-50 text-red-700 border border-red-200"
+    },
+    ANULADO: {
+        label: "Anulado",
+        className: "bg-slate-200 text-slate-400 border border-slate-300 line-through"
+    },
 }
 
 export function OrderStatusBadge({ status, className = "" }: OrderStatusBadgeProps) {

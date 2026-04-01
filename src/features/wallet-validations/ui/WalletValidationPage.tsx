@@ -42,6 +42,7 @@ export function WalletValidationPage() {
             setConfirmDialogOpen(false);
             queryClient.invalidateQueries({ queryKey: ["wallet-recharges"] });
             queryClient.invalidateQueries({ queryKey: ["client-credits"] });
+            queryClient.invalidateQueries({ queryKey: ["financial-records"] });
         },
         onError: (error) => notifyError(error, "Error al validar pagos.")
     });

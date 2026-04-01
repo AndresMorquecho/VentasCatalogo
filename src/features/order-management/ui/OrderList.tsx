@@ -4,7 +4,7 @@ import type { DateRange } from "react-day-picker"
 import { startOfDay, endOfDay } from "date-fns"
 import { Skeleton } from "@/shared/ui/skeleton"
 import { useOrderList, useDeleteOrder } from "@/entities/order/model/hooks"
-import { useOrderFilters } from "../model/useOrderFilters"
+import type { OrderFilterType } from "../model/useOrderFilters"
 import { OrderFilters } from "./OrderFilters"
 import { OrderTable } from "./OrderTable"
 import { OrderDetailModal } from "./OrderDetailModal"
@@ -19,9 +19,19 @@ import { useDebounce } from "@/shared/lib/hooks"
 import { Pagination } from "@/shared/ui/pagination"
 import { useCashClosures } from "@/features/cash-closure/api/hooks"
 
-export function OrderList({ triggerCreate, onTriggerHandled }: {
+export function OrderList({ triggerCreate, onTriggerHandled, externalFilters }: {
     triggerCreate?: boolean;
     onTriggerHandled?: () => void;
+    externalFilters?: {
+        searchQuery: string;
+        setSearchQuery: (q: string) => void;
+        debouncedSearch: string;
+        dateRange: DateRange | undefined;
+        setDateRange: (r: DateRange | undefined) => void;
+        debouncedDateRange: DateRange | undefined;
+        statusFilter: OrderFilterType;
+        setStatusFilter: (s: OrderFilterType) => void;
+    }
 }) {
     const [page, setPage] = useState(1)
     const [limit] = useState(25)
@@ -30,17 +40,25 @@ export function OrderList({ triggerCreate, onTriggerHandled }: {
     const lastClosure = closuresResponse?.data?.[0]
     const lastClosureDate = lastClosure ? new Date(lastClosure.toDate) : null
 
-    // We keep the internal search query for the input, but debounce it for the API/filtering
-    const [searchQuery, setSearchQuery] = useState('')
-    const debouncedSearch = useDebounce(searchQuery, 1000)
+    // Use external filters if provided, otherwise fallback to local state
+    const [localSearchQuery, setLocalSearchQuery] = useState('')
+    const localDebouncedSearch = useDebounce(localSearchQuery, 1000)
     
-    const [dateRange, setDateRange] = useState<DateRange | undefined>()
-    const debouncedDateRange = useDebounce(dateRange, 500)
+    const [localDateRange, setLocalDateRange] = useState<DateRange | undefined>()
+    const localDebouncedDateRange = useDebounce(localDateRange, 500)
 
-    const {
-        statusFilter,
-        setStatusFilter,
-    } = useOrderFilters([]) // We'll manage filtering differently now with pagination
+    const [localStatusFilter, setLocalStatusFilter] = useState<OrderFilterType>('ALL')
+
+    const searchQuery = externalFilters ? externalFilters.searchQuery : localSearchQuery
+    const setSearchQuery = externalFilters ? externalFilters.setSearchQuery : setLocalSearchQuery
+    const debouncedSearch = externalFilters ? externalFilters.debouncedSearch : localDebouncedSearch
+    
+    const dateRange = externalFilters ? externalFilters.dateRange : localDateRange
+    const setDateRange = externalFilters ? externalFilters.setDateRange : setLocalDateRange
+    const debouncedDateRange = externalFilters ? externalFilters.debouncedDateRange : localDebouncedDateRange
+
+    const statusFilter = externalFilters ? externalFilters.statusFilter : localStatusFilter
+    const setStatusFilter = externalFilters ? externalFilters.setStatusFilter : setLocalStatusFilter
 
     const { data: response, isLoading } = useOrderList({
         page,
@@ -166,6 +184,7 @@ export function OrderList({ triggerCreate, onTriggerHandled }: {
         setModalMode('none')
         setSelectedOrder(null)
     }
+
 
     if (isLoading) {
         return (

@@ -167,9 +167,15 @@ interface Props {
         hasCurrentCredit?: boolean;
     };
     deliveryId?: string;
+    settings?: {
+        location?: string;
+        phone?: string;
+        support_phone?: string;
+        note?: string;
+    };
 }
 
-export const DeliveryReceiptDocument = ({ order, orders, client, paymentInfo, deliveryId }: Props) => {
+export const DeliveryReceiptDocument = ({ order, orders, client, paymentInfo, deliveryId, settings }: Props) => {
     const activeOrders = orders || (order ? [order] : []);
     const logoUrl = '/images/BannerHeader.jpg';
     const currentTime = new Date().toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -211,8 +217,10 @@ export const DeliveryReceiptDocument = ({ order, orders, client, paymentInfo, de
                         </View>
                     </View>
                     <View style={styles.rightInfo}>
-                        <Text style={styles.headerSubtext}>Teléfonos: 2787237-</Text>
-                        <Text style={styles.headerSubtext}>Quito - Ecuador</Text>
+                        <Text style={styles.headerSubtext}>
+                            Teléfonos: {settings?.phone || "2787237"}{settings?.support_phone ? ` / ${settings.support_phone}` : ""}
+                        </Text>
+                        <Text style={styles.headerSubtext}>{settings?.location || "Quito - Ecuador"}</Text>
                     </View>
                 </View>
 

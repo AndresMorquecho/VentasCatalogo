@@ -153,6 +153,12 @@ interface Props {
     payments: any[];
     userName: string;
     client?: Client;
+    settings?: {
+        location?: string;
+        phone?: string;
+        support_phone?: string;
+        note?: string;
+    };
 }
 
 const METHOD_LABELS: Record<string, string> = {
@@ -207,7 +213,7 @@ function buildExpandedPayments(payments: any[]): any[] {
     return rows;
 }
 
-export const PaymentReceiptDocument = ({ order, payments, userName, client }: Props) => {
+export const PaymentReceiptDocument = ({ order, payments, userName, client, settings }: Props) => {
     const totalEstimate = order.realInvoiceTotal || order.total || 0;
     const rows = buildExpandedPayments(payments || []);
 
@@ -239,8 +245,10 @@ export const PaymentReceiptDocument = ({ order, payments, userName, client }: Pr
                         <View style={styles.rightContact}>
                             <Text style={styles.mainTitle}>ESTADO DE CUENTA</Text>
                             <View style={{ marginTop: 10 }}>
-                                <Text style={styles.headerText}>Teléfonos: {client?.phone1 || '---'}</Text>
-                                <Text style={styles.headerText}>{client?.city || 'Quito'} - {client?.country || 'Ecuador'}</Text>
+                                <Text style={styles.headerText}>
+                                    Teléfonos: {settings?.phone || "2787237"}{settings?.support_phone ? ` / ${settings.support_phone}` : ""}
+                                </Text>
+                                <Text style={styles.headerText}>{settings?.location || "Quito - Ecuador"}</Text>
                             </View>
                         </View>
                     </View>

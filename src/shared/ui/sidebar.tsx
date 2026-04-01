@@ -182,7 +182,15 @@ const Sidebar = React.forwardRef<
     const { isMobile, state, openMobile, setOpenMobile, setOpen } = useSidebar()
     const hoverTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
 
+    // Force close on navigation on mobile
+    React.useEffect(() => {
+      if (isMobile && openMobile) {
+        setOpenMobile(false)
+      }
+    }, [isMobile]) // The route change is handled by the caller, but this ensures state resets
+
     const handleMouseEnter = () => {
+      if (isMobile || state === "expanded") return
       if (hoverTimeoutRef.current) {
         clearTimeout(hoverTimeoutRef.current)
       }
@@ -190,9 +198,10 @@ const Sidebar = React.forwardRef<
     }
 
     const handleMouseLeave = () => {
+      if (isMobile) return
       hoverTimeoutRef.current = setTimeout(() => {
         setOpen(false)
-      }, 300) // 300ms delay before closing
+      }, 100) // Faster reaction
     }
 
     React.useEffect(() => {
@@ -270,10 +279,11 @@ const Sidebar = React.forwardRef<
             side === "left"
               ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
               : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
-            // Adjust the padding for floating and inset variants.
+            // Correctly handle width based on state and variant
             variant === "floating" || variant === "inset"
               ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4)_+2px)]"
               : "group-data-[collapsible=icon]:w-[--sidebar-width-icon] group-data-[side=left]:border-r group-data-[side=right]:border-l",
+            "bg-white z-[100]",
             className
           )}
           {...props}

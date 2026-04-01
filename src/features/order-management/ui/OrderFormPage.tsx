@@ -3,7 +3,11 @@ import { useFormik } from "formik"
 import { useNavigate, useParams } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
 import * as Yup from "yup"
-import { ArrowLeft, Plus, X, RotateCw, RefreshCw, Edit2, Trash2, Printer, FileText } from "lucide-react"
+import { 
+    ArrowLeft, Plus, X, RotateCw, RefreshCw, 
+    Edit2, Trash2, Printer, FileText, 
+    AlertTriangle, Lock 
+} from "lucide-react"
 
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
@@ -32,7 +36,6 @@ import { useCashClosurePreview } from "@/features/cash-closure/api/hooks"
 import { PaymentModal, type PaymentModalData } from "@/shared/ui/PaymentModal"
 import { usePDFPreview } from "@/shared/hooks/usePDFPreview"
 import { PDFPreviewModal } from "@/shared/ui/PDFPreviewModal"
-import { AlertTriangle, Lock } from "lucide-react"
 
 const DRAFT_KEY = 'ventascatalogo_new_order_draft';
 const ITEM_DRAFT_KEY = 'ventascatalogo_current_item_draft';
@@ -57,6 +60,24 @@ const validationSchema = Yup.object({
         .required("Requerido"),
     createdAt: Yup.string().required("Fecha de registro requerida"),
 })
+
+interface BrandItem {
+    id?: string;
+    tempId?: string;
+    brandId: string;
+    brandName: string;
+    quantity: number;
+    total: number;
+    type: string;
+    possibleDeliveryDate: string;
+    orderNumber?: string;
+    deposit?: number;
+    notes?: string;
+    salesChannel?: string;
+    paymentMethod?: string;
+    bankAccountId?: string;
+    status?: string;
+}
 
 /* --- Simple Searchable Select Component --- */
 interface Option {
@@ -1313,15 +1334,15 @@ export function OrderFormPage() {
                                 </div>
                             </div>
                             <div className="space-y-1">
-                                <Label className="text-xs font-bold text-slate-600">Fecha de Registro:</Label>
-                                <Input
-                                    type="date"
-                                    {...formik.getFieldProps('createdAt')}
-                                    disabled={isEditing}
-                                    onKeyDown={e => handleHeaderKeyDown(e, 'createdAt')}
-                                    data-nav="createdAt"
-                                    className="h-8 text-sm"
-                                />
+                                <div className="flex items-center gap-1.5 pb-0.5">
+                                    <Label className="text-xs font-bold text-slate-600">Fecha de Registro:</Label>
+                                </div>
+                                <div className="h-9 w-full rounded-lg border border-slate-200 bg-slate-50 flex items-center px-3 gap-2">
+                                    <Lock className="h-3 w-3 text-slate-400" />
+                                    <span className="text-sm font-semibold text-slate-500">
+                                        {formik.values.createdAt}
+                                    </span>
+                                </div>
                             </div>
                             <div className="space-y-1">
                                 <Label className="text-xs font-bold text-slate-600">Empresaria / Cliente:</Label>
@@ -1456,11 +1477,11 @@ export function OrderFormPage() {
                             step="0.01"
                         />
                     </div>
-                    <div className="w-full sm:w-[135px] space-y-1 shrink-0">
+                    <div className="w-full sm:w-[155px] space-y-1 shrink-0">
                         <Label className="text-xs font-bold uppercase text-slate-500">Entrega:</Label>
                         <Input
                             type="date"
-                            className="h-8 w-full text-xs px-2"
+                            className="h-9 w-full text-xs px-2 font-medium"
                             value={currentItem.possibleDeliveryDate}
                             onChange={(e) => setCurrentItem({ ...currentItem, possibleDeliveryDate: e.target.value })}
                             onKeyDown={e => handleHeaderKeyDown(e, 'possibleDeliveryDate')}
@@ -1480,204 +1501,325 @@ export function OrderFormPage() {
                     </div>
                 </div>
 
-                <div className="overflow-x-auto rounded-2xl border border-slate-200 shadow-sm bg-white">
-                    <table className="w-full text-xs text-left border-collapse">
-                        <thead>
-                            <tr className="bg-monchito-purple/5 border-b border-monchito-purple/10">
-                                <th className="px-2 py-3 border-r border-monchito-purple/10 text-center w-8 text-[10px] font-black text-monchito-purple uppercase tracking-widest">N°</th>
-                                <th className="px-2 py-3 border-r border-monchito-purple/10 text-[10px] font-black text-monchito-purple uppercase tracking-widest">Pedido Por</th>
-                                <th className="px-2 py-3 border-r border-monchito-purple/10 text-[10px] font-black text-monchito-purple uppercase tracking-widest">N° Pedido</th>
-                                <th className="px-2 py-3 border-r border-monchito-purple/10 text-[10px] font-black text-monchito-purple uppercase tracking-widest">Tipo</th>
-                                <th className="px-2 py-3 border-r border-monchito-purple/10 text-[10px] font-black text-monchito-purple uppercase tracking-widest">Catálogo</th>
-                                <th className="px-2 py-3 border-r border-monchito-purple/10 text-center text-[10px] font-black text-monchito-purple uppercase tracking-widest">Cant</th>
-                                <th className="px-2 py-3 border-r border-monchito-purple/10 text-right text-[10px] font-black text-monchito-purple uppercase tracking-widest">Valor Pedido</th>
-                                <th className="px-2 py-3 border-r border-monchito-purple/10 text-right text-[10px] font-black text-monchito-purple uppercase tracking-widest">Abono</th>
-                                <th className="px-2 py-3 border-r border-monchito-purple/10 text-right text-[10px] font-black text-monchito-purple uppercase tracking-widest">Saldo</th>
-                                <th className="px-2 py-3 border-r border-monchito-purple/10 text-[10px] font-black text-monchito-purple uppercase tracking-widest">Posible Entrega</th>
-                                <th className="px-2 py-3 text-center w-20 text-[10px] font-black text-monchito-purple uppercase tracking-widest">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-50">
-                            {formik.values.brandItems.length === 0 ? (
-                                <tr>
-                                    <td colSpan={11} className="px-4 py-8 text-center text-slate-400 italic text-xs">No hay marcas agregadas en este recibo</td>
+                <div className="space-y-4">
+                    {/* Desktop and Mobile Wrapper */}
+                    {/* Desktop View Table */}
+                    <div className="hidden lg:block overflow-x-auto rounded-2xl border border-slate-200 shadow-sm bg-white">
+                        <table className="w-full text-xs text-left border-collapse">
+                            <thead>
+                                <tr className="bg-monchito-purple/5 border-b border-monchito-purple/10">
+                                    <th className="px-2 py-3 border-r border-monchito-purple/10 text-center w-8 text-[10px] font-black text-monchito-purple uppercase tracking-widest">N°</th>
+                                    <th className="px-2 py-3 border-r border-monchito-purple/10 text-[10px] font-black text-monchito-purple uppercase tracking-widest">Pedido Por</th>
+                                    <th className="px-2 py-3 border-r border-monchito-purple/10 text-[10px] font-black text-monchito-purple uppercase tracking-widest">N° Pedido</th>
+                                    <th className="px-2 py-3 border-r border-monchito-purple/10 text-[10px] font-black text-monchito-purple uppercase tracking-widest">Tipo</th>
+                                    <th className="px-2 py-3 border-r border-monchito-purple/10 text-[10px] font-black text-monchito-purple uppercase tracking-widest">Catálogo</th>
+                                    <th className="px-2 py-3 border-r border-monchito-purple/10 text-center text-[10px] font-black text-monchito-purple uppercase tracking-widest">Cant</th>
+                                    <th className="px-2 py-3 border-r border-monchito-purple/10 text-right text-[10px] font-black text-monchito-purple uppercase tracking-widest">Valor Pedido</th>
+                                    <th className="px-2 py-3 border-r border-monchito-purple/10 text-right text-[10px] font-black text-monchito-purple uppercase tracking-widest">Abono</th>
+                                    <th className="px-2 py-3 border-r border-monchito-purple/10 text-right text-[10px] font-black text-monchito-purple uppercase tracking-widest">Saldo</th>
+                                    <th className="px-2 py-3 border-r border-monchito-purple/10 text-[10px] font-black text-monchito-purple uppercase tracking-widest">Posible Entrega</th>
+                                    <th className="px-2 py-3 text-center w-20 text-[10px] font-black text-monchito-purple uppercase tracking-widest">Acciones</th>
                                 </tr>
-                            ) : (
-                                formik.values.brandItems.map((item, idx) => {
-                                    const distributedAbono = Number(item.deposit || 0);
-                                    const rowSaldo = Number(item.total) - distributedAbono;
+                            </thead>
+                            <tbody className="divide-y divide-slate-50">
+                                {formik.values.brandItems.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={11} className="px-4 py-8 text-center text-slate-400 italic text-xs">No hay marcas agregadas en este recibo</td>
+                                    </tr>
+                                ) : (
+                                    formik.values.brandItems.map((item: BrandItem, idx: number) => {
+                                        const distributedAbono = Number(item.deposit || 0);
+                                        const rowSaldo = Number(item.total) - distributedAbono;
 
-                                    return (
-                                        <tr 
-                                            key={item.id || item.tempId || idx} 
-                                            className="hover:bg-monchito-purple/5 transition-all duration-200 border-b border-slate-50 last:border-0"
-                                        >
-                                            <td className="px-2 py-2 border-r border-slate-50 text-center text-xs font-bold text-slate-400">{idx + 1}</td>
-                                            
-                                            {/* Pedido por */}
-                                            <td className="px-2 py-2 border-r border-slate-50">
-                                                <Badge variant="outline" className="text-[9px] font-black px-2 py-0.5 border-slate-200 text-slate-500 uppercase tracking-wider rounded-lg">
-                                                    {item.salesChannel || "OFICINA"}
-                                                </Badge>
-                                            </td>
+                                        return (
+                                            <tr 
+                                                key={item.id || item.tempId || idx} 
+                                                className="hover:bg-monchito-purple/5 transition-all duration-200 border-b border-slate-50 last:border-0"
+                                            >
+                                                <td className="px-2 py-2 border-r border-slate-50 text-center text-xs font-bold text-slate-400">{idx + 1}</td>
+                                                
+                                                {/* Pedido por */}
+                                                <td className="px-2 py-2 border-r border-slate-50">
+                                                    <Badge variant="outline" className="text-[9px] font-black px-2 py-0.5 border-slate-200 text-slate-500 uppercase tracking-wider rounded-lg">
+                                                        {item.salesChannel || "OFICINA"}
+                                                    </Badge>
+                                                </td>
 
-                                            {/* N° Pedido */}
-                                            <td className="px-2 py-2 border-r border-slate-50">
-                                                {!isEditing ? (
-                                                    <Input
-                                                        value={item.orderNumber || ''}
-                                                        onChange={(e) => {
-                                                            const newItems = [...formik.values.brandItems]
-                                                            newItems[idx] = { ...newItems[idx], orderNumber: e.target.value }
-                                                            formik.setFieldValue('brandItems', newItems)
-                                                        }}
-                                                        onKeyDown={(e) => handleTableKeyDown(e, idx, 'orderNumber')}
-                                                        data-row-index={idx}
-                                                        data-field-name="orderNumber"
-                                                        placeholder="---"
-                                                        className="h-7 text-xs font-mono px-1 border-slate-200"
-                                                    />
-                                                ) : (
-                                                    <span className="text-xs font-bold text-monchito-purple">{item.orderNumber || '---'}</span>
-                                                )}
-                                            </td>
-
-                                            {/* Tipo */}
-                                            <td className="px-2 py-2 border-r border-slate-50">
-                                                <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider ${
-                                                    item.type === 'NORMAL' ? 'bg-blue-50 text-blue-600' :
-                                                    item.type === 'PREVENTA' ? 'bg-amber-50 text-amber-600' :
-                                                    'bg-purple-50 text-purple-600'
-                                                }`}>
-                                                    {item.type}
-                                                </span>
-                                            </td>
-
-                                            {/* Catálogo */}
-                                            <td className="px-2 py-2 border-r border-slate-50">
-                                                <span className="text-xs font-bold text-slate-800 truncate block" title={item.brandName}>{item.brandName}</span>
-                                            </td>
-
-                                            {/* Cantidad */}
-                                            <td className="px-2 py-2 border-r border-slate-50 text-center text-xs font-bold text-slate-700">
-                                                {item.quantity}
-                                            </td>
-
-                                            <td className="px-2 py-2 border-r border-slate-50 text-right">
-                                                {!isEditing ? (
-                                                    <div className="flex justify-end items-center gap-1">
-                                                        <span className="text-slate-400 text-xs">$</span>
-                                                        <input
-                                                            type="number"
-                                                            step="0.01"
-                                                            className="h-7 w-16 text-right text-xs font-bold border border-slate-200 rounded-lg px-1 focus:ring-1 focus:ring-monchito-purple outline-none hide-spinner"
-                                                            value={item.total}
+                                                {/* N° Pedido */}
+                                                <td className="px-2 py-2 border-r border-slate-50">
+                                                    {!isEditing ? (
+                                                        <Input
+                                                            value={item.orderNumber || ''}
                                                             onChange={(e) => {
                                                                 const newItems = [...formik.values.brandItems]
-                                                                newItems[idx] = { ...newItems[idx], total: Number(e.target.value) }
+                                                                newItems[idx] = { ...newItems[idx], orderNumber: e.target.value }
                                                                 formik.setFieldValue('brandItems', newItems)
                                                             }}
-                                                            onKeyDown={(e) => handleTableKeyDown(e as any, idx, 'total')}
+                                                            onKeyDown={(e) => handleTableKeyDown(e, idx, 'orderNumber')}
                                                             data-row-index={idx}
-                                                            data-field-name="total"
+                                                            data-field-name="orderNumber"
+                                                            placeholder="---"
+                                                            className="h-7 text-xs font-mono px-1 border-slate-200"
                                                         />
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-xs font-bold text-slate-800">${Number(item.total).toFixed(2)}</span>
-                                                )}
-                                            </td>
+                                                    ) : (
+                                                        <span className="text-xs font-bold text-monchito-purple">{item.orderNumber || '---'}</span>
+                                                    )}
+                                                </td>
 
-                                            <td className="px-2 py-2 border-r border-slate-50 text-right">
-                                                {!isEditing ? (
-                                                    <div className="flex justify-end items-center gap-1">
-                                                        <span className="text-emerald-500 text-xs">$</span>
+                                                {/* Tipo */}
+                                                <td className="px-2 py-2 border-r border-slate-50">
+                                                    <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider ${
+                                                        item.type === 'NORMAL' ? 'bg-blue-50 text-blue-600' :
+                                                        item.type === 'PREVENTA' ? 'bg-amber-50 text-amber-600' :
+                                                        'bg-purple-50 text-purple-600'
+                                                    }`}>
+                                                        {item.type}
+                                                    </span>
+                                                </td>
+
+                                                {/* Catálogo */}
+                                                <td className="px-2 py-2 border-r border-slate-50">
+                                                    <span className="text-xs font-bold text-slate-800 truncate block" title={item.brandName}>{item.brandName}</span>
+                                                </td>
+
+                                                {/* Cantidad */}
+                                                <td className="px-2 py-2 border-r border-slate-50 text-center text-xs font-bold text-slate-700">
+                                                    {item.quantity}
+                                                </td>
+
+                                                <td className="px-2 py-2 border-r border-slate-50 text-right">
+                                                    {!isEditing ? (
+                                                        <div className="flex justify-end items-center gap-1">
+                                                            <span className="text-slate-400 text-xs">$</span>
+                                                            <input
+                                                                type="number"
+                                                                step="0.01"
+                                                                className="h-7 w-16 text-right text-xs font-bold border border-slate-200 rounded-lg px-1 focus:ring-1 focus:ring-monchito-purple outline-none hide-spinner"
+                                                                value={item.total}
+                                                                onChange={(e) => {
+                                                                    const newItems = [...formik.values.brandItems]
+                                                                    newItems[idx] = { ...newItems[idx], total: Number(e.target.value) }
+                                                                    formik.setFieldValue('brandItems', newItems)
+                                                                }}
+                                                                onKeyDown={(e) => handleTableKeyDown(e as any, idx, 'total')}
+                                                                data-row-index={idx}
+                                                                data-field-name="total"
+                                                            />
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-xs font-bold text-slate-800">${Number(item.total).toFixed(2)}</span>
+                                                    )}
+                                                </td>
+
+                                                <td className="px-2 py-2 border-r border-slate-50 text-right">
+                                                    {!isEditing ? (
+                                                        <div className="flex justify-end items-center gap-1">
+                                                            <span className="text-emerald-500 text-xs">$</span>
+                                                            <input
+                                                                type="number"
+                                                                step="0.01"
+                                                                min="0"
+                                                                max={item.total}
+                                                                placeholder="0.00"
+                                                                className="h-7 w-16 text-right text-xs font-bold border border-slate-200 rounded-lg px-1 focus:ring-1 focus:ring-emerald-500 outline-none text-emerald-600 hide-spinner"
+                                                                value={item.deposit === 0 ? '0' : (item.deposit || '')}
+                                                                onChange={(e) => {
+                                                                    const newItems = [...formik.values.brandItems];
+                                                                    const value = e.target.value === '' ? 0 : Number(e.target.value);
+                                                                    newItems[idx] = { ...newItems[idx], deposit: value };
+                                                                    formik.setFieldValue('brandItems', newItems);
+                                                                }}
+                                                                onKeyDown={(e) => handleTableKeyDown(e as any, idx, 'deposit')}
+                                                                data-row-index={idx}
+                                                                data-field-name="deposit"
+                                                            />
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-xs font-bold text-emerald-600">${distributedAbono.toFixed(2)}</span>
+                                                    )}
+                                                </td>
+
+                                                <td className="px-2 py-2 border-r border-slate-50 text-right">
+                                                    <span className={`text-xs font-bold ${rowSaldo > 0 ? 'text-red-500' : 'text-slate-400'}`}>
+                                                        ${rowSaldo.toFixed(2)}
+                                                    </span>
+                                                </td>
+
+                                                <td className="px-2 py-2 border-r border-slate-50">
+                                                    {!isEditing ? (
                                                         <input
-                                                            type="number"
-                                                            step="0.01"
-                                                            min="0"
-                                                            max={item.total}
-                                                            placeholder="0.00"
-                                                            className="h-7 w-16 text-right text-xs font-bold border border-slate-200 rounded-lg px-1 focus:ring-1 focus:ring-emerald-500 outline-none text-emerald-600 hide-spinner"
-                                                            value={item.deposit === 0 ? '0' : (item.deposit || '')}
+                                                            type="date"
+                                                            className="h-7 w-full text-xs border border-slate-200 rounded-lg px-2 pr-8 font-medium"
+                                                            value={item.possibleDeliveryDate}
                                                             onChange={(e) => {
-                                                                const newItems = [...formik.values.brandItems];
-                                                                const value = e.target.value === '' ? 0 : Number(e.target.value);
-                                                                newItems[idx] = { ...newItems[idx], deposit: value };
-                                                                formik.setFieldValue('brandItems', newItems);
+                                                                const newItems = [...formik.values.brandItems]
+                                                                newItems[idx] = { ...newItems[idx], possibleDeliveryDate: e.target.value }
+                                                                formik.setFieldValue('brandItems', newItems)
                                                             }}
-                                                            onKeyDown={(e) => handleTableKeyDown(e as any, idx, 'deposit')}
-                                                            data-row-index={idx}
-                                                            data-field-name="deposit"
                                                         />
+                                                    ) : (
+                                                        <span className="text-xs font-medium text-slate-600">{new Date(item.possibleDeliveryDate).toLocaleDateString()}</span>
+                                                    )}
+                                                </td>
+
+                                                <td className="px-2 py-1.5 text-center">
+                                                    <div className="flex justify-center gap-1">
+                                                        {isEditing && item.id ? (
+                                                            <>
+                                                                <Button 
+                                                                    type="button"
+                                                                    variant="ghost" 
+                                                                    size="icon" 
+                                                                    onClick={() => handleEditOrder(item)} 
+                                                                    className="h-6 w-6 text-blue-600 hover:text-blue-700"
+                                                                    aria-label="Editar pedido"
+                                                                    data-testid={`edit-order-${idx}`}
+                                                                >
+                                                                    <Edit2 className="h-3.5 w-3.5" />
+                                                                </Button>
+                                                                <Button 
+                                                                    type="button"
+                                                                    variant="ghost" 
+                                                                    size="icon" 
+                                                                    onClick={() => handleDeleteOrder(item)} 
+                                                                    className="h-6 w-6 text-red-500 hover:text-red-700"
+                                                                    aria-label={`Eliminar pedido de ${item.brandName}`}
+                                                                    data-testid={`delete-order-${idx}`}
+                                                                >
+                                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                                </Button>
+                                                            </>
+                                                        ) : !isEditing ? (
+                                                            <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(idx)} className="h-6 w-6 text-red-500 hover:text-red-700">
+                                                                <X className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        ) : null}
                                                     </div>
-                                                ) : (
-                                                    <span className="text-xs font-bold text-emerald-600">${distributedAbono.toFixed(2)}</span>
-                                                )}
-                                            </td>
+                                                </td>
+                                            </tr>
+                                        )
+                                        })
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    {/* Mobile View Cards */}
+                    <div className="lg:hidden space-y-4">
+                        {formik.values.brandItems.length === 0 ? (
+                            <div className="p-12 text-center bg-white rounded-3xl border border-dashed border-slate-200 overflow-hidden">
+                                <p className="text-slate-400 italic text-xs">No hay pedidos agregados en este recibo</p>
+                            </div>
+                        ) : (
+                            formik.values.brandItems.map((item: any, idx: number) => {
+                                const distributedAbono = Number(item.deposit || 0);
+                                const rowSaldo = Number(item.total) - distributedAbono;
 
-                                            <td className="px-2 py-2 border-r border-slate-50 text-right">
-                                                <span className={`text-xs font-bold ${rowSaldo > 0 ? 'text-red-500' : 'text-slate-400'}`}>
-                                                    ${rowSaldo.toFixed(2)}
-                                                </span>
-                                            </td>
-
-                                            <td className="px-2 py-2 border-r border-slate-50">
+                                return (
+                                    <div key={item.id || item.tempId || idx} className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden p-5 space-y-4">
+                                        <div className="flex justify-between items-start">
+                                            <div className="space-y-1">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">#{idx + 1}</span>
+                                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                                                        item.type === 'NORMAL' ? 'bg-blue-50 text-blue-600' :
+                                                        item.type === 'PREVENTA' ? 'bg-amber-50 text-amber-600' :
+                                                        'bg-purple-50 text-purple-600'
+                                                    }`}>
+                                                        {item.type}
+                                                    </span>
+                                                </div>
+                                                <h3 className="font-black text-sm text-slate-800 uppercase tracking-tight line-clamp-1">{item.brandName}</h3>
+                                                <p className="text-xs font-mono font-bold text-monchito-purple">{item.orderNumber || '---'}</p>
+                                            </div>
+                                            <div className="flex gap-1">
                                                 {!isEditing ? (
-                                                    <input
-                                                        type="date"
-                                                        className="h-7 w-full text-xs border border-slate-200 rounded-lg px-1"
-                                                        value={item.possibleDeliveryDate}
+                                                    <Button 
+                                                        type="button" 
+                                                        variant="ghost" 
+                                                        size="icon" 
+                                                        onClick={() => removeItem(idx)} 
+                                                        className="h-8 w-8 text-red-500 bg-red-50/50"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                ) : (
+                                                    <Button 
+                                                        type="button" 
+                                                        variant="ghost" 
+                                                        size="icon" 
+                                                        onClick={() => handleEditOrder(item)} 
+                                                        className="h-8 w-8 text-blue-600 bg-blue-50/50"
+                                                    >
+                                                        <Edit2 className="h-4 w-4" />
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-1">
+                                                <Label className="text-[9px] font-black uppercase text-slate-400 tracking-widest pl-1">Valor Pedido</Label>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">$</span>
+                                                    <Input
+                                                        type="number"
+                                                        className="h-10 pl-6 text-sm font-black rounded-xl border-slate-100 bg-slate-50/50"
+                                                        value={item.total}
+                                                        disabled={isEditing}
                                                         onChange={(e) => {
                                                             const newItems = [...formik.values.brandItems]
-                                                            newItems[idx] = { ...newItems[idx], possibleDeliveryDate: e.target.value }
+                                                            newItems[idx] = { ...newItems[idx], total: Number(e.target.value) }
                                                             formik.setFieldValue('brandItems', newItems)
                                                         }}
                                                     />
-                                                ) : (
-                                                    <span className="text-xs font-medium text-slate-600">{new Date(item.possibleDeliveryDate).toLocaleDateString()}</span>
-                                                )}
-                                            </td>
-
-                                            <td className="px-2 py-1.5 text-center">
-                                                <div className="flex justify-center gap-1">
-                                                    {isEditing && item.id ? (
-                                                        <>
-                                                            <Button 
-                                                                type="button"
-                                                                variant="ghost" 
-                                                                size="icon" 
-                                                                onClick={() => handleEditOrder(item)} 
-                                                                className="h-6 w-6 text-blue-600 hover:text-blue-700"
-                                                                aria-label="Editar pedido"
-                                                                data-testid={`edit-order-${idx}`}
-                                                            >
-                                                                <Edit2 className="h-3.5 w-3.5" />
-                                                            </Button>
-                                                            <Button 
-                                                                type="button"
-                                                                variant="ghost" 
-                                                                size="icon" 
-                                                                onClick={() => handleDeleteOrder(item)} 
-                                                                className="h-6 w-6 text-red-500 hover:text-red-700"
-                                                                aria-label={`Eliminar pedido de ${item.brandName}`}
-                                                                data-testid={`delete-order-${idx}`}
-                                                            >
-                                                                <Trash2 className="h-3.5 w-3.5" />
-                                                            </Button>
-                                                        </>
-                                                    ) : !isEditing ? (
-                                                        <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(idx)} className="h-6 w-6 text-red-500 hover:text-red-700">
-                                                            <X className="h-3.5 w-3.5" />
-                                                        </Button>
-                                                    ) : null}
                                                 </div>
-                                            </td>
-                                        </tr>
-                                    )
-                                })
-                            )}
-                        </tbody>
-                    </table>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <Label className="text-[9px] font-black uppercase text-slate-400 tracking-widest pl-1">Abono</Label>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-500 font-bold text-xs">$</span>
+                                                    <Input
+                                                        type="number"
+                                                        className="h-10 pl-6 text-sm font-black rounded-xl border-emerald-100 bg-emerald-50/30 text-emerald-700"
+                                                        value={item.deposit}
+                                                        disabled={isEditing}
+                                                        onChange={(e) => {
+                                                            const newItems = [...formik.values.brandItems]
+                                                            newItems[idx] = { ...newItems[idx], deposit: Number(e.target.value) }
+                                                            formik.setFieldValue('brandItems', newItems)
+                                                        }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex justify-between items-center bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Saldo Pendiente</span>
+                                            <span className={`text-sm font-black ${rowSaldo > 0 ? 'text-red-600' : 'text-slate-400'}`}>
+                                                ${rowSaldo.toFixed(2)}
+                                            </span>
+                                        </div>
+
+                                        {!isEditing && (
+                                            <div className="space-y-1">
+                                                <Label className="text-[9px] font-black uppercase text-slate-400 tracking-widest pl-1">Posible Entrega</Label>
+                                                <Input
+                                                    type="date"
+                                                    className="h-10 text-sm font-bold rounded-xl border-slate-100 bg-white"
+                                                    value={item.possibleDeliveryDate}
+                                                    onChange={(e) => {
+                                                        const newItems = [...formik.values.brandItems]
+                                                        newItems[idx] = { ...newItems[idx], possibleDeliveryDate: e.target.value }
+                                                        formik.setFieldValue('brandItems', newItems)
+                                                    }}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                )
+                            })
+                        )}
+                    </div>
                 </div>
             </Card>
 
@@ -2034,7 +2176,7 @@ function OrderEditModal({ order, open, onOpenChange, onSuccess, lastClosureDate,
                                             value={formData.possibleDeliveryDate}
                                             onChange={(e) => setFormData({ ...formData, possibleDeliveryDate: e.target.value })}
                                             required
-                                            className="h-8 text-xs"
+                                            className="h-8 text-xs pr-8"
                                         />
                                     </td>
                                 </tr>

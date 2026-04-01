@@ -20,6 +20,8 @@ const FILTERS: { value: OrderFilterType; label: string }[] = [
     { value: 'POR_RECIBIR', label: 'Por Recibir' },
     { value: 'RECIBIDO_EN_BODEGA', label: 'En Bodega' },
     { value: 'ENTREGADO', label: 'Entregados' },
+    { value: 'CAMBIADO', label: 'Cambiado' },
+    { value: 'DESMANTELADO', label: 'Desmantelado' },
 ]
 
 export function OrderFilters({ statusFilter, onStatusChange, searchQuery, onSearchChange, dateRange, onDateRangeChange }: OrderFiltersProps) {
@@ -69,6 +71,7 @@ export function OrderFilters({ statusFilter, onStatusChange, searchQuery, onSear
                     ))}
                 </div>
             </div>
+
         </div>
     )
 }

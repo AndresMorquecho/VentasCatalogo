@@ -178,9 +178,23 @@ interface OrderReceiptProps {
     client?: Client;
     bank?: any;
     receiptNumber?: string;
+    settings?: {
+        location?: string;
+        phone?: string;
+        support_phone?: string;
+        note?: string;
+    };
 }
 
-export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({ order, childOrders = [], user, client, bank, receiptNumber }) => {
+export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({ 
+    order, 
+    childOrders = [], 
+    user, 
+    client, 
+    bank, 
+    receiptNumber,
+    settings 
+}) => {
     const allOrders = [order, ...childOrders];
     
     const totalVal = allOrders.reduce((sum, o) => sum + Number(o.total), 0);
@@ -274,8 +288,10 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({ order, child
                             </View>
                         </View>
                         <View style={{ gap: 2, alignItems: 'flex-end', paddingTop: 5 }}>
-                            <Text style={{ fontSize: 10, fontWeight: 'bold' }}>Teléfonos:  2787237--</Text>
-                            <Text style={{ fontSize: 10 }}>Quito - Ecuador</Text>
+                            <Text style={{ fontSize: 10, fontWeight: 'bold' }}>
+                                Teléfonos:  {settings?.phone || "2787237"}{settings?.support_phone ? ` / ${settings.support_phone}` : ""}
+                            </Text>
+                            <Text style={{ fontSize: 10 }}>{settings?.location || "Quito - Ecuador"}</Text>
                         </View>
                     </View>
                     <View style={{ borderBottom: '1pt solid black', marginTop: 10, width: '100%' }} />
@@ -362,6 +378,7 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({ order, child
                     <Text style={styles.noteBold}>Pedido que no sea retirado dentro de los 10 días será</Text>
                     <Text style={styles.noteBold}>desmantelado y pierde el abono</Text>
                     <Text style={styles.notimonchito}>NOTIMONCHITO:</Text>
+                    <Text style={{ fontSize: 9, marginTop: 2 }}>{settings?.note || ""}</Text>
                 </View>
 
                 {/* SIGNATURES */}

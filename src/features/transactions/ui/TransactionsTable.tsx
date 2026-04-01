@@ -211,9 +211,17 @@ function TransactionCard({ card }: { card: TransactionCardDTO }) {
                         </div>
                     </div>
 
+                    {/* Control / Validación extraído del campo extra */}
+                    {card.extra && (
+                        <div className="bg-slate-50/70 p-3 flex flex-col gap-1 rounded border border-slate-100 mt-2">
+                            <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">Control / Validación</span>
+                            <p className="text-xs font-mono font-bold text-slate-600 line-clamp-1">{card.extra.replace('Control: ', '')}</p>
+                        </div>
+                    )}
+
                     {/* Observaciones extraídas del campo description/notes */}
                     {card.notes && (
-                        <div className="bg-slate-50/70 p-3 flex flex-col gap-1 rounded border border-slate-100 mt-3">
+                        <div className="bg-slate-50/70 p-3 flex flex-col gap-1 rounded border border-slate-100 mt-2">
                             <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">Observaciones</span>
                             <p className="text-xs text-slate-600 whitespace-pre-wrap">{card.notes}</p>
                         </div>

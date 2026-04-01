@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-    Users,
     Package,
     Clock,
     CheckCircle2,
@@ -18,6 +17,7 @@ import { Badge } from "@/shared/ui/badge";
 import { Avatar, AvatarFallback } from "@/shared/ui/avatar";
 import { KpiCard } from './KpiCard';
 import { cn } from "@/shared/lib/utils";
+import { useIsMobile } from "@/shared/hooks/use-mobile";
 import type { OrdersTrendData } from '../model/types';
 
 // --- Helpers ---
@@ -27,6 +27,7 @@ const fmt = (n: number) =>
 export function DashboardPage() {
     const { data, isLoading, isError } = useDashboard();
     const [timeRange, setTimeRange] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+    const isMobile = useIsMobile();
 
     if (isLoading) {
         return (
@@ -194,7 +195,7 @@ export function DashboardPage() {
                             </div>
 
                             <div className="w-full space-y-4">
-                                {( Object.entries(stats)).map(([key, item]) => (
+                                {Object.entries(stats).map(([key, item]) => (
                                     <div key={key} className="flex justify-between items-center p-3 rounded-2xl transition-all hover:bg-slate-50 border border-transparent hover:border-slate-100 group/item">
                                         <div className="flex items-center gap-3">
                                             <div className="h-3 w-3 rounded-full group-hover/item:scale-125 transition-transform" style={{ backgroundColor: item.color }} />
@@ -319,91 +320,149 @@ export function DashboardPage() {
                     
                     <Card className="border-none shadow-[0_15px_50px_rgba(0,0,0,0.03)] bg-white/80 backdrop-blur-md overflow-hidden">
                         <CardContent className="p-0">
-                            <div className="overflow-x-auto custom-scrollbar">
-                                <table className="text-left border-collapse min-w-[1000px] w-full">
-                                    <thead>
-                                        <tr className="bg-monchito-purple/5 text-[10px] font-black uppercase tracking-widest text-monchito-purple/70 border-b border-monchito-purple/10 backdrop-blur-sm sticky top-0 z-10">
-                                            <th className="px-8 py-6">Operación</th>
-                                            <th className="px-8 py-6">ID Localizador</th>
-                                            <th className="px-8 py-6">Empresaria / Cliente</th>
-                                            <th className="px-8 py-6">Análisis de Retención</th>
-                                            <th className="px-8 py-6">Fecha de Recepción</th>
-                                            <th className="px-8 py-6 text-center">Severidad</th>
-                                            <th className="px-8 py-6 text-right">Valor Total</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100">
-                                        {oldestOrders.map((order: any, index: number) => (
-                                            <tr key={order.id} className="hover:bg-monchito-purple/[0.02] transition-all duration-300 group cursor-pointer bg-white/40">
-                                                <td className="px-8 py-5 text-xs font-black text-slate-300">{index + 1}</td>
-                                                <td className="px-8 py-5 text-sm font-black text-slate-500 font-mono">
-                                                    <span className="text-monchito-purple/40">#</span>{order.id.slice(0, 8).toUpperCase()}
-                                                </td>
-                                                <td className="px-8 py-5">
-                                                    <div className="flex items-center gap-4">
-                                                        <Avatar className="h-10 w-10 shadow-lg shadow-monchito-purple/10 border-2 border-white ring-1 ring-slate-100 group-hover:ring-monchito-purple/30 transition-all">
-                                                            <AvatarFallback className="bg-monchito-purple/5 text-monchito-purple text-[10px] font-black uppercase tracking-tighter">
-                                                                {order.clientName?.substring(0, 2).toUpperCase()}
-                                                            </AvatarFallback>
-                                                        </Avatar>
-                                                        <div className="flex flex-col">
-                                                            <span className="text-sm font-black text-slate-800 tracking-tight leading-none mb-1">{order.clientName}</span>
-                                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Premium Partner</span>
-                                                        </div>
+                            {isMobile ? (
+                                <div className="divide-y divide-slate-100">
+                                    {oldestOrders.map((order: any) => (
+                                        <div key={order.id} className="p-4 space-y-4 bg-white/40">
+                                            <div className="flex justify-between items-start">
+                                                <div className="flex items-center gap-3">
+                                                    <Avatar className="h-10 w-10 shadow-lg shadow-monchito-purple/10">
+                                                        <AvatarFallback className="bg-monchito-purple/5 text-monchito-purple text-xs font-black">
+                                                            {order.clientName?.substring(0, 2).toUpperCase()}
+                                                        </AvatarFallback>
+                                                    </Avatar>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm font-black text-slate-800 tracking-tight">{order.clientName}</span>
+                                                        <span className="text-[10px] font-mono text-slate-400">#{order.id.slice(0, 8).toUpperCase()}</span>
                                                     </div>
-                                                </td>
-                                                <td className="px-8 py-5">
-                                                    <div className="flex flex-col gap-1.5">
-                                                        <div className="flex items-center gap-2">
-                                                            <Package className="h-4 w-4 text-slate-300 group-hover:text-monchito-purple transition-colors" />
-                                                            <span className="text-sm font-bold text-slate-600 tracking-tight">{order.days} días en custodia</span>
-                                                        </div>
-                                                        <div className="w-32 h-1 bg-slate-100 rounded-full overflow-hidden">
-                                                            <div 
-                                                                className={cn(
-                                                                    "h-full rounded-full transition-all duration-1000",
-                                                                    order.days > 15 ? "bg-rose-500" : order.days > 7 ? "bg-amber-500" : "bg-emerald-500"
-                                                                )}
-                                                                style={{ width: `${Math.min(100, (order.days / 30) * 100)}%` }}
-                                                            />
-                                                        </div>
+                                                </div>
+                                                <Badge className={cn(
+                                                    "border-none font-black text-[9px] uppercase tracking-widest px-3 py-1",
+                                                    order.days > 15 ? "bg-rose-100 text-rose-600" : "bg-amber-100 text-amber-600"
+                                                )}>
+                                                    {order.days > 15 ? 'Crítico' : 'Atrasado'}
+                                                </Badge>
+                                            </div>
+                                            
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-1">
+                                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Custodia</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <Clock className="h-3 w-3 text-monchito-purple" />
+                                                        <span className="text-xs font-bold text-slate-600">{order.days} días</span>
                                                     </div>
-                                                </td>
-                                                <td className="px-8 py-5 text-sm font-bold text-slate-400">
-                                                    {new Intl.DateTimeFormat('es-CO', { 
-                                                        day: '2-digit', 
-                                                        month: 'short', 
-                                                        year: 'numeric' 
-                                                    }).format(new Date())}
-                                                </td>
-                                                <td className="px-8 py-5 text-center">
-                                                    <Badge className={cn(
-                                                        "border-none font-black text-[9px] uppercase tracking-[0.2em] px-4 py-1.5 hover:scale-105 transition-transform",
-                                                        order.days > 15 ? "bg-rose-100 text-rose-600 shadow-sm shadow-rose-100/50" : "bg-amber-100 text-amber-600 shadow-sm shadow-amber-100/50"
-                                                    )}>
-                                                        {order.days > 15 ? 'Crítico' : 'Atrasado'}
-                                                    </Badge>
-                                                </td>
-                                                <td className="px-8 py-5 text-right">
-                                                    <span className="text-sm font-black text-slate-900 group-hover:text-monchito-purple transition-colors font-display">
-                                                        {fmt(order.value)}
-                                                    </span>
-                                                </td>
+                                                </div>
+                                                <div className="space-y-1 text-right">
+                                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Valor</span>
+                                                    <span className="text-sm font-black text-slate-900">{fmt(order.value)}</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                <div 
+                                                    className={cn(
+                                                        "h-full rounded-full",
+                                                        order.days > 15 ? "bg-rose-500" : order.days > 7 ? "bg-amber-500" : "bg-emerald-500"
+                                                    )}
+                                                    style={{ width: `${Math.min(100, (order.days / 30) * 100)}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {oldestOrders.length === 0 && (
+                                        <div className="p-12 text-center opacity-40">
+                                            <Zap className="h-10 w-10 text-slate-300 mx-auto mb-4" />
+                                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest italic">Bodega Optimizada</p>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="overflow-x-auto custom-scrollbar">
+                                    <table className="text-left border-collapse min-w-[1000px] w-full">
+                                        <thead>
+                                            <tr className="bg-monchito-purple/5 text-[10px] font-black uppercase tracking-widest text-monchito-purple/70 border-b border-monchito-purple/10 backdrop-blur-sm sticky top-0 z-10">
+                                                <th className="px-8 py-6">Operación</th>
+                                                <th className="px-8 py-6">ID Localizador</th>
+                                                <th className="px-8 py-6">Empresaria / Cliente</th>
+                                                <th className="px-8 py-6">Análisis de Retención</th>
+                                                <th className="px-8 py-6">Fecha de Recepción</th>
+                                                <th className="px-8 py-6 text-center">Severidad</th>
+                                                <th className="px-8 py-6 text-right">Valor Total</th>
                                             </tr>
-                                        ))}
-                                        {oldestOrders.length === 0 && (
-                                            <tr>
-                                                <td colSpan={7} className="px-8 py-20 text-center">
-                                                    <div className="flex flex-col items-center gap-4 opacity-40">
-                                                        <Zap className="h-12 w-12 text-slate-300" />
-                                                        <p className="text-sm font-black text-slate-400 uppercase tracking-widest italic">Bodega Optimizada: Cero Atrasados</p>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {oldestOrders.map((order: any, index: number) => (
+                                                <tr key={order.id} className="hover:bg-monchito-purple/[0.02] transition-all duration-300 group cursor-pointer bg-white/40">
+                                                    <td className="px-8 py-5 text-xs font-black text-slate-300">{index + 1}</td>
+                                                    <td className="px-8 py-5 text-sm font-black text-slate-500 font-mono">
+                                                        <span className="text-monchito-purple/40">#</span>{order.id.slice(0, 8).toUpperCase()}
+                                                    </td>
+                                                    <td className="px-8 py-5">
+                                                        <div className="flex items-center gap-4">
+                                                            <Avatar className="h-10 w-10 shadow-lg shadow-monchito-purple/10 border-2 border-white ring-1 ring-slate-100 group-hover:ring-monchito-purple/30 transition-all">
+                                                                <AvatarFallback className="bg-monchito-purple/5 text-monchito-purple text-[10px] font-black uppercase tracking-tighter">
+                                                                    {order.clientName?.substring(0, 2).toUpperCase()}
+                                                                </AvatarFallback>
+                                                            </Avatar>
+                                                            <div className="flex flex-col">
+                                                                <span className="text-sm font-black text-slate-800 tracking-tight leading-none mb-1">{order.clientName}</span>
+                                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Partner Monchito</span>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-8 py-5">
+                                                        <div className="flex flex-col gap-1.5">
+                                                            <div className="flex items-center gap-2">
+                                                                <Package className="h-4 w-4 text-slate-300 group-hover:text-monchito-purple transition-colors" />
+                                                                <span className="text-sm font-bold text-slate-600 tracking-tight">{order.days} días en custodia</span>
+                                                            </div>
+                                                            <div className="w-32 h-1 bg-slate-100 rounded-full overflow-hidden">
+                                                                <div 
+                                                                    className={cn(
+                                                                        "h-full rounded-full transition-all duration-1000",
+                                                                        order.days > 15 ? "bg-rose-500" : order.days > 7 ? "bg-amber-500" : "bg-emerald-500"
+                                                                    )}
+                                                                    style={{ width: `${Math.min(100, (order.days / 30) * 100)}%` }}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-8 py-5 text-sm font-bold text-slate-400">
+                                                        {new Intl.DateTimeFormat('es-CO', { 
+                                                            day: '2-digit', 
+                                                            month: 'short', 
+                                                            year: 'numeric' 
+                                                        }).format(new Date())}
+                                                    </td>
+                                                    <td className="px-8 py-5 text-center">
+                                                        <Badge className={cn(
+                                                            "border-none font-black text-[9px] uppercase tracking-[0.2em] px-4 py-1.5 hover:scale-105 transition-transform",
+                                                            order.days > 15 ? "bg-rose-100 text-rose-600 shadow-sm shadow-rose-100/50" : "bg-amber-100 text-amber-600 shadow-sm shadow-amber-100/50"
+                                                        )}>
+                                                            {order.days > 15 ? 'Crítico' : 'Atrasado'}
+                                                        </Badge>
+                                                    </td>
+                                                    <td className="px-8 py-5 text-right">
+                                                        <span className="text-sm font-black text-slate-900 group-hover:text-monchito-purple transition-colors font-display">
+                                                            {fmt(order.value)}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {oldestOrders.length === 0 && (
+                                                <tr>
+                                                    <td colSpan={7} className="px-8 py-20 text-center">
+                                                        <div className="flex flex-col items-center gap-4 opacity-40">
+                                                            <Zap className="h-12 w-12 text-slate-300" />
+                                                            <p className="text-sm font-black text-slate-400 uppercase tracking-widest italic">Bodega Optimizada: Cero Atrasados</p>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </div>

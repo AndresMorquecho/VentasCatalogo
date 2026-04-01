@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import { useOrderDeliveryHistory } from "../model/useOrderDelivery"
 import type { DeliveryFilters } from "../model/useOrderDelivery"
@@ -45,13 +45,13 @@ export function OrderDeliveryHistoryPage() {
         setPage(1)
     }, [debouncedSearch, startDate, endDate])
 
-    const filters: DeliveryFilters = {
+    const filters: DeliveryFilters = useMemo(() => ({
         searchText: debouncedSearch,
         startDate,
         endDate,
         page,
         limit
-    }
+    }), [debouncedSearch, startDate, endDate, page, limit])
 
     const { data: response, isLoading } = useOrderDeliveryHistory(filters)
     const orders = response?.data || []
@@ -87,11 +87,17 @@ export function OrderDeliveryHistoryPage() {
 
     const handlePrintPreview = async (order: any) => {
         try {
-            const { document, fileName, title } = await prepareDeliveryReceiptForPreview(order, {
-                amountPaidNow: 0,
-                method: order.paymentMethod || 'N/A',
-                user: order.deliveredByName || user?.username || 'Administrador'
-            })
+            const { document, fileName, title } = await prepareDeliveryReceiptForPreview(
+                order, 
+                undefined,
+                undefined, // Client will be inferred inside Document
+                {
+                    amountPaidNow: 0, 
+                    method: order.paymentMethod || 'N/A',
+                    user: order.deliveredByName || user?.username || 'Administrador'
+                },
+                order.receiptNumber
+            )
             
             setPdfTitle(title)
             setPdfFileName(fileName)
