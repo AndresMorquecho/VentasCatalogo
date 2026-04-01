@@ -1,4 +1,4 @@
-import { Avatar, AvatarFallback, AvatarImage } from "@/shared/ui/avatar"
+import { Avatar, AvatarFallback } from "@/shared/ui/avatar"
 import { Button } from "@/shared/ui/button"
 import { Search, LogOut, LayoutDashboard, Users, Inbox, PackageCheck, Truck, ArrowLeftRight, DollarSign, Wallet, Store, Calculator, Activity, Boxes, Tag, Phone, Award, CheckCircle } from "lucide-react"
 import { LogoutDialog } from "@/shared/components/LogoutDialog"

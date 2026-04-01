@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { financialRecordApi } from './api';
 import type { TransactionCardsParams } from './api';
-import type { TransactionCardDTO } from './transactionCard.types';
+
 import type { FinancialRecord, CreateFinancialRecordPayload, UpdateFinancialRecordPayload } from './types';
 import type { PaginatedResponse } from '@/entities/order/model/types';
 

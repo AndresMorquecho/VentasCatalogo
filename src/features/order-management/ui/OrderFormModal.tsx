@@ -410,7 +410,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
     const bankOptions = filteredBankAccounts.map(b => ({
         id: b.id,
         label: b.name,
-        subLabel: b.type === 'CASH' ? '(Efectivo)' : `${b.bankName || ""} ${b.accountNumber || ""}`
+        subLabel: b.type === 'CASH' ? '(Efectivo)' : `(Banco) ${b.accountNumber || ""}`
     }));
     const brandOptions = getActiveBrands(brands).map(b => ({ id: b.id, label: b.name, subLabel: "" }))
 

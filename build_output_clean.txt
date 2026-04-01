@@ -1,0 +1,7 @@
+﻿
+> temu@0.0.0 build
+> tsc -b && vite build
+
+src/features/calls/ui/CollectionPage.tsx(22,11): error TS6198: All destructured elements are unused.
+src/features/order-delivery/ui/DismantleModal.tsx(7,5): error TS6133: 'DialogHeader' is declared but its value is never read.
+src/features/order-delivery/ui/OrderDeliveryHistoryPage.tsx(92,17): error TS2345: Argument of type 'undefined' is not assignable to parameter of type 'DeliveryPaymentInfo'.

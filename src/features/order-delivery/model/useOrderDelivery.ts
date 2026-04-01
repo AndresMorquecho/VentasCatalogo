@@ -10,6 +10,8 @@ export interface DeliveryFilters {
     searchText?: string;
     page?: number;
     limit?: number;
+    status?: string;
+    enabled?: boolean;
 }
 
 export const useOrderDeliveryList = (filters?: DeliveryFilters) => {
@@ -21,7 +23,7 @@ export const useOrderDeliveryList = (filters?: DeliveryFilters) => {
 
             // Using getAll with status RECIBIDO_EN_BODEGA for server-side filtering
             const response = await orderApi.getAll({
-                status: 'RECIBIDO_EN_BODEGA',
+                status: filters?.status || 'RECIBIDO_EN_BODEGA',
                 startDate: filters?.startDate,
                 endDate: filters?.endDate,
                 brandId: filters?.brandId === 'ALL' ? undefined : filters?.brandId,

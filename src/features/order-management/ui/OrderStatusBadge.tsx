@@ -26,6 +26,10 @@ const STATUS_CONFIG: Record<OrderStatus, { label: string; className: string }> =
         label: "Anulado",
         className: "bg-slate-200 text-slate-400 border border-slate-300 line-through"
     },
+    CAMBIADO: {
+        label: "Cambiado",
+        className: "bg-purple-100 text-purple-800 border border-purple-300"
+    },
 }
 
 export function OrderStatusBadge({ status, className = "" }: OrderStatusBadgeProps) {

@@ -19,7 +19,7 @@ export function CollectionPage() {
     const [limit] = useState(25);
     const [searchTerm, setSearchTerm] = useState('');
     const debouncedSearch = useDebounce(searchTerm, 1000);
-    const { notifySuccess, notifyError } = useNotifications();
+    useNotifications();
     const [expandedClient, setExpandedClient] = useState<string | null>(null);
 
     // Fetch clients with pending payments excluding those called today with COBRANZA reason

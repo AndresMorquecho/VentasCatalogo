@@ -89,8 +89,6 @@ export function OrderDeliveryHistoryPage() {
         try {
             const { document, fileName, title } = await prepareDeliveryReceiptForPreview(
                 order, 
-                undefined,
-                undefined, // Client will be inferred inside Document
                 {
                     amountPaidNow: 0, 
                     method: order.paymentMethod || 'N/A',

@@ -328,13 +328,13 @@ export function CreditDistributionModal({
                           <SelectItem 
                             key={acc.id} 
                             value={acc.id}
-                            label={`${acc.name} (${acc.bankName || 'Efectivo'})`}
+                            label={`${acc.name} (${acc.type === 'CASH' ? 'Efectivo' : 'Banco'})`}
                           >
                             <div className="flex flex-col gap-0.5 w-full">
                               <div className="flex items-center gap-2 font-semibold text-slate-700">
                                 {acc.type === 'CASH' ? <WalletIcon className="h-3.5 w-3.5 text-emerald-600" /> : <Building2 className="h-3.5 w-3.5 text-blue-600" />}
                                 <span>{acc.name}</span>
-                                {acc.bankName && acc.type !== 'CASH' && <span className="text-[10px] text-slate-400 font-normal">({acc.bankName})</span>}
+                                {acc.type !== 'CASH' && <span className="text-[10px] text-slate-400 font-normal">({acc.type})</span>}
                               </div>
                               <div className="flex justify-between items-center text-[10px] pl-5 pr-1">
                                 <span className={cn(

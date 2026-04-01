@@ -13,19 +13,16 @@ interface DeliveryPaymentInfo {
 }
 
 /**
- * Prepara el documento PDF de recibo de entrega para preview
- * Esta función NO descarga automáticamente, sino que retorna el elemento React
- * para ser usado con el PDFPreviewModal
+ * Prepara el documento PDF de recibo de entrega para preview (Pedido Individual)
  */
 export async function prepareDeliveryReceiptForPreview(
     order: Order | undefined, 
-    orders: Order[] | undefined, 
-    client: Client | undefined, 
     paymentInfo: DeliveryPaymentInfo, 
-    deliveryId: string
+    deliveryId?: string,
+    client?: Client,
+    orders?: Order[]
 ) {
     try {
-        // Fetch settings
         let settings = { location: "Quito - Ecuador", phone: "2787237", support_phone: "", note: "" };
         try {
             const settingsData = await systemSettingsApi.getSettings();
@@ -38,13 +35,12 @@ export async function prepareDeliveryReceiptForPreview(
             console.warn('Could not fetch settings for PDF delivery preview');
         }
 
-        // Crear el elemento React del documento
         const element = createElement(DeliveryReceiptDocument, { 
             order, 
-            orders, 
+            orders: orders || (order ? [order] : []), 
             client, 
             paymentInfo, 
-            deliveryId,
+            deliveryId: deliveryId || order?.receiptNumber || 'sin-id',
             settings
         });
         
@@ -57,4 +53,16 @@ export async function prepareDeliveryReceiptForPreview(
         console.error('Error preparando comprobante de entrega PDF:', error);
         throw error;
     }
+}
+
+/**
+ * Prepara el documento PDF de recibo de entrega para preview (Lote de Pedidos)
+ */
+export async function prepareBatchDeliveryReceiptForPreview(
+    orders: Order[], 
+    paymentInfo: DeliveryPaymentInfo,
+    deliveryId?: string,
+    client?: Client
+) {
+    return prepareDeliveryReceiptForPreview(undefined, paymentInfo, deliveryId, client, orders);
 }

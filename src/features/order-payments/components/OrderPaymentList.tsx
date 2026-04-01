@@ -150,7 +150,7 @@ export function OrderPaymentList({ order, readOnly = false }: OrderPaymentListPr
                                 return (
                                     <TableRow key={payment.id}>
                                         <TableCell>{new Date(payment.createdAt).toLocaleDateString()}</TableCell>
-                                        <TableCell>{account?.name || account?.bankName || payment.method || "Desconocida"}</TableCell>
+                                        <TableCell>{account?.name || payment.method || "Desconocida"}</TableCell>
                                         <TableCell className="text-right font-medium">{format(payment.amount)}</TableCell>
                                         {!readOnly && (
                                             <TableCell className="text-right">

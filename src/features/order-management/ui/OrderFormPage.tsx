@@ -346,7 +346,7 @@ export function OrderFormPage() {
             // Detectar si el usuario especificó abonos individuales por fila
             // Si al menos un abono es > 0, significa que el usuario ingresó valores específicos
             // que deben preservarse sin redistribución automática
-            const hasUserSpecifiedDeposits = formik.values.brandItems.some(item => 
+            const hasUserSpecifiedDeposits = formik.values.brandItems.some((item: BrandItem) => 
                 Number(item.deposit) > 0
             );
 
@@ -378,7 +378,7 @@ export function OrderFormPage() {
                         totalAmount
                     }
                 }),
-                orders: formik.values.brandItems.map((item) => {
+                orders: formik.values.brandItems.map((item: BrandItem) => {
                     const unitPrice = item.quantity > 0 ? item.total / item.quantity : 0;
                     let rowDeposit = Number(item.deposit) || 0;
                     
@@ -557,7 +557,7 @@ export function OrderFormPage() {
             
             // Si el currentItem no tiene número o tiene el valor por defecto, actualizarlo
             if (!currentItem.orderNumber || currentItem.orderNumber.startsWith(`PD-${new Date().getFullYear()}`)) {
-                setCurrentItem(prev => ({ ...prev, orderNumber: orderNumber }));
+                setCurrentItem((prev: BrandItem) => ({ ...prev, orderNumber: orderNumber }));
             }
         } catch (error) {
             console.error('Error generating order number:', error);
@@ -728,7 +728,7 @@ export function OrderFormPage() {
             if (lastValidItem) {
                 // Si ya teníamos una marca pero no era la última válida, o si no teníamos marca, la actualizamos
                 if (currentItem.brandId !== lastValidItem.brandId || currentItem.orderNumber !== lastValidItem.orderNumber) {
-                    setCurrentItem(prev => ({ 
+                    setCurrentItem((prev: BrandItem) => ({ 
                         ...prev, 
                         brandId: lastValidItem.brandId,
                         brandName: lastValidItem.brandName,
@@ -744,8 +744,8 @@ export function OrderFormPage() {
 
         // Default: calculate next global number for the current receipt
         const numbersInList = formik.values.brandItems
-            .map(item => item.orderNumber)
-            .filter(num => num && num.startsWith(userPrefix));
+            .map((item: BrandItem) => item.orderNumber)
+            .filter((num: string | undefined) => num && num.startsWith(userPrefix));
         
         const uniqueNumbersCount = new Set(numbersInList).size;
         
@@ -764,7 +764,7 @@ export function OrderFormPage() {
         // Only update if it's currently empty or has the default pattern but an old count
         const isCurrentDefault = !currentItem.orderNumber || currentPrefixMatch(currentItem.orderNumber, userPrefix);
         if (isCurrentDefault && currentItem.orderNumber !== nextNum && currentItem.type !== 'REPROGRAMACION') {
-            setCurrentItem(prev => ({ ...prev, orderNumber: nextNum }));
+            setCurrentItem((prev: BrandItem) => ({ ...prev, orderNumber: nextNum }));
         }
     }, [currentItem.brandId, currentItem.type, formik.values.brandItems.length, globalNextOrderNumber]);
 
@@ -1136,7 +1136,7 @@ export function OrderFormPage() {
                 notifySuccess(`${itemsToCreate.length} pedido(s) agregado(s) correctamente.`)
 
                 // Reset item
-                setCurrentItem(prev => ({
+                setCurrentItem((prev: BrandItem) => ({
                     ...prev,
                     brandId: "",
                     brandName: "",
@@ -1171,7 +1171,7 @@ export function OrderFormPage() {
             }
 
             // Reset item except channel and date for speed
-            setCurrentItem(prev => ({
+            setCurrentItem((prev: BrandItem) => ({
                 ...prev,
                 brandId: "",
                 brandName: "",
@@ -1193,7 +1193,7 @@ export function OrderFormPage() {
             return;
         }
 
-        const items = formik.values.brandItems.filter((_, i) => i !== index);
+        const items = formik.values.brandItems.filter((_: BrandItem, i: number) => i !== index);
         formik.setFieldValue("brandItems", items);
     }
 
@@ -1928,7 +1928,7 @@ export function OrderFormPage() {
                 expectedAmount={totalRowDeposit > 0 ? totalRowDeposit : totalOrderValue}
                 allowMultiplePayments={true}
                 initialAmount={totalRowDeposit > 0 ? totalRowDeposit : 0}
-                orderItems={formik.values.brandItems.map((item, idx) => ({
+                orderItems={formik.values.brandItems.map((item: BrandItem, idx: number) => ({
                     id: item.tempId || `item-${idx}`,
                     brandName: item.brandName,
                     total: Number(item.total),

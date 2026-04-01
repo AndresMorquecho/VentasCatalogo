@@ -4,7 +4,6 @@ import {
     DialogContent,
     DialogDescription,
     DialogFooter,
-    DialogHeader,
     DialogTitle,
 } from "@/shared/ui/dialog"
 import { Button } from "@/shared/ui/button"
