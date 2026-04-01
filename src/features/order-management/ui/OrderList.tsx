@@ -11,7 +11,6 @@ import { OrderDetailModal } from "./OrderDetailModal"
 import { ConfirmDialog } from "@/shared/ui/confirm-dialog"
 import { logAction } from "@/shared/lib/auditService"
 import { useNotifications } from "@/shared/lib/notifications"
-import { getPaidAmount } from "@/entities/order/model/model"
 import type { Order } from "@/entities/order/model/types"
 import { useAuth } from "@/shared/auth"
 
@@ -74,7 +73,7 @@ export function OrderList({ triggerCreate, onTriggerHandled, externalFilters }: 
     const pagination = response && !Array.isArray(response) ? response.pagination : undefined
 
     const deleteOrder = useDeleteOrder()
-    const { notifySuccess, notifyError } = useNotifications()
+    const { notifySuccess, notifyError, notifyLoading, dismiss } = useNotifications()
     const { hasPermission, user } = useAuth()
     const navigate = useNavigate()
 
@@ -154,21 +153,25 @@ export function OrderList({ triggerCreate, onTriggerHandled, externalFilters }: 
         if (!selectedOrder) return
 
         try {
-            await deleteOrder.mutateAsync(selectedOrder.id)
+            notifyLoading(`Eliminando recibo ${selectedOrder.receiptNumber} y revirtiendo cargos...`)
+            await deleteOrder.mutateAsync({ id: selectedOrder.id, cascade: true })
+            
+            dismiss()
             if (user) {
                 logAction({
                     userId: user.id,
                     userName: user.username,
                     action: 'DELETE_ORDER',
                     module: 'orders',
-                    detail: `Eliminó pedido ${selectedOrder.receiptNumber} de la empresaria: ${selectedOrder.clientName}. Monto revertido de saldos.`
+                    detail: `Eliminó recibo completo ${selectedOrder.receiptNumber} y todos sus pedidos asociados de la empresaria: ${selectedOrder.clientName}.`
                 });
             }
-            notifySuccess(`Pedido ${selectedOrder.receiptNumber} eliminado físicamente y saldos revertidos`)
+            notifySuccess(`Recibo ${selectedOrder.receiptNumber} y todos sus pedidos asociados eliminados correctamente.`)
             setModalMode('none')
             setSelectedOrder(null)
         } catch (error) {
-            notifyError(error, 'Error al eliminar el pedido')
+            dismiss()
+            notifyError(error, 'Error al eliminar el recibo')
         }
     }
 
@@ -243,29 +246,32 @@ export function OrderList({ triggerCreate, onTriggerHandled, externalFilters }: 
                     open={modalMode === 'delete'}
                     onOpenChange={(open) => !open && handleClose()}
                     onConfirm={handleConfirmDelete}
-                    title="Eliminar Pedido"
-                    description={`¿Estás seguro de eliminar PERMANENTEMENTE el pedido ${selectedOrder.receiptNumber}?`}
-                    confirmText="Eliminar Físicamente"
+                    title="Eliminar Recibo Completo"
+                    description={`¿Estás seguro de eliminar PERMANENTEMENTE el recibo ${selectedOrder.receiptNumber}?`}
+                    confirmText="Eliminar Todo el Recibo"
                     cancelText="Cancelar"
                     variant="destructive"
                 >
                     <div className="space-y-3 text-sm">
                         <div className="rounded-lg bg-red-50 border border-red-200 p-3">
-                            <p className="font-medium text-red-900 mb-2">ATENCIÓN: Eliminación Física</p>
-                            <ul className="space-y-1 text-red-800">
-                                <li>• El pedido será <strong>BORRADO COMPLETAMENTE</strong> de la base de datos.</li>
-                                {getPaidAmount(selectedOrder) > 0 && (
-                                    <li>• Los abonos realizados serán <strong>REVERTIDOS</strong> de los saldos bancarios.</li>
-                                )}
-                                <li>• Se eliminarán items, premios y registros financieros vinculados.</li>
-                                <li>• Esta acción NO se puede deshacer y es auditable.</li>
+                            <p className="font-bold text-red-900 mb-2">PELIGRO: Eliminación Grupal por Recibo</p>
+                            <ul className="space-y-1.5 text-red-800 font-medium">
+                                <li>• Se borrarán <strong>TODOS</strong> los pedidos asociados a este recibo ({selectedOrder.receiptNumber}).</li>
+                                <li>• Los abonos realizados serán <strong>REVERTIDOS</strong> automáticamente.</li>
+                                <li>• Se eliminarán productos, premios y registros financieros vinculados.</li>
+                                <li>• Esta acción NO se puede deshacer.</li>
                             </ul>
                         </div>
 
-                        <div className="text-muted-foreground border-t pt-2">
-                            <p><strong>Cliente:</strong> {selectedOrder.clientName}</p>
-                            <p><strong>Catalogo:</strong> {selectedOrder.brandName}</p>
-                            <p><strong>Total:</strong> ${selectedOrder.total.toFixed(2)}</p>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-slate-600 bg-slate-50 p-2 rounded-md border border-slate-100">
+                            <div>
+                                <span className="block text-[10px] uppercase font-bold text-slate-400">Cliente</span>
+                                <span className="font-bold text-slate-700">{selectedOrder.clientName}</span>
+                            </div>
+                            <div>
+                                <span className="block text-[10px] uppercase font-bold text-slate-400">Acción</span>
+                                <span className="font-bold text-red-600 italic">Limpieza de Recibo</span>
+                            </div>
                         </div>
                     </div>
                 </ConfirmDialog>

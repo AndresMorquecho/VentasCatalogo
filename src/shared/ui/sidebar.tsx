@@ -179,7 +179,8 @@ const Sidebar = React.forwardRef<
     },
     ref
   ) => {
-    const { isMobile, state, openMobile, setOpenMobile, setOpen } = useSidebar()
+    const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
+    const [isHovered, setIsHovered] = React.useState(false)
     const hoverTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
 
     // Force close on navigation on mobile
@@ -187,21 +188,21 @@ const Sidebar = React.forwardRef<
       if (isMobile && openMobile) {
         setOpenMobile(false)
       }
-    }, [isMobile]) // The route change is handled by the caller, but this ensures state resets
+    }, [isMobile]) 
 
     const handleMouseEnter = () => {
       if (isMobile || state === "expanded") return
       if (hoverTimeoutRef.current) {
         clearTimeout(hoverTimeoutRef.current)
       }
-      setOpen(true)
+      setIsHovered(true)
     }
 
     const handleMouseLeave = () => {
-      if (isMobile) return
+      if (isMobile || state === "expanded") return
       hoverTimeoutRef.current = setTimeout(() => {
-        setOpen(false)
-      }, 100) // Faster reaction
+        setIsHovered(false)
+      }, 50) // Very fast for a crisp feel
     }
 
     React.useEffect(() => {
@@ -255,35 +256,40 @@ const Sidebar = React.forwardRef<
       <div
         ref={ref}
         className="group peer hidden text-sidebar-foreground md:block"
-        data-state={state}
-        data-collapsible={state === "collapsed" ? collapsible : ""}
+        data-state={isHovered ? "expanded" : state}
+        data-collapsible={(state === "collapsed" && !isHovered) ? collapsible : ""}
         data-variant={variant}
         data-side={side}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-        {/* This is what handles the sidebar gap on desktop */}
+        {/* This is what handles the sidebar gap on desktop - DOES NOT CHANGE ON HOVER */}
         <div
           className={cn(
-            "relative w-[--sidebar-width] bg-transparent transition-[width] duration-200 ease-linear",
-            "group-data-[collapsible=offcanvas]:w-0",
-            "group-data-[side=right]:rotate-180",
-            variant === "floating" || variant === "inset"
-              ? "group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4))]"
-              : "group-data-[collapsible=icon]:w-[--sidebar-width-icon]"
+            "relative transition-[width] duration-200 ease-linear",
+            state === "expanded"
+              ? "w-[--sidebar-width]"
+              : (collapsible === "icon" 
+                  ? (variant === "floating" || variant === "inset" 
+                      ? "w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4))]" 
+                      : "w-[--sidebar-width-icon]")
+                  : "w-0"
+                )
           )}
         />
         <div
           className={cn(
-            "fixed inset-y-0 z-10 hidden h-svh w-[--sidebar-width] transition-[left,right,width] duration-200 ease-linear md:flex",
+            "fixed inset-y-0 z-10 hidden h-svh transition-[left,right,width] duration-200 ease-linear md:flex",
             side === "left"
               ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
               : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
-            // Correctly handle width based on state and variant
-            variant === "floating" || variant === "inset"
-              ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4)_+2px)]"
-              : "group-data-[collapsible=icon]:w-[--sidebar-width-icon] group-data-[side=left]:border-r group-data-[side=right]:border-l",
-            "bg-white z-[100]",
+            // Width expansion on hover or when state is truly "expanded"
+            (state === "expanded" || isHovered)
+              ? "w-[--sidebar-width]"
+              : (variant === "floating" || variant === "inset"
+                ? "w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4)_+2px)] p-2"
+                : "w-[--sidebar-width-icon]"),
+            "bg-white z-[100] border-r border-slate-200 shadow-xl",
             className
           )}
           {...props}

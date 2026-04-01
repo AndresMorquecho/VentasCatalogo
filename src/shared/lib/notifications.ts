@@ -5,7 +5,7 @@ import { useToast } from "@/shared/ui/use-toast";
  * Use this to handle success/error toasts consistently across the app.
  */
 export const useNotifications = () => {
-    const { showToast } = useToast();
+    const { showToast, dismissToast } = useToast();
 
     /**
      * Notify success after a CRUD action
@@ -24,6 +24,10 @@ export const useNotifications = () => {
         
         if (typeof err === 'string') {
             message = err;
+        } else if (err?.response?.data?.error) {
+            message = typeof err.response.data.error === 'string' ? err.response.data.error : defaultMessage;
+        } else if (err?.response?.data?.message) {
+            message = err.response.data.message;
         } else if (err?.message) {
             message = err.message;
         } else if (err?.error?.message) {
@@ -45,5 +49,13 @@ export const useNotifications = () => {
         showToast(`${itemType} eliminado correctamente`, 'success');
     };
 
-    return { notifySuccess, notifyError, notifyDelete };
+    const notifyLoading = (message: string = 'Procesando...') => {
+        showToast(message, 'loading', 0);
+    };
+
+    const dismiss = () => {
+        dismissToast();
+    };
+
+    return { notifySuccess, notifyError, notifyDelete, notifyLoading, dismiss };
 };

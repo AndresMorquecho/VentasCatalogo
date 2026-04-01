@@ -117,12 +117,9 @@ export const orderApi = {
         return httpClient.get<Order[]>(`/orders/receipt/${receiptNumber}`);
     },
 
-    /**
-     * Delete order (soft delete)
-     * @endpoint DELETE /api/orders/:id
-     */
-    delete: async (id: string): Promise<void> => {
-        return httpClient.delete<void>(`/orders/${id}`);
+    delete: async (id: string, cascade: boolean = false): Promise<void> => {
+        const url = `/orders/${id}${cascade ? '?cascade=true' : ''}`;
+        return httpClient.delete<void>(url);
     },
 
     /**

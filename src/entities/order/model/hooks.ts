@@ -72,9 +72,14 @@ export function useUpdateOrder() {
 export function useDeleteOrder() {
     const qc = useQueryClient()
     return useMutation({
-        mutationFn: (id: string) => orderApi.delete(id),
+        mutationFn: (payload: string | { id: string, cascade?: boolean }) => {
+            if (typeof payload === 'string') {
+                return orderApi.delete(payload)
+            }
+            return orderApi.delete(payload.id, payload.cascade)
+        },
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: KEYS.list() })
+            qc.invalidateQueries({ queryKey: KEYS.all })
         }
     })
 }

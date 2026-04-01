@@ -1,4 +1,4 @@
-import { Eye, Pencil, Trash2, Receipt, User } from "lucide-react"
+import { Eye, Pencil, Trash2, Receipt, User, Edit2 } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import type { Order, OrderStatus } from "@/entities/order/model/types"
 import { getPaidAmount, getPendingAmount } from "@/entities/order/model/model"
@@ -21,6 +21,7 @@ const ROW_STATUS_CLASSES: Record<OrderStatus, string> = {
     ENTREGADO: "bg-slate-50/20 hover:bg-slate-50/40",
     ANULADO: "bg-slate-50/10 opacity-60",
     DESMANTELADO: "bg-red-50/10 hover:bg-red-50/20",
+    CAMBIADO: "bg-purple-50/20 hover:bg-purple-50/40",
 }
 
 function formatDate(dateString: string): string {
@@ -261,14 +262,15 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, lastClosur
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        className={`h-8 w-8 text-slate-900 hover:bg-slate-100 font-bold ${!canEditReceipt ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                                        className="h-8 w-8 text-slate-900 hover:bg-slate-100 font-bold"
                                                         onClick={async (e) => {
                                                             e.stopPropagation()
-                                                            if (canEditReceipt) onEdit(order)
+                                                            onEdit(order)
                                                         }}
-                                                        title="Editar recibo completo"
+                                                        disabled={!canEditReceipt}
+                                                        title={!canEditReceipt ? "No se puede editar: Periodo de caja cerrado" : "Editar recibo completo"}
                                                     >
-                                                        <Pencil className="h-4 w-4" />
+                                                        <Edit2 className="h-4 w-4" />
                                                     </Button>
                                                 )}
 
@@ -276,12 +278,13 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, lastClosur
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        className={`h-8 w-8 text-slate-300 hover:text-red-600 hover:bg-red-50 transition-colors ${!canDeleteReceipt ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                                        className="h-8 w-8 text-slate-300 hover:text-red-600 hover:bg-red-50 transition-colors"
                                                         onClick={async (e) => {
                                                             e.stopPropagation()
-                                                            if (canDeleteReceipt) onDelete(order)
+                                                            onDelete(order)
                                                         }}
-                                                        title="Anular Pedido"
+                                                        disabled={!canDeleteReceipt}
+                                                        title={!canDeleteReceipt ? "No se puede eliminar: Periodo cerrado o con abonos reales" : "Eliminar recibo completo"}
                                                     >
                                                         <Trash2 className="h-4 w-4" />
                                                     </Button>

@@ -258,7 +258,7 @@ export function OrderFormPage() {
     const bankAccounts = bankAccountsResponse?.data || []
     
     const createOrder = useCreateOrder()
-    const { notifySuccess, notifyError } = useNotifications()
+    const { notifySuccess, notifyError, notifyLoading, dismiss } = useNotifications()
     const { user } = useAuth()
 
     const [isSubmitting, setIsSubmitting] = useState(false)
@@ -695,8 +695,10 @@ export function OrderFormPage() {
         if (!orderToDelete) return
 
         try {
+            notifyLoading(`Eliminando pedido ${orderToDelete.orderNumber || ''}...`)
             await orderApi.delete(orderToDelete.id)
             
+            dismiss()
             // Invalidar las queries relacionadas en lugar de recargar la página
             queryClient.invalidateQueries({ queryKey: ['orders'] })
             queryClient.invalidateQueries({ queryKey: ['order', orderToDelete.id] })
@@ -704,6 +706,7 @@ export function OrderFormPage() {
             
             notifySuccess('Pedido eliminado correctamente.')
         } catch (error: any) {
+            dismiss()
             console.error('Error deleting order:', error)
             notifyError(error, 'Error al eliminar el pedido.')
         } finally {
@@ -900,10 +903,10 @@ export function OrderFormPage() {
     }, [closurePreview])
 
     // Total order value remains the same
-    const totalOrderValue = formik.values.brandItems.reduce((sum, item) => sum + Number(item.total), 0);
+    const totalOrderValue = formik.values.brandItems.reduce((sum: number, item: any) => sum + (Number(item.total) || 0), 0);
 
     // Total deposit is now the sum of manual row deposits
-    const totalRowDeposit = formik.values.brandItems.reduce((sum, item) => sum + Number(item.deposit || 0), 0);
+    const totalRowDeposit = formik.values.brandItems.reduce((sum: number, item: any) => sum + (Number(item.deposit) || 0), 0);
 
     const handleHeaderKeyDown = (e: React.KeyboardEvent, fieldName: string) => {
         const fields = [
@@ -1080,7 +1083,21 @@ export function OrderFormPage() {
 
                 // Crear cada nuevo pedido
                 for (const itemToCreate of itemsToCreate) {
-                    const unitPrice = itemToCreate.quantity > 0 ? itemToCreate.total / itemToCreate.quantity : 0
+                    // Garantizar que brandName esté presente buscando en la lista local si falta
+                    let finalBrandName = itemToCreate.brandName
+                    if (!finalBrandName && itemToCreate.brandId) {
+                        const b = brands.find(x => x.id === itemToCreate.brandId)
+                        finalBrandName = b ? b.name : "Marca"
+                    }
+
+                    const qty = Number(itemToCreate.quantity || 1)
+                    const totalVal = Number(itemToCreate.total || 0)
+                    const unitPrice = qty > 0 ? totalVal / qty : 0
+
+                    if (!finalBrandName) {
+                        notifyError(null, "No se pudo determinar el nombre del catálogo.")
+                        continue
+                    }
 
                     const payload = {
                         clientId: formik.values.clientId,
@@ -1089,19 +1106,19 @@ export function OrderFormPage() {
                         salesChannel: itemToCreate.salesChannel || formik.values.salesChannel,
                         type: itemToCreate.type,
                         brandId: itemToCreate.brandId,
-                        brandName: itemToCreate.brandName,
-                        total: itemToCreate.total,
+                        brandName: finalBrandName,
+                        total: totalVal, 
                         possibleDeliveryDate: itemToCreate.possibleDeliveryDate,
                         notes: formik.values.notes,
                         createdAt: formik.values.createdAt,
                         transaction_date: formik.values.transactionDate,
                         paymentMethod: formik.values.paymentMethod,
                         items: [{
-                            productName: itemToCreate.brandName,
-                            quantity: itemToCreate.quantity,
-                            unitPrice: unitPrice,
+                            productName: finalBrandName, // Usamos brandName como nombre del producto principal
+                            quantity: qty,
+                            unitPrice: isNaN(unitPrice) ? 0 : unitPrice,
                             brandId: itemToCreate.brandId,
-                            brandName: itemToCreate.brandName
+                            brandName: finalBrandName
                         }],
                         deposit: 0, // Nuevo pedido sin abono inicial
                         creditToUse: 0,
@@ -1247,18 +1264,33 @@ export function OrderFormPage() {
             return;
         }
 
-        // Mostrar errores de validación si existen
+        // Forzar validación de todo el formulario para capturar errores de campos no "tocados"
+        const errors = await formik.validateForm();
+        if (Object.keys(errors).length > 0) {
+            // Mostrar el primer error encontrado
+            const firstError = Object.values(errors)[0]
+            if (typeof firstError === 'string') {
+                notifyError(null, firstError)
+            } else if (typeof firstError === 'object') {
+                // Manejar errores en arrays de objetos (brandItems)
+                const errorMsg = Object.values(firstError as object)[0]
+                if (typeof errorMsg === 'string') notifyError(null, errorMsg)
+            }
+            return
+        }
+
+        // Mostrar errores de validación si existen (redundancia por si acaso)
         if (Object.keys(formik.errors).length > 0) {
             const firstError = Object.values(formik.errors)[0]
             if (typeof firstError === 'string') {
                 notifyError(null, firstError)
             } else if (Array.isArray(firstError)) {
-                const itemErrors = firstError.filter(e => e !== undefined)
-                if (itemErrors.length > 0) {
-                    const firstItemError = itemErrors[0]
-                    if (typeof firstItemError === 'object') {
-                        const errorMsg = Object.values(firstItemError)[0]
-                        notifyError(null, `Error en fila: ${errorMsg}`)
+                // Find first non-undefined error in the brandItems array
+                const firstActualItemError = firstError.find((e: any) => e !== undefined)
+                if (firstActualItemError && typeof firstActualItemError === 'object') {
+                    const firstMsg = Object.values(firstActualItemError)[0]
+                    if (typeof firstMsg === 'string') {
+                        notifyError(null, `Error en fila: ${firstMsg}`)
                     }
                 }
             }
@@ -2011,7 +2043,7 @@ interface OrderEditModalProps {
 }
 
 function OrderEditModal({ order, open, onOpenChange, onSuccess, lastClosureDate, bankAccounts }: OrderEditModalProps) {
-    const { notifySuccess, notifyError } = useNotifications()
+    const { notifySuccess, notifyError, notifyLoading, dismiss } = useNotifications()
     const updateOrder = useUpdateOrder()
     const queryClient = useQueryClient()
     const [formData, setFormData] = useState({
@@ -2057,7 +2089,9 @@ function OrderEditModal({ order, open, onOpenChange, onSuccess, lastClosureDate,
         }
 
         try {
-            const quantity = order.items?.[0]?.quantity || 1
+            notifyLoading('Actualizando datos del pedido...')
+            const productName = order.brand?.name || order.brandName || "Producto"
+            const quantity = Number(order.items?.[0]?.quantity || 1)
             const unitPrice = quantity > 0 ? formData.total / quantity : 0
 
             const payload = {
@@ -2066,11 +2100,11 @@ function OrderEditModal({ order, open, onOpenChange, onSuccess, lastClosureDate,
                 orderNumber: formData.orderNumber,
                 items: [{
                     id: order.items?.[0]?.id || crypto.randomUUID(),
-                    productName: order.brand?.name || order.brandName,
+                    productName: productName,
                     quantity: quantity,
-                    unitPrice: unitPrice,
+                    unitPrice: isNaN(unitPrice) ? 0 : unitPrice,
                     brandId: order.brandId,
-                    brandName: order.brand?.name || order.brandName
+                    brandName: order.brand?.name || order.brandName || "Marca"
                 }],
                 deposit: formData.deposit,
                 paymentMethod: formData.paymentMethod,
@@ -2086,6 +2120,7 @@ function OrderEditModal({ order, open, onOpenChange, onSuccess, lastClosureDate,
             // Invalidar la query específica del recibo para refrescar caches
             queryClient.invalidateQueries({ queryKey: ['orders', 'receipt', order.receiptNumber] })
             
+            dismiss()
             notifySuccess('Pedido actualizado correctamente.')
             onSuccess({
                 ...order,
@@ -2096,6 +2131,7 @@ function OrderEditModal({ order, open, onOpenChange, onSuccess, lastClosureDate,
                 payments: order.payments, // se mantienen igual a nivel de frontend
             })
         } catch (error: any) {
+            dismiss()
             console.error('Error updating order:', error)
             notifyError(error, 'Error al actualizar el pedido.')
         }
