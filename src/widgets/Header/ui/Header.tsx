@@ -1,10 +1,10 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/shared/ui/avatar"
 import { Button } from "@/shared/ui/button"
 import { Search, LogOut, LayoutDashboard, Users, Inbox, PackageCheck, Truck, ArrowLeftRight, DollarSign, Wallet, Store, Calculator, Activity, Boxes, Tag, Phone, Award, CheckCircle } from "lucide-react"
-import { authService } from "@/shared/services/authService"
 import { LogoutDialog } from "@/shared/components/LogoutDialog"
 import { useState, useMemo, useRef, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
+import { useAuth } from "@/shared/auth"
 
 const SEARCHABLE_MODULES = [
     { title: "Dashboard", url: "/", icon: LayoutDashboard, category: "Principal" },
@@ -29,14 +29,14 @@ const SEARCHABLE_MODULES = [
 
 export function Header() {
     const navigate = useNavigate();
-    const user = authService.getUser();
+    const { user, logout } = useAuth();
     const [showLogoutDialog, setShowLogoutDialog] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const searchRef = useRef<HTMLDivElement>(null);
     
     const handleLogout = () => {
-        authService.logout();
+        logout();
     };
 
     const normalize = (str: string) => 
@@ -111,17 +111,16 @@ export function Header() {
             <div className="flex items-center gap-3 ml-auto">
                 <div className="hidden md:flex flex-col items-end mr-2">
                     <span className="text-sm font-bold text-slate-800 leading-none mb-1">
-                        {user?.name || user?.email?.split('@')[0]}
+                        {user?.username || 'Usuario'}
                     </span>
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
-                        CONECTADO
+                        {user?.role?.name || 'CONECTADO'}
                     </span>
                 </div>
                 
                 <Avatar className="h-10 w-10 ring-2 ring-slate-100 ring-offset-2 transition-transform hover:scale-105">
-                    <AvatarImage src="/placeholder-user.jpg" alt={user?.name} />
                     <AvatarFallback className="bg-monchito-purple/10 text-monchito-purple font-black">
-                        {user?.name?.charAt(0).toUpperCase() || 'U'}
+                        {(user?.username || 'U').charAt(0).toUpperCase()}
                     </AvatarFallback>
                 </Avatar>
 

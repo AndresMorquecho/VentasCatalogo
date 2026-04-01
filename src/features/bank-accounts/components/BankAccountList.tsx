@@ -12,10 +12,21 @@ import { ConfirmDialog } from "@/shared/ui/confirm-dialog"
 import { logAction } from "@/shared/lib/auditService"
 import { Pagination } from "@/shared/ui/pagination"
 
+import { DateRangePicker } from "@/shared/ui/filters/DateRangePicker"
+import type { DateRange } from "react-day-picker"
+import { format } from "date-fns"
+
 export function BankAccountList() {
     const [page, setPage] = useState(1)
     const [limit] = useState(25)
-    const { data: response, isLoading, isError, refetch } = useBankAccountList({ page, limit })
+    const [dateRange, setDateRange] = useState<DateRange | undefined>()
+
+    const { data: response, isLoading, isError, refetch } = useBankAccountList({ 
+        page, 
+        limit,
+        startDate: dateRange?.from ? format(dateRange.from, 'yyyy-MM-dd') : undefined,
+        endDate: dateRange?.to ? format(dateRange.to, 'yyyy-MM-dd') : undefined
+    })
 
     const accounts = response?.data || []
     const pagination = response?.pagination
@@ -116,6 +127,11 @@ export function BankAccountList() {
 
     const grandTotal = totalCash + totalBank;
 
+    // Totals for selected period
+    const periodIncomes = accounts.reduce((sum, a) => sum + (a.periodIncome || 0), 0);
+    const periodExpenses = accounts.reduce((sum, a) => sum + (a.periodExpense || 0), 0);
+    const periodNet = periodIncomes - periodExpenses;
+
     const formatCurrency = (amount: number) =>
         new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(amount);
 
@@ -149,6 +165,40 @@ export function BankAccountList() {
                         <p className="text-2xl font-black text-slate-900 tracking-tight leading-none">{formatCurrency(grandTotal)}</p>
                     </div>
                 </div>
+            </div>
+
+            {/* Date Range Filter */}
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                    <div className="bg-white p-2 rounded-lg border border-slate-200 shadow-sm">
+                        <DateRangePicker 
+                            value={dateRange}
+                            onChange={setDateRange}
+                        />
+                    </div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase max-w-[150px] leading-tight">
+                        Filtra movimientos por rango de fechas para ver ingresos/egresos del periodo
+                    </p>
+                </div>
+
+                {dateRange?.from && dateRange?.to && (
+                    <div className="flex gap-4">
+                        <div className="text-right">
+                            <p className="text-[9px] font-black text-emerald-500 uppercase tracking-wider">Ingresos Periodo</p>
+                            <p className="text-lg font-black text-emerald-600 leading-none">+{formatCurrency(periodIncomes)}</p>
+                        </div>
+                        <div className="text-right border-l border-slate-200 pl-4">
+                            <p className="text-[9px] font-black text-red-400 uppercase tracking-wider">Egresos Periodo</p>
+                            <p className="text-lg font-black text-red-500 leading-none">-{formatCurrency(periodExpenses)}</p>
+                        </div>
+                        <div className="text-right border-l border-slate-200 pl-4">
+                            <p className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Balance Periodo</p>
+                            <p className={`text-lg font-black leading-none ${periodNet >= 0 ? "text-slate-800" : "text-red-600"}`}>
+                                {formatCurrency(periodNet)}
+                            </p>
+                        </div>
+                    </div>
+                )}
             </div>
 
             <div className="flex justify-between items-center pt-2">

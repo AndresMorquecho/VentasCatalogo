@@ -9,7 +9,12 @@ const KEYS = {
     detail: (id: string) => [...KEYS.all, 'detail', id] as const,
 }
 
-export function useBankAccountList(params?: { page?: number; limit?: number }) {
+export function useBankAccountList(params?: { 
+    page?: number; 
+    limit?: number;
+    startDate?: string;
+    endDate?: string;
+}) {
     return useQuery<PaginatedResponse<BankAccount>>({
         queryKey: [...KEYS.list(), params],
         queryFn: () => bankAccountApi.getAll(params),

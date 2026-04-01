@@ -13,7 +13,9 @@ export interface BankAccount {
     description?: string; // e.g., "Banco Pichincha - Ahorros"
     accountNumber?: string;
     holderName?: string;
-    bankName?: string;
+    periodIncome?: number;
+    periodExpense?: number;
+    periodNet?: number;
 }
 
 export interface BankAccountPayload {

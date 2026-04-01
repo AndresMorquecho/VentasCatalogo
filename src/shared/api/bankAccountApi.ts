@@ -7,10 +7,17 @@ export const bankAccountApi = {
    * Get all bank accounts
    * @endpoint GET /api/bank-accounts
    */
-  getAll: async (params?: { page?: number; limit?: number }): Promise<PaginatedResponse<BankAccount>> => {
+  getAll: async (params?: { 
+    page?: number; 
+    limit?: number;
+    startDate?: string;
+    endDate?: string;
+  }): Promise<PaginatedResponse<BankAccount>> => {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.startDate) queryParams.append('startDate', params.startDate);
+    if (params?.endDate) queryParams.append('endDate', params.endDate);
 
     const queryString = queryParams.toString();
     return httpClient.get<PaginatedResponse<BankAccount>>(`/bank-accounts${queryString ? `?${queryString}` : ''}`);

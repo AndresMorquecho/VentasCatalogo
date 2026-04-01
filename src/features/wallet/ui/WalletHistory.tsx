@@ -10,17 +10,19 @@ import { useDebounce } from "@/shared/lib/hooks";
 import { Pagination } from "@/shared/ui/pagination";
 
 export function WalletHistory() {
+    const [isDismissedFilter, setIsDismissedFilter] = useState("all");
     const [searchText, setSearchText] = useState("");
     const debouncedSearch = useDebounce(searchText, 1000);
     const [page, setPage] = useState(1);
     const [limit] = useState(15);
 
     const { data: response, isLoading, error } = useQuery<any>({
-        queryKey: ["wallet-recharges-history", debouncedSearch, page],
+        queryKey: ["wallet-recharges-history", debouncedSearch, page, isDismissedFilter],
         queryFn: () => walletApi.getRecharges({
             search: debouncedSearch,
             page,
-            limit
+            limit,
+            isDismissed: isDismissedFilter === "visible" ? "false" : isDismissedFilter === "hidden" ? "true" : undefined
         })
     });
 
@@ -44,17 +46,31 @@ export function WalletHistory() {
 
     return (
         <div className="space-y-4">
-            <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                <div className="relative flex-1 max-w-md">
+            <div className="flex flex-wrap items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                <div className="relative flex-1 min-w-[280px]">
                     <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                     <Input
                         placeholder="Buscar por cliente o referencia..."
-                        className="pl-9 h-9 border-slate-200 bg-white"
+                        className="pl-9 h-9 border-slate-200 bg-white shadow-sm"
                         value={searchText}
                         onChange={(e) => setSearchText(e.target.value)}
                     />
                 </div>
-                <div className="text-[10px] font-bold text-slate-400 uppercase">
+                
+                <div className="flex items-center gap-2 bg-white px-3 py-1 rounded-lg border border-slate-200 shadow-sm">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Mostrar:</span>
+                    <select 
+                        className="text-[11px] font-bold text-slate-600 bg-transparent border-none focus:ring-0 cursor-pointer"
+                        value={isDismissedFilter}
+                        onChange={(e) => setIsDismissedFilter(e.target.value)}
+                    >
+                        <option value="all">Todo el Historial</option>
+                        <option value="visible">Solo Visibles</option>
+                        <option value="hidden">Solo Ocultos</option>
+                    </select>
+                </div>
+
+                <div className="text-[10px] font-bold text-slate-400 uppercase ml-auto">
                     {pagination?.total || 0} registros encontrados
                 </div>
             </div>

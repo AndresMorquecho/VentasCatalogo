@@ -36,6 +36,7 @@ export const walletApi = {
         search?: string;
         page?: number; 
         limit?: number;
+        isDismissed?: string;
     }) => {
         const queryParams = new URLSearchParams();
         if (params?.status) queryParams.append('status', params.status);
@@ -43,6 +44,7 @@ export const walletApi = {
         if (params?.search) queryParams.append('search', params.search);
         if (params?.page) queryParams.append('page', params.page.toString());
         if (params?.limit) queryParams.append('limit', params.limit.toString());
+        if (params?.isDismissed) queryParams.append('isDismissed', params.isDismissed);
 
         const queryString = queryParams.toString();
         
@@ -64,6 +66,11 @@ export const walletApi = {
     rejectRecharge: async (id: string, reason: string) => {
         // Match backend route: /recharge/:id/reject
         return httpClient.post(`/wallet/recharge/${id}/reject`, { reason });
+    },
+
+    dismissRecharge: async (id: string) => {
+        // Match backend route: /recharge/:id/dismiss
+        return httpClient.post(`/wallet/recharge/${id}/dismiss`, {});
     },
 
     getClientWalletHistory: async (clientId: string): Promise<WalletHistoryResponse> => {

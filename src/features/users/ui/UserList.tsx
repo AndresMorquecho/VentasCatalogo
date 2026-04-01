@@ -200,44 +200,58 @@ export function UserList() {
                                         <p className="text-[10px] text-slate-400">{u.lastAccessAt ? new Date(u.lastAccessAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) : 'Nunca'}</p>
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <div className="flex justify-end gap-2">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className={`h-8 px-2 gap-1.5 text-xs font-bold transition-all ${u.active ? 'text-rose-500 hover:text-rose-600 hover:bg-rose-50' : 'text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50'}`}
-                                                onClick={() => {
-                                                    if (!hasPermission('users.edit')) {
-                                                        notifyError({ message: 'No tienes permiso para cambiar el estado' });
-                                                        return;
-                                                    }
-                                                    setTarget(u);
-                                                    setMode('toggle');
-                                                }}
-                                            >
-                                                <Power className="h-3.5 w-3.5" />
-                                                {u.active ? 'Desactivar' : 'Activar'}
-                                            </Button>
-
-                                            <div className="flex items-center gap-1 border-l pl-2 border-slate-200">
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-slate-100" onClick={() => openPassword(u)} title="Cambiar contraseña">
-                                                    <Key className="h-4 w-4 text-slate-500" />
-                                                </Button>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-blue-50" onClick={() => openEdit(u)} title="Editar">
-                                                    <Edit2 className="h-4 w-4 text-blue-600" />
-                                                </Button>
-                                                {u.roleId?.toUpperCase() !== 'ADMIN' && (
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-red-50" onClick={() => {
-                                                        if (!hasPermission('users.delete')) {
-                                                            notifyError({ message: 'No tienes permiso para eliminar usuarios' });
-                                                            return;
-                                                        }
-                                                        setTarget(u); setMode('delete'); setError('');
-                                                    }} title="Eliminar definitivamente">
-                                                        <Trash2 className="h-4 w-4 text-red-500" />
+                                        {(() => {
+                                            const isAdminUser = roleName.toUpperCase() === 'ADMIN' || roleName.toUpperCase() === 'ADMINISTRADOR' || u.username === 'admin';
+                                            
+                                            return (
+                                                <div className="flex justify-end gap-2">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        disabled={isAdminUser}
+                                                        title={isAdminUser ? "Los administradores no pueden ser desactivados" : ""}
+                                                        className={`h-8 px-2 gap-1.5 text-xs font-bold transition-all ${u.active ? 'text-rose-500 hover:text-rose-600 hover:bg-rose-50' : 'text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50'} ${isAdminUser ? 'opacity-30 grayscale' : ''}`}
+                                                        onClick={() => {
+                                                            if (!hasPermission('users.edit')) {
+                                                                notifyError({ message: 'No tienes permiso para cambiar el estado' });
+                                                                return;
+                                                            }
+                                                            setTarget(u);
+                                                            setMode('toggle');
+                                                        }}
+                                                    >
+                                                        <Power className="h-3.5 w-3.5" />
+                                                        {u.active ? 'Desactivar' : 'Activar'}
                                                     </Button>
-                                                )}
-                                            </div>
-                                        </div>
+
+                                                    <div className="flex items-center gap-1 border-l pl-2 border-slate-200">
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-slate-100" onClick={() => openPassword(u)} title="Cambiar contraseña">
+                                                            <Key className="h-4 w-4 text-slate-500" />
+                                                        </Button>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-blue-50" onClick={() => openEdit(u)} title={isAdminUser ? "Ver / Editar" : "Editar"}>
+                                                            <Edit2 className="h-4 w-4 text-blue-600" />
+                                                        </Button>
+                                                        
+                                                        <Button 
+                                                            variant="ghost" 
+                                                            size="icon" 
+                                                            className="h-8 w-8 disabled:opacity-20 hover:bg-red-50" 
+                                                            disabled={isAdminUser}
+                                                            title={isAdminUser ? "No se puede eliminar un administrador" : "Eliminar definitivamente"}
+                                                            onClick={() => {
+                                                                if (!hasPermission('users.delete')) {
+                                                                    notifyError({ message: 'No tienes permiso para eliminar usuarios' });
+                                                                    return;
+                                                                }
+                                                                setTarget(u); setMode('delete'); setError('');
+                                                            }} 
+                                                        >
+                                                            <Trash2 className="h-4 w-4 text-red-500" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
                                     </TableCell>
                                 </TableRow>
                             );

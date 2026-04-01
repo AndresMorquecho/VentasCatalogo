@@ -20,6 +20,9 @@ export function WalletValidationPage() {
     const [limit] = useState(15);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+    const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+    const [rejectId, setRejectId] = useState<string | null>(null);
+    const [rejectReason, setRejectReason] = useState("");
     
     const queryClient = useQueryClient();
     const { notifySuccess, notifyError } = useNotifications();
@@ -51,6 +54,9 @@ export function WalletValidationPage() {
         mutationFn: ({ id, reason }: { id: string; reason: string }) => walletApi.rejectRecharge(id, reason),
         onSuccess: () => {
             notifySuccess("Pago rechazado.");
+            setRejectDialogOpen(false);
+            setRejectReason("");
+            setRejectId(null);
             queryClient.invalidateQueries({ queryKey: ["wallet-recharges"] });
         },
         onError: (error) => notifyError(error, "Error al rechazar pago.")
@@ -91,10 +97,17 @@ export function WalletValidationPage() {
     };
 
     const handleReject = (id: string) => {
-        const reason = window.prompt("Motivo del rechazo:");
-        if (reason) {
-            rejectMutation.mutate({ id, reason });
+        setRejectId(id);
+        setRejectReason("");
+        setRejectDialogOpen(true);
+    };
+
+    const handleConfirmReject = () => {
+        if (!rejectId || !rejectReason.trim()) {
+            notifyError("Por favor ingrese un motivo para el rechazo.");
+            return;
         }
+        rejectMutation.mutate({ id: rejectId, reason: rejectReason });
     };
 
     return (
@@ -306,6 +319,39 @@ export function WalletValidationPage() {
                                 <span className="text-xs font-black text-slate-800">${Number(r.amount).toLocaleString('es-EC', { minimumFractionDigits: 2 })}</span>
                             </div>
                         ))}
+                    </div>
+                </div>
+            </ConfirmDialog>
+
+            <ConfirmDialog
+                open={rejectDialogOpen}
+                onOpenChange={setRejectDialogOpen}
+                onConfirm={handleConfirmReject}
+                title="Rechazar Pago"
+                variant="destructive"
+                confirmText="Rechazar Pago"
+                description="Haga clic en 'Rechazar Pago' para denegar esta solicitud. Por favor especifique el motivo."
+            >
+                <div className="space-y-4">
+                    <div className="bg-red-50 border border-red-100 p-4 rounded-2xl flex items-start gap-3">
+                        <div className="bg-red-100 p-2 rounded-xl text-red-600">
+                            <XCircle className="h-5 w-5" />
+                        </div>
+                        <div>
+                            <p className="text-red-600 font-black text-sm uppercase tracking-tight">Atención: Rechazo de Pago</p>
+                            <p className="text-red-600/70 text-xs font-medium">Esta acción notificará al cliente que su recarga no fue válida.</p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Motivo del rechazo (Requerido)</label>
+                        <Input
+                            placeholder="Ej. Referencia incorrecta, monto no coincide..."
+                            className="h-12 border-slate-200 bg-slate-50/50 font-medium"
+                            value={rejectReason}
+                            onChange={(e) => setRejectReason(e.target.value)}
+                            autoFocus
+                        />
                     </div>
                 </div>
             </ConfirmDialog>
