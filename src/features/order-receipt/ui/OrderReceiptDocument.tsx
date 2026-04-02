@@ -97,13 +97,14 @@ const styles = StyleSheet.create({
     },
     
     // Column Widths
-    colNo: { width: '13%' },
-    colType: { width: '15%' },
-    colCat: { width: '19%' },
-    colVal: { width: '14%', textAlign: 'center' },
+    colNo: { width: '10%' },
+    colEmp: { width: '18%' },
+    colType: { width: '10%' },
+    colCat: { width: '15%' },
+    colVal: { width: '10%', textAlign: 'center' },
     colAbo: { width: '10%', textAlign: 'center' },
     colSal: { width: '10%', textAlign: 'center' },
-    colDate: { width: '19%', borderRight: 0 },
+    colDate: { width: '17%', borderRight: 0 },
 
     // Financial Summary Row
     financialRow: {
@@ -301,6 +302,7 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({
                 <View style={styles.table}>
                     <View style={styles.tableHeader}>
                         <Text style={[styles.tableHeaderCell, styles.colNo]}>No pedido</Text>
+                        <Text style={[styles.tableHeaderCell, styles.colEmp]}>Empresaria</Text>
                         <Text style={[styles.tableHeaderCell, styles.colType]}>Tipo pedido</Text>
                         <Text style={[styles.tableHeaderCell, styles.colCat]}>Catálogo</Text>
                         <Text style={[styles.tableHeaderCell, styles.colVal]}>Valor pedido</Text>
@@ -315,6 +317,7 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({
                         return (
                             <View key={idx} style={styles.tableRow}>
                                 <Text style={[styles.tableCell, styles.colNo]}>{o.orderNumber || idx + 1}</Text>
+                                <Text style={[styles.tableCell, styles.colEmp]}>{o.clientName?.substring(0, 15) || 'S/N'}</Text>
                                 <Text style={[styles.tableCell, styles.colType]}>{o.type}</Text>
                                 <Text style={[styles.tableCell, styles.colCat]}>{o.brandName}</Text>
                                 <Text style={[styles.tableCell, styles.colVal]}>{Number(o.total).toFixed(2)}</Text>

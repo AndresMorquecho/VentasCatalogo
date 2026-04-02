@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from "react"
+import React, { useState, useEffect, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
-import { useOrderDeliveryHistory } from "../model/useOrderDelivery"
+import { useDeliveryBatches } from "../model/useOrderDelivery"
 import type { DeliveryFilters } from "../model/useOrderDelivery"
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
@@ -10,15 +10,16 @@ import { exportOrdersToExcel } from "@/shared/lib/exportExcel"
 import { useAuth } from "@/shared/auth"
 import { usePDFPreview } from "@/shared/hooks/usePDFPreview"
 import { PDFPreviewModal } from "@/shared/ui/PDFPreviewModal"
-import { prepareDeliveryReceiptForPreview } from "../lib/generateDeliveryReceiptWithPreview"
+import { prepareBatchDeliveryReceiptForPreview } from "../lib/generateDeliveryReceiptWithPreview"
 import { useNotifications } from "@/shared/lib/notifications"
 import { Pagination } from "@/shared/ui/pagination"
 import { PageHeader } from "@/shared/ui/PageHeader"
 import { useDebounce } from "@/shared/lib/hooks"
 import { DateRangePicker } from "@/shared/ui/filters"
 import type { DateRange } from "react-day-picker"
-import { RotateCcw } from "lucide-react"
+import { RotateCcw, ChevronRight, ChevronDown } from "lucide-react"
 import { ConfirmDialog } from "@/shared/ui/confirm-dialog"
+import { cn } from "@/shared/lib/utils"
 import {
     Table,
     TableBody,
@@ -36,10 +37,21 @@ export function OrderDeliveryHistoryPage() {
 
     // State
     const [page, setPage] = useState(1)
-    const [limit] = useState(25)
+    const [limit] = useState(15)
     const [searchText, setSearchText] = useState("")
     const debouncedSearch = useDebounce(searchText, 500)
     const [dateRange, setDateRange] = useState<DateRange | undefined>()
+    const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
+
+    const toggleRow = (id: string) => {
+        const newExpanded = new Set(expandedRows)
+        if (newExpanded.has(id)) {
+            newExpanded.delete(id)
+        } else {
+            newExpanded.add(id)
+        }
+        setExpandedRows(newExpanded)
+    }
 
     // Convert DateRange to strings for API
     const startDate = dateRange?.from ? dateRange.from.toISOString().split('T')[0] : ""
@@ -58,8 +70,8 @@ export function OrderDeliveryHistoryPage() {
         limit
     }), [debouncedSearch, startDate, endDate, page, limit])
 
-    const { data: response, isLoading, refetch } = useOrderDeliveryHistory(filters)
-    const orders = response?.data || []
+    const { data: response, isLoading, refetch } = useDeliveryBatches(filters)
+    const batches = response?.data || []
     const pagination = response?.pagination
 
     const [pdfTitle, setPdfTitle] = useState("")
@@ -83,28 +95,20 @@ export function OrderDeliveryHistoryPage() {
         })
     }
 
-    function formatCurrency(amount: number) {
-        return `$${amount.toFixed(2)}`
-    }
-
-    function calculateDaysInWarehouse(order: any) {
-        if (!order.receptionDate || !order.deliveryDate) return '-'
-        const start = new Date(order.receptionDate).getTime()
-        const end = new Date(order.deliveryDate).getTime()
-        const diff = Math.ceil((end - start) / (1000 * 60 * 60 * 24))
-        return `${diff} días`
-    }
-
-    const handlePrintPreview = async (order: any) => {
+    const handlePrintPreview = async (batch: any) => {
         try {
-            const { document, fileName, title } = await prepareDeliveryReceiptForPreview(
-                order, 
+            // Aggregate totals and methods for the batch
+            const totalPaid = (batch.payments || []).reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+            const methods = Array.from(new Set((batch.payments || []).map((p: any) => p.method))).join(' | ') || 'N/A';
+            
+            const { document, fileName, title } = await prepareBatchDeliveryReceiptForPreview(
+                batch.orders || [], 
                 {
-                    amountPaidNow: 0, 
-                    method: order.paymentMethod || 'N/A',
-                    user: order.deliveredByName || user?.username || 'Administrador'
+                    amountPaidNow: totalPaid, 
+                    method: methods,
+                    user: batch.deliveredByName || user?.username || 'Administrador'
                 },
-                order.receiptNumber
+                batch.deliveryNumber || 'S/N'
             )
             
             setPdfTitle(title)
@@ -126,8 +130,8 @@ export function OrderDeliveryHistoryPage() {
 
         try {
             setIsReversing(true)
-            await orderApi.reverseDelivery(orderToReverse.id)
-            notifySuccess('Entrega cancelada y saldos reversados')
+            await orderApi.deleteDeliveryBatch(orderToReverse.id)
+            notifySuccess('Lote de entrega eliminado y saldos reversados correctamente')
             refetch()
         } catch (error) {
             console.error("Error reversing delivery:", error)
@@ -220,86 +224,142 @@ export function OrderDeliveryHistoryPage() {
             <div className="bg-white rounded-2xl border border-monchito-purple/10 shadow-xl overflow-hidden min-h-[400px]">
                 <Table>
                     <TableHeader className="bg-monchito-purple/5">
-                        <TableRow className="border-monchito-purple/10 hover:bg-transparent">
-                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-monchito-purple py-4 px-6">Fecha Entrega</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-monchito-purple py-4 px-6">Empresaria / Cliente</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-monchito-purple py-4 px-6">N° Recibo</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-monchito-purple py-4 px-6 text-right">Total Real</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-monchito-purple py-4 px-6 text-center">Bodega</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-monchito-purple py-4 px-6 text-center">Estado</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-monchito-purple py-4 px-6 text-right">Acciones</TableHead>
+                        <TableRow className="border-monchito-purple/10 hover:bg-transparent tracking-tighter">
+                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-monchito-purple py-4 px-6 text-center">N° Entrega</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-monchito-purple py-4 px-6 text-center">Fecha Entrega</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-monchito-purple py-4 px-6 text-center">Cant. Pedidos</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-monchito-purple py-4 px-6 text-center">Empresaria / Cédula</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-monchito-purple py-4 px-6 text-center">Usuario</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-monchito-purple py-4 px-6 text-center">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {isLoading ? (
                             <TableRow>
-                                <TableCell colSpan={7} className="text-center py-20">
+                                <TableCell colSpan={6} className="text-center py-20">
                                     <div className="flex flex-col items-center gap-3">
                                         <div className="h-8 w-8 border-4 border-slate-100 border-t-monchito-purple rounded-full animate-spin" />
-                                        <span className="font-bold text-slate-400">Cargando historial...</span>
+                                        <span className="font-bold text-slate-400 text-[11px]">Cargando historial...</span>
                                     </div>
                                 </TableCell>
                             </TableRow>
-                        ) : orders.length === 0 ? (
+                        ) : batches.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={7} className="text-center py-20">
+                                <TableCell colSpan={6} className="text-center py-20">
                                     <div className="flex flex-col items-center gap-2 text-slate-300">
                                         <History className="h-12 w-12 opacity-20" />
-                                        <p className="font-black uppercase tracking-widest text-sm">No se encontraron entregas</p>
+                                        <p className="font-black uppercase tracking-widest text-[11px]">No se encontraron entregas</p>
                                     </div>
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            orders.map((order) => (
-                                <TableRow key={order.id} className="hover:bg-monchito-purple/5 border-monchito-purple/5 transition-all duration-200">
-                                    <TableCell className="font-bold text-slate-700 py-4 px-6">
-                                        {formatDate(order.deliveryDate!)}
-                                    </TableCell>
-                                    <TableCell className="py-4 px-6">
-                                        <div className="font-black text-slate-800 uppercase text-xs">{order.clientName}</div>
-                                        <div className="text-[10px] text-monchito-purple font-black">{order.brandName}</div>
-                                    </TableCell>
-                                    <TableCell className="py-4 px-6">
-                                        <span className="bg-slate-100 px-2 py-1 rounded text-[11px] font-mono font-bold text-slate-600">
-                                            #{order.receiptNumber}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell className="text-right py-4 px-6 font-mono font-black text-slate-800">
-                                        {formatCurrency(order.realInvoiceTotal || order.total)}
-                                    </TableCell>
-                                    <TableCell className="text-center py-4 px-6">
-                                        <span className="text-[10px] font-bold text-slate-400">
-                                            {calculateDaysInWarehouse(order)}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell className="text-center py-4 px-6">
-                                        <span className="inline-flex px-2 py-0.5 rounded-lg text-[9px] font-black tracking-widest bg-emerald-100 text-emerald-700 uppercase">
-                                            ENTREGADO
-                                        </span>
-                                    </TableCell>
-                                    <TableCell className="text-right py-4 px-6">
-                                        <div className="flex justify-end gap-1">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-9 w-9 text-slate-400 hover:text-orange-500 hover:bg-orange-50 rounded-xl"
-                                                onClick={() => handleReverseDelivery(order)}
-                                                title="Cancelar Entrega (Regresar a Por Entregar)"
-                                            >
-                                                <RotateCcw className="h-4 w-4" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-9 w-9 text-slate-400 hover:text-monchito-purple hover:bg-monchito-purple/10 rounded-xl"
-                                                onClick={() => handlePrintPreview(order)}
-                                                title="Imprimir Comprobante"
-                                            >
-                                                <Printer className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
+                            batches.map((batch: any) => (
+                                <React.Fragment key={batch.id}>
+                                    <TableRow 
+                                        key={batch.id} 
+                                        onClick={() => toggleRow(batch.id)}
+                                        className={cn(
+                                            "transition-all duration-200 border-monchito-purple/5 cursor-pointer group",
+                                            expandedRows.has(batch.id) ? "bg-monchito-purple/5" : "hover:bg-monchito-purple/5"
+                                        )}
+                                    >
+                                        <TableCell className="py-4 px-6 text-center">
+                                            <span className="bg-monchito-purple/10 px-3 py-1.5 rounded-lg text-xs font-black text-monchito-purple shadow-sm">
+                                                {batch.deliveryNumber || 'S/N'}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell className="font-bold text-slate-700 py-4 px-6 text-xs text-center">
+                                            {formatDate(batch.deliveryDate)}
+                                        </TableCell>
+                                        <TableCell className="py-4 px-6 text-center text-xs">
+                                            <div className="font-black text-slate-800">{batch.orders?.length || 0}</div>
+                                        </TableCell>
+                                        <TableCell className="py-4 px-6 text-center text-xs">
+                                            <div className="flex flex-col items-center justify-center">
+                                                <div className="font-bold text-slate-700 uppercase truncate max-w-[250px]">
+                                                    {batch.orders?.[0]?.clientName || 'S/N'}
+                                                </div>
+                                                <div className="text-[10px] text-slate-400 font-black tracking-widest">
+                                                    {batch.orders?.[0]?.clientIdentification || 'S/ID'}
+                                                </div>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="text-center py-4 px-6 text-xs font-black text-slate-400 uppercase tracking-widest">
+                                            {batch.deliveredByName || 'S/N'}
+                                        </TableCell>
+                                        <TableCell className="text-center py-4 px-6">
+                                            <div className="flex justify-center gap-2 items-center">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className={cn(
+                                                        "h-8 w-8 rounded-full transition-all duration-300",
+                                                        expandedRows.has(batch.id) ? "bg-monchito-purple text-white rotate-180" : "text-monchito-purple hover:bg-monchito-purple/10"
+                                                    )}
+                                                >
+                                                    <ChevronDown className="h-4 w-4" />
+                                                </Button>
+                                                <div className="w-[1px] h-4 bg-slate-100 mx-1" />
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-full transition-all"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleReverseDelivery(batch);
+                                                    }}
+                                                    title="Eliminar Entrega y Reversar Saldo"
+                                                >
+                                                    <RotateCcw className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-slate-400 hover:text-monchito-purple hover:bg-monchito-purple/10 rounded-full transition-all"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handlePrintPreview(batch);
+                                                    }}
+                                                    disabled={!batch.orders?.length}
+                                                    title="Reimprimir Comprobante de Entrega"
+                                                >
+                                                    <Printer className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                    {expandedRows.has(batch.id) && (
+                                        <TableRow className="bg-slate-50/40 hover:bg-slate-50/40 border-none">
+                                            <TableCell colSpan={6} className="py-2 px-10">
+                                                <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-monchito-purple/10 shadow-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                                                    <div className="bg-monchito-purple/5 px-4 py-2 border-b border-monchito-purple/5 flex items-center justify-between">
+                                                        <span className="text-[9px] font-black text-monchito-purple/60 uppercase tracking-widest">Pedidos entregados en este lote</span>
+                                                        <span className="text-[9px] font-black text-monchito-purple">{batch.orders?.length} ítems</span>
+                                                    </div>
+                                                    <div className="p-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                                                        {batch.orders?.map((o: any) => (
+                                                            <div key={o.id} className="flex items-center gap-3 p-2 rounded-xl border border-slate-100 bg-white hover:border-monchito-purple/20 transition-all duration-200 group/item">
+                                                                <div className="h-8 w-8 rounded-lg bg-monchito-purple/5 flex items-center justify-center text-monchito-purple text-[10px] font-black group-hover/item:scale-110 transition-transform">
+                                                                    {o.id.slice(-2).toUpperCase()}
+                                                                </div>
+                                                                <div className="flex-1 flex flex-col gap-0.5">
+                                                                    <div className="flex justify-between items-center">
+                                                                        <span className="text-[10px] font-black text-slate-700">{o.receiptNumber}</span>
+                                                                        <span className="text-[8px] font-black text-monchito-purple bg-monchito-purple/5 px-1.5 py-0.5 rounded uppercase tracking-tighter">{(o as any).brand?.name || 'S/N'}</span>
+                                                                    </div>
+                                                                    <div className="flex justify-between items-center text-[9px] text-slate-400 font-bold">
+                                                                        <span>{o.orderNumber || 'S/N'}</span>
+                                                                        <span className="font-black text-slate-600">${Number(o.realInvoiceTotal || o.total).toFixed(2)}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </React.Fragment>
                             ))
                         )}
                     </TableBody>

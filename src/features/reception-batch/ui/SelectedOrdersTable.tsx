@@ -20,8 +20,6 @@ interface Props {
     onUpdateInvoiceTotal: (id: string, val: number) => void
     onUpdateInvoiceNumber: (id: string, val: string) => void
     onUpdateDocumentType: (id: string, val: string) => void
-    onUpdateEntryDate: (id: string, val: string) => void
-
 }
 
 export function SelectedOrdersTable({
@@ -30,7 +28,6 @@ export function SelectedOrdersTable({
     onUpdateInvoiceTotal,
     onUpdateInvoiceNumber,
     onUpdateDocumentType,
-    onUpdateEntryDate,
 }: Props) {
     const totalEstimate = orders.reduce((sum, o) => sum + Number(o.order.total || 0), 0)
     const totalInvoice = orders.reduce((sum, o) => sum + Number(o.finalTotal || 0), 0)
@@ -52,7 +49,7 @@ export function SelectedOrdersTable({
             }
         } catch (e) {}
 
-        const fields = ['documentType', 'finalInvoiceNumber', 'finalTotal', 'entryDate'];
+        const fields = ['documentType', 'finalInvoiceNumber', 'finalTotal'];
 
         if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
             e.preventDefault();
@@ -90,9 +87,6 @@ export function SelectedOrdersTable({
                     }
                 }
             }
-        } else if (e.key === 'Enter' && isDate) {
-             e.preventDefault();
-             if ('showPicker' in input) (input as any).showPicker();
         }
     }
 
@@ -213,15 +207,9 @@ export function SelectedOrdersTable({
                                             />
                                         </TableCell>
                                         <TableCell className="py-4 px-2">
-                                            <Input
-                                                type="date"
-                                                value={entryDate}
-                                                onChange={(e) => onUpdateEntryDate(order.id, e.target.value)}
-                                                onKeyDown={(e) => handleTableKeyDown(e, orders.indexOf(orderState), 'entryDate')}
-                                                data-row-index={orders.indexOf(orderState)}
-                                                data-field-name="entryDate"
-                                                className="h-7 text-[10px] px-1 w-24 bg-white border-monchito-purple/20 focus:ring-monchito-purple/20"
-                                            />
+                                            <span className="text-xs font-medium text-slate-500 bg-slate-50 px-2 py-1 rounded border border-slate-100">
+                                                {new Date(entryDate).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                            </span>
                                         </TableCell>
                                         <TableCell className={`py-4 px-2 text-right font-mono font-bold text-xs`}>
                                             <span className={finalBalance < -0.01 ? 'text-emerald-600' : finalBalance > 0.01 ? 'text-amber-600' : 'text-slate-400'}>

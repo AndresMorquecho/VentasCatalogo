@@ -1,4 +1,4 @@
-import { useRef, useState, useMemo } from "react"
+import { useRef, useState, useMemo, useEffect } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import type { Order } from "@/entities/order/model/types"
 import type { CreditDistribution } from "@/entities/financial-record/model/types"
@@ -30,6 +30,7 @@ export function DeliverOrderModalNew({
     onOpenChange, 
     onSuccess 
 }: DeliverOrderModalProps) {
+    const [deliveryNumber, setDeliveryNumber] = useState('')
     const isBatch = orders.length > 0
     const activeOrders = isBatch ? orders : (order ? [order] : [])
     const firstOrder = activeOrders[0]
@@ -87,6 +88,18 @@ export function DeliverOrderModalNew({
             ? `Entrega de lote (${activeOrders.length} pedidos)` 
             : `Entrega de pedido ${firstOrder.receiptNumber}`
     } : null
+
+    // Fetch delivery number on open
+    useEffect(() => {
+        if (open && !deliveryNumber) {
+            orderApi.generateDeliveryNumber().then(res => {
+                if (res.deliveryNumber) setDeliveryNumber(res.deliveryNumber)
+            }).catch(err => {
+                console.error("Error generating delivery number:", err)
+            })
+        }
+        if (!open) setDeliveryNumber('')
+    }, [open])
 
     // Keep component mounted if we are showing a PDF even if the orders are cleared
     if (!firstOrder && !pdfPreview.pdfDocument) return null
@@ -152,65 +165,55 @@ export function DeliverOrderModalNew({
                 ? data.payments.map(p => `${p.method === 'BILLETERA_VIRTUAL' ? 'Billetera' : p.method}: $${p.amount.toFixed(2)}`).join(' | ')
                 : (data.payments[0]?.method || 'EFECTIVO');
 
-            if (isBatch) {
-                await orderApi.batchDeliver(activeOrders.map(o => o.id), paymentsToSend, distributionsList)
-                
-                // RE-FETCH UPDATED ORDERS TO GET NEW BALANCES FOR PDF
-                const updatedOrders = await Promise.all(
-                    activeOrders.map(async (o) => {
-                        return await orderApi.getById(o.id)
-                    })
-                )
+            // UNIFICACIÓN: Siempre usamos batchDeliver para asegurar que se cree un 
+            // DeliveryBatch y aparezca en el historial con su número correlativo.
+            const targetOrderIds = isBatch ? activeOrders.map(o => o.id) : [firstOrder.id];
+            
+            const result = await orderApi.batchDeliver(
+                targetOrderIds, 
+                paymentsToSend, 
+                distributionsList,
+                { deliveryNumber }
+            )
+            
+            // Capture real delivery number from backend if it corrected/generated one
+            const realDeliveryNumber = result?.deliveryNumber || deliveryNumber || 'S/N';
 
-                // PDF Preview para el lote
-                try {
-                    const { prepareBatchDeliveryReceiptForPreview } = await import("../lib/generateDeliveryReceiptWithPreview")
-                    const { document, fileName, title } = await prepareBatchDeliveryReceiptForPreview(updatedOrders, {
+            // RE-FETCH UPDATED ORDERS TO GET NEW BALANCES FOR PDF
+            const updatedOrders = await Promise.all(
+                targetOrderIds.map(async (id) => {
+                    return await orderApi.getById(id)
+                })
+            )
+
+            // PDF Preview para el lote o pedido único
+            try {
+                const { prepareBatchDeliveryReceiptForPreview } = await import("../lib/generateDeliveryReceiptWithPreview")
+                const { document, fileName, title } = await prepareBatchDeliveryReceiptForPreview(
+                    updatedOrders, 
+                    {
                         amountPaidNow: totalPaid,
                         method: paymentMethodString,
                         user: user?.username || 'Administrador',
                         currentCreditAmount: currentCreditAmount,
                         hasCurrentCredit: currentCreditAmount > 0
-                    })
-                    
-                    setPdfTitle(title)
-                    setPdfFileName(fileName)
-                    pdfPreview.openPreview(document)
-                } catch (pdfError) {
-                    console.error("Error preparando PDF Batch", pdfError)
-                }
-
-                notifySuccess(`Lote de ${activeOrders.length} entregas registrado correctamente`)
-            } else {
-                await orderApi.deliverOrder(firstOrder.id, {
-                    payments: paymentsToSend,
-                    notes: `Entrega al cliente ${firstOrder.clientName}`,
-                    creditDistributions: distributionsList
-                });
-
-                // RE-FETCH UPDATED ORDER
-                const deliveredOrder = await orderApi.getById(firstOrder.id);
-
-                // PDF Preview - No descarga automática
-                try {
-                    const { document, fileName, title } = await prepareDeliveryReceiptForPreview(deliveredOrder, {
-                        amountPaidNow: totalPaid,
-                        method: paymentMethodString,
-                        user: deliveredOrder.deliveredByName || user?.username || 'Administrador',
-                        currentCreditAmount: currentCreditAmount,
-                        hasCurrentCredit: currentCreditAmount > 0
-                    })
-                    
-                    setPdfTitle(title)
-                    setPdfFileName(fileName)
-                    pdfPreview.openPreview(document)
-                } catch (pdfError) {
-                    console.error("Error preparando PDF", pdfError)
-                    notifyError({ message: 'Entrega registrada pero hubo un error al generar el comprobante' })
-                }
-
-                notifySuccess('Entrega registrada correctamente')
+                    },
+                    realDeliveryNumber,
+                    updatedOrders[0]?.client
+                )
+                
+                setPdfTitle(title)
+                setPdfFileName(fileName)
+                pdfPreview.openPreview(document)
+            } catch (pdfError) {
+                console.error("Error preparando PDF Batch", pdfError)
+                notifyError({ message: 'Entrega registrada pero hubo un error al generar el comprobante' })
             }
+
+            notifySuccess(isBatch 
+                ? `Lote de ${activeOrders.length} entregas registrado correctamente`
+                : `Entrega de pedido registrada correctamente`
+            )
 
             qc.invalidateQueries({ queryKey: ['orders'] })
             qc.invalidateQueries({ queryKey: ['financial-records'] })
@@ -226,8 +229,8 @@ export function DeliverOrderModalNew({
                     action: 'UPDATE_ORDER',
                     module: 'orders',
                     detail: isBatch 
-                        ? `Entrega lote (${activeOrders.length} pedidos). Cliente: ${firstOrder.clientName}. Total cobrado: ${totalPaid.toFixed(2)}`
-                        : `Entregó pedido ${firstOrder.receiptNumber}. Cliente: ${firstOrder.clientName}. Total cobrado: ${totalPaid.toFixed(2)}`
+                        ? `Entrega lote ${deliveryNumber} (${activeOrders.length} pedidos). Cliente: ${firstOrder.clientName}. Total cobrado: ${totalPaid.toFixed(2)}`
+                        : `Entregó pedido ${firstOrder.receiptNumber} en lote ${deliveryNumber}. Cliente: ${firstOrder.clientName}. Total cobrado: ${totalPaid.toFixed(2)}`
                 });
             }
 

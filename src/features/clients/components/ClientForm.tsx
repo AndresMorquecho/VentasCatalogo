@@ -48,10 +48,10 @@ interface ClientFormProps {
     onOpenChange: (open: boolean) => void;
 }
 
-const OPERATORS = ["Claro", "Movistar", "CNT", "Tuenti", "Otro"];
+const OPERATORS = ["CLARO", "MOVISTAR", "CNT", "TUENTI", "OTRO"];
 const ID_TYPES = [
-    { label: "N° Cedula", value: "CEDULA" },
-    { label: "Cedula extranjera", value: "CEDULA_EXTRANJERA" },
+    { label: "N° CEDULA", value: "CEDULA" },
+    { label: "CEDULA EXTRANJERA", value: "CEDULA_EXTRANJERA" },
     { label: "RUC", value: "RUC" }
 ];
 
@@ -89,6 +89,7 @@ const validationSchema = Yup.object({
     birthDate: Yup.date().optional().nullable(),
     isWhatsApp: Yup.boolean().optional(),
     referredById: Yup.string().optional().nullable(),
+    identificationIssuanceDate: Yup.date().optional().nullable(),
 });
 
 export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
@@ -155,6 +156,7 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
             isWhatsApp: client?.isWhatsApp || false,
             referredById: client?.referredById || "",
             isBlocked: client?.isBlocked || false,
+            identificationIssuanceDate: client?.identificationIssuanceDate ? client.identificationIssuanceDate.split('T')[0] : "",
         },
         validationSchema,
         enableReinitialize: true,
@@ -181,6 +183,7 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
                 isWhatsApp: values.isWhatsApp,
                 referredById: values.referredById || null,
                 isBlocked: values.isBlocked,
+                identificationIssuanceDate: values.identificationIssuanceDate || null,
             };
 
             try {
@@ -274,42 +277,47 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
                         <section className="space-y-4">
                             <div className="flex items-center gap-2 pb-2 border-b border-muted">
                                 <User className="h-4 w-4 text-primary" />
-                                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700">Información Personal</h3>
+                                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700">INFORMACIÓN PERSONAL</h3>
                             </div>
                             
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
-                                <div className="md:col-span-4 space-y-2">
-                                    <Label htmlFor="identificationType" className="text-xs font-semibold">Tipo Documento</Label>
+                                <div className="md:col-span-3 space-y-2">
+                                    <Label htmlFor="identificationType" className="text-xs font-semibold">TIPO DOCUMENTO</Label>
                                     <Select
                                         value={formik.values.identificationType}
                                         onValueChange={(val) => formik.setFieldValue("identificationType", val)}
                                     >
-                                        <SelectTrigger className="bg-slate-50/50">
+                                        <SelectTrigger className="bg-slate-50/50 h-11">
                                             <SelectValue placeholder="Seleccione tipo" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             {ID_TYPES.map(type => (
                                                 <SelectItem key={type.value} value={type.value}>
-                                                    {type.label}
+                                                    {type.label.toUpperCase()}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
                                 </div>
 
-                                <div className="md:col-span-8 space-y-2">
-                                    <Label htmlFor="identificationNumber" className="text-xs font-semibold">Número de Identificación</Label>
+                                <div className="md:col-span-5 space-y-2">
+                                    <Label htmlFor="identificationNumber" className="text-xs font-semibold">N° IDENTIFICACIÓN</Label>
                                     <div className="relative">
                                         <Input
                                             id="identificationNumber"
-                                            {...formik.getFieldProps("identificationNumber")}
+                                            name="identificationNumber"
+                                            value={formik.values.identificationNumber}
+                                            onChange={(e) => {
+                                                formik.setFieldValue("identificationNumber", e.target.value.toUpperCase());
+                                            }}
+                                            onBlur={formik.handleBlur}
                                             placeholder="Ej: 1723456789"
                                             className={cn(
-                                                "bg-slate-50/50 font-mono",
+                                                "bg-slate-50/50 font-mono uppercase h-11",
                                                 formik.touched.identificationNumber && formik.errors.identificationNumber && "border-destructive ring-destructive/20"
                                             )}
                                         />
-                                        <span className="absolute right-3 top-2.5 text-muted-foreground/30">
+                                        <span className="absolute right-3 top-3.5 text-muted-foreground/30">
                                             <CreditCard className="h-4 w-4" />
                                         </span>
                                     </div>
@@ -318,8 +326,18 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
                                     )}
                                 </div>
 
+                                <div className="md:col-span-4 space-y-2">
+                                    <Label htmlFor="identificationIssuanceDate" className="text-xs font-semibold">EXPEDICIÓN CÉDULA (OPCIONAL)</Label>
+                                    <Input
+                                        id="identificationIssuanceDate"
+                                        type="date"
+                                        {...formik.getFieldProps("identificationIssuanceDate")}
+                                        className="bg-slate-50/50 h-11 uppercase"
+                                    />
+                                </div>
+
                                 <div className="md:col-span-12 space-y-2">
-                                    <Label htmlFor="firstName" className="text-xs font-semibold">Nombre Completo de la Empresaria</Label>
+                                    <Label htmlFor="firstName" className="text-xs font-semibold">NOMBRE COMPLETO DE LA EMPRESARIA</Label>
                                     <Input
                                         id="firstName"
                                         name="firstName"
@@ -330,7 +348,7 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
                                         onBlur={formik.handleBlur}
                                         placeholder="Nombre y Apellidos"
                                         className={cn(
-                                            "bg-slate-50/50",
+                                            "bg-slate-50/50 uppercase h-11",
                                             formik.touched.firstName && formik.errors.firstName && "border-destructive ring-destructive/20"
                                         )}
                                     />
@@ -340,7 +358,7 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
                                 </div>
 
                                 <div className="md:col-span-6 space-y-2">
-                                    <Label htmlFor="birthDate" className="text-xs font-semibold">Fecha de Nacimiento</Label>
+                                    <Label htmlFor="birthDate" className="text-xs font-semibold">FECHA DE NACIMIENTO</Label>
                                     <div className="relative flex gap-2">
                                         <Input
                                             id="birthDate"
@@ -351,23 +369,23 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
                                         {formik.values.birthDate && (
                                             <Badge variant="secondary" className="h-9 px-3 shrink-0 bg-primary/5 text-primary border-primary/10">
                                                 <Calendar className="h-3 w-3 mr-1.5" />
-                                                {differenceInYears(new Date(), new Date(formik.values.birthDate))} años
+                                                {differenceInYears(new Date(), new Date(formik.values.birthDate))} AÑOS
                                             </Badge>
                                         )}
                                     </div>
                                 </div>
 
                                 <div className="md:col-span-6 space-y-2">
-                                    <Label htmlFor="referredById" className="text-xs font-semibold">Referido por (Opcional)</Label>
+                                    <Label htmlFor="referredById" className="text-xs font-semibold">REFERIDO POR (OPCIONAL)</Label>
                                     <Select
                                         value={formik.values.referredById || "none"}
                                         onValueChange={(val) => formik.setFieldValue("referredById", val === "none" ? "" : val)}
                                     >
-                                        <SelectTrigger className="bg-slate-50/50">
+                                        <SelectTrigger className="bg-slate-50/50 h-11">
                                             <SelectValue placeholder="Busque una empresaria..." />
                                         </SelectTrigger>
                                         <SelectContent searchable>
-                                            <SelectItem value="none">-- Sin referido --</SelectItem>
+                                            <SelectItem value="none">-- SIN REFERIDO --</SelectItem>
                                             {allClients
                                                 .filter(c => c.id !== client?.id)
                                                 .map(c => (
@@ -384,13 +402,13 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
                         <section className="space-y-4">
                             <div className="flex items-center gap-2 pb-2 border-b border-muted">
                                 <AlertCircle className="h-4 w-4 text-primary" />
-                                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700">Estado de Cuenta</h3>
+                                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700">ESTADO DE CUENTA</h3>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-1 bg-slate-50/30 p-4 rounded-xl border border-dashed">
                                 <div className="flex items-center justify-between p-3 bg-white rounded-lg border shadow-sm">
                                     <div className="space-y-0.5">
                                         <div className="flex items-center gap-2">
-                                            <Label htmlFor="isBlocked" className="text-xs font-bold text-destructive">Bloquear Empresaria</Label>
+                                            <Label htmlFor="isBlocked" className="text-xs font-bold text-destructive">BLOQUEAR EMPRESARIA</Label>
                                             {formik.values.isBlocked && <Badge variant="destructive" className="h-4 text-[8px] px-1 uppercase animate-pulse">Bloqueada</Badge>}
                                         </div>
                                         <p className="text-[10px] text-muted-foreground">Impide que la empresaria realice nuevos pedidos.</p>
@@ -409,16 +427,23 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
                         <section className="space-y-4">
                             <div className="flex items-center gap-2 pb-2 border-b border-muted">
                                 <MapPin className="h-4 w-4 text-primary" />
-                                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700">Ubicación y Domicilio</h3>
+                                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700">UBICACIÓN Y DOMICILIO</h3>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                                <div className="space-y-2">
-                                    <Label htmlFor="country" className="text-xs font-semibold">País</Label>
-                                    <Input id="country" {...formik.getFieldProps("country")} className="bg-slate-50/50" />
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
+                                <div className="md:col-span-4 space-y-2">
+                                    <Label htmlFor="country" className="text-xs font-semibold italic">PAÍS</Label>
+                                    <Input 
+                                        id="country" 
+                                        name="country"
+                                        value={formik.values.country}
+                                        onChange={(e) => formik.setFieldValue("country", e.target.value.toUpperCase())}
+                                        onBlur={formik.handleBlur}
+                                        className="bg-slate-50/50 uppercase h-11" 
+                                    />
                                 </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="province" className="text-xs font-semibold">Provincia</Label>
+                                <div className="md:col-span-4 space-y-2">
+                                    <Label htmlFor="province" className="text-xs font-semibold">PROVINCIA</Label>
                                     <Select
                                         value={formik.values.province}
                                         onValueChange={(val) => {
@@ -426,12 +451,12 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
                                             formik.setFieldValue("city", ""); // Reset city when province changes
                                         }}
                                     >
-                                        <SelectTrigger className="bg-slate-50/50">
-                                            <SelectValue placeholder="Seleccione provincia" />
+                                        <SelectTrigger className="bg-slate-50/50 uppercase h-11">
+                                            <SelectValue placeholder="SELECCIONE PROVINCIA" />
                                         </SelectTrigger>
                                         <SelectContent searchable>
                                             {Object.keys(ECUADOR_DATA).sort().map(prov => (
-                                                <SelectItem key={prov} value={prov}>{prov}</SelectItem>
+                                                <SelectItem key={prov} value={prov}>{prov.toUpperCase()}</SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
@@ -439,18 +464,18 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
                                         <p className="text-[10px] font-medium text-destructive mt-1">{formik.errors.province}</p>
                                     )}
                                 </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="city" className="text-xs font-semibold">Ciudad</Label>
+                                <div className="md:col-span-4 space-y-2">
+                                    <Label htmlFor="city" className="text-xs font-semibold">CIUDAD</Label>
                                     <Select
                                         value={formik.values.city}
                                         onValueChange={(val) => formik.setFieldValue("city", val)}
                                     >
-                                        <SelectTrigger className="bg-slate-50/50" disabled={!formik.values.province}>
-                                            <SelectValue placeholder={formik.values.province ? "Seleccione ciudad" : "Primero elija provincia"} />
+                                        <SelectTrigger className="bg-slate-50/50 uppercase h-11" disabled={!formik.values.province}>
+                                            <SelectValue placeholder={formik.values.province ? "SELECCIONE CIUDAD" : "PRIMERO ELIJA PROVINCIA"} />
                                         </SelectTrigger>
                                         <SelectContent searchable>
                                             {formik.values.province && ECUADOR_DATA[formik.values.province]?.sort().map(city => (
-                                                <SelectItem key={city} value={city}>{city}</SelectItem>
+                                                <SelectItem key={city} value={city}>{city.toUpperCase()}</SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
@@ -459,54 +484,103 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
                                     )}
                                 </div>
 
-                                <div className="md:col-span-2 space-y-2">
-                                    <Label htmlFor="address" className="text-xs font-semibold">Dirección Domiciliaria</Label>
-                                    <Input id="address" {...formik.getFieldProps("address")} placeholder="Calle principal y secundaria, N° de casa" className="bg-slate-50/50" />
+                                <div className="md:col-span-6 space-y-2">
+                                    <Label htmlFor="address" className="text-xs font-semibold">DIRECCIÓN DOMICILIARIA</Label>
+                                    <Input 
+                                        id="address" 
+                                        name="address"
+                                        value={formik.values.address}
+                                        onChange={(e) => formik.setFieldValue("address", e.target.value.toUpperCase())}
+                                        onBlur={formik.handleBlur}
+                                        placeholder="Calle principal y secundaria, N°" 
+                                        className="bg-slate-50/50 uppercase h-11" 
+                                    />
                                 </div>
-                                <div className="md:col-span-1 space-y-2">
-                                    <Label htmlFor="neighborhood" className="text-xs font-semibold">Barrio / Urbanización</Label>
-                                    <Input id="neighborhood" {...formik.getFieldProps("neighborhood")} className="bg-slate-50/50" />
+                                <div className="md:col-span-3 space-y-2">
+                                    <Label htmlFor="neighborhood" className="text-xs font-semibold">BARRIO / URBANIZACIÓN</Label>
+                                    <Input 
+                                        id="neighborhood" 
+                                        name="neighborhood"
+                                        value={formik.values.neighborhood}
+                                        onChange={(e) => formik.setFieldValue("neighborhood", e.target.value.toUpperCase())}
+                                        onBlur={formik.handleBlur}
+                                        className="bg-slate-50/50 uppercase h-11" 
+                                    />
+                                </div>
+                                <div className="md:col-span-3 space-y-2">
+                                    <Label htmlFor="sector" className="text-xs font-semibold">SECTOR</Label>
+                                    <Input 
+                                        id="sector" 
+                                        name="sector"
+                                        value={formik.values.sector}
+                                        onChange={(e) => formik.setFieldValue("sector", e.target.value.toUpperCase())}
+                                        onBlur={formik.handleBlur}
+                                        className="bg-slate-50/50 uppercase h-11" 
+                                    />
                                 </div>
 
-                                <div className="md:col-span-3 space-y-2 text-area-like">
-                                    <Label htmlFor="reference" className="text-xs font-semibold">Referencia de Ubicación</Label>
-                                    <Input id="reference" {...formik.getFieldProps("reference")} placeholder="Ej: Frente a la farmacia, casa color verde..." className="bg-slate-50/50" />
+                                <div className="md:col-span-12 space-y-2 text-area-like">
+                                    <Label htmlFor="reference" className="text-xs font-semibold">REFERENCIA DE UBICACIÓN</Label>
+                                    <Input 
+                                        id="reference" 
+                                        name="reference"
+                                        value={formik.values.reference}
+                                        onChange={(e) => formik.setFieldValue("reference", e.target.value.toUpperCase())}
+                                        onBlur={formik.handleBlur}
+                                        placeholder="Ej: Frente a la farmacia, casa color verde..." 
+                                        className="bg-slate-50/50 uppercase h-11" 
+                                     />
                                 </div>
                             </div>
                         </section>
 
-                        {/* SECCIÓN 3: CONTACTO DIGITAL Y TELEFÓNICO */}
+                        {/* SECCIÓN 3: CANALES DE CONTACTO */}
                         <section className="space-y-4">
                             <div className="flex items-center gap-2 pb-2 border-b border-muted">
                                 <PhoneIcon className="h-4 w-4 text-primary" />
-                                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700">Canales de Contacto</h3>
+                                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700">CANALES DE CONTACTO</h3>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
                                 <div className="md:col-span-12 space-y-2">
-                                    <Label htmlFor="email" className="text-xs font-semibold">Correo Electrónico</Label>
+                                    <Label htmlFor="email" className="text-xs font-semibold uppercase">CORREO ELECTRÓNICO</Label>
                                     <div className="relative">
-                                        <Input id="email" type="email" {...formik.getFieldProps("email")} placeholder="ejemplo@correo.com" className="bg-slate-50/50 pl-10" />
-                                        <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground/50" />
+                                        <Input 
+                                            id="email" 
+                                            type="email" 
+                                            {...formik.getFieldProps("email")} 
+                                            placeholder="ejemplo@correo.com" 
+                                            className="bg-slate-50/50 pl-10 h-11" 
+                                        />
+                                        <Mail className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground/50" />
                                     </div>
                                     {formik.touched.email && formik.errors.email && (
                                         <p className="text-[10px] font-medium text-destructive mt-1">{formik.errors.email}</p>
                                     )}
                                 </div>
 
+                                {/* Teléfono Principal */}
                                 <div className="md:col-span-6 space-y-2">
-                                    <Label className="text-xs font-semibold">Teléfono Principal</Label>
+                                    <Label className="text-xs font-semibold uppercase">TELÉFONO PRINCIPAL</Label>
                                     <div className="flex gap-2">
-                                        <Input id="phone1" {...formik.getFieldProps("phone1")} placeholder="0998765432" className="flex-1 bg-slate-50/50" />
+                                        <Input 
+                                            id="phone1" 
+                                            name="phone1"
+                                            value={formik.values.phone1}
+                                            onChange={(e) => formik.setFieldValue("phone1", e.target.value.toUpperCase())}
+                                            onBlur={formik.handleBlur}
+                                            placeholder="0998765432" 
+                                            className="flex-1 bg-slate-50/50 uppercase h-11" 
+                                        />
                                         <div className="w-32 shrink-0">
                                             <Select
                                                 value={formik.values.operator1}
                                                 onValueChange={(val) => formik.setFieldValue("operator1", val)}
                                             >
-                                                <SelectTrigger className="bg-slate-50/50">
-                                                    <SelectValue placeholder="Operador" />
+                                                <SelectTrigger className="bg-slate-50/50 h-11 uppercase">
+                                                    <SelectValue placeholder="OPERADOR" />
                                                 </SelectTrigger>
-                                                <SelectContent>
+                                                <SelectContent side="top">
                                                     {OPERATORS.map(op => (
                                                         <SelectItem key={op} value={op}>{op}</SelectItem>
                                                     ))}
@@ -514,15 +588,15 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
                                             </Select>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2 pt-1">
+                                    <div className="flex items-center gap-2 pt-1 h-8">
                                         <Switch
                                             id="isWhatsApp"
                                             checked={formik.values.isWhatsApp}
                                             onCheckedChange={(val) => formik.setFieldValue("isWhatsApp", val)}
                                         />
-                                        <Label htmlFor="isWhatsApp" className="text-[10px] cursor-pointer flex items-center gap-1.5 font-medium text-slate-500">
+                                        <Label htmlFor="isWhatsApp" className="text-[10px] cursor-pointer flex items-center gap-1.5 font-bold text-slate-500 uppercase">
                                             <MessageSquare className={cn("h-3 w-3", formik.values.isWhatsApp ? "text-green-600" : "text-slate-400")} />
-                                            Vincular con WhatsApp
+                                            VINCULAR CON WHATSAPP
                                         </Label>
                                     </div>
                                     {formik.touched.phone1 && formik.errors.phone1 && (
@@ -530,20 +604,29 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
                                     )}
                                 </div>
 
+                                {/* Teléfono Secundario */}
                                 <div className="md:col-span-6 space-y-2">
-                                    <Label htmlFor="phone2" className="text-xs font-semibold">Teléfono Secundario (Respaldos)</Label>
+                                    <Label htmlFor="phone2" className="text-xs font-semibold uppercase">TELÉFONO SECUNDARIO (RESPALDOS)</Label>
                                     <div className="flex gap-2">
-                                        <Input id="phone2" {...formik.getFieldProps("phone2")} placeholder="022123456" className="flex-1 bg-slate-50/50" />
+                                        <Input 
+                                            id="phone2" 
+                                            name="phone2"
+                                            value={formik.values.phone2}
+                                            onChange={(e) => formik.setFieldValue("phone2", e.target.value.toUpperCase())}
+                                            onBlur={formik.handleBlur}
+                                            placeholder="022123456" 
+                                            className="flex-1 bg-slate-50/50 uppercase h-11" 
+                                        />
                                         <div className="w-32 shrink-0">
                                             <Select
                                                 value={formik.values.operator2 || "none"}
                                                 onValueChange={(val) => formik.setFieldValue("operator2", val === "none" ? "" : val)}
                                             >
-                                                <SelectTrigger className="bg-slate-50/50">
-                                                    <SelectValue placeholder="Operador" />
+                                                <SelectTrigger className="bg-slate-50/50 h-11 uppercase">
+                                                    <SelectValue placeholder="OPERADOR" />
                                                 </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="none">-- Sin especificar --</SelectItem>
+                                                <SelectContent side="top">
+                                                    <SelectItem value="none">-- SIN ESPECIFICAR --</SelectItem>
                                                     {OPERATORS.map(op => (
                                                         <SelectItem key={op} value={op}>{op}</SelectItem>
                                                     ))}
@@ -551,8 +634,11 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
                                             </Select>
                                         </div>
                                     </div>
-                                    {/* Placeholder div to maintain height alignment with Phone 1's WhatsApp switch */}
-                                    <div className="h-[20px] pt-1" aria-hidden="true" />
+                                    {/* Spacer to maintain vertical alignment with Phone 1 */}
+                                    <div className="h-8 pt-1" aria-hidden="true" />
+                                    {formik.touched.phone2 && formik.errors.phone2 && (
+                                        <p className="text-[10px] font-medium text-destructive mt-1">{formik.errors.phone2}</p>
+                                    )}
                                 </div>
                             </div>
                         </section>
@@ -575,16 +661,16 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
                             onClick={() => onOpenChange(false)}
                             className="flex-1 sm:flex-none uppercase text-[10px] font-bold tracking-widest"
                         >
-                            Cerrar
+                            CERRAR
                         </Button>
                         <AsyncButton 
                             form="client-form"
                             type="submit" 
                             isLoading={isSubmitting} 
-                            loadingText="Procesando..." 
+                            loadingText="PROCESANDO..." 
                             className="flex-1 sm:flex-none px-8 uppercase text-[10px] font-bold tracking-widest shadow-lg shadow-primary/20"
                         >
-                            {isEditing ? "Actualizar Registro" : "Registrar Empresaria"}
+                            {isEditing ? "ACTUALIZAR REGISTRO" : "REGISTRAR EMPRESARIA"}
                         </AsyncButton>
                     </div>
                 </DialogFooter>

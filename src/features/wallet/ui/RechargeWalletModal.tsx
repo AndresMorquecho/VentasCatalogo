@@ -86,7 +86,11 @@ export function RechargeWalletModal({ open, onOpenChange }: RechargeWalletModalP
 
                 await walletApi.recharge(payload);
 
-                notifySuccess("Solicitud de recarga registrada. Un administrador debe validarla.");
+                const successMsg = values.paymentMethod === "EFECTIVO" 
+                    ? "Recarga de efectivo registrada y aprobada instantáneamente."
+                    : "Solicitud de recarga registrada. Un administrador debe validarla.";
+
+                notifySuccess(successMsg);
 
                 queryClient.invalidateQueries({ queryKey: ["client-credits"] });
                 queryClient.invalidateQueries({ queryKey: ["wallet-recharges"] });
@@ -293,7 +297,7 @@ export function RechargeWalletModal({ open, onOpenChange }: RechargeWalletModalP
                         <Button
                             type="submit"
                             disabled={isSubmitting}
-                            className="bg-slate-800 hover:bg-slate-900 text-white font-black uppercase text-[10px] tracking-widest px-10 h-11 shadow-xl shadow-slate-200 rounded-lg group"
+                            className="bg-primary hover:bg-primary/90 text-white font-black uppercase text-[10px] tracking-widest px-10 h-11 shadow-xl shadow-primary/20 rounded-lg group"
                         >
                             {isSubmitting ? (
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

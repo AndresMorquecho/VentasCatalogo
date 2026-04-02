@@ -50,7 +50,7 @@ export const MODULE_ACTIONS: Record<ModuleKey, string[]> = {
         'redeem'
     ],
     users: ['view', 'create', 'edit', 'delete', 'change_password', 'assign_roles'],
-    exchanges: ['view', 'create', 'edit', 'delete'],
+    exchanges: ['view', 'create', 'edit', 'delete', 'save_with_zero_deposit'],
     system_config: [
         'view',
         'create_notimonchito', 

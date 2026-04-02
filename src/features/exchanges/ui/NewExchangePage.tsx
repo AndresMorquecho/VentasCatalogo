@@ -3,7 +3,7 @@ import { useFormik } from "formik"
 import { useNavigate, useParams } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
 import * as Yup from "yup"
-import { ArrowLeft, Plus, X, RefreshCw, Printer, FileText, Search, PackageOpen } from "lucide-react"
+import { ArrowLeft, Plus, X, RefreshCw, Printer, FileText, Search, PackageOpen, Send } from "lucide-react"
 
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
@@ -35,10 +35,9 @@ import { DateRangePicker } from "@/shared/ui/filters"
 import type { DateRange } from "react-day-picker"
 import { Pagination } from "@/shared/ui/pagination"
 
-/* --- Validation Schema --- */
 const validationSchema = Yup.object({
     clientId: Yup.string().required("El cliente es requerido"),
-    receiptNumber: Yup.string().required("El N° de recibo es requerido"),
+    receiptNumber: Yup.string().optional(),
     salesChannel: Yup.string().required("El canal es requerido"),
     brandItems: Yup.array().of(
         Yup.object({
@@ -62,11 +61,15 @@ function SourceOrderModal({
     isOpen, 
     onClose, 
     clientId, 
+    alreadySelectedIds = [],
+    alreadySelectedNumbers = [],
     onSelect 
 }: { 
     isOpen: boolean, 
     onClose: () => void, 
     clientId: string,
+    alreadySelectedIds?: string[],
+    alreadySelectedNumbers?: string[],
     onSelect: (order: any) => void 
 }) {
     const [searchTerm, setSearchTerm] = useState("")
@@ -80,16 +83,24 @@ function SourceOrderModal({
         startDate: dateRange?.from?.toISOString().split('T')[0],
         endDate: dateRange?.to?.toISOString().split('T')[0],
         page,
-        limit: 10
+        limit: 5
     }), [clientId, searchTerm, dateRange, page])
 
     const { data: response, isLoading } = useOrderList(filters)
-    const orders = response?.data || []
+    const allOrders = response?.data || []
     const pagination = response?.pagination
+
+    // Filter out orders that are already in the table
+    const orders = useMemo(() => {
+        let result = allOrders;
+        if (alreadySelectedIds.length > 0) result = result.filter((o: any) => !alreadySelectedIds.includes(o.id));
+        if (alreadySelectedNumbers.length > 0) result = result.filter((o: any) => !alreadySelectedNumbers.includes(o.orderNumber));
+        return result;
+    }, [allOrders, alreadySelectedIds, alreadySelectedNumbers]);
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-4xl w-[95vw] min-h-[500px] h-[80vh] flex flex-col p-6 overflow-hidden">
+            <DialogContent className="max-w-6xl w-[95vw] h-[80vh] min-h-[600px] max-h-[95vh] flex flex-col p-6 overflow-hidden">
                 <DialogHeader className="mb-4">
                     <DialogTitle className="text-xl font-bold text-slate-900 flex items-center gap-2">
                         <PackageOpen className="h-5 w-5 text-monchito-purple" />
@@ -116,7 +127,7 @@ function SourceOrderModal({
                             value={dateRange} 
                             onChange={setDateRange} 
                             showLabel={true}
-                            label="Rango de Fecha"
+                            label="Búsquda por Fecha de Creación"
                             className="w-full"
                             buttonClassName="h-11 rounded-xl bg-slate-50 border-slate-200"
                             labelClassName="!text-[10px] !font-black uppercase tracking-widest !text-slate-400 !mb-1.5 !ml-1"
@@ -125,28 +136,42 @@ function SourceOrderModal({
                 </div>
 
                 {/* Table */}
-                <div className="flex-1 overflow-auto border rounded-xl bg-slate-50/30">
+                <div className="flex-1 overflow-auto border rounded-xl bg-slate-50/30 min-h-0">
                     <table className="w-full text-xs text-left">
                         <thead className="sticky top-0 bg-white border-b z-10">
                             <tr className="bg-slate-50/80">
-                                <th className="px-4 py-3 font-bold text-slate-500 uppercase tracking-wider">Orden</th>
-                                <th className="px-4 py-3 font-bold text-slate-500 uppercase tracking-wider">Pedido</th>
-                                <th className="px-4 py-3 font-bold text-slate-500 uppercase tracking-wider">Marca</th>
+                                <th className="px-4 py-3 font-bold text-slate-500 uppercase tracking-wider min-w-[120px]">Orden</th>
+                                <th className="px-4 py-3 font-bold text-slate-500 uppercase tracking-wider min-w-[120px]">Pedido</th>
+                                <th className="px-4 py-3 font-bold text-slate-500 uppercase tracking-wider min-w-[100px]">Marca</th>
+                                <th className="px-4 py-3 font-bold text-slate-500 uppercase tracking-wider text-center">Tipo</th>
+                                <th className="px-4 py-3 font-bold text-slate-500 uppercase tracking-wider text-center">Factura</th>
+                                <th className="px-4 py-3 font-bold text-slate-500 uppercase tracking-wider text-center">Creación</th>
+                                <th className="px-4 py-3 font-bold text-slate-500 uppercase tracking-wider text-center">Recepción</th>
                                 <th className="px-4 py-3 font-bold text-slate-500 uppercase tracking-wider text-right">Valor</th>
                                 <th className="px-4 py-3 font-bold text-slate-500 uppercase tracking-wider text-center">Acción</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {isLoading ? (
-                                <tr><td colSpan={5} className="p-8 text-center text-slate-400">Cargando pedidos...</td></tr>
+                                <tr><td colSpan={9} className="p-8 text-center text-slate-400">Cargando pedidos...</td></tr>
                             ) : orders.length === 0 ? (
-                                <tr><td colSpan={5} className="p-8 text-center text-slate-400">No se encontraron pedidos entregados.</td></tr>
+                                <tr><td colSpan={9} className="p-8 text-center text-slate-400">No se encontraron pedidos entregados.</td></tr>
                             ) : (
                                 orders.map((o: any) => (
-                                    <tr key={o.id} className="hover:bg-white transition-colors group">
+                                    <tr key={o.id} className="hover:bg-white transition-colors group text-[11px]">
                                         <td className="px-4 py-3 font-bold text-slate-700">{o.receiptNumber}</td>
                                         <td className="px-4 py-3 font-medium text-slate-600">{o.orderNumber || '-'}</td>
                                         <td className="px-4 py-3 font-bold text-monchito-purple">{o.brand?.name || o.brandName}</td>
+                                        <td className="px-4 py-3 text-center">
+                                            <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-black text-[9px] uppercase tracking-tighter">{o.type}</span>
+                                        </td>
+                                        <td className="px-4 py-3 text-center font-bold text-slate-500">{o.invoiceNumber || '-'}</td>
+                                        <td className="px-4 py-3 text-center text-slate-400">
+                                            {o.transactionDate ? new Date(o.transactionDate).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}
+                                        </td>
+                                        <td className="px-4 py-3 text-center text-slate-400">
+                                            {o.receptionDate ? new Date(o.receptionDate).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}
+                                        </td>
                                         <td className="px-4 py-3 font-black text-slate-900 text-right">${Number(o.total).toFixed(2)}</td>
                                         <td className="px-4 py-3 text-center">
                                             <Button 
@@ -388,8 +413,12 @@ export function NewExchangePage() {
         }
     })
 
+    const [saveStatus, setSaveStatus] = useState<'RECOLECTADO' | 'EN_TRANSITO'>('RECOLECTADO')
+
     // State for the item being added
     const [currentItem, setCurrentItem] = useState({
+        clientId: "",
+        clientName: "",
         brandId: "",
         brandName: "",
         quantity: 1,
@@ -410,6 +439,29 @@ export function NewExchangePage() {
     })
 
     const [isSourceModalOpen, setIsSourceModalOpen] = useState(false)
+
+
+    const formik = useFormik({
+        initialValues: {
+            clientId: "",
+            receiptNumber: "",
+            salesChannel: "OFICINA" as SalesChannel,
+            brandItems: [] as any[],
+            deposit: 0,
+            creditToUse: 0,
+            createdAt: new Date().toISOString().split('T')[0],
+            transactionDate: new Date().toISOString().split('T')[0],
+            paymentMethod: "EFECTIVO",
+            notes: "",
+        },
+        validationSchema,
+        enableReinitialize: true,
+        onSubmit: async () => {}
+    })
+
+    const totalOrderValue = formik.values.brandItems.reduce((sum, item) => sum + Number(item.total), 0);
+    const totalRowDeposit = formik.values.brandItems.reduce((sum, item) => sum + Number(item.deposit || 0), 0);
+    const balance = totalOrderValue - totalRowDeposit - Number(formik.values.creditToUse);
 
     // Función para procesar el pago y crear el recibo
     const handlePaymentSubmit = async (paymentData: PaymentModalData) => {
@@ -466,14 +518,16 @@ export function NewExchangePage() {
                     }
                     
                     // Construct the combined description for the backend audit trail
-                    const structuredNotes = `CAMBIO DE [${item.sourceOrderNumber} ${item.sourceBrandName} x${item.sourceQuantity}: ${item.sourceDescription || 'Sin detalle'}] POR [${item.brandName} x${item.quantity}: ${item.description || 'Sin detalle'}]`;
+                    const structuredNotes = `CAMBIO DE [${item.sourceOrderNumber} ${item.sourceBrandName} x${item.sourceQuantity}: ${item.sourceDescription || 'Sin detalle'}] POR [${item.brandName} x${item.quantity}: ${item.description || 'Sin detalle'}]${formik.values.notes ? ` - NOTA: ${formik.values.notes.toUpperCase()}` : ''}`;
 
                     return {
+                        clientId: item.clientId || formik.values.clientId, // Use per-item clientId if available
                         brand_id: item.brandId,
                         brand_name: item.brandName,
                         total: item.total,
                         deposit: rowDeposit,
                         type: item.type,
+                        status: saveStatus,
                         notes: structuredNotes, // Ensure the backend gets the full context
                         possible_delivery_date: item.possibleDeliveryDate,
                         source_order_id: item.sourceOrderId || undefined,
@@ -536,40 +590,12 @@ export function NewExchangePage() {
         }
     }
 
-    const formik = useFormik({
-        initialValues: {
-            clientId: "",
-            receiptNumber: "",
-            salesChannel: "OFICINA" as SalesChannel,
-            brandItems: [] as any[],
-            deposit: 0,
-            creditToUse: 0,
-            createdAt: new Date().toISOString().split('T')[0],
-            transactionDate: new Date().toISOString().split('T')[0],
-            paymentMethod: "EFECTIVO",
-            notes: "",
-        },
-        validationSchema,
-        enableReinitialize: true,
-        onSubmit: async () => {}
-    })
-
     useEffect(() => {
         if (formik.submitCount > 0 && !formik.isValid) {
-            notifyError(null, "Hay campos inválidos en el formulario. Por favor revisa los datos marcados.")
+            notifyError(null, getErrorMessage());
         }
-    }, [formik.submitCount, formik.isValid])
+    }, [formik.submitCount, formik.errors, formik.isValid])
 
-    const generateNextReceiptNumber = async () => {
-        try {
-            const { receiptNumber } = await orderApi.generateReceiptNumber();
-            formik.setFieldValue('receiptNumber', receiptNumber);
-        } catch (error) {
-            console.error('Error generating receipt number:', error);
-            const year = new Date().getFullYear();
-            formik.setFieldValue('receiptNumber', `OR-${year}-001`);
-        }
-    };
 
     const generateNextOrderNumber = async () => {
         try {
@@ -587,12 +613,28 @@ export function NewExchangePage() {
         }
     };
 
+    const getErrorMessage = () => {
+        if (formik.errors.clientId) return "Falta seleccionar el cliente.";
+        if (formik.errors.brandItems) {
+            if (typeof formik.errors.brandItems === 'string') return "Debe agregar al menos un ítem al cambio.";
+            return "Hay errores en los datos de los ítems.";
+        }
+        if (formik.errors.receiptNumber) return formik.errors.receiptNumber as string;
+        if (formik.errors.salesChannel) return "Falta el canal de venta.";
+        if (formik.errors.createdAt) return "Falta la fecha de registro.";
+        
+        const firstErrorKey = Object.keys(formik.errors)[0];
+        if (firstErrorKey) return `Error: ${formik.errors[firstErrorKey as keyof typeof formik.errors]}`;
+        
+        return "Hay campos inválidos en el formulario.";
+    };
+
     const validateReceiptNumber = async (receiptNumber: string): Promise<boolean> => {
         if (!receiptNumber || isEditing) return true;
         try {
             const { exists } = await orderApi.checkReceiptExists(receiptNumber);
             if (exists) {
-                formik.setFieldError('receiptNumber', 'Este número de recibo ya existe');
+                formik.setFieldError('receiptNumber', 'Este número de guía ya existe');
                 return false;
             }
             return true;
@@ -787,7 +829,8 @@ export function NewExchangePage() {
                     setIsLoadingRelated(false);
                 }
             } else if (!isEditing) {
-                generateNextReceiptNumber();
+                // Remove automatic receipt generation for exchanges as per user request
+                // generateNextReceiptNumber();
                 generateNextOrderNumber();
             }
         };
@@ -796,10 +839,6 @@ export function NewExchangePage() {
 
     const { data: closurePreview } = useCashClosurePreview()
     useEffect(() => { if (closurePreview?.lastClosureDate) setLastClosureDate(new Date(closurePreview.lastClosureDate)) }, [closurePreview])
-
-    const totalOrderValue = formik.values.brandItems.reduce((sum, item) => sum + Number(item.total), 0);
-    const totalRowDeposit = formik.values.brandItems.reduce((sum, item) => sum + Number(item.deposit || 0), 0);
-    const balance = totalOrderValue - totalRowDeposit - Number(formik.values.creditToUse);
 
     const clientOptions = clients.map(c => ({ id: c.id, label: c.firstName, subLabel: c.identificationNumber }))
     const brandOptions = getActiveBrands(brands).map(b => ({ id: b.id, label: b.name, subLabel: "" }))
@@ -810,20 +849,32 @@ export function NewExchangePage() {
         const validation = canAddNewItem()
         if (!validation.canEdit) { notifyError(null, validation.reason || 'No se puede agregar'); return }
 
+        // Block duplicates in the table
+        if (currentItem.sourceOrderId) {
+            const isDuplicate = formik.values.brandItems.some((item: any) => item.sourceOrderId === currentItem.sourceOrderId);
+            if (isDuplicate) {
+                notifyError(null, `El pedido original ${currentItem.sourceOrderNumber} ya ha sido agregado a este cambio.`);
+                return;
+            }
+        }
+
         if (isEditing) {
             try {
                 setIsSubmitting(true)
                 const itemsToCreate = [currentItem]
                 const firstExistingOrder = formik.values.brandItems.find((item: any) => item.id)
                 const parentOrderId = firstExistingOrder?.id || null
-                const client = clients.find(c => c.id === formik.values.clientId);
-                const clientName = client ? client.firstName : "Desconocido";
-
                 for (const itemToCreate of itemsToCreate) {
                     const unitPrice = itemToCreate.quantity > 0 ? itemToCreate.total / itemToCreate.quantity : 0
+                    const itemClientId = itemToCreate.clientId || formik.values.clientId;
+                    const itemClient = clients.find(c => c.id === itemClientId);
+                    const itemClientName = itemClient ? itemClient.firstName : "Desconocido";
+
+                    const structuredNotes = `CAMBIO DE [${itemToCreate.sourceOrderNumber} ${itemToCreate.sourceBrandName} x${itemToCreate.sourceQuantity}: ${itemToCreate.sourceDescription || 'Sin detalle'}] POR [${itemToCreate.brandName} x${itemToCreate.quantity}: ${itemToCreate.description || 'Sin detalle'}]${formik.values.notes ? ` - NOTA: ${formik.values.notes.toUpperCase()}` : ''}`;
+
                     const payload = {
-                        clientId: formik.values.clientId,
-                        clientName,
+                        clientId: itemClientId,
+                        clientName: itemClientName,
                         receiptNumber: formik.values.receiptNumber,
                         salesChannel: itemToCreate.salesChannel || formik.values.salesChannel,
                         type: itemToCreate.type,
@@ -831,7 +882,7 @@ export function NewExchangePage() {
                         brandName: itemToCreate.brandName,
                         total: itemToCreate.total,
                         possibleDeliveryDate: itemToCreate.possibleDeliveryDate,
-                        notes: itemToCreate.description || formik.values.notes,
+                        notes: structuredNotes,
                         createdAt: formik.values.createdAt,
                         transaction_date: formik.values.transactionDate,
                         paymentMethod: formik.values.paymentMethod,
@@ -858,16 +909,22 @@ export function NewExchangePage() {
             } finally { setIsSubmitting(false) }
         } else {
             const baseId = crypto.randomUUID();
-            // Guardamos el objeto actual sin machacar la descripción con el resumen estructurado aún
-            // para poder mostrar las columnas separadas en la tabla
+            const itemClientId = currentItem.clientId || formik.values.clientId;
+            const itemClient = clients.find(c => c.id === itemClientId);
+            const itemClientName = itemClient ? itemClient.firstName : "";
+
             formik.setFieldValue("brandItems", [...formik.values.brandItems, { 
                 ...currentItem, 
+                clientId: itemClientId,
+                clientName: itemClientName,
                 tempId: baseId, 
                 deposit: 0 
             }]);
             
             // Reset ALL fields
             setCurrentItem({
+                clientId: "",
+                clientName: "",
                 brandId: "",
                 brandName: "",
                 quantity: 1,
@@ -914,6 +971,27 @@ export function NewExchangePage() {
         } catch (error: any) { notifyError(error, 'Error al generar el recibo.') } finally { setIsSubmitting(false) }
     }
 
+    const handleUpdateBatchStatus = async (status: 'RECOLECTADO' | 'EN_TRANSITO') => {
+        if (!receiptNumber) return;
+        try {
+            setIsSubmitting(true);
+            const response = await orderApi.getByReceipt(receiptNumber);
+            if (response && response.length > 0) {
+                const batchId = (response[0] as any).exchangeBatchItems?.[0]?.batchId;
+                if (batchId) {
+                    await orderApi.updateExchangeBatchStatus(batchId, status);
+                    notifySuccess(`Estado de la guía actualizado a ${status === 'RECOLECTADO' ? 'Recolección' : 'En Tránsito'}`);
+                    queryClient.invalidateQueries({ queryKey: ['orders'] });
+                    queryClient.invalidateQueries({ queryKey: ['receiptOrders', receiptNumber] });
+                }
+            }
+        } catch (error: any) {
+            notifyError(error, "Error al actualizar el estado de la guía");
+        } finally {
+            setIsSubmitting(false);
+        }
+    }
+
     if ((isEditing && (isLoadingOrder || isLoadingReceiptOrders)) || isLoadingRelated) {
         return (
             <div className="flex h-[60vh] flex-col items-center justify-center gap-4">
@@ -923,12 +1001,24 @@ export function NewExchangePage() {
         )
     }
 
-    const handleMainSave = async () => {
+    const handleMainSave = async (status: 'RECOLECTADO' | 'EN_TRANSITO' = 'RECOLECTADO') => {
         if (formik.values.brandItems.length === 0) { notifyError(null, "Debe agregar al menos una marca."); return; }
-        if (Object.keys(formik.errors).length > 0) { notifyError(null, "Revise los errores en el formulario."); return; }
+        
+        setSaveStatus(status);
+
+        // Ejecutar validación de Formik
+        const errors = await formik.validateForm();
+        if (Object.keys(errors).length > 0) {
+            notifyError(null, getErrorMessage());
+            return;
+        }
+
         if (!isEditing) {
             const isValidReceipt = await validateReceiptNumber(formik.values.receiptNumber);
-            if (!isValidReceipt) return;
+            if (!isValidReceipt) {
+                notifyError(null, "Este número de guía ya existe en el sistema.");
+                return;
+            }
         }
         setPaymentModalOpen(true)
     }
@@ -957,13 +1047,13 @@ export function NewExchangePage() {
                     <CardContent className="p-4">
                         <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
                             <div className="md:col-span-2 space-y-1">
-                                <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">N° de cambio:</Label>
+                                <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">N° de Guía:</Label>
                                 <Input
                                     name="receiptNumber"
                                     value={formik.values.receiptNumber}
                                     onChange={formik.handleChange}
                                     className="h-9 font-bold bg-white border-slate-200 rounded-xl focus:ring-monchito-purple/20 transition-all uppercase text-xs"
-                                    placeholder="CAM-XXXX"
+                                    placeholder=""
                                 />
                             </div>
                             <div className="md:col-span-2 space-y-1">
@@ -973,7 +1063,6 @@ export function NewExchangePage() {
                                     name="createdAt"
                                     value={formik.values.createdAt}
                                     onChange={formik.handleChange}
-                                    disabled={isEditing}
                                     className="h-9 rounded-xl border-slate-200 bg-white text-xs pl-3 pr-1"
                                 />
                             </div>
@@ -988,7 +1077,7 @@ export function NewExchangePage() {
                                             onChange={(val) => {
                                                 formik.setFieldValue("clientId", val);
                                             }}
-                                            disabled={isEditing}
+                                            disabled={false}
                                         />
                                     </div>
                                     <Button 
@@ -1048,9 +1137,10 @@ export function NewExchangePage() {
                                 <Label className="text-xs font-bold uppercase text-slate-500">No Pedido Orig:</Label>
                                 <Input
                                     value={currentItem.sourceOrderNumber}
-                                    onChange={(e) => setCurrentItem(prev => ({ ...prev, sourceOrderNumber: e.target.value }))}
-                                    className="h-8 font-mono font-bold bg-slate-50 border-slate-200 rounded-md text-xs px-2"
-                                    placeholder="PD-XXXX"
+                                    onChange={() => {}}
+                                    readOnly
+                                    className="h-8 font-mono font-bold bg-slate-100 border-slate-200 rounded-md text-xs px-2 cursor-not-allowed text-slate-500"
+                                    placeholder="Elija pedido..."
                                 />
                             </div>
                             <div className="w-full sm:w-[60px] space-y-1 shrink-0">
@@ -1065,13 +1155,14 @@ export function NewExchangePage() {
                             <div className="w-full sm:flex-1 min-w-[140px] space-y-1">
                                 <Label className="text-xs font-bold uppercase text-slate-500">Catálogo Orig:</Label>
                                 <SearchableSelect
-                                    placeholder="Marca..."
+                                    placeholder="Elija pedido p/ catálogo..."
                                     options={brandOptions}
                                     value={currentItem.sourceBrandId}
                                     onChange={(val) => {
                                         const brand = brands.find(b => b.id === val);
                                         setCurrentItem(prev => ({ ...prev, sourceBrandId: val, sourceBrandName: brand?.name || "" }));
                                     }}
+                                    disabled={true}
                                 />
                             </div>
                             <div className="w-full sm:flex-[2] min-w-[200px] space-y-1">
@@ -1100,7 +1191,7 @@ export function NewExchangePage() {
                         {/* ROW 2: NEW ITEM (REPLACEMENT) */}
                         <div className="flex flex-wrap lg:flex-nowrap gap-3 items-end mb-4">
                             <div className="w-full sm:w-[110px] space-y-1 shrink-0">
-                                <Label className="text-xs font-bold uppercase text-slate-500">Pedido por:</Label>
+                                <Label className="text-xs font-bold uppercase text-slate-500">Pedidos por:</Label>
                                 <select 
                                     className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 py-0.5 text-xs text-slate-700 font-bold focus:ring-1 focus:ring-monchito-purple outline-none transition-all cursor-pointer"
                                     value={currentItem.salesChannel}
@@ -1176,6 +1267,7 @@ export function NewExchangePage() {
                                         <thead>
                                             <tr className="bg-monchito-purple/5 border-b border-monchito-purple/10">
                                                 <th className="px-2 py-3 border-r border-monchito-purple/10 text-center w-8 text-[10px] font-black text-monchito-purple uppercase tracking-widest">N°</th>
+                                                <th className="px-2 py-3 border-r border-monchito-purple/10 text-[10px] font-black text-monchito-purple uppercase tracking-widest">Empresaria</th>
                                                 <th className="px-2 py-3 border-r border-monchito-purple/10 text-[10px] font-black text-monchito-purple uppercase tracking-widest">Pedido por</th>
                                                 <th className="px-2 py-3 border-r border-monchito-purple/10 text-[10px] font-black text-monchito-purple uppercase tracking-widest">N° de pedido</th>
                                                 <th className="px-2 py-3 border-r border-monchito-purple/10 text-[10px] font-black text-monchito-purple uppercase tracking-widest">Tipo</th>
@@ -1202,6 +1294,11 @@ export function NewExchangePage() {
                                                 formik.values.brandItems.map((item, idx) => (
                                                     <tr key={item.id || item.tempId || idx} className="hover:bg-monchito-purple/5 transition-all duration-200 border-b border-slate-50 last:border-0 text-xs">
                                                         <td className="px-2 py-2 border-r border-slate-50 text-center font-bold text-slate-400">{idx + 1}</td>
+                                                        <td className="px-2 py-2 border-r border-slate-50">
+                                                            <span className="font-bold text-slate-700 truncate block max-w-[120px]" title={item.clientName}>
+                                                                {item.clientName || clients.find(c => c.id === formik.values.clientId)?.firstName || "S/N"}
+                                                            </span>
+                                                        </td>
                                                         <td className="px-2 py-2 border-r border-slate-50">
                                                             <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-[10px] font-black uppercase">{item.salesChannel}</span>
                                                         </td>
@@ -1256,25 +1353,57 @@ export function NewExchangePage() {
                                         placeholder="Notas adicionales de la guía..." 
                                     ></textarea>
                                 </div>
-                                {!isEditing ? (
-                                    <AsyncButton 
-                                        onClick={handleMainSave} 
-                                        className="h-12 px-8 bg-monchito-purple hover:bg-monchito-purple/90 text-white font-black rounded-xl shadow-lg shadow-monchito-purple/20 transition-all flex items-center gap-2 whitespace-nowrap"
-                                        isLoading={isSubmitting}
-                                    >
-                                        <Plus className="h-5 w-5" /> 
-                                        Guardar Guía de Cambio
-                                    </AsyncButton>
-                                ) : (
-                                    <AsyncButton 
-                                        onClick={handlePrintReceipt} 
-                                        className="h-12 px-8 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-xl shadow-lg transition-all flex items-center gap-2 whitespace-nowrap"
-                                        isLoading={isSubmitting}
-                                    >
-                                        <Printer className="h-5 w-5" /> 
-                                        Imprimir Recibo
-                                    </AsyncButton>
-                                )}
+                                <div className="flex flex-wrap gap-2 justify-end w-full sm:w-auto">
+                                    {!isEditing ? (
+                                        <>
+                                            <AsyncButton 
+                                                onClick={() => handleMainSave('RECOLECTADO')} 
+                                                variant="outline"
+                                                className="h-12 px-6 border-monchito-purple text-monchito-purple hover:bg-monchito-purple/5 font-black rounded-xl transition-all flex items-center gap-2 whitespace-nowrap"
+                                                isLoading={isSubmitting && saveStatus === 'RECOLECTADO'}
+                                            >
+                                                <PackageOpen className="h-5 w-5" /> 
+                                                Guardar Recolección
+                                            </AsyncButton>
+                                            <AsyncButton 
+                                                onClick={() => handleMainSave('EN_TRANSITO')} 
+                                                className="h-12 px-8 bg-monchito-purple hover:bg-monchito-purple/90 text-white font-black rounded-xl shadow-lg shadow-monchito-purple/20 transition-all flex items-center gap-2 whitespace-nowrap"
+                                                isLoading={isSubmitting && saveStatus === 'EN_TRANSITO'}
+                                            >
+                                                <Send className="h-5 w-5" /> 
+                                                Guardar y Enviar
+                                            </AsyncButton>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Button 
+                                                variant="outline"
+                                                onClick={handlePrintReceipt} 
+                                                className="h-12 px-6 border-slate-900 text-slate-900 hover:bg-slate-50 font-black rounded-xl transition-all flex items-center gap-2 whitespace-nowrap"
+                                                disabled={isSubmitting}
+                                            >
+                                                <Printer className="h-5 w-5" /> 
+                                                Imprimir Recibo
+                                            </Button>
+                                            <AsyncButton 
+                                                onClick={() => handleUpdateBatchStatus('RECOLECTADO')} 
+                                                variant="outline"
+                                                className="h-12 px-6 border-monchito-purple text-monchito-purple hover:bg-monchito-purple/5 font-black rounded-xl transition-all flex items-center gap-2 whitespace-nowrap"
+                                                isLoading={isSubmitting}
+                                            >
+                                                Guardar Recolección
+                                            </AsyncButton>
+                                            <AsyncButton 
+                                                onClick={() => handleUpdateBatchStatus('EN_TRANSITO')} 
+                                                className="h-12 px-8 bg-monchito-purple hover:bg-monchito-purple/90 text-white font-black rounded-xl shadow-lg shadow-monchito-purple/20 transition-all flex items-center gap-2 whitespace-nowrap"
+                                                isLoading={isSubmitting}
+                                            >
+                                                <Send className="h-5 w-5" /> 
+                                                Enviar Guía
+                                            </AsyncButton>
+                                        </>
+                                    )}
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
@@ -1284,15 +1413,37 @@ export function NewExchangePage() {
                 isOpen={isSourceModalOpen}
                 onClose={() => setIsSourceModalOpen(false)}
                 clientId={formik.values.clientId}
+                alreadySelectedIds={formik.values.brandItems.map((item: any) => item.sourceOrderId).filter(Boolean)}
+                alreadySelectedNumbers={formik.values.brandItems.map((item: any) => item.sourceOrderNumber).filter(Boolean)}
                 onSelect={(order) => {
+                    // Optimized traceability prefixing: CAM001-, CAM002-, etc.
+                    let newOrderNumber = order.orderNumber || "";
+                    if (newOrderNumber.startsWith("CAM")) {
+                        // Detect exact pattern CAMXXX-
+                        const camMatch = newOrderNumber.match(/^CAM(\d+)-(.+)$/);
+                        if (camMatch) {
+                            const nextLevel = parseInt(camMatch[1]) + 1;
+                            newOrderNumber = `CAM${String(nextLevel).padStart(3, '0')}-${camMatch[2]}`;
+                        } else {
+                            // If it only has "CAM-", jump to CAM002-
+                            const cleanNumber = newOrderNumber.replace(/^CAM-/, "");
+                            newOrderNumber = `CAM002-${cleanNumber}`;
+                        }
+                    } else {
+                        newOrderNumber = `CAM001-${newOrderNumber}`;
+                    }
+
                     setCurrentItem(prev => ({ 
                         ...prev, 
+                        clientId: order.clientId,
+                        clientName: order.clientName || clients.find(c => c.id === order.clientId)?.firstName || "",
                         sourceOrderId: order.id,
                         sourceOrderNumber: order.orderNumber,
                         sourceBrandId: order.brandId || "",
                         sourceBrandName: order.brandName || order.brand?.name || "",
                         sourceQuantity: order.items?.[0]?.quantity || 1,
-                        sourceDescription: order.notes || ""
+                        sourceDescription: order.notes || "",
+                        orderNumber: newOrderNumber // Assign indexed number
                     }));
                 }}
             />
@@ -1322,6 +1473,7 @@ export function NewExchangePage() {
                 }}
                 expectedAmount={totalRowDeposit > 0 ? totalRowDeposit : totalOrderValue}
                 allowMultiplePayments={true}
+                saveWithZeroPermission="exchanges.save_with_zero_deposit"
                 orderItems={formik.values.brandItems.map((item, idx) => ({ 
                     id: item.tempId || `item-${idx}`, 
                     brandName: item.brandName, 

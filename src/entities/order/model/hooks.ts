@@ -43,7 +43,7 @@ export function useCreateOrder() {
     return useMutation({
         mutationFn: (data: OrderPayload) => orderApi.create(data),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: KEYS.list() })
+            qc.invalidateQueries({ queryKey: KEYS.all })
         }
     })
 }
@@ -53,7 +53,7 @@ export function useBatchCreateOrder() {
     return useMutation({
         mutationFn: (data: any) => orderApi.batchCreate(data),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: KEYS.list() })
+            qc.invalidateQueries({ queryKey: KEYS.all })
         }
     })
 }
@@ -63,7 +63,7 @@ export function useUpdateOrder() {
     return useMutation({
         mutationFn: ({ id, data }: { id: string; data: Partial<OrderPayload> }) => orderApi.update(id, data),
         onSuccess: (_, { id }) => {
-            qc.invalidateQueries({ queryKey: KEYS.list() })
+            qc.invalidateQueries({ queryKey: KEYS.all })
             qc.invalidateQueries({ queryKey: KEYS.detail(id) })
         }
     })
@@ -88,7 +88,7 @@ export function useBatchUpdateOrder() {
     return useMutation({
         mutationFn: ({ receiptNumber, data }: { receiptNumber: string; data: any }) => orderApi.batchUpdate(receiptNumber, data),
         onSuccess: (_, { receiptNumber }) => {
-            qc.invalidateQueries({ queryKey: KEYS.list() })
+            qc.invalidateQueries({ queryKey: KEYS.all })
             qc.invalidateQueries({ queryKey: KEYS.byReceipt(receiptNumber) })
         }
     })

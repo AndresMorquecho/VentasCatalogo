@@ -17,10 +17,6 @@ export const useOrderReceptionList = (filters?: ReceptionFilters) => {
             const page = filters?.page || 1;
             const limit = filters?.limit || 25;
 
-            // Using getAll with statuses for pending reception
-            // We pass multiple statuses or the backend might handle 'POR_RECIBIR' 
-            // but the original logic was: POR_RECIBIR || (RECIBIDO_EN_BODEGA && !deliveryDate)
-            // The backend 'getAll' with status 'POR_RECIBIR' should be enough if the flow is correct.
             const response = await orderApi.getAll({
                 status: 'POR_RECIBIR',
                 startDate: filters?.startDate,
@@ -35,9 +31,12 @@ export const useOrderReceptionList = (filters?: ReceptionFilters) => {
                 data: response.data,
                 pagination: response.pagination
             };
-        }
+        },
+        staleTime: 0, // Always consider stale for this business-critical view
+        refetchInterval: 30000, // Optional: Poll every 30s for small updates if the user stays on the page
+        refetchOnWindowFocus: true // Useful if they switch tabs to create order
     });
-}
+};
 
 // Hook for History
 export const useOrderReceptionHistory = (filters?: ReceptionFilters) => {
@@ -63,6 +62,7 @@ export const useOrderReceptionHistory = (filters?: ReceptionFilters) => {
                 data: response.data,
                 pagination: response.pagination
             };
-        }
+        },
+        staleTime: 0, // Always fresh when navigating to history
     });
-}
+};

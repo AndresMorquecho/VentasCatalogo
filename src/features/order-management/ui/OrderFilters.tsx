@@ -1,10 +1,16 @@
-import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
 import { DateRangePicker } from "@/shared/ui/filters"
-import { cn } from "@/shared/lib/utils"
-import { Search } from "lucide-react"
+import { Search, Filter } from "lucide-react"
 import type { DateRange } from "react-day-picker"
 import type { OrderFilterType } from "../model/useOrderFilters"
+
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/shared/ui/select"
 
 interface OrderFiltersProps {
     statusFilter: OrderFilterType
@@ -16,62 +22,63 @@ interface OrderFiltersProps {
 }
 
 const FILTERS: { value: OrderFilterType; label: string }[] = [
-    { value: 'ALL', label: 'Todos' },
+    { value: 'ALL', label: 'Todos los estados' },
     { value: 'POR_RECIBIR', label: 'Por Recibir' },
     { value: 'RECIBIDO_EN_BODEGA', label: 'En Bodega' },
     { value: 'ENTREGADO', label: 'Entregados' },
-    { value: 'CAMBIADO', label: 'Cambiado' },
-    { value: 'DESMANTELADO', label: 'Desmantelado' },
+    { value: 'CAMBIADO', label: 'Cambiados' },
+    { value: 'RECOLECTADO', label: 'Recolectados (Logística)' },
+    { value: 'DESMANTELADO', label: 'Desmantelados' },
+    { value: 'POR_ENVIAR', label: 'Por Enviar (Empresa)' },
+    { value: 'EN_TRANSITO', label: 'En Tránsito' },
+    { value: 'ANULADO', label: 'Anulados' },
 ]
 
 export function OrderFilters({ statusFilter, onStatusChange, searchQuery, onSearchChange, dateRange, onDateRangeChange }: OrderFiltersProps) {
     return (
-        <div className="flex flex-col lg:flex-row gap-3 items-center mb-6 w-full">
+        <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center mb-6 w-full">
             {/* Buscador - Toma el espacio restante */}
-            <div className="w-full lg:flex-1 min-w-0">
+            <div className="w-full md:flex-1 min-w-0">
                 <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                     <Input
                         placeholder="Buscar cliente, catálogo, orden (OR-), pedido (PD-)..."
                         value={searchQuery}
                         onChange={(e) => onSearchChange(e.target.value)}
-                        className="pl-9 h-10 bg-white border-slate-200 focus-visible:ring-monchito-purple/20 focus-visible:border-monchito-purple/30 rounded-lg shadow-sm"
+                        className="pl-9 h-11 bg-white border-slate-200 focus-visible:ring-monchito-purple/20 focus-visible:border-monchito-purple/30 rounded-xl shadow-sm text-sm"
                     />
                 </div>
             </div>
 
             {/* Fecha - Ancho fijo */}
-            <div className="w-full lg:w-64 shrink-0">
+            <div className="w-full md:w-64 shrink-0">
                 <DateRangePicker
                     value={dateRange}
                     onChange={onDateRangeChange}
-                    className="w-full h-10 shadow-sm"
+                    className="w-full h-11 shadow-sm"
+                    buttonClassName="h-11 rounded-xl text-sm"
                     showLabel={false}
                 />
             </div>
 
-            {/* Estados - Botones compactos estilo segmentado */}
-            <div className="w-full lg:w-auto overflow-x-auto no-scrollbar pb-1 lg:pb-0 shrink-0">
-                <div className="flex items-center gap-1 bg-slate-100/80 p-1 rounded-lg border border-slate-200">
-                    {FILTERS.map((f) => (
-                        <Button
-                            key={f.value}
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onStatusChange(f.value)}
-                            className={cn(
-                                "h-8 px-3 text-[10px] font-black uppercase tracking-wider rounded-md transition-all whitespace-nowrap",
-                                statusFilter === f.value 
-                                    ? "bg-monchito-purple text-white shadow-md hover:bg-monchito-purple/90" 
-                                    : "text-slate-500 hover:text-monchito-purple hover:bg-monchito-purple/5"
-                            )}
-                        >
-                            {f.label}
-                        </Button>
-                    ))}
-                </div>
+            {/* Estados - Selector Dropdown (Buscador Selector) */}
+            <div className="w-full md:w-64 shrink-0">
+                <Select value={statusFilter} onValueChange={(val) => onStatusChange(val as OrderFilterType)}>
+                    <SelectTrigger className="h-11 bg-white border-slate-200 focus:ring-monchito-purple/20 rounded-xl shadow-sm text-sm">
+                        <div className="flex items-center gap-2">
+                            <Filter className="h-4 w-4 text-slate-400" />
+                            <SelectValue placeholder="Filtrar por estado" />
+                        </div>
+                    </SelectTrigger>
+                    <SelectContent searchable={true}>
+                        {FILTERS.map((f) => (
+                            <SelectItem key={f.value} value={f.value}>
+                                {f.label}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
             </div>
-
         </div>
     )
 }

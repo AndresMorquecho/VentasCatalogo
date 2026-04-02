@@ -84,3 +84,23 @@ export const useOrderDeliveryFilterData = () => {
         }
     });
 }
+
+export const useDeliveryBatches = (filters?: DeliveryFilters) => {
+    return useQuery({
+        queryKey: ['delivery-batches', filters],
+        queryFn: async () => {
+             const response = await orderApi.getDeliveryBatches({
+                page: filters?.page || 1,
+                limit: filters?.limit || 25,
+                startDate: filters?.startDate,
+                endDate: filters?.endDate,
+                search: filters?.searchText || filters?.orderNumber
+            });
+            
+            return {
+                data: response.data,
+                pagination: response.pagination
+            };
+        }
+    });
+}

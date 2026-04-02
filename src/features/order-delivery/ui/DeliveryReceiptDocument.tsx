@@ -209,7 +209,7 @@ export const DeliveryReceiptDocument = ({ order, orders, client, paymentInfo, de
                         </View>
                         <View style={styles.textRow}>
                             <Text style={styles.bold}>Cedula:</Text>
-                            <Text>{client?.identificationNumber || 'N/A'}</Text>
+                            <Text>{client?.identificationNumber || (firstOrder as any)?.clientIdentification || 'N/A'}</Text>
                         </View>
                         <View style={styles.textRow}>
                             <Text style={styles.bold}>Nombre:</Text>
@@ -249,15 +249,15 @@ export const DeliveryReceiptDocument = ({ order, orders, client, paymentInfo, de
                         return (
                             <View key={o.id || index} style={[styles.tableRow, index === displayOrders.length - 1 ? { borderBottomWidth: 0 } : {}]}>
                                 <View style={[styles.col, { width: '14%' }]}><Text style={styles.cellText}>{o.receiptNumber}</Text></View>
-                                <View style={[styles.col, { width: '8%' }]}><Text style={styles.cellText}>{o.brandName}</Text></View>
+                                <View style={[styles.col, { width: '8%' }]}><Text style={styles.cellText}>{o.brandName || (o as any).brand?.name}</Text></View>
                                 <View style={[styles.col, { width: '12%' }]}><Text style={styles.cellText}>{o.orderNumber || 'S/N'}</Text></View>
                                 <View style={[styles.col, { width: '10%' }]}><Text style={styles.cellText}>{o.type || 'NORMAL'}</Text></View>
                                 <View style={[styles.col, { width: '10%' }]}><Text style={styles.cellText}>{o.invoiceNumber ? 'FACTURA' : 'PEND.'}</Text></View>
                                 <View style={[styles.col, { width: '10%' }]}><Text style={styles.cellText}>{o.invoiceNumber || 'S/N'}</Text></View>
-                                <View style={[styles.col, { width: '9%' }]}><Text style={styles.cellText}>{o.total.toFixed(2)}</Text></View>
-                                <View style={[styles.col, { width: '9%' }]}><Text style={styles.cellText}>{realInvTotal.toFixed(2)}</Text></View>
-                                <View style={[styles.col, { width: '9%' }]}><Text style={styles.cellText}>{paidAmount.toFixed(2)}</Text></View>
-                                <View style={[styles.col, { width: '9%', borderRightWidth: 0 }]}><Text style={styles.cellText}>{pendingTotal.toFixed(2)}</Text></View>
+                                <View style={[styles.col, { width: '9%' }]}><Text style={styles.cellText}>{Number(o.total || 0).toFixed(2)}</Text></View>
+                                <View style={[styles.col, { width: '9%' }]}><Text style={styles.cellText}>{Number(realInvTotal).toFixed(2)}</Text></View>
+                                <View style={[styles.col, { width: '9%' }]}><Text style={styles.cellText}>{Number(paidAmount).toFixed(2)}</Text></View>
+                                <View style={[styles.col, { width: '9%', borderRightWidth: 0 }]}><Text style={styles.cellText}>{Number(pendingTotal).toFixed(2)}</Text></View>
                             </View>
                         );
                     })}

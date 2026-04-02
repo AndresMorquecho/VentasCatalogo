@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { walletApi } from "../api/walletApi";
-import { Clock, AlertCircle } from "lucide-react";
+import { Clock, AlertCircle, Info } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Badge } from "@/shared/ui/badge";
@@ -106,7 +106,7 @@ export function PendingRechargesBanner() {
             {/* Footer hint */}
             <div className="px-4 py-2 bg-amber-100/60 border-t border-amber-200">
                 <p className="text-[10px] text-amber-700 font-medium">
-                    💡 Estas recargas aún no están disponibles en la billetera del cliente. Valídalas en <strong>Validaciones de Billetera</strong>.
+                    <Info className="h-3 w-3 inline mr-1 text-amber-600" /> Estas recargas aún no están disponibles en la billetera del cliente. Valídalas en <strong>Validaciones de Billetera</strong>.
                 </p>
             </div>
         </div>

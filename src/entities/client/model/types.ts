@@ -36,6 +36,7 @@ export interface Client {
     lastOrderDate?: string;
     lastBrandName?: string;
     isBlocked: boolean;
+    identificationIssuanceDate?: string | null;
     blockedReason?: string | null;
     createdByName?: string;
 
@@ -75,5 +76,6 @@ export interface ClientPayload {
     isWhatsApp?: boolean;
     referredById?: string | null;
     isBlocked?: boolean;
+    identificationIssuanceDate?: string | null;
 }
 

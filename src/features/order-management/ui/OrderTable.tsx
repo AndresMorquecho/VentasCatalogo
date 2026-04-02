@@ -16,12 +16,15 @@ interface OrderTableProps {
 }
 
 const ROW_STATUS_CLASSES: Record<OrderStatus, string> = {
+    POR_ENVIAR: "bg-indigo-50/20 hover:bg-indigo-50/40",
+    EN_TRANSITO: "bg-cyan-50/20 hover:bg-cyan-50/40",
     POR_RECIBIR: "bg-amber-50/20 hover:bg-amber-50/40",
     RECIBIDO_EN_BODEGA: "bg-blue-50/20 hover:bg-blue-50/40",
     ENTREGADO: "bg-slate-50/20 hover:bg-slate-50/40",
     ANULADO: "bg-slate-50/10 opacity-60",
     DESMANTELADO: "bg-red-50/10 hover:bg-red-50/20",
     CAMBIADO: "bg-purple-50/20 hover:bg-purple-50/40",
+    RECOLECTADO: "bg-emerald-50/20 hover:bg-emerald-50/40",
 }
 
 function formatDate(dateString: string): string {

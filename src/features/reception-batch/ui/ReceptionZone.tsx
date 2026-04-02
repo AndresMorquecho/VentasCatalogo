@@ -175,7 +175,6 @@ export function ReceptionZone({
                         onUpdateInvoiceTotal={(id, val) => onUpdateOrder(id, { finalTotal: val })}
                         onUpdateInvoiceNumber={(id, val) => onUpdateOrder(id, { finalInvoiceNumber: val })}
                         onUpdateDocumentType={(id, val) => onUpdateOrder(id, { documentType: val })}
-                        onUpdateEntryDate={(id, val) => onUpdateOrder(id, { entryDate: val })}
                     />
                 </div>
             </div>

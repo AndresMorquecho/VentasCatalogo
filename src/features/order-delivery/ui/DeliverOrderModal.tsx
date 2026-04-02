@@ -159,57 +159,29 @@ export function DeliverOrderModal({ order, orders = [], open, onOpenChange, onSu
                 reference: p.reference || undefined
             }))
 
-            if (isBatch) {
-                // Batch Deliver uses 'creditDistributions' (plural)
-                const result = await orderApi.batchDeliver(activeOrders.map(o => o.id), paymentsToSend, relevantDistributions)
+            // ALWAYS Use Batch Deliver for consistency in deliveryNumber generation
+            const result = await orderApi.batchDeliver(activeOrders.map(o => o.id), paymentsToSend, Object.values(relevantDistributions))
+            
+            // PDF generation common for all
+            try {
+                const deliveredOrders = result.orders || activeOrders;
+                const deliveryId = result.deliveryNumber || result.id || `B-${Date.now()}`;
                 
-                // PDF generation for batch
-                try {
-                    const deliveredOrders = Array.isArray(result) ? result : (result.orders || activeOrders);
-                    const deliveryId = result.id || result.batchId || `B-${Date.now()}`;
-                    
-                    await generateDeliveryReceipt(
-                        undefined, 
-                        deliveredOrders, 
-                        undefined, // Client is inferred from orders in Document
-                        {
-                            amountPaidNow: currentPaymentsTotal,
-                            method: paymentLines.length > 1 ? 'MIXTO' : (paymentLines[0]?.method || 'EFECTIVO'),
-                            user: user?.username || 'Administrador',
-                            currentCreditAmount: currentCreditAmount,
-                            hasCurrentCredit: hasCurrentCredit
-                        },
-                        deliveryId
-                    )
-                } catch (pdfError) {
-                    console.error("Error PDF Batch", pdfError)
-                }
-            } else {
-                // Single Deliver uses 'creditDistribution' (singular)
-                const deliveredOrder = await orderApi.deliverOrder(firstOrder.id, {
-                    payments: paymentsToSend,
-                    notes: `Entrega al cliente ${firstOrder.clientName}`,
-                    creditDistributions: relevantDistributions // The API expects creditDistributions as an array
-                });
-
-                // PDF generation 
-                try {
-                    await generateDeliveryReceipt(
-                        deliveredOrder, 
-                        undefined,
-                        undefined, 
-                        {
-                            amountPaidNow: currentPaymentsTotal,
-                            method: paymentLines.length > 1 ? 'MIXTO' : (paymentLines[0]?.method || 'EFECTIVO'),
-                            user: deliveredOrder.deliveredByName || user?.username || 'Administrador',
-                            currentCreditAmount: currentCreditAmount,
-                            hasCurrentCredit: hasCurrentCredit
-                        },
-                        deliveredOrder.receiptNumber
-                    )
-                } catch (pdfError) {
-                    console.error("Error PDF", pdfError)
-                }
+                await generateDeliveryReceipt(
+                    undefined, 
+                    deliveredOrders, 
+                    undefined, 
+                    {
+                        amountPaidNow: currentPaymentsTotal,
+                        method: paymentLines.length > 1 ? 'MIXTO' : (paymentLines[0]?.method || 'EFECTIVO'),
+                        user: result.deliveredByName || user?.username || 'Administrador',
+                        currentCreditAmount: currentCreditAmount,
+                        hasCurrentCredit: hasCurrentCredit
+                    },
+                    deliveryId
+                )
+            } catch (pdfError) {
+                console.error("Error PDF Delivery", pdfError)
             }
 
             qc.invalidateQueries({ queryKey: ['orders'] })
@@ -270,6 +242,9 @@ export function DeliverOrderModal({ order, orders = [], open, onOpenChange, onSu
                     <div className="hidden sm:flex flex-col items-end pr-8">
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Empresaria</span>
                         <span className="font-bold text-monchito-purple text-base leading-none">{firstOrder.clientName}</span>
+                        {firstOrder.clientIdentification && (
+                            <span className="text-[10px] font-black text-slate-400 tracking-widest mt-1">ID: {firstOrder.clientIdentification}</span>
+                        )}
                     </div>
                 </div>
 

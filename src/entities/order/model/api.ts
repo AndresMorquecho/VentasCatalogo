@@ -84,6 +84,9 @@ export const orderApi = {
     generatePackingNumber: async (): Promise<{ packingNumber: string }> => {
         return httpClient.get<{ packingNumber: string }>('/orders/generate-packing-number');
     },
+    generateDeliveryNumber: async (): Promise<{ deliveryNumber: string }> => {
+        return httpClient.get<{ deliveryNumber: string }>('/orders/generate-delivery-number');
+    },
 
     /**
      * Check if receipt number exists
@@ -107,6 +110,14 @@ export const orderApi = {
      */
     batchUpdate: async (receiptNumber: string, payload: any): Promise<Order[]> => {
         return httpClient.put<Order[]>(`/orders/receipt/${receiptNumber}/bulk-update`, payload);
+    },
+
+    /**
+     * Rename a receipt group (tracking guide).
+     * @endpoint PATCH /api/orders/receipt/:receiptNumber/rename
+     */
+    renameReceipt: async (receiptNumber: string, newReceiptNumber: string): Promise<any> => {
+        return httpClient.patch(`/orders/receipt/${receiptNumber}/rename`, { newReceiptNumber });
     },
 
     /**
@@ -258,9 +269,10 @@ export const orderApi = {
             paymentMethod: string;
             reference?: string;
         }[],
-        creditDistributions?: CreditDistribution[]
+        creditDistributions?: CreditDistribution[],
+        deliveryBatch?: { deliveryNumber: string, id?: string }
     ): Promise<any> => {
-        return httpClient.post<any>('/orders/batch-deliver', { orderIds, payments, creditDistributions });
+        return httpClient.post<any>('/orders/batch-deliver', { orderIds, payments, creditDistributions, ...deliveryBatch });
     },
 
     /**
@@ -322,6 +334,36 @@ export const orderApi = {
     },
 
     /**
+     * Get all delivery batches with pagination and filters
+     * @endpoint GET /api/orders/delivery-batches
+     */
+    getDeliveryBatches: async (params?: { 
+        page?: number, 
+        limit?: number, 
+        startDate?: string, 
+        endDate?: string,
+        search?: string
+    }): Promise<PaginatedResponse<any>> => {
+        const queryParams = new URLSearchParams();
+        if (params) {
+            Object.entries(params).forEach(([key, value]) => {
+                if (value !== undefined) {
+                    queryParams.append(key, value.toString());
+                }
+            });
+        }
+        return httpClient.get<PaginatedResponse<any>>(`/orders/delivery-batches${queryParams.toString() ? `?${queryParams.toString()}` : ''}`);
+    },
+
+    /**
+     * Delete delivery batch (reverts all orders)
+     * @endpoint DELETE /api/orders/delivery-batches/:id
+     */
+    deleteDeliveryBatch: async (id: string): Promise<{ message: string }> => {
+        return httpClient.delete<{ message: string }>(`/orders/delivery-batches/${id}`);
+    },
+
+    /**
      * Dismantle order (Mode Hostile with block OR Normal)
      * @endpoint POST /api/orders/:id/dismantle
      */
@@ -335,5 +377,28 @@ export const orderApi = {
      */
     reverseDelivery: async (orderId: string): Promise<{ success: boolean }> => {
         return httpClient.post<{ success: boolean }>(`/orders/${orderId}/reverse-delivery`, {});
+    },
+
+    /**
+     * Exchange Batches
+     */
+    getExchangeBatches: async (params?: { 
+        status?: string, 
+        dateFrom?: string, 
+        dateTo?: string 
+    }): Promise<any[]> => {
+        const queryParams = new URLSearchParams();
+        if (params) {
+            Object.entries(params).forEach(([key, value]) => {
+                if (value !== undefined) {
+                    queryParams.append(key, value.toString());
+                }
+            });
+        }
+        return httpClient.get<any[]>(`/exchanges/batches${queryParams.toString() ? `?${queryParams.toString()}` : ''}`);
+    },
+
+    updateExchangeBatchStatus: async (id: string, newStatus: string, trackingGuide?: string): Promise<any> => {
+        return httpClient.patch<any>(`/exchanges/batches/${id}/status`, { newStatus, trackingGuide });
     }
 };

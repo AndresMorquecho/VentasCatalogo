@@ -10,6 +10,7 @@ import { formatCurrency } from "@/entities/order/model/financialCalculator";
 import { useAuth } from "@/shared/auth";
 import { WalletRechargeQuick } from "@/shared/ui/WalletRechargeQuick";
 import { paymentMethodConfigService, type PaymentMethodKey } from "@/shared/services/paymentMethodConfig";
+import type { Permission } from "@/shared/lib/permissions";
 
 export type PaymentMethod = PaymentMethodKey;
 
@@ -52,6 +53,7 @@ interface Props {
     orderItems?: OrderItem[]; // Lista de pedidos para mostrar información
     lockAmount?: boolean; // Cuando true: total fijo, pero métodos de pago son editables y deben sumar al total
     forceExactAmount?: boolean; // Forzar que el pago sea exactamente igual al monto esperado
+    saveWithZeroPermission?: Permission; // Permiso requerido para guardar con monto 0 cuando hay saldo pendiente
 }
 
 export function PaymentModal({
@@ -64,9 +66,11 @@ export function PaymentModal({
     initialAmount,
     orderItems,
     lockAmount = false,
-    forceExactAmount = false
+    forceExactAmount = false,
+    saveWithZeroPermission
 }: Props) {
     const { data: bankAccountsResponse } = useBankAccountList();
+    const { hasPermission } = useAuth();
     const bankAccounts = bankAccountsResponse?.data || [];
     const { data: creditData } = useClientCredit(paymentContext?.clientId || "");
     const totalCredit = creditData?.totalCredit || 0;
@@ -264,6 +268,12 @@ export function PaymentModal({
         // REGLA FASE 3: Forzar monto exacto si se solicita (Ej. para entregas)
         if (forceExactAmount && Math.abs(totalAmount - expectedAmount) > 0.01) {
             setValidationError(`Se requiere cancelar el valor exacto del saldo pendiente: ${formatCurrency(expectedAmount)}. Monto actual: ${formatCurrency(totalAmount)}`);
+            return;
+        }
+
+        // VALIDACIÓN DE PERMISO PARA GUARDAR SIN PAGO (ABONO 0)
+        if (totalAmount === 0 && expectedAmount > 0 && saveWithZeroPermission && !hasPermission(saveWithZeroPermission)) {
+            setValidationError("No tiene permiso para guardar documentos sin abono inicial.");
             return;
         }
 

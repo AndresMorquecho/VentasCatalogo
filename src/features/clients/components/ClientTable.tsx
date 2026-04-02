@@ -60,6 +60,9 @@ export function ClientTable({ clients, isLoading, onEdit, onView, onDelete }: Cl
                                 Documento
                             </th>
                             <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left">
+                                Expedición
+                            </th>
+                            <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left">
                                 Nombre
                             </th>
                             <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left">
@@ -113,6 +116,13 @@ export function ClientTable({ clients, isLoading, onEdit, onView, onDelete }: Cl
                                             <span className="font-mono text-xs font-bold text-slate-700">{client.identificationNumber}</span>
                                             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{client.identificationType.replace('_', ' ')}</span>
                                         </div>
+                                    </TableCell>
+                                    <TableCell className="px-6 py-4">
+                                        <span className="text-xs font-medium text-slate-600">
+                                            {client.identificationIssuanceDate 
+                                                ? format(new Date(client.identificationIssuanceDate), "dd/MM/yyyy") 
+                                                : <span className="text-slate-400 italic">N/A</span>}
+                                        </span>
                                     </TableCell>
                                     <TableCell className="px-6 py-4">
                                         <div className="flex flex-col gap-0.5">

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { walletApi } from "../api/walletApi";
-import { XCircle, AlertTriangle, EyeOff, Loader2 } from "lucide-react";
+import { XCircle, AlertTriangle, EyeOff, Loader2, Info } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Badge } from "@/shared/ui/badge";
@@ -131,7 +131,7 @@ export function RejectedRechargesBanner() {
             {/* Footer hint */}
             <div className="px-4 py-2 bg-red-100/60 border-t border-red-200">
                 <p className="text-[10px] text-red-700 font-medium leading-relaxed">
-                    💡 Estas recargas no fueron procesadas. Pulsa en <EyeOff className="inline h-3 w-3" /> para ocultar esta fila. 
+                    <Info className="h-3 w-3 inline mr-1 text-red-600" /> Estas recargas no fueron procesadas. Pulsa en <EyeOff className="inline h-3 w-3" /> para ocultar esta fila. 
                     <span className="block mt-0.5 opacity-80">Las recargas ocultas permanecen visibles en la pestaña <strong>Historial de Recargas</strong> de arriba.</span>
                 </p>
             </div>
