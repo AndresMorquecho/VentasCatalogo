@@ -270,8 +270,11 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({
                         <Text style={{ fontSize: 22, fontWeight: 'bold' }}>
                             {(() => {
                                 const r = receiptNumber || order.receiptNumber || "";
-                                if (r.startsWith('S/N-') || r.startsWith('SN-')) return "SIN GUÍA";
-                                return r || 'ORD-000000';
+                                // Regex: Matches "SN-" or "S/N-" (not case sensitive) but ONLY at the start.
+                                // If the user provided a real guide, it stays.
+                                const isSN = /^(S\/N-|SN-)/i.test(r);
+                                if (isSN) return "SIN GUÍA";
+                                return r || 'REC-000000';
                             })()}
                         </Text>
                     </View>
@@ -356,8 +359,8 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({
                     <View style={{ flexDirection: 'row', marginBottom: 5 }}>
                         <Text style={{ width: '47%' }}>No de documento: {(() => {
                             const r = order.receiptNumber || "";
-                            if (r.startsWith('S/N-') || r.startsWith('SN-')) return "-";
-                            return r;
+                            const isSN = /^(S\/N-|SN-)/i.test(r);
+                            return isSN ? "-" : r;
                         })()}</Text>
                         <Text>Teléfono de contacto: {client?.phone1 || (order as any).clientPhone || ""}</Text>
                     </View>
