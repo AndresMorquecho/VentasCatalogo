@@ -113,11 +113,19 @@ export const orderApi = {
     },
 
     /**
+     * Update receipt header (metadata)
+     * @endpoint PUT /api/orders/receipt-header/:receiptNumber
+     */
+    updateReceiptHeader: async (receiptNumber: string, payload: any): Promise<any> => {
+        return httpClient.put<any>(`/orders/receipt-header/${encodeURIComponent(receiptNumber)}`, payload);
+    },
+
+    /**
      * Rename a receipt group (tracking guide).
      * @endpoint PATCH /api/orders/receipt/:receiptNumber/rename
      */
     renameReceipt: async (receiptNumber: string, newReceiptNumber: string): Promise<any> => {
-        return httpClient.patch(`/orders/receipt/${receiptNumber}/rename`, { newReceiptNumber });
+        return httpClient.patch(`/orders/receipt/${encodeURIComponent(receiptNumber)}/rename`, { newReceiptNumber });
     },
 
     /**
@@ -399,6 +407,18 @@ export const orderApi = {
     },
 
     updateExchangeBatchStatus: async (id: string, newStatus: string, trackingGuide?: string): Promise<any> => {
-        return httpClient.patch<any>(`/exchanges/batches/${id}/status`, { newStatus, trackingGuide });
+        return httpClient.patch<any>(`/exchanges/batches/${encodeURIComponent(id)}/status`, { newStatus, trackingGuide });
+    },
+
+    /**
+     * Get order IDs that are in active exchange batches (not delivered)
+     * @endpoint GET /api/exchanges/active-order-ids
+     */
+    getActiveExchangeOrderIds: async (clientId?: string): Promise<string[]> => {
+        const params = new URLSearchParams();
+        if (clientId) params.append('clientId', clientId);
+        const qs = params.toString();
+        const response = await httpClient.get<{ success: boolean; data: string[] }>(`/exchanges/active-order-ids${qs ? `?${qs}` : ''}`);
+        return (response as any).data; // Response.data is the array
     }
 };

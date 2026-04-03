@@ -26,11 +26,9 @@ const FILTERS: { value: OrderFilterType; label: string }[] = [
     { value: 'POR_RECIBIR', label: 'Por Recibir' },
     { value: 'RECIBIDO_EN_BODEGA', label: 'En Bodega' },
     { value: 'ENTREGADO', label: 'Entregados' },
-    { value: 'CAMBIADO', label: 'Cambiados' },
-    { value: 'RECOLECTADO', label: 'Recolectados (Logística)' },
-    { value: 'DESMANTELADO', label: 'Desmantelados' },
-    { value: 'POR_ENVIAR', label: 'Por Enviar (Empresa)' },
+    { value: 'POR_ENVIAR', label: 'Recolectado' },
     { value: 'EN_TRANSITO', label: 'En Tránsito' },
+    { value: 'DESMANTELADO', label: 'Desmantelados' },
     { value: 'ANULADO', label: 'Anulados' },
 ]
 

@@ -285,9 +285,10 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
                                 <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">N° de Pedido</TableHead>
                                 <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Tipo</TableHead>
                                 <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Catálogo</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Estado</TableHead>
                                 <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Valor Pedido</TableHead>
                                 <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Abono</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Fecha Posible Entrega</TableHead>
+                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center whitespace-nowrap">Fecha Posible Entrega</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -330,6 +331,18 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
                                                 </span>
                                             </TableCell>
                                             <TableCell className="py-2 px-2 text-xs font-medium text-center">{order.brandName}</TableCell>
+                                            <TableCell className="py-2 px-2 text-center">
+                                                <span className={`px-2 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-tighter shadow-sm ${
+                                                    order.status === 'EN_TRANSITO'
+                                                        ? 'bg-sky-50 text-sky-700 border-sky-200'
+                                                        : order.status === 'POR_RECIBIR'
+                                                        ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                                        : 'bg-slate-50 text-slate-500 border-slate-100'
+                                                }`}>
+                                                    {order.status === 'EN_TRANSITO' ? 'En Tránsito' : 
+                                                     order.status === 'POR_RECIBIR' ? 'Por Recibir' : 'Recolectado'}
+                                                </span>
+                                            </TableCell>
                                             <TableCell className="py-2 px-2 text-center font-mono text-xs font-bold">${order.total.toFixed(2)}</TableCell>
                                             <TableCell className="py-2 px-2 text-center font-mono text-xs font-bold text-emerald-600">${paid.toFixed(2)}</TableCell>
                                             <TableCell className="py-2 px-2 text-xs text-muted-foreground italic text-center">

@@ -48,7 +48,13 @@ export function OrderDetailModal({ order, open, onOpenChange }: OrderDetailModal
                     <div className="flex items-center justify-between pr-8">
                         <div>
                             <p className="text-[10px] font-black uppercase text-monchito-purple tracking-widest mb-1">Registro de Ventas</p>
-                            <DialogTitle className="text-2xl font-black text-slate-800 tracking-tight">Recibo {order.receiptNumber}</DialogTitle>
+                            <DialogTitle className="text-2xl font-black text-slate-800 tracking-tight">
+                                {(() => {
+                                    const receipt = order.receiptNumber || "";
+                                    if (receipt.startsWith('S/N-') || receipt.startsWith('SN-')) return "Recibo SIN GUÍA";
+                                    return `Recibo ${receipt}`;
+                                })()}
+                            </DialogTitle>
                         </div>
                         <div className="flex flex-col items-end gap-1">
                             <OrderStatusBadge status={order.status} className="scale-110 shadow-sm" />
@@ -114,6 +120,8 @@ export function OrderDetailModal({ order, open, onOpenChange }: OrderDetailModal
                             <table className="w-full text-xs text-left border-collapse">
                                 <thead>
                                     <tr className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase font-bold text-slate-500">
+                                        <th className="px-5 py-4 w-12 text-center">N°</th>
+                                        <th className="px-5 py-4 min-w-[150px]">Empresaria</th>
                                         <th className="px-5 py-4">N° Pedido</th>
                                         <th className="px-5 py-4">Catalogo</th>
                                         <th className="px-5 py-4 text-right">Total</th>
@@ -125,6 +133,12 @@ export function OrderDetailModal({ order, open, onOpenChange }: OrderDetailModal
                                 <tbody className="divide-y divide-slate-100">
                                     {/* Parent Order */}
                                     <tr className="bg-purple-50/40 font-medium border-l-4 border-l-monchito-purple">
+                                        <td className="px-5 py-4 text-center font-bold text-slate-400">1</td>
+                                        <td className="px-5 py-4">
+                                            <span className="font-bold text-slate-700 block truncate max-w-[150px]" title={order.clientName}>
+                                                {order.clientName}
+                                            </span>
+                                        </td>
                                         <td className="px-5 py-4 font-black text-slate-900">{order.orderNumber || 'Principal'}</td>
                                         <td className="px-5 py-4">{order.brandName}</td>
                                         <td className="px-5 py-4 text-right font-black text-slate-900">{formatCurrency(Number(order.total))}</td>
@@ -135,8 +149,14 @@ export function OrderDetailModal({ order, open, onOpenChange }: OrderDetailModal
                                         </td>
                                     </tr>
                                     {/* Child Orders */}
-                                    {order.childOrders && order.childOrders.length > 0 && order.childOrders.map((child) => (
+                                    {order.childOrders && order.childOrders.length > 0 && order.childOrders.map((child, idx) => (
                                         <tr key={child.id} className="hover:bg-slate-50 transition-colors">
+                                            <td className="px-5 py-4 text-center font-bold text-slate-400">{idx + 2}</td>
+                                            <td className="px-5 py-4">
+                                                <span className="font-bold text-slate-700 block truncate max-w-[150px]" title={child.clientName || order.clientName}>
+                                                    {child.clientName || order.clientName}
+                                                </span>
+                                            </td>
                                             <td className="px-5 py-4 font-bold text-slate-700">{child.orderNumber || 'S/N'}</td>
                                             <td className="px-5 py-4">{child.brandName}</td>
                                             <td className="px-5 py-4 text-right font-medium text-slate-900">{formatCurrency(Number(child.total))}</td>

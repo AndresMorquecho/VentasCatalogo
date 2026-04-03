@@ -97,14 +97,14 @@ const styles = StyleSheet.create({
     },
     
     // Column Widths
-    colNo: { width: '10%' },
-    colEmp: { width: '18%' },
-    colType: { width: '10%' },
-    colCat: { width: '15%' },
-    colVal: { width: '10%', textAlign: 'center' },
-    colAbo: { width: '10%', textAlign: 'center' },
-    colSal: { width: '10%', textAlign: 'center' },
-    colDate: { width: '17%', borderRight: 0 },
+    colNo: { width: '22%' },
+    colEmp: { width: '13%' },
+    colType: { width: '9%' },
+    colCat: { width: '13%' },
+    colVal: { width: '8%', textAlign: 'center' },
+    colAbo: { width: '8%', textAlign: 'center' },
+    colSal: { width: '8%', textAlign: 'center' },
+    colDate: { width: '19%', borderRight: 0 },
 
     // Financial Summary Row
     financialRow: {
@@ -267,7 +267,13 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({
                     <Image style={{ width: 320, height: 80, objectFit: 'contain' }} src={logoUrl} />
                     <View style={styles.receiptGroup}>
                         <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Recibo No</Text>
-                        <Text style={{ fontSize: 22, fontWeight: 'bold' }}>{receiptNumber || order.receiptNumber || 'ORD-000000'}</Text>
+                        <Text style={{ fontSize: 22, fontWeight: 'bold' }}>
+                            {(() => {
+                                const r = receiptNumber || order.receiptNumber || "";
+                                if (r.startsWith('S/N-') || r.startsWith('SN-')) return "SIN GUÍA";
+                                return r || 'ORD-000000';
+                            })()}
+                        </Text>
                     </View>
                 </View>
 
@@ -332,12 +338,8 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({
                     
                     {/* FINANCIAL SUMMARY ROW */}
                     <View style={{ flexDirection: 'row', fontSize: 10, fontWeight: 'bold', backgroundColor: '#fcfcfc', borderBottom: '1pt solid black' }}>
-                        <View style={[styles.tableCell, { width: '47%', textAlign: 'left', paddingLeft: 6, alignItems: 'flex-start', borderRight: '1pt solid black' }]}>
+                        <View style={[styles.tableCell, { width: '57%', textAlign: 'left', paddingLeft: 6, alignItems: 'flex-start', borderRight: '1pt solid black' }]}>
                              <Text>Forma de pago: {friendlyPayment}</Text>
-                             {/* Se eliminó el desglose de aquí para moverlo arriba de observaciones */}
-                             {(order.paymentMethod === 'TRANSFERENCIA' || order.paymentMethod === 'DEPOSITO') && bank && (
-                                <Text style={{ fontSize: 8, marginTop: 1 }}>Banco: {bank.name} - {bank.accountNumber || ''}</Text>
-                             )}
                              {(order.paymentMethod === 'TRANSFERENCIA' || order.paymentMethod === 'DEPOSITO') && bank && (
                                 <Text style={{ fontSize: 8, marginTop: 1 }}>Banco: {bank.name} - {bank.accountNumber || ''}</Text>
                              )}
@@ -352,7 +354,11 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({
                 {/* FOOTER INFO */}
                 <View style={styles.footerInfo}>
                     <View style={{ flexDirection: 'row', marginBottom: 5 }}>
-                        <Text style={{ width: '47%' }}>No de documento: {order.receiptNumber || ""}</Text>
+                        <Text style={{ width: '47%' }}>No de documento: {(() => {
+                            const r = order.receiptNumber || "";
+                            if (r.startsWith('S/N-') || r.startsWith('SN-')) return "-";
+                            return r;
+                        })()}</Text>
                         <Text>Teléfono de contacto: {client?.phone1 || (order as any).clientPhone || ""}</Text>
                     </View>
                     

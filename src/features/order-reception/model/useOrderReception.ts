@@ -18,7 +18,7 @@ export const useOrderReceptionList = (filters?: ReceptionFilters) => {
             const limit = filters?.limit || 25;
 
             const response = await orderApi.getAll({
-                status: 'POR_RECIBIR',
+                status: 'POR_RECIBIR,EN_TRANSITO',
                 startDate: filters?.startDate,
                 endDate: filters?.endDate,
                 brandId: filters?.brandId === 'all' ? undefined : filters?.brandId,

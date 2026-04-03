@@ -39,6 +39,12 @@ function formatCurrency(amount: number): string {
     return `$${amount.toFixed(2)}`
 }
 
+const formatReceipt = (receipt: string) => {
+    if (!receipt) return '-';
+    if (receipt.startsWith('S/N-') || receipt.startsWith('SN-')) return '-';
+    return receipt;
+};
+
 export function OrderTable({ orders, onViewDetails, onEdit, onDelete, lastClosureDate }: OrderTableProps) {
     const { hasPermission } = useAuth()
     const isMobile = useIsMobile()
@@ -62,7 +68,7 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, lastClosur
                                 <div className="space-y-1">
                                     <div className="flex items-center gap-2">
                                         <Receipt className="h-3.5 w-3.5 text-monchito-purple" />
-                                        <span className="font-black text-slate-900">{order.receiptNumber}</span>
+                                        <span className="font-black text-slate-900">{formatReceipt(order.receiptNumber)}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <User className="h-3.5 w-3.5 text-slate-400" />
@@ -184,7 +190,7 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, lastClosur
 
                                         <td className="px-6 py-4">
                                             <span className="text-sm tracking-tight text-slate-700 font-medium">
-                                                {order.receiptNumber}
+                                                {formatReceipt(order.receiptNumber)}
                                             </span>
                                         </td>
 

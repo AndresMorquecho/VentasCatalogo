@@ -7,7 +7,7 @@ interface OrderStatusBadgeProps {
 
 const STATUS_CONFIG: Record<OrderStatus, { label: string; className: string }> = {
     POR_ENVIAR: {
-        label: "Por Enviar",
+        label: "Recolectado",
         className: "bg-indigo-100 text-indigo-800 border border-indigo-300"
     },
     EN_TRANSITO: {
@@ -15,7 +15,7 @@ const STATUS_CONFIG: Record<OrderStatus, { label: string; className: string }> =
         className: "bg-cyan-100 text-cyan-800 border border-cyan-300"
     },
     POR_RECIBIR: {
-        label: "Por Recibir",
+        label: "Recolectado",
         className: "bg-amber-100 text-amber-800 border border-amber-300"
     },
     RECIBIDO_EN_BODEGA: {
@@ -35,8 +35,8 @@ const STATUS_CONFIG: Record<OrderStatus, { label: string; className: string }> =
         className: "bg-slate-200 text-slate-400 border border-slate-300 line-through"
     },
     CAMBIADO: {
-        label: "Cambiado",
-        className: "bg-purple-100 text-purple-800 border border-purple-300"
+        label: "Entregado",
+        className: "bg-slate-100 text-slate-800 border border-slate-300"
     },
     RECOLECTADO: {
         label: "Recolectado",

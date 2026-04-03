@@ -26,8 +26,14 @@ export const useReceptionBatch = () => {
 
     // Queries
     const { data: allOrders = [], isLoading: isLoadingOrders } = useQuery({
-        queryKey: ['orders-pending-reception'],
-        queryFn: () => orderApi.getByStatus('POR_RECIBIR'),
+        queryKey: ['orders-pending-reception', 'v2'], // Forced cache refresh
+        queryFn: async () => {
+            const response = await orderApi.getAll({ 
+                status: 'POR_RECIBIR,EN_TRANSITO',
+                limit: 500 // Return all candidates for the pick-list
+            });
+            return response.data;
+        },
     });
 
     const { data: batchesResponse, isLoading: isLoadingBatches } = useQuery({

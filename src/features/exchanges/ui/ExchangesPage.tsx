@@ -6,7 +6,6 @@ import {
   RotateCcw,
   Replace,
   ArrowRightLeft,
-  ChevronRight,
   ClipboardList,
   ListOrdered,
   FileDown,
@@ -17,7 +16,10 @@ import {
   X,
   AlertTriangle,
   Send,
-  PackageOpen
+  PackageOpen,
+  StickyNote,
+  Eye,
+  Printer
 } from 'lucide-react';
 
 import { Button } from '../../../shared/ui/button';
@@ -47,25 +49,34 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../../shared/ui/select";
+import { usePDFPreview } from "@/shared/hooks/usePDFPreview";
+import { PDFPreviewModal } from "@/shared/ui/PDFPreviewModal";
+import { prepareOrderReceiptForPreview } from "@/features/order-receipt/lib/prepareOrderReceiptForPreview";
 
 const STATUS_LABELS: Record<string, string> = {
-  POR_ENVIAR: 'Enviado a Oficina',
+  POR_RECIBIR: 'Por Recibir',
+  POR_ENVIAR: 'Recolectado',
   RECOLECTADO: 'Recolectado',
   EN_TRANSITO: 'En Tránsito',
-  POR_RECIBIR: 'Enviado',
   RECIBIDO_EN_BODEGA: 'En Bodega',
-  ENTREGADO: 'Entregado al Cliente',
-  CANCELADO: 'Cancelado',
+  ENTREGADO: 'Entregados',
+  ENVIADO_A_CAMBIO: 'Entregados',
+  ANULADO: 'Anulado',
+  CANCELADO: 'Anulado',
+  DESMANTELADO: 'Desmantelados',
 };
 
 const STATUS_COLORS: Record<string, string> = {
+  POR_RECIBIR: 'bg-blue-100 text-blue-700 border-blue-200',
   POR_ENVIAR: 'bg-indigo-100 text-indigo-700 border-indigo-200',
   RECOLECTADO: 'bg-violet-100 text-violet-700 border-violet-200',
   EN_TRANSITO: 'bg-sky-100 text-sky-700 border-sky-200',
-  POR_RECIBIR: 'bg-blue-100 text-blue-700 border-blue-200',
   RECIBIDO_EN_BODEGA: 'bg-amber-100 text-amber-700 border-amber-200',
   ENTREGADO: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  ENVIADO_A_CAMBIO: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  ANULADO: 'bg-red-100 text-red-700 border-red-200',
   CANCELADO: 'bg-red-100 text-red-700 border-red-200',
+  DESMANTELADO: 'bg-slate-100 text-slate-700 border-slate-200',
 };
 
 const fmtDate = (d: string | null | undefined) => {
@@ -127,20 +138,34 @@ export function ExchangesPage() {
   
   const { notifySuccess, notifyError } = useNotifications();
   const queryClient = useQueryClient();
+  const { openPreview, isOpen: isPDFOpen, pdfDocument, closePreview, downloadPDF, printPDF } = usePDFPreview();
+  const [isPrinting, setIsPrinting] = useState(false);
 
   const handleStatusUpdate = async (batchId: string, newStatus: string, tracking?: string) => {
     try {
       setIsUpdatingStatus(true);
-      await orderApi.updateExchangeBatchStatus(batchId, newStatus, tracking);
+      
+      // If batchId corresponds to a receiptNumber (fallback case)
+      if (batchId.includes('CAM-') || batchId.includes('guia')) {
+          await orderApi.updateExchangeBatchStatus(batchId, newStatus, tracking);
+      } else {
+          // Standard batch ID
+          await orderApi.updateExchangeBatchStatus(batchId, newStatus, tracking);
+      }
+
       notifySuccess(`El lote ha sido movido a ${STATUS_LABELS[newStatus] || newStatus}`);
       queryClient.invalidateQueries({ queryKey: ['orders'] });
-      // If we are in the details modal, we need to refresh the group
-      if (selectedGroup) {
-        const firstOrder = selectedGroup[0];
-        if (firstOrder.receiptNumber) {
-            const updated = await orderApi.getByReceipt(firstOrder.receiptNumber);
-            setSelectedGroup(updated);
-        }
+      
+      // If we are in the details modal, close it for EN_TRANSITO
+      if (newStatus === 'EN_TRANSITO') {
+          setSelectedGroup(null);
+      } else if (selectedGroup) {
+          // Just refresh the data if not closing
+          const firstOrder = selectedGroup[0];
+          if (firstOrder.receiptNumber) {
+              const updated = await orderApi.getByReceipt(firstOrder.receiptNumber);
+              setSelectedGroup(updated);
+          }
       }
       setShipmentData({ isOpen: false, batchId: null, trackingGuide: '' });
     } catch (error: any) {
@@ -150,8 +175,8 @@ export function ExchangesPage() {
     }
   };
 
-  const handleStartShipment = (batchId: string) => {
-    setShipmentData({ isOpen: true, batchId, trackingGuide: '' });
+  const handleStartShipment = (batchId: string, initialTracking?: string) => {
+    setShipmentData({ isOpen: true, batchId, trackingGuide: initialTracking || '' });
   };
 
   // Reset page on filter change
@@ -204,7 +229,22 @@ export function ExchangesPage() {
     }
   };
 
-  const { hasPermission } = useAuth();
+  const handlePrintReceipt = async (order: Order, childOrders: Order[]) => {
+    console.log('[DEBUG] handlePrintReceipt started', { orderId: order.id, childCount: childOrders.length });
+    setIsPrinting(true);
+    try {
+      const result = await prepareOrderReceiptForPreview(order, user as any, childOrders);
+      console.log('[DEBUG] PDF prepared successfully', result.fileName);
+      openPreview(result.document);
+    } catch (error) {
+      console.error('Error preparing PDF:', error);
+      notifyError('No se pudo generar el PDF para impresión');
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
+  const { user, hasPermission } = useAuth();
   const canCreate = hasPermission('exchanges.create');
 
   const handleEditBatch = (receiptNumber: string) => {
@@ -307,33 +347,30 @@ export function ExchangesPage() {
                  <SelectValue placeholder="Todos los estados" />
                </SelectTrigger>
                <SelectContent className="rounded-xl border-slate-200">
-                 <SelectItem value="ALL" className="font-bold text-slate-500 text-xs uppercase tracking-widest">Todos los estados</SelectItem>
-                 <SelectItem value="RECOLECTADO" className="font-bold text-indigo-700 text-xs uppercase tracking-widest">
-                   <div className="flex items-center gap-2">
-                     <div className="w-2 h-2 rounded-full bg-indigo-600" /> Recolectado
-                   </div>
-                 </SelectItem>
-                 <SelectItem value="EN_TRANSITO" className="font-bold text-sky-700 text-xs uppercase tracking-widest">
-                   <div className="flex items-center gap-2">
-                     <div className="w-2 h-2 rounded-full bg-sky-500" /> En Tránsito
-                   </div>
-                 </SelectItem>
-                 <SelectItem value="RECIBIDO_EN_BODEGA" className="font-bold text-amber-700 text-xs uppercase tracking-widest">
-                   <div className="flex items-center gap-2">
-                     <div className="w-2 h-2 rounded-full bg-amber-500" /> En Bodega
-                   </div>
-                 </SelectItem>
-                 <SelectItem value="ENTREGADO" className="font-bold text-emerald-700 text-xs uppercase tracking-widest">
-                   <div className="flex items-center gap-2">
-                     <div className="w-2 h-2 rounded-full bg-emerald-500" /> Entregado
-                   </div>
-                 </SelectItem>
-                 <SelectItem value="POR_ENVIAR" className="font-bold text-violet-700 text-xs uppercase tracking-widest">
-                   <div className="flex items-center gap-2">
-                     <div className="w-2 h-2 rounded-full bg-violet-500" /> Enviado Oficina
-                   </div>
-                 </SelectItem>
-               </SelectContent>
+                  <SelectItem value="ALL">
+                    <span className="font-bold text-slate-500 text-xs uppercase tracking-widest">Todos los estados</span>
+                  </SelectItem>
+                  <SelectItem value="POR_ENVIAR,RECOLECTADO,POR_RECIBIR">
+                    <div className="flex items-center gap-2 font-bold text-indigo-700 text-xs uppercase tracking-widest">
+                      <div className="w-2 h-2 rounded-full bg-indigo-600" /> Recolectado
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="EN_TRANSITO">
+                    <div className="flex items-center gap-2 font-bold text-sky-700 text-xs uppercase tracking-widest">
+                      <div className="w-2 h-2 rounded-full bg-sky-500" /> En Tránsito
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="RECIBIDO_EN_BODEGA">
+                    <div className="flex items-center gap-2 font-bold text-amber-700 text-xs uppercase tracking-widest">
+                      <div className="w-2 h-2 rounded-full bg-amber-500" /> En Bodega
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="ENTREGADO,ENVIADO_A_CAMBIO">
+                    <div className="flex items-center gap-2 font-bold text-emerald-700 text-xs uppercase tracking-widest">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500" /> Entregados
+                    </div>
+                  </SelectItem>
+                </SelectContent>
              </Select>
            </div>
           <div className="w-full md:w-[240px]">
@@ -375,7 +412,7 @@ export function ExchangesPage() {
                     <th className="px-4 py-4 text-left">Cliente</th>
                     <th className="px-4 py-4 text-center">N° de Guía</th>
                     <th className="px-4 py-4 text-center">Fecha</th>
-                    <th className="px-4 py-4 text-center">Recolectado</th>
+                    <th className="px-4 py-4 text-center">RECOLECTADO</th>
                     <th className="px-4 py-4 text-center">En Tránsito</th>
                     <th className="px-4 py-4 text-center">En Bodega</th>
                     <th className="px-4 py-4 text-center">Entregado</th>
@@ -386,12 +423,12 @@ export function ExchangesPage() {
                   {groupedOrders.map((group, idx) => {
                     const first = group[0];
                     const count = group.length;
-                    const recolectado = group.filter(o => o.status === 'RECOLECTADO').length;
+                    const enviado = group.filter(o => o.status === 'POR_ENVIAR' || o.status === 'RECOLECTADO' || o.status === 'POR_RECIBIR').length;
                     const transito = group.filter(o => o.status === 'EN_TRANSITO').length;
                     const enBodega = group.filter(o => o.status === 'RECIBIDO_EN_BODEGA').length;
                     const entregado = group.filter(o => o.status === 'ENTREGADO').length;
-                    const isSN = first.receiptNumber.startsWith('S/N-');
-                    const displayReceipt = isSN ? "" : first.receiptNumber;
+                    const isSN = first.receiptNumber.startsWith('S/N-') || first.receiptNumber.startsWith('SN-');
+                    const displayReceipt = isSN ? "-" : first.receiptNumber;
 
                     return (
                       <tr 
@@ -448,7 +485,7 @@ export function ExchangesPage() {
                            ) : (
                              <div className="flex items-center justify-center gap-2 group-hover-actions">
                                <span className={`text-xs font-black tracking-tight ${isSN ? 'text-slate-300' : 'text-slate-700'}`}>
-                                 {displayReceipt || 'SIN NÚMERO'}
+                                 {displayReceipt || 'SIN GUÍA'}
                                </span>
                                <Button 
                                  variant="ghost" 
@@ -471,8 +508,12 @@ export function ExchangesPage() {
                         </td>
                         <td className="px-4 h-[72px] p-0 border-r border-slate-50 text-center group/td relative">
                              <div className="flex items-center justify-center h-full w-full">
-                                <div className={`flex items-center justify-center min-w-[64px] h-11 px-3 rounded-full transition-all duration-200 group-hover/td:opacity-0 group-hover/td:scale-50 ${recolectado > 0 ? 'bg-indigo-600 shadow-lg shadow-indigo-100 scale-110 font-black text-white' : 'bg-slate-100/50 text-slate-300 font-bold'}`}>
-                                    {recolectado}
+                                <div className={`flex items-center justify-center min-w-[64px] h-11 px-3 rounded-full transition-all duration-200 group-hover/td:opacity-0 group-hover/td:scale-50 ${
+                                    enviado > 0 
+                                        ? 'bg-indigo-600 shadow-lg shadow-indigo-100 scale-110 font-black text-white' 
+                                        : 'bg-indigo-100/50 text-indigo-400 border border-indigo-100 font-bold'
+                                }`}>
+                                    <span className="text-sm">{count}</span>
                                 </div>
                                  {(transito === 0 && enBodega === 0 && entregado === 0) && (
                                      <button
@@ -490,7 +531,7 @@ export function ExchangesPage() {
                         <td className="px-4 h-[72px] p-0 border-r border-slate-50 text-center">
                             <div className="flex items-center justify-center h-full">
                                 <div className={`flex items-center justify-center min-w-[64px] h-11 px-3 rounded-full transition-all ${transito > 0 ? 'bg-sky-500 shadow-lg shadow-sky-100 scale-110 font-black text-white' : 'bg-slate-100/50 text-slate-300 font-bold'}`}>
-                                      {transito}
+                                    <span className="text-[10px] whitespace-nowrap">{transito} de {count}</span>
                                 </div>
                             </div>
                         </td>
@@ -510,8 +551,13 @@ export function ExchangesPage() {
                         </td>
                         <td className="px-4 h-[72px] p-0 text-center">
                           <div className="flex justify-center">
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-monchito-purple hover:bg-monchito-purple/10 transition-colors">
-                              <ChevronRight className="h-4 w-4" />
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-slate-400 hover:text-white hover:bg-monchito-purple shadow-none rounded-lg transition-all"
+                              title="Ver detalles de la guía"
+                            >
+                              <Eye className="h-4 w-4" />
                             </Button>
                           </div>
                         </td>
@@ -538,21 +584,24 @@ export function ExchangesPage() {
       
       {/* Detail Modal Configured to look like Registro de Ventas */}
       <Dialog open={!!selectedGroup} onOpenChange={(open) => !open && setSelectedGroup(null)}>
-        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto flex flex-col rounded-3xl p-0 gap-0 border-none shadow-2xl">
+        <DialogContent className="sm:max-w-7xl h-[85vh] flex flex-col rounded-3xl p-0 gap-0 border-none shadow-2xl overflow-hidden">
           {selectedGroup && (() => {
                const firstOrder = selectedGroup[0];
-               const batchInfo = (firstOrder as any).exchangeBatchItems?.[0]?.batch;
+               const batchInfo = firstOrder.exchangeBatchItems?.[0]?.batch;
                const totalAmount = selectedGroup.reduce((acc, curr) => acc + Number(curr.total || 0), 0);
                const isAnyDelivered = selectedGroup.some(o => o.status === 'ENTREGADO');
                const isAllDelivered = selectedGroup.every(o => o.status === 'ENTREGADO');
                const isAllBodega = selectedGroup.every(o => o.status === 'RECIBIDO_EN_BODEGA' || o.status === 'ENTREGADO');
+               // Relaxed condition: All elements are in some form of "recolectado" or "por enviar"
+               const isAllRecolectado = selectedGroup.every(o => ['RECOLECTADO', 'POR_ENVIAR', 'POR_RECIBIR'].includes(o.status));
+               
                let globalStatus = 'Diversos';
                if (isAllDelivered) globalStatus = 'ENTREGADO';
                else if (isAllBodega) globalStatus = 'RECIBIDO_EN_BODEGA';
                else if (selectedGroup.every(o => o.status === 'EN_TRANSITO')) globalStatus = 'EN_TRANSITO';
-               else if (selectedGroup.every(o => o.status === 'RECOLECTADO')) globalStatus = 'RECOLECTADO';
-               else if (selectedGroup.every(o => o.status === 'POR_ENVIAR')) globalStatus = 'POR_ENVIAR';
-               else if (selectedGroup.every(o => o.status === 'POR_RECIBIR')) globalStatus = 'POR_RECIBIR';
+               else if (isAllRecolectado) globalStatus = 'RECOLECTADO';
+
+               const isTechnicalId = firstOrder.receiptNumber?.startsWith('S/N-') || firstOrder.receiptNumber?.startsWith('SN-');
 
                return (
             <>
@@ -560,38 +609,41 @@ export function ExchangesPage() {
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-[10px] font-black uppercase text-monchito-purple tracking-widest mb-1">Registro de Cambios</p>
-                            <DialogTitle className="text-2xl font-black text-slate-800 tracking-tight">Guía {firstOrder.receiptNumber}</DialogTitle>
+                            <DialogTitle className="text-2xl font-black text-slate-800 tracking-tight">
+                                {isTechnicalId ? (
+                                    <div className="flex flex-col">
+                                        <span>SIN GUÍA</span>
+                                        <p className="text-[10px] text-red-500 font-bold italic tracking-normal mt-0.5 normal-case">obligatorio ingresar al enviar la guía</p>
+                                    </div>
+                                ) : (
+                                    `Guía ${firstOrder.receiptNumber}`
+                                )}
+                            </DialogTitle>
                         </div>
                         <div className="flex flex-col items-end gap-1">
                             <Badge className={`${STATUS_COLORS[globalStatus] || 'bg-slate-100 text-slate-700'} border font-black uppercase text-[10px] tracking-widest px-3 py-1 rounded-full shadow-sm`}>
                                 {STATUS_LABELS[globalStatus] || globalStatus}
                             </Badge>
-                            <p className="text-[10px] text-muted-foreground font-medium italic mt-1">Canal: {firstOrder.salesChannel}</p>
                         </div>
                     </div>
                 </DialogHeader>
-
-                <div className="px-6 py-6 bg-slate-50/50">
+                
+                <div className="px-6 py-6 pb-2 bg-slate-50/50">
                     {/* Global Summary Card Grid */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                        <div className="bg-white border border-slate-100 p-4 rounded-xl shadow-sm">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Cliente</p>
-                            <p className="font-bold text-slate-800 truncate">{firstOrder.clientName}</p>
-                            <p className="text-[10px] text-slate-500 mt-1 uppercase">Items: <span className="font-black text-monchito-purple">{selectedGroup.length}</span></p>
-                        </div>
-
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                        {/* Estado General */}
                         <div className="bg-white border border-slate-100 p-4 rounded-xl shadow-sm">
                             <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Estado General</p>
                             <div className="flex justify-between items-baseline mb-0.5">
                                 <span className="text-xs text-slate-500 font-semibold">Recolectados:</span>
-                                <span className="font-black text-indigo-600">{selectedGroup.filter(o => o.status === 'RECOLECTADO').length}</span>
+                                <span className="font-black text-indigo-600">{selectedGroup.filter(o => o.status === 'RECOLECTADO' || o.status === 'POR_ENVIAR' || o.status === 'POR_RECIBIR').length}</span>
                             </div>
                             <div className="flex justify-between items-baseline mb-0.5">
                                 <span className="text-xs text-slate-500 font-semibold">En Tránsito:</span>
                                 <span className="font-black text-sky-600">{selectedGroup.filter(o => o.status === 'EN_TRANSITO').length}</span>
                             </div>
                             <div className="flex justify-between items-baseline mb-0.5">
-                                <span className="text-xs text-slate-500 font-semibold">En Bodega:</span>
+                                <span className="text-slate-300 italic font-medium">-</span>
                                 <span className="font-black text-amber-600">{selectedGroup.filter(o => o.status === 'RECIBIDO_EN_BODEGA').length}</span>
                             </div>
                             <div className="flex justify-between items-baseline">
@@ -619,42 +671,62 @@ export function ExchangesPage() {
                                 </div>
                             </div>
                         </div>
-                    </div>
-
-                    {/* Associated Orders Table */}
-                    <div className="mb-4">
-                        <div className="flex justify-between items-end mb-3 border-b-2 border-monchito-purple/10 pb-2">
-                            <div className="flex items-center gap-2">
-                                <ListOrdered className="w-5 h-5 text-monchito-purple" />
-                                <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest">Desglose de la Guía</h4>
-                            </div>
-                            <div className="flex flex-col items-end">
-                                <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest leading-tight mb-1">Total de Guía</p>
-                                <p className="text-3xl font-black text-monchito-purple leading-none">{formatCurrency(totalAmount)}</p>
+                        
+                        {/* Nueva 4ta Card: Notas Generales */}
+                        <div className="bg-white border border-slate-100 p-4 rounded-xl shadow-sm overflow-hidden flex flex-col">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase mb-1 flex items-center gap-1.5">
+                                <StickyNote className="w-2.5 h-2.5 text-amber-500" />
+                                Notas de la Guía
+                            </p>
+                            <div className="flex-1 min-h-0 flex items-center">
+                                <p className="text-[11px] font-semibold text-slate-600 line-clamp-3 italic leading-snug">
+                                    {(firstOrder as any).receipt?.notes || firstOrder.notes || "Sin notas adicionales."}
+                                </p>
                             </div>
                         </div>
+                    </div>
+
+
+
+                    <div className="flex justify-between items-end mb-1 border-b-2 border-monchito-purple/10 pb-2">
+                        <div className="flex items-center gap-2">
+                            <ListOrdered className="w-5 h-5 text-monchito-purple" />
+                            <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest">Desglose de la Guía</h4>
+                        </div>
+                        <div className="flex flex-col items-end">
+                            <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest leading-tight mb-1">Total de Guía</p>
+                            <p className="text-3xl font-black text-monchito-purple leading-none">{formatCurrency(totalAmount)}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex-1 overflow-auto px-6 pb-6 bg-slate-50/50 custom-scrollbar">
+                    {/* Associated Orders Table */}
+                    <div className="mb-4">
 
                         <div className="rounded-2xl border border-slate-200 overflow-hidden bg-white shadow-xl">
                             <div className="overflow-x-auto custom-scrollbar">
                                 <table className="w-full text-xs text-left border-collapse min-w-[1400px]">
                                     <thead>
-                                        <tr className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase font-bold text-slate-500">
-                                            <th className="px-4 py-4 border-r border-slate-100 text-center" colSpan={4}>Información de lo que se Devuelve (Original)</th>
+                                        <tr className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase font-bold text-slate-500 sticky top-0 z-20">
+                                            <th className="px-4 py-4 border-r border-slate-100 text-center" colSpan={5}>Información de lo que se Devuelve (Original)</th>
                                             <th className="px-2 w-8 text-center text-slate-300 border-r border-slate-100">
                                                <ArrowRightLeft className="w-3 h-3 mx-auto" />
                                             </th>
-                                            <th className="px-4 py-4 border-r border-slate-100 text-center" colSpan={6}>Información del Reemplazo Solicitado (Cambio)</th>
+                                            <th className="px-4 py-4 border-r border-slate-100 text-center" colSpan={7}>Información del Reemplazo Solicitado (Cambio)</th>
                                         </tr>
-                                        <tr className="bg-slate-50 border-b border-slate-200 text-[9px] uppercase font-black text-slate-400 bg-slate-100/30">
+                                        <tr className="bg-slate-50 border-b border-slate-200 text-[9px] uppercase font-black text-slate-400 bg-slate-100/30 sticky top-12 z-20">
+                                            <th className="px-4 py-3 border-r border-slate-100 text-slate-500 text-center bg-white/50">Empresaria</th>
                                             {/* Original */}
                                             <th className="px-4 py-3 border-r border-slate-100 w-28 text-slate-500">N° Pedido</th>
                                             <th className="px-4 py-3 border-r border-slate-100 text-center w-12 text-slate-500">Cant</th>
                                             <th className="px-4 py-3 border-r border-slate-100 w-28 text-slate-500">Catálogo</th>
                                             <th className="px-4 py-3 border-r border-slate-100 min-w-[200px] text-slate-500">Descripción del Cambio</th>
                                             {/* Middle */}
-                                            <th className="px-2 text-center border-r border-slate-100 bg-slate-50"></th>
+                                            <th className="px-2 text-center border-r border-slate-100 bg-white"></th>
                                             {/* New */}
-                                            <th className="px-4 py-3 border-r border-slate-100 w-28 text-monchito-purple/70">Pedido por</th>
+                                            <th className="px-4 py-3 border-r border-slate-100 w-28 text-monchito-purple/70">N° Pedido</th>
+                                            <th className="px-4 py-3 border-r border-slate-100 w-24 text-monchito-purple/70">Pedido por</th>
                                             <th className="px-4 py-3 border-r border-slate-100 text-center w-12 text-monchito-purple/70">Cant</th>
                                             <th className="px-4 py-3 border-r border-slate-100 w-28 text-monchito-purple/70">Catálogo</th>
                                             <th className="px-4 py-3 border-r border-slate-100 min-w-[200px] text-monchito-purple/70">Descripción</th>
@@ -665,41 +737,61 @@ export function ExchangesPage() {
                                     <tbody className="divide-y divide-slate-100 bg-white">
                                         {selectedGroup.map((child) => {
                                             const parsed = parseExchangeNotesDetailed(child.notes || '');
+                                            
+                                            // Prefer new structured fields if available, otherwise fallback to parsed notes
+                                            const displayData = {
+                                                originalOrder: child.sourceOrderNumber || parsed.originalOrder,
+                                                originalQty: child.sourceQuantity || parsed.originalQty,
+                                                originalBrand: child.sourceBrandName || parsed.originalBrand,
+                                                originalDesc: child.sourceDescription || (child.sourceOrderNumber ? 'Sin detalle' : parsed.originalDesc),
+                                                newQty: child.items?.[0]?.quantity || parsed.newQty,
+                                                newBrand: child.brandName || parsed.newBrand,
+                                                newDesc: child.description || (child.sourceOrderNumber ? 'Sin detalles' : parsed.newDesc)
+                                            };
+
                                             return (
-                                            <tr key={child.id} className="hover:bg-slate-50 transition-colors">
-                                                {/* Original Info */}
-                                                <td className="px-4 py-4 font-black text-slate-400 border-r border-slate-100">{parsed.originalOrder}</td>
-                                                <td className="px-4 py-4 text-center font-black text-slate-500 border-r border-slate-100 bg-slate-50/50">{parsed.originalQty}</td>
-                                                <td className="px-4 py-4 font-bold text-slate-700 border-r border-slate-100">{parsed.originalBrand}</td>
-                                                <td className="px-4 py-4 font-medium text-slate-600 border-r border-slate-100">
-                                                    <p className="line-clamp-2" title={parsed.originalDesc}>{parsed.originalDesc}</p>
-                                                </td>
-                                                
-                                                <td className="px-2 py-4 text-center text-slate-300 border-r border-slate-100 bg-slate-50/50">
-                                                    <ArrowRightLeft className="w-4 h-4 mx-auto text-monchito-purple/30" />
-                                                </td>
-                                                
-                                                {/* Replacement Info */}
-                                                <td className="px-4 py-4 font-black text-slate-800 border-r border-slate-100">
-                                                   <Badge variant="outline" className="text-[9px] w-full justify-center px-1 py-0.5 uppercase font-black text-slate-500 border-slate-200">
-                                                     {child.salesChannel}
-                                                   </Badge>
-                                                </td>
-                                                <td className="px-4 py-4 text-center font-black text-monchito-purple border-r border-slate-100 bg-monchito-purple/5">{parsed.newQty}</td>
-                                                <td className="px-4 py-4 font-bold text-monchito-purple border-r border-slate-100">{parsed.newBrand}</td>
-                                                <td className="px-4 py-4 font-bold text-monchito-purple border-r border-slate-100">
-                                                    <p className="line-clamp-2" title={parsed.newDesc}>{parsed.newDesc}</p>
-                                                </td>
-                                                <td className="px-4 py-4 text-center font-bold text-slate-600 border-r border-slate-100 whitespace-nowrap">
-                                                    {child.possibleDeliveryDate ? fmtDate(child.possibleDeliveryDate).split(' ')[0] : 'N/A'}
-                                                </td>
-                                                
-                                                <td className="px-4 py-4 text-center">
-                                                    <Badge className={`${STATUS_COLORS[child.status] || 'bg-slate-100 text-slate-700'} border font-black uppercase text-[8px] tracking-widest px-2 py-1 rounded-xl shadow-sm`}>
-                                                        {STATUS_LABELS[child.status] || child.status}
-                                                    </Badge>
-                                                </td>
-                                            </tr>
+                                                <tr key={child.id} className="hover:bg-slate-50 transition-colors">
+                                                    {/* Empresaria Header */}
+                                                    <td className="px-4 py-4 font-bold text-slate-800 border-r border-slate-100 bg-white">
+                                                       {child.clientName}
+                                                    </td>
+
+                                                    {/* Original Info */}
+                                                    <td className="px-4 py-4 font-black text-slate-400 border-r border-slate-100">{displayData.originalOrder}</td>
+                                                    <td className="px-4 py-4 text-center font-black text-slate-500 border-r border-slate-100 bg-slate-50/50">{displayData.originalQty}</td>
+                                                    <td className="px-4 py-4 font-bold text-slate-700 border-r border-slate-100">{displayData.originalBrand}</td>
+                                                    <td className="px-4 py-4 font-medium text-slate-600 border-r border-slate-100">
+                                                        <p className="line-clamp-2" title={displayData.originalDesc}>{displayData.originalDesc}</p>
+                                                    </td>
+                                                    
+                                                    <td className="px-2 py-4 text-center text-slate-300 border-r border-slate-100 bg-slate-50/50">
+                                                        <ArrowRightLeft className="w-4 h-4 mx-auto text-monchito-purple/30" />
+                                                    </td>
+                                                    
+                                                    {/* Replacement Info */}
+                                                    <td className="px-4 py-4 font-black text-monchito-purple border-r border-slate-100 bg-monchito-purple/5">
+                                                        {child.orderNumber}
+                                                    </td>
+                                                    <td className="px-4 py-4 font-black text-slate-800 border-r border-slate-100">
+                                                       <Badge variant="outline" className="text-[9px] w-full justify-center px-1 py-0.5 uppercase font-black text-slate-500 border-slate-200">
+                                                         {child.salesChannel}
+                                                       </Badge>
+                                                    </td>
+                                                    <td className="px-4 py-4 text-center font-black text-monchito-purple border-r border-slate-100 bg-monchito-purple/5">{displayData.newQty}</td>
+                                                    <td className="px-4 py-4 font-bold text-monchito-purple border-r border-slate-100">{displayData.newBrand}</td>
+                                                    <td className="px-4 py-4 font-bold text-monchito-purple border-r border-slate-100">
+                                                        <p className="line-clamp-2" title={displayData.newDesc}>{displayData.newDesc}</p>
+                                                    </td>
+                                                    <td className="px-4 py-4 text-center font-bold text-slate-600 border-r border-slate-100 whitespace-nowrap">
+                                                        {child.possibleDeliveryDate ? fmtDate(child.possibleDeliveryDate).split(' ')[0] : 'N/A'}
+                                                    </td>
+                                                    
+                                                    <td className="px-4 py-4 text-center">
+                                                        <Badge className={`${STATUS_COLORS[child.status] || 'bg-slate-100 text-slate-700'} border font-black uppercase text-[8px] tracking-widest px-2 py-1 rounded-xl shadow-sm`}>
+                                                            {STATUS_LABELS[child.status] || child.status}
+                                                        </Badge>
+                                                    </td>
+                                                </tr>
                                         )})}
                                     </tbody>
                                 </table>
@@ -731,7 +823,31 @@ export function ExchangesPage() {
                             </Button>
                         )}
 
-                        {!isAnyDelivered && hasPermission('exchanges.edit') && (
+                        {/* Improved Logic: Enviar Guía if all items are in RECOLECTADO status group */}
+                        {globalStatus === 'RECOLECTADO' && hasPermission('exchanges.manage') && (
+                            <Button 
+                                className="rounded-xl h-11 font-black bg-monchito-purple hover:bg-monchito-purple/90 text-white transition-all px-8 shadow-xl shadow-monchito-purple/20 animate-in fade-in zoom-in duration-300"
+                                onClick={() => {
+                                    const batchId = batchInfo?.id || firstOrder.receptionBatchId;
+                                    // Use receiptNumber as ultimate fallback for tracking number
+                                    const initialTracking = batchInfo?.trackingGuide || 
+                                                           firstOrder.trackingGuide || 
+                                                           (firstOrder.receiptNumber && !firstOrder.receiptNumber.startsWith('S/N-') ? firstOrder.receiptNumber : '');
+                                    
+                                    if (batchId) {
+                                        handleStartShipment(batchId, initialTracking);
+                                    } else {
+                                        // Fallback for cases without explicit batch entity: use receiptNumber
+                                        setShipmentData({ isOpen: true, batchId: firstOrder.receiptNumber, trackingGuide: initialTracking });
+                                    }
+                                }}
+                            >
+                                <Send className="w-4 h-4 mr-2" />
+                                Enviar Guía
+                            </Button>
+                        )}
+
+                        {globalStatus === 'RECOLECTADO' && !isAnyDelivered && hasPermission('exchanges.edit') && (
                             <Button 
                                 variant="outline" 
                                 className="rounded-xl h-11 font-bold text-monchito-purple border-monchito-purple/20 hover:bg-monchito-purple/5 transition-all px-6"
@@ -741,7 +857,7 @@ export function ExchangesPage() {
                                 Editar Guía
                             </Button>
                         )}
-                        {!isAnyDelivered && hasPermission('exchanges.delete') && (
+                        {(globalStatus === 'RECOLECTADO' || globalStatus === 'EN_TRANSITO') && !isAnyDelivered && hasPermission('exchanges.delete') && (
                             <Button 
                                 variant="ghost" 
                                 className="rounded-xl h-11 font-bold text-red-500 hover:bg-red-50 transition-all px-6"
@@ -749,6 +865,22 @@ export function ExchangesPage() {
                             >
                                 <Trash2 className="w-4 h-4 mr-2" />
                                 Eliminar Todo
+                            </Button>
+                        )}
+
+                        {globalStatus !== 'RECOLECTADO' && (
+                            <Button 
+                                variant="outline" 
+                                className="rounded-xl h-11 font-black bg-monchito-purple/10 hover:bg-monchito-purple/20 text-monchito-purple border-monchito-purple/20 transition-all px-8 shadow-sm"
+                                disabled={isPrinting}
+                                onClick={() => handlePrintReceipt(firstOrder, selectedGroup!.slice(1))}
+                            >
+                                {isPrinting ? (
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                ) : (
+                                    <Printer className="w-4 h-4 mr-2" />
+                                )}
+                                Imprimir Recibo
                             </Button>
                         )}
                         {isAnyDelivered && (
@@ -809,6 +941,17 @@ export function ExchangesPage() {
         onConfirm={handleDeleteBatch}
         variant="destructive"
       />
+      {pdfDocument && (
+        <PDFPreviewModal
+          open={isPDFOpen}
+          onOpenChange={(open) => !open && closePreview()}
+          title={`Recibo de Guía - ${selectedGroup ? selectedGroup[0].receiptNumber : ''}`}
+          pdfDocument={pdfDocument as any}
+          fileName={`recibo-guia-${selectedGroup ? selectedGroup[0].receiptNumber : 'sin-numero'}.pdf`}
+          onDownload={downloadPDF}
+          onPrint={printPDF}
+        />
+      )}
     </div>
   );
 }

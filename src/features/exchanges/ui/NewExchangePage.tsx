@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect, useMemo } from "react"
 import { useFormik } from "formik"
 import { useNavigate, useParams } from "react-router-dom"
-import { useQueryClient } from "@tanstack/react-query"
+import { useQueryClient, useQuery } from "@tanstack/react-query"
 import * as Yup from "yup"
-import { ArrowLeft, Plus, X, RefreshCw, Printer, FileText, Search, PackageOpen, Send } from "lucide-react"
+import { ArrowLeft, Plus, X, RefreshCw, Printer, FileText, Search, PackageOpen, Send, ArrowRightLeft, Pin, PinOff, Pencil, Save } from "lucide-react"
 
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
@@ -55,21 +55,45 @@ const validationSchema = Yup.object({
         .required("Requerido"),
     createdAt: Yup.string().required("Fecha de registro requerida"),
     sourceOrder: Yup.object().nullable().optional(),
+    notes: Yup.string().optional(),
 })
+
+const parseExchangeNotesDetailed = (notes: string) => {
+    const regex = /CAMBIO DE \[([^\s]+)\s+(.*?)\s*x(\d+):\s*([\s\S]*?)\]\s*POR\s*\[(.*?)\s*x(\d+):\s*([\s\S]*?)\]/i;
+    const match = notes?.match(regex);
+    if (match) {
+        return {
+            originalOrder: match[1],
+            originalBrand: match[2],
+            originalQty: match[3],
+            originalDesc: match[4],
+            newBrand: match[5],
+            newQty: match[6],
+            newDesc: match[7]
+        };
+    }
+    return {
+        originalOrder: 'N/A',
+        originalBrand: 'N/A',
+        originalQty: '-',
+        originalDesc: notes || 'Sin detalles',
+        newBrand: 'N/A',
+        newQty: '-',
+        newDesc: 'Sin detalles'
+    };
+};
 
 function SourceOrderModal({ 
     isOpen, 
     onClose, 
     clientId, 
     alreadySelectedIds = [],
-    alreadySelectedNumbers = [],
     onSelect 
 }: { 
     isOpen: boolean, 
     onClose: () => void, 
     clientId: string,
     alreadySelectedIds?: string[],
-    alreadySelectedNumbers?: string[],
     onSelect: (order: any) => void 
 }) {
     const [searchTerm, setSearchTerm] = useState("")
@@ -90,13 +114,55 @@ function SourceOrderModal({
     const allOrders = response?.data || []
     const pagination = response?.pagination
 
-    // Filter out orders that are already in the table
+    // Get order IDs that are in active exchange batches (not delivered)
+    const { data: activeExchangeOrderIds = [], isLoading: isLoadingActiveIds, error: activeIdsError } = useQuery({
+        queryKey: ['active-exchange-order-ids', clientId],
+        queryFn: async () => {
+            console.log('🌐 Fetching active exchange order IDs for clientId:', clientId);
+            const result = await orderApi.getActiveExchangeOrderIds(clientId);
+            console.log('✅ Received active exchange order IDs:', result);
+            return result;
+        },
+        enabled: !!clientId && isOpen,
+        staleTime: 0, // Always fetch fresh data
+        gcTime: 0 // Don't cache
+    })
+
+    // Debug logging
+    useEffect(() => {
+        if (isOpen && clientId) {
+            console.log('🔍 SourceOrderModal Debug:');
+            console.log('  clientId:', clientId);
+            console.log('  isLoadingActiveIds:', isLoadingActiveIds);
+            console.log('  activeIdsError:', activeIdsError);
+            console.log('  activeExchangeOrderIds:', activeExchangeOrderIds);
+            console.log('  alreadySelectedIds:', alreadySelectedIds);
+            console.log('  allOrders count:', allOrders.length);
+        }
+    }, [isOpen, clientId, activeExchangeOrderIds, alreadySelectedIds, allOrders, isLoadingActiveIds, activeIdsError]);
+
+    // Filter out orders that are already in the table or in active exchanges
     const orders = useMemo(() => {
         let result = allOrders;
-        if (alreadySelectedIds.length > 0) result = result.filter((o: any) => !alreadySelectedIds.includes(o.id));
-        if (alreadySelectedNumbers.length > 0) result = result.filter((o: any) => !alreadySelectedNumbers.includes(o.orderNumber));
+        console.log('🔧 Filtering orders:');
+        console.log('  Starting with:', result.length, 'orders');
+        
+        // Filter by IDs in current table
+        if (alreadySelectedIds.length > 0) {
+            result = result.filter((o: any) => !alreadySelectedIds.includes(o.id));
+            console.log('  After filtering alreadySelectedIds:', result.length, 'orders');
+        }
+        // Filter by IDs in active exchanges
+        if (activeExchangeOrderIds.length > 0) {
+            const beforeCount = result.length;
+            result = result.filter((o: any) => !activeExchangeOrderIds.includes(o.id));
+            console.log('  After filtering activeExchangeOrderIds:', result.length, 'orders');
+            console.log('  Filtered out:', beforeCount - result.length, 'orders');
+        }
+        
+        console.log('  Final result:', result.length, 'orders');
         return result;
-    }, [allOrders, alreadySelectedIds, alreadySelectedNumbers]);
+    }, [allOrders, alreadySelectedIds, activeExchangeOrderIds]);
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
@@ -159,7 +225,13 @@ function SourceOrderModal({
                             ) : (
                                 orders.map((o: any) => (
                                     <tr key={o.id} className="hover:bg-white transition-colors group text-[11px]">
-                                        <td className="px-4 py-3 font-bold text-slate-700">{o.receiptNumber}</td>
+                                        <td className="px-4 py-3 font-bold text-slate-700">
+                                            {(() => {
+                                                const r = o.receiptNumber || "";
+                                                if (r.startsWith('S/N-') || r.startsWith('SN-')) return "-";
+                                                return r;
+                                            })()}
+                                        </td>
                                         <td className="px-4 py-3 font-medium text-slate-600">{o.orderNumber || '-'}</td>
                                         <td className="px-4 py-3 font-bold text-monchito-purple">{o.brand?.name || o.brandName}</td>
                                         <td className="px-4 py-3 text-center">
@@ -385,7 +457,25 @@ export function NewExchangePage() {
     useBankAccountList()
     
     const createOrder = useCreateOrder()
+    const [isSavingNotes, setIsSavingNotes] = useState(false);
+    
     const { notifySuccess, notifyError } = useNotifications()
+
+    const handleSaveNotes = async () => {
+        if (!receiptNumber) return;
+        try {
+            setIsSavingNotes(true);
+            await orderApi.updateReceiptHeader(receiptNumber, {
+                notes: formik.values.notes
+            });
+            notifySuccess('Notas de la guía actualizadas correctamente.');
+            queryClient.invalidateQueries({ queryKey: ['receiptOrders', receiptNumber] });
+        } catch (error: any) {
+            notifyError(error, 'Error al actualizar las notas.');
+        } finally {
+            setIsSavingNotes(false);
+        }
+    };
     const { user } = useAuth()
 
     const [isSubmitting, setIsSubmitting] = useState(false)
@@ -396,12 +486,13 @@ export function NewExchangePage() {
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
     const [orderToDelete, setOrderToDelete] = useState<any>(null)
     const [lastClosureDate, setLastClosureDate] = useState<Date | null>(null)
-
+    
     const [paymentModalOpen, setPaymentModalOpen] = useState(false)
 
     // PDF Preview state
     const [pdfTitle, setPdfTitle] = useState('')
     const [pdfFileName, setPdfFileName] = useState('')
+    const [isActionsPinned, setIsActionsPinned] = useState(true)
     const pdfPreview = usePDFPreview({
         fileName: pdfFileName,
         onDownloadComplete: () => {
@@ -413,7 +504,7 @@ export function NewExchangePage() {
         }
     })
 
-    const [saveStatus, setSaveStatus] = useState<'RECOLECTADO' | 'EN_TRANSITO'>('RECOLECTADO')
+    const [saveStatus, setSaveStatus] = useState<'POR_ENVIAR' | 'EN_TRANSITO'>('POR_ENVIAR')
 
     // State for the item being added
     const [currentItem, setCurrentItem] = useState({
@@ -438,6 +529,33 @@ export function NewExchangePage() {
         sourceDescription: ""
     })
 
+    const [isRowEditModalOpen, setIsRowEditModalOpen] = useState(false);
+    const [itemToEdit, setItemToEdit] = useState<any>(null);
+    const [itemToEditIdx, setItemToEditIdx] = useState<number | null>(null);
+
+    const { data: bankAccountsResponse } = useBankAccountList()
+    const bankAccounts = bankAccountsResponse?.data || []
+
+    const handleOpenRowEdit = (item: any, idx: number) => {
+        setItemToEdit({ 
+            ...item,
+            total: Number(item.total) || 0,
+            deposit: Number(item.deposit) || 0
+        });
+        setItemToEditIdx(idx);
+        setIsRowEditModalOpen(true);
+    };
+
+    const handleSaveRowEdit = () => {
+        if (itemToEditIdx === null || !itemToEdit) return;
+        const newItems = [...formik.values.brandItems];
+        newItems[itemToEditIdx] = itemToEdit;
+        formik.setFieldValue("brandItems", newItems);
+        setIsRowEditModalOpen(false);
+        setItemToEdit(null);
+        setItemToEditIdx(null);
+    };
+
     const [isSourceModalOpen, setIsSourceModalOpen] = useState(false)
 
 
@@ -453,11 +571,18 @@ export function NewExchangePage() {
             transactionDate: new Date().toISOString().split('T')[0],
             paymentMethod: "EFECTIVO",
             notes: "",
+            trackingGuide: "",
         },
         validationSchema,
         enableReinitialize: true,
         onSubmit: async () => {}
     })
+
+    // Memoize filter array to ensure modal receives updated values
+    const alreadySelectedIds = useMemo(() => 
+        formik.values.brandItems.map((item: any) => item.sourceOrderId).filter(Boolean),
+        [formik.values.brandItems]
+    );
 
     const totalOrderValue = formik.values.brandItems.reduce((sum, item) => sum + Number(item.total), 0);
     const totalRowDeposit = formik.values.brandItems.reduce((sum, item) => sum + Number(item.deposit || 0), 0);
@@ -484,6 +609,7 @@ export function NewExchangePage() {
             const batchPayload = {
                 receipt_number: formik.values.receiptNumber,
                 client_id: formik.values.clientId,
+                tracking_guide: formik.values.receiptNumber,
                 sales_channel: formik.values.salesChannel,
                 created_at: new Date().toISOString(),
                 payment_method: activePayments[0]?.method || "EFECTIVO",
@@ -492,7 +618,9 @@ export function NewExchangePage() {
                 transaction_reference: activePayments[0]?.transactionReference || "",
                 deposit: totalAmount,
                 credit_to_use: walletCreditUsed,
-                notes: activePayments[0]?.notes || formik.values.notes,
+                notes: formik.values.notes || activePayments[0]?.notes,
+                // Removed redundant tracking_guide here as it's defined above
+
                 // Split payment: múltiples métodos de pago
                 ...(isSplitPayment && {
                     payment_data: {
@@ -517,20 +645,22 @@ export function NewExchangePage() {
                         rowDeposit = Math.round(totalAmount * proportion * 100) / 100;
                     }
                     
-                    // Construct the combined description for the backend audit trail
-                    const structuredNotes = `CAMBIO DE [${item.sourceOrderNumber} ${item.sourceBrandName} x${item.sourceQuantity}: ${item.sourceDescription || 'Sin detalle'}] POR [${item.brandName} x${item.quantity}: ${item.description || 'Sin detalle'}]${formik.values.notes ? ` - NOTA: ${formik.values.notes.toUpperCase()}` : ''}`;
-
                     return {
-                        clientId: item.clientId || formik.values.clientId, // Use per-item clientId if available
+                        clientId: item.clientId || formik.values.clientId,
                         brand_id: item.brandId,
                         brand_name: item.brandName,
                         total: item.total,
                         deposit: rowDeposit,
                         type: item.type,
                         status: saveStatus,
-                        notes: structuredNotes, // Ensure the backend gets the full context
+                        notes: "", // Use individual notes only if needed, global note is in the Receipt
                         possible_delivery_date: item.possibleDeliveryDate,
                         source_order_id: item.sourceOrderId || undefined,
+                        sourceOrderNumber: item.sourceOrderNumber,
+                        sourceBrandName: item.sourceBrandName,
+                        sourceQuantity: item.sourceQuantity,
+                        sourceDescription: item.sourceDescription,
+                        description: item.description,
                         order_number: item.orderNumber || "",
                         items: [{
                             product_name: item.brandName,
@@ -557,28 +687,35 @@ export function NewExchangePage() {
                 };
             });
 
-            try {
-                const { document, fileName, title } = await prepareOrderReceiptForPreview(
-                    ordersWithNumbers[0],
-                    {
-                        id: user?.id || '1',
-                        username: user?.username || 'Vendedor',
-                        role: 'OPERATOR',
-                        email: '',
-                        status: 'ACTIVE',
-                        createdAt: new Date().toISOString()
-                    } as any,
-                    ordersWithNumbers.slice(1)
-                )
-                
-                setPdfTitle(title)
-                setPdfFileName(fileName)
-                pdfPreview.openPreview(document)
-                
-                notifySuccess(`Se han creado ${createdOrders.length} pedidos exitosamente.`);
-            } catch (pdfError) {
-                console.error("Error preparing PDF", pdfError)
-                notifyError(pdfError, "Error al preparar el recibo PDF.")
+            // Only generate PDF when sending the guide (EN_TRANSITO), not when saving as POR_ENVIAR
+            if (saveStatus === 'EN_TRANSITO') {
+                try {
+                    const { document, fileName, title } = await prepareOrderReceiptForPreview(
+                        ordersWithNumbers[0],
+                        {
+                            id: user?.id || '1',
+                            username: user?.username || 'Vendedor',
+                            role: 'OPERATOR',
+                            email: '',
+                            status: 'ACTIVE',
+                            createdAt: new Date().toISOString()
+                        } as any,
+                        ordersWithNumbers.slice(1)
+                    )
+                    
+                    setPdfTitle(title)
+                    setPdfFileName(fileName)
+                    pdfPreview.openPreview(document)
+                    
+                    notifySuccess(`Se han creado ${createdOrders.length} pedidos exitosamente.`);
+                } catch (pdfError) {
+                    console.error("Error preparing PDF", pdfError)
+                    notifyError(pdfError, "Error al preparar el recibo PDF.")
+                    notifySuccess(`Se han creado ${createdOrders.length} pedidos exitosamente.`);
+                    navigate('/exchanges');
+                }
+            } else {
+                // POR_ENVIAR: Just show success message without PDF
                 notifySuccess(`Se han creado ${createdOrders.length} pedidos exitosamente.`);
                 navigate('/exchanges');
             }
@@ -651,14 +788,25 @@ export function NewExchangePage() {
                 return { canEdit: false, reason: 'No se puede editar: El periodo de caja ya está cerrado.' }
             }
         }
+        const isExchange = order.type === 'CAMBIO' || (order.orderNumber && order.orderNumber.startsWith('CAM'));
+        
         if (order.status === 'RECIBIDO_EN_BODEGA') {
             return { canEdit: false, reason: 'No se puede editar: El pedido ya ha sido receptado en bodega.' }
         }
         if (order.status === 'ENTREGADO') {
             return { canEdit: false, reason: 'No se puede editar: El pedido ya ha sido entregado.' }
         }
-        if (order.status && order.status !== 'POR_RECIBIR') {
-            return { canEdit: false, reason: `No se puede editar: El pedido ya está en estado ${order.status}.` }
+        
+        // Si es un cambio, permitimos editar en POR_ENVIAR y EN_TRANSITO
+        if (isExchange) {
+            if (order.status && !['POR_ENVIAR', 'EN_TRANSITO', 'POR_RECIBIR'].includes(order.status)) {
+                return { canEdit: false, reason: `No se puede editar: El pedido ya está en estado ${order.status}.` }
+            }
+        } else {
+            // Para pedidos normales, mantenemos la restricción original
+            if (order.status && order.status !== 'POR_RECIBIR') {
+                return { canEdit: false, reason: `No se puede editar: El pedido ya está en estado ${order.status}.` }
+            }
         }
         const payments = order.payments || [];
         const hasExtraPayments = payments.length > 2 || (payments.length > 1 && !payments.some((p: any) => p.method === 'CREDITO_CLIENTE'));
@@ -757,30 +905,41 @@ export function NewExchangePage() {
                             clientId: firstOrder.clientId || "",
                             receiptNumber: firstOrder.receiptNumber || "",
                             salesChannel: (firstOrder.salesChannel as SalesChannel) || "OFICINA",
-                            brandItems: allItems.map((o: any) => ({
-                                id: o.id,
-                                brandId: o.brandId,
-                                brandName: o.brand?.name || o.brandName || "Sin marca",
-                                quantity: o.items?.[0]?.quantity || 1,
-                                total: Number(o.total) || 0,
-                                type: o.type || "NORMAL",
-                                possibleDeliveryDate: o.possibleDeliveryDate ? new Date(o.possibleDeliveryDate).toISOString().split('T')[0] : "",
-                                salesChannel: o.salesChannel || "OFICINA",
-                                orderNumber: o.orderNumber || (o.type === 'REPROGRAMACION' ? parentOrderNumber : ""),
-                                bankAccountId: o.bankAccountId,
-                                deposit: getPaidAmount(o) || 0,
-                                status: o.status,
-                                payments: o.payments,
-                                receiptNumber: o.receiptNumber || "",
-                                clientId: o.clientId || "",
-                                clientName: o.clientName || ""
-                            })),
+                            brandItems: allItems.map((o: any) => {
+                                const parsed = parseExchangeNotesDetailed(o.notes || '');
+                                return {
+                                    id: o.id,
+                                    brandId: o.brandId,
+                                    brandName: o.brand?.name || o.brandName || parsed.newBrand || "Sin marca",
+                                    quantity: o.items?.[0]?.quantity || (parsed.newQty !== '-' ? Number(parsed.newQty) : 1),
+                                    total: Number(o.total) || 0,
+                                    type: o.type || "NORMAL",
+                                    possibleDeliveryDate: o.possibleDeliveryDate ? new Date(o.possibleDeliveryDate).toISOString().split('T')[0] : "",
+                                    salesChannel: o.salesChannel || "OFICINA",
+                                    orderNumber: o.orderNumber || (o.type === 'REPROGRAMACION' ? parentOrderNumber : ""),
+                                    bankAccountId: o.bankAccountId,
+                                    deposit: getPaidAmount(o) || 0,
+                                    status: o.status,
+                                    payments: o.payments,
+                                    receiptNumber: o.receiptNumber || "",
+                                    clientId: o.clientId || "",
+                                    clientName: o.clientName || "",
+                                    // Load technical fields from database as priority, fallback to parsed notes
+                                    sourceOrderNumber: o.sourceOrderNumber || (parsed.originalOrder !== 'N/A' ? parsed.originalOrder : ""),
+                                    sourceBrandName: o.sourceBrandName || (parsed.originalBrand !== 'N/A' ? parsed.originalBrand : ""),
+                                    sourceQuantity: (o.sourceQuantity !== undefined && o.sourceQuantity !== null) ? o.sourceQuantity : (parsed.originalQty !== '-' ? Number(parsed.originalQty) : 1),
+                                    sourceDescription: o.sourceDescription || (parsed.originalDesc !== 'Sin detalles' ? parsed.originalDesc : ""),
+                                    description: o.description || (parsed.newDesc !== 'Sin detalles' ? parsed.newDesc : ""),
+                                    sourceOrderId: o.sourceOrderId || undefined
+                                };
+                            }),
                             deposit: 0,
                             creditToUse: 0,
                             createdAt: firstOrder.createdAt ? new Date(firstOrder.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
                             transactionDate: firstOrder.transactionDate ? new Date(firstOrder.transactionDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
                             paymentMethod: firstOrder.paymentMethod || "EFECTIVO",
-                            notes: firstOrder.notes || "",
+                            notes: (firstOrder as any).receipt?.notes || "",
+                            trackingGuide: firstOrder.trackingGuide || ""
                         });
                     } catch (err) {
                         notifyError(null, "No se pudieron cargar todos los pedidos del recibo.");
@@ -798,30 +957,41 @@ export function NewExchangePage() {
                         clientId: order.clientId || "",
                         receiptNumber: order.receiptNumber || "",
                         salesChannel: (order.salesChannel as SalesChannel) || "OFICINA",
-                        brandItems: allItems.map((o: any) => ({
-                            id: o.id,
-                            brandId: o.brandId,
-                            brandName: o.brand?.name || o.brandName || "Sin marca",
-                            quantity: o.items?.[0]?.quantity || 1,
-                            total: Number(o.total) || 0,
-                            type: o.type || "NORMAL",
-                            possibleDeliveryDate: o.possibleDeliveryDate ? new Date(o.possibleDeliveryDate).toISOString().split('T')[0] : "",
-                            salesChannel: o.salesChannel || "OFICINA",
-                            orderNumber: o.orderNumber || (o.type === 'REPROGRAMACION' ? parentOrderNumber : ""),
-                            bankAccountId: o.bankAccountId,
-                            deposit: getPaidAmount(o) || 0,
-                            status: o.status,
-                            payments: o.payments,
-                            receiptNumber: o.receiptNumber || "",
-                            clientId: o.clientId || "",
-                            clientName: o.clientName || ""
-                        })),
+                        brandItems: allItems.map((o: any) => {
+                            const parsed = parseExchangeNotesDetailed(o.notes || '');
+                            return {
+                                id: o.id,
+                                brandId: o.brandId,
+                                brandName: o.brand?.name || o.brandName || "Sin marca",
+                                quantity: o.items?.[0]?.quantity || 1,
+                                total: Number(o.total) || 0,
+                                type: o.type || "NORMAL",
+                                possibleDeliveryDate: o.possibleDeliveryDate ? new Date(o.possibleDeliveryDate).toISOString().split('T')[0] : "",
+                                salesChannel: o.salesChannel || "OFICINA",
+                                orderNumber: o.orderNumber || (o.type === 'REPROGRAMACION' ? parentOrderNumber : ""),
+                                bankAccountId: o.bankAccountId,
+                                deposit: getPaidAmount(o) || 0,
+                                status: o.status,
+                                payments: o.payments,
+                                receiptNumber: o.receiptNumber || "",
+                                clientId: o.clientId || "",
+                                clientName: o.clientName || "",
+                                // Prefer detailed model fields (persistence)
+                                sourceOrderNumber: o.sourceOrderNumber || (parsed.originalOrder !== 'N/A' ? parsed.originalOrder : ""),
+                                sourceBrandName: o.sourceBrandName || (parsed.originalBrand !== 'N/A' ? parsed.originalBrand : ""),
+                                sourceQuantity: (o.sourceQuantity !== undefined && o.sourceQuantity !== null) ? o.sourceQuantity : (parsed.originalQty !== '-' ? Number(parsed.originalQty) : 1),
+                                sourceDescription: o.sourceDescription || (parsed.originalDesc !== 'Sin detalles' ? parsed.originalDesc : ""),
+                                description: o.description || (parsed.newDesc !== 'Sin detalles' ? parsed.newDesc : ""),
+                                sourceOrderId: o.sourceOrderId || undefined
+                            };
+                        }),
                         deposit: 0,
                         creditToUse: 0,
                         createdAt: order.createdAt ? new Date(order.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
                         transactionDate: order.transactionDate ? new Date(order.transactionDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
                         paymentMethod: order.paymentMethod || "EFECTIVO",
                         notes: order.notes || "",
+                        trackingGuide: order.trackingGuide || ""
                     });
                 } catch (err) {
                     notifyError(null, "No se pudieron cargar todos los pedidos del recibo.");
@@ -849,11 +1019,11 @@ export function NewExchangePage() {
         const validation = canAddNewItem()
         if (!validation.canEdit) { notifyError(null, validation.reason || 'No se puede agregar'); return }
 
-        // Block duplicates in the table
+        // Block duplicates in the table - validate by ID, not by number
         if (currentItem.sourceOrderId) {
             const isDuplicate = formik.values.brandItems.some((item: any) => item.sourceOrderId === currentItem.sourceOrderId);
             if (isDuplicate) {
-                notifyError(null, `El pedido original ${currentItem.sourceOrderNumber} ya ha sido agregado a este cambio.`);
+                notifyError(null, `El pedido con ID ${currentItem.sourceOrderId} ya ha sido agregado a este cambio.`);
                 return;
             }
         }
@@ -870,8 +1040,6 @@ export function NewExchangePage() {
                     const itemClient = clients.find(c => c.id === itemClientId);
                     const itemClientName = itemClient ? itemClient.firstName : "Desconocido";
 
-                    const structuredNotes = `CAMBIO DE [${itemToCreate.sourceOrderNumber} ${itemToCreate.sourceBrandName} x${itemToCreate.sourceQuantity}: ${itemToCreate.sourceDescription || 'Sin detalle'}] POR [${itemToCreate.brandName} x${itemToCreate.quantity}: ${itemToCreate.description || 'Sin detalle'}]${formik.values.notes ? ` - NOTA: ${formik.values.notes.toUpperCase()}` : ''}`;
-
                     const payload = {
                         clientId: itemClientId,
                         clientName: itemClientName,
@@ -882,7 +1050,7 @@ export function NewExchangePage() {
                         brandName: itemToCreate.brandName,
                         total: itemToCreate.total,
                         possibleDeliveryDate: itemToCreate.possibleDeliveryDate,
-                        notes: structuredNotes,
+                        notes: "", // Reset item notes as we use structured fields now
                         createdAt: formik.values.createdAt,
                         transaction_date: formik.values.transactionDate,
                         paymentMethod: formik.values.paymentMethod,
@@ -896,14 +1064,37 @@ export function NewExchangePage() {
                         deposit: 0,
                         creditToUse: 0,
                         parentOrderId: parentOrderId || undefined,
-                        orderNumber: itemToCreate.orderNumber?.trim() || undefined
+                        orderNumber: itemToCreate.orderNumber?.trim() || undefined,
+                        status: 'POR_ENVIAR',
+                        // Structured exchange fields
+                        sourceOrderId: itemToCreate.sourceOrderId || undefined,
+                        sourceOrderNumber: itemToCreate.sourceOrderNumber,
+                        sourceBrandName: itemToCreate.sourceBrandName,
+                        sourceQuantity: itemToCreate.sourceQuantity,
+                        sourceDescription: itemToCreate.sourceDescription,
+                        description: itemToCreate.description,
                     }
                     await createOrder.mutateAsync(payload as any)
                 }
                 queryClient.invalidateQueries({ queryKey: ['orders'] })
                 queryClient.invalidateQueries({ queryKey: ['receiptOrders', formik.values.receiptNumber] })
                 notifySuccess(`Pedido de cambio agregado correctamente.`)
-                setCurrentItem(prev => ({ ...prev, brandId: "", brandName: "", total: 0, quantity: 1, orderNumber: "", description: "" }))
+                // Reset fields but keep clientId, clientName, and source order info
+                setCurrentItem(prev => ({ 
+                    ...prev, 
+                    brandId: "", 
+                    brandName: "", 
+                    total: 0, 
+                    quantity: 1, 
+                    orderNumber: "", 
+                    description: "",
+                    sourceOrderId: "",
+                    sourceOrderNumber: "",
+                    sourceBrandId: "",
+                    sourceBrandName: "",
+                    sourceQuantity: 1,
+                    sourceDescription: ""
+                }))
             } catch (error: any) {
                 notifyError(error, 'Error al agregar el cambio.')
             } finally { setIsSubmitting(false) }
@@ -921,10 +1112,10 @@ export function NewExchangePage() {
                 deposit: 0 
             }]);
             
-            // Reset ALL fields
+            // Reset fields but keep clientId and clientName
             setCurrentItem({
-                clientId: "",
-                clientName: "",
+                clientId: itemClientId,
+                clientName: itemClientName,
                 brandId: "",
                 brandName: "",
                 quantity: 1,
@@ -971,18 +1162,85 @@ export function NewExchangePage() {
         } catch (error: any) { notifyError(error, 'Error al generar el recibo.') } finally { setIsSubmitting(false) }
     }
 
-    const handleUpdateBatchStatus = async (status: 'RECOLECTADO' | 'EN_TRANSITO') => {
+    const handleUpdateBatchStatus = async (status: 'POR_ENVIAR' | 'EN_TRANSITO') => {
         if (!receiptNumber) return;
         try {
             setIsSubmitting(true);
             const response = await orderApi.getByReceipt(receiptNumber);
             if (response && response.length > 0) {
                 const batchId = (response[0] as any).exchangeBatchItems?.[0]?.batchId;
+                
+                // Also update the guide (receipt) metadata
+                await orderApi.updateReceiptHeader(receiptNumber, {
+                    receiptNumber: formik.values.receiptNumber,
+                    notes: formik.values.notes
+                });
+
                 if (batchId) {
                     await orderApi.updateExchangeBatchStatus(batchId, status);
-                    notifySuccess(`Estado de la guía actualizado a ${status === 'RECOLECTADO' ? 'Recolección' : 'En Tránsito'}`);
-                    queryClient.invalidateQueries({ queryKey: ['orders'] });
-                    queryClient.invalidateQueries({ queryKey: ['receiptOrders', receiptNumber] });
+                } else {
+                    // This fallback handles older guides or unbatched ones
+                    const ordersToUpdate = response.filter((o: any) => o.status !== status);
+                    for (const order of ordersToUpdate) {
+                        await orderApi.update(order.id, { status });
+                    }
+                }
+
+                // IMPORTANT: Synchronize all items in the form to ensure their technical data is saved
+                for (const item of formik.values.brandItems) {
+                    if (item.id) {
+                            await orderApi.update(item.id, {
+                            orderNumber: item.orderNumber, // Ensure orderNumber is saved correctly
+                            total: Number(item.total),
+                            deposit: Number(item.deposit), // Save deposit as well
+                            status: status, // Sync status as well
+                            notes: "", // Reset item notes as we use structured fields now
+                            possibleDeliveryDate: item.possibleDeliveryDate,
+                            brandId: item.brandId,
+                            sourceOrderNumber: item.sourceOrderNumber,
+                            sourceBrandName: item.sourceBrandName,
+                            sourceQuantity: item.sourceQuantity,
+                            sourceDescription: item.sourceDescription,
+                            description: item.description,
+                        });
+                    }
+                }
+                notifySuccess(`Estado de la guía actualizado a ${status === 'POR_ENVIAR' ? 'Recolección' : 'En Tránsito'}`);
+                
+                // Invalidate all related queries and await them
+                await Promise.all([
+                    queryClient.invalidateQueries({ queryKey: ['orders'] }),
+                    queryClient.invalidateQueries({ queryKey: ['orders', 'receipt', receiptNumber] }),
+                    queryClient.invalidateQueries({ queryKey: ['financial-records'] }),
+                    queryClient.invalidateQueries({ queryKey: ['transactions'] })
+                ]);
+                
+                // Show PDF preview only when sending (EN_TRANSITO)
+                if (status === 'EN_TRANSITO') {
+                    try {
+                        const { document, fileName, title } = await prepareOrderReceiptForPreview(
+                            response[0],
+                            {
+                                id: user?.id || '1',
+                                username: user?.username || 'Vendedor',
+                                role: 'OPERATOR',
+                                email: '',
+                                status: 'ACTIVE',
+                                createdAt: new Date().toISOString()
+                            } as any,
+                            response.slice(1)
+                        )
+                        setPdfTitle(title);
+                        setPdfFileName(fileName);
+                        pdfPreview.openPreview(document);
+                    } catch (pdfError) {
+                        console.error("Error preparing PDF", pdfError);
+                        notifyError(pdfError, "Error al preparar el recibo PDF.");
+                        navigate('/exchanges'); // Fallback to list if PDF fails
+                    }
+                } else {
+                    // Just stay in the list or refresh
+                    navigate('/exchanges');
                 }
             }
         } catch (error: any) {
@@ -1001,7 +1259,7 @@ export function NewExchangePage() {
         )
     }
 
-    const handleMainSave = async (status: 'RECOLECTADO' | 'EN_TRANSITO' = 'RECOLECTADO') => {
+    const handleMainSave = async (status: 'POR_ENVIAR' | 'EN_TRANSITO' = 'POR_ENVIAR') => {
         if (formik.values.brandItems.length === 0) { notifyError(null, "Debe agregar al menos una marca."); return; }
         
         setSaveStatus(status);
@@ -1046,17 +1304,17 @@ export function NewExchangePage() {
                     </CardHeader>
                     <CardContent className="p-4">
                         <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-                            <div className="md:col-span-2 space-y-1">
-                                <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">N° de Guía:</Label>
+                            <div className="md:col-span-12 lg:col-span-4 space-y-1">
+                                <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">N° de Guía / Tracking:</Label>
                                 <Input
                                     name="receiptNumber"
                                     value={formik.values.receiptNumber}
                                     onChange={formik.handleChange}
                                     className="h-9 font-bold bg-white border-slate-200 rounded-xl focus:ring-monchito-purple/20 transition-all uppercase text-xs"
-                                    placeholder=""
+                                    placeholder="Ingrese N° de guía o tracking..."
                                 />
                             </div>
-                            <div className="md:col-span-2 space-y-1">
+                            <div className="md:col-span-12 lg:col-span-4 space-y-1">
                                 <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">Fecha:</Label>
                                 <Input
                                     type="date"
@@ -1262,159 +1520,219 @@ export function NewExchangePage() {
                             </div>
                         </div>
 
-                                <div className="overflow-x-auto rounded-2xl border border-slate-200 shadow-sm bg-white">
-                                    <table className="w-full text-xs text-left border-collapse min-w-[1000px]">
-                                        <thead>
-                                            <tr className="bg-monchito-purple/5 border-b border-monchito-purple/10">
-                                                <th className="px-2 py-3 border-r border-monchito-purple/10 text-center w-8 text-[10px] font-black text-monchito-purple uppercase tracking-widest">N°</th>
-                                                <th className="px-2 py-3 border-r border-monchito-purple/10 text-[10px] font-black text-monchito-purple uppercase tracking-widest">Empresaria</th>
-                                                <th className="px-2 py-3 border-r border-monchito-purple/10 text-[10px] font-black text-monchito-purple uppercase tracking-widest">Pedido por</th>
-                                                <th className="px-2 py-3 border-r border-monchito-purple/10 text-[10px] font-black text-monchito-purple uppercase tracking-widest">N° de pedido</th>
-                                                <th className="px-2 py-3 border-r border-monchito-purple/10 text-[10px] font-black text-monchito-purple uppercase tracking-widest">Tipo</th>
-                                                <th className="px-2 py-3 border-r border-monchito-purple/10 text-[10px] font-black text-monchito-purple uppercase tracking-widest">Catálogo</th>
-                                                <th className="px-2 py-3 border-r border-monchito-purple/10 text-center w-20 text-[10px] font-black text-monchito-purple uppercase tracking-widest">Cant</th>
-                                                <th className="px-2 py-3 border-r border-monchito-purple/10 text-right min-w-[100px] text-[10px] font-black text-monchito-purple uppercase tracking-widest">Valor</th>
-                                                <th className="px-2 py-3 border-r border-monchito-purple/10 text-right min-w-[100px] text-[10px] font-black text-monchito-purple uppercase tracking-widest">Abono</th>
-                                                <th className="px-2 py-3 border-r border-monchito-purple/10 text-right min-w-[100px] text-[10px] font-black text-monchito-purple uppercase tracking-widest">Saldo</th>
-                                                <th className="px-2 py-3 border-r border-monchito-purple/10 text-center min-w-[130px] text-[10px] font-black text-monchito-purple uppercase tracking-widest">Entrega</th>
-                                                <th className="px-2 py-3 text-center w-20 text-[10px] font-black text-monchito-purple uppercase tracking-widest">Accion</th>
+                        <div className="overflow-x-auto rounded-2xl border border-slate-200 shadow-sm bg-white custom-scrollbar-horizontal">
+                            <table className="w-full text-[10px] text-left border-collapse min-w-[2000px] table-fixed">
+                                <thead>
+                                    <tr className="bg-monchito-purple/5 border-b border-monchito-purple/10">
+                                        <th className="px-2 py-3 border-r border-monchito-purple/10 text-center w-8 font-black text-monchito-purple uppercase tracking-widest">N°</th>
+                                        <th className="px-2 py-3 border-r border-monchito-purple/10 w-24 font-black text-monchito-purple uppercase tracking-widest">Empresaria</th>
+                                        <th className="px-2 py-3 border-r border-monchito-purple/10 w-20 font-black text-monchito-purple uppercase tracking-widest">N° Ped. Orig</th>
+                                        <th className="px-2 py-3 border-r border-monchito-purple/10 w-16 font-black text-monchito-purple uppercase tracking-widest text-center">Tipo</th>
+                                        <th className="px-2 py-3 border-r border-monchito-purple/10 w-20 font-black text-monchito-purple uppercase tracking-widest">Catálogo</th>
+                                        <th className="px-2 py-3 border-r border-monchito-purple/10 w-10 font-black text-monchito-purple uppercase tracking-widest text-center">Cant</th>
+                                        <th className="px-2 py-3 border-r border-monchito-purple/10 w-40 font-black text-monchito-purple uppercase tracking-widest">Motivo Cambio</th>
+                                        <th className="px-1 py-3 border-r border-monchito-purple/10 w-8 font-black text-monchito-purple uppercase tracking-widest text-center">
+                                            <ArrowRightLeft className="w-3 h-3 mx-auto" />
+                                        </th>
+                                        <th className="px-2 py-3 border-r border-monchito-purple/10 w-24 font-black text-monchito-purple uppercase tracking-widest">N° Pedido (Pref)</th>
+                                        <th className="px-2 py-3 border-r border-monchito-purple/10 w-16 font-black text-monchito-purple uppercase tracking-widest text-center">Pedidos por</th>
+                                        <th className="px-2 py-3 border-r border-monchito-purple/10 w-10 font-black text-monchito-purple uppercase tracking-widest text-center">Cant</th>
+                                        <th className="px-2 py-3 border-r border-monchito-purple/10 w-24 font-black text-monchito-purple uppercase tracking-widest text-center">Catálogo</th>
+                                        <th className="px-2 py-3 border-r border-monchito-purple/10 w-48 font-black text-monchito-purple uppercase tracking-widest text-center">Descripción</th>
+                                        <th className="px-2 py-3 border-r border-monchito-purple/10 w-20 font-black text-monchito-purple uppercase tracking-widest text-center">Valor Ped.</th>
+                                        <th className="px-2 py-3 border-r border-monchito-purple/10 w-24 font-black text-monchito-purple uppercase tracking-widest text-center">Abono</th>
+                                        <th className="px-2 py-3 border-r border-monchito-purple/10 w-20 font-black text-monchito-purple uppercase tracking-widest text-center">Saldo</th>
+                                        <th className="px-2 py-3 border-r border-monchito-purple/10 w-24 font-black text-monchito-purple uppercase tracking-widest text-center">Entrega</th>
+                                        <th className={`px-2 py-3 bg-monchito-purple/10 w-20 font-black text-monchito-purple uppercase tracking-widest text-center transition-all ${isActionsPinned ? 'sticky right-0 z-30 shadow-[-4px_0_8px_rgba(0,0,0,0.05)] border-l border-monchito-purple/20' : ''}`}>
+                                            <div className="flex items-center justify-center gap-1.5">
+                                                <span>Acción</span>
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="icon" 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setIsActionsPinned(!isActionsPinned);
+                                                    }}
+                                                    className="h-5 w-5 rounded-full hover:bg-monchito-purple/20 text-monchito-purple/60"
+                                                >
+                                                    {isActionsPinned ? <Pin className="h-3 w-3 fill-current rotate-45" /> : <PinOff className="h-3 w-3" />}
+                                                </Button>
+                                            </div>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-50 bg-white">
+                                    {formik.values.brandItems.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={14} className="px-4 py-12 text-center text-slate-400 italic">
+                                                <div className="flex flex-col items-center gap-2">
+                                                    <PackageOpen className="h-10 w-10 opacity-20" />
+                                                    <span>No hay cambios agregados a esta guía</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        formik.values.brandItems.map((item, idx) => (
+                                            <tr key={item.id || item.tempId || idx} className="hover:bg-monchito-purple/5 transition-all duration-200 border-b border-slate-50 last:border-0">
+                                                <td className="px-2 py-2 border-r border-slate-50 text-center font-bold text-slate-400">{idx + 1}</td>
+                                                <td className="px-2 py-2 border-r border-slate-50">
+                                                    <span className="font-bold text-slate-700 truncate block" title={item.clientName}>
+                                                        {item.clientName || clients.find(c => c.id === formik.values.clientId)?.firstName || "S/N"}
+                                                    </span>
+                                                </td>
+                                                <td className="px-2 py-2 border-r border-slate-50 font-black text-slate-600">{item.sourceOrderNumber || "---"}</td>
+                                                <td className="px-2 py-2 border-r border-slate-50 text-center">
+                                                    <span className="text-[9px] font-black text-monchito-purple/50 bg-monchito-purple/5 px-1 py-0.5 rounded tracking-tighter">CAMBIO</span>
+                                                </td>
+                                                <td className="px-2 py-2 border-r border-slate-50 font-bold text-slate-600">{item.sourceBrandName || "---"}</td>
+                                                <td className="px-2 py-2 border-r border-slate-50 text-center font-black text-slate-600">{item.sourceQuantity || "-"}</td>
+                                                <td className="px-2 py-2 border-r border-slate-50">
+                                                    <p className="text-[10px] text-slate-500 font-medium italic line-clamp-2 leading-tight" title={item.sourceDescription}>
+                                                        {item.sourceDescription || "S/D"}
+                                                    </p>
+                                                </td>
+                                                <td className="px-1 py-2 border-r border-slate-50 bg-slate-50 text-center">
+                                                    <ArrowRightLeft className="w-3 h-3 mx-auto text-monchito-purple/30" />
+                                                </td>
+                                                <td className="px-2 py-2 border-r border-slate-50 font-black text-monchito-purple">{item.orderNumber}</td>
+                                                <td className="px-2 py-2 border-r border-slate-50 text-center font-black">
+                                                    <span className="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-[9px] uppercase">{item.salesChannel}</span>
+                                                </td>
+                                                <td className="px-2 py-2 border-r border-slate-50 text-center font-black text-monchito-purple bg-monchito-purple/5">{item.quantity}</td>
+                                                <td className="px-2 py-2 border-r border-slate-50 font-bold text-slate-800">{item.brandName}</td>
+                                                <td className="px-2 py-2 border-r border-slate-50">
+                                                    <p className="text-[9px] text-monchito-purple font-semibold italic truncate" title={item.description}>{item.description || "Sin descripción"}</p>
+                                                </td>
+                                                <td className="px-2 py-2 border-r border-slate-50 text-center font-bold text-slate-800 bg-slate-50/30">${Number(item.total).toFixed(2)}</td>
+                                                <td className="px-2 py-2 border-r border-slate-50 text-center">
+                                                    <Input
+                                                        type="number"
+                                                        value={item.deposit || 0}
+                                                        onChange={(e) => {
+                                                            const newBrandItems = [...formik.values.brandItems];
+                                                            newBrandItems[idx].deposit = Number(e.target.value);
+                                                            formik.setFieldValue('brandItems', newBrandItems);
+                                                        }}
+                                                        disabled={(isEditing && !!item.id) || Number(item.total) === 0}
+                                                        className={`h-7 w-full text-center font-black text-emerald-600 border-emerald-100 bg-emerald-50/10 rounded px-1 text-[10px] hide-spinner ${((isEditing && !!item.id) || Number(item.total) === 0) ? 'opacity-60 cursor-not-allowed bg-slate-50 border-slate-200 text-slate-400' : ''}`}
+                                                    />
+                                                </td>
+                                                <td className="px-2 py-2 border-r border-slate-50 text-center font-black text-red-400">
+                                                    ${(Number(item.total) - Number(item.deposit || 0)).toFixed(2)}
+                                                </td>
+                                                <td className="px-2 py-2 border-r border-slate-50 text-center font-bold text-slate-500">{item.possibleDeliveryDate}</td>
+                                                <td className={`px-2 py-2 text-center transition-all bg-white/80 backdrop-blur-[2px] ${isActionsPinned ? 'sticky right-0 z-20 shadow-[-4px_0_8px_rgba(0,0,0,0.02)] border-l border-slate-100' : ''}`}>
+                                                    <div className="flex gap-1.5 items-center justify-center">
+                                                        <Button 
+                                                            variant="ghost" 
+                                                            size="icon" 
+                                                            onClick={() => handleOpenRowEdit(item, idx)}
+                                                            className="h-6 w-6 text-monchito-purple hover:text-white hover:bg-monchito-purple/80 rounded-lg transition-all"
+                                                            title="Editar valores del pedido"
+                                                        >
+                                                            <Pencil className="h-3 w-3" />
+                                                        </Button>
+                                                        {(!isEditing || (item.id && item.status !== 'ENTREGADO')) && (
+                                                            <Button 
+                                                                variant="ghost" 
+                                                                size="icon" 
+                                                                onClick={() => {
+                                                                    if (item.id) {
+                                                                        handleDeleteOrder(item);
+                                                                    } else {
+                                                                        removeItem(idx);
+                                                                    }
+                                                                }} 
+                                                                className="h-6 w-6 text-red-300 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                                                            >
+                                                                <X className="h-3 w-3" />
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                </td>
                                             </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-50 bg-white">
-                                            {formik.values.brandItems.length === 0 ? (
-                                                <tr>
-                                                    <td colSpan={11} className="px-4 py-12 text-center text-slate-400 italic">
-                                                        <div className="flex flex-col items-center gap-2">
-                                                            <PackageOpen className="h-10 w-10 opacity-20" />
-                                                            <span>No hay cambios agregados a esta guía</span>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ) : (
-                                                formik.values.brandItems.map((item, idx) => (
-                                                    <tr key={item.id || item.tempId || idx} className="hover:bg-monchito-purple/5 transition-all duration-200 border-b border-slate-50 last:border-0 text-xs">
-                                                        <td className="px-2 py-2 border-r border-slate-50 text-center font-bold text-slate-400">{idx + 1}</td>
-                                                        <td className="px-2 py-2 border-r border-slate-50">
-                                                            <span className="font-bold text-slate-700 truncate block max-w-[120px]" title={item.clientName}>
-                                                                {item.clientName || clients.find(c => c.id === formik.values.clientId)?.firstName || "S/N"}
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-2 py-2 border-r border-slate-50">
-                                                            <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-[10px] font-black uppercase">{item.salesChannel}</span>
-                                                        </td>
-                                                        <td className="px-2 py-2 border-r border-slate-50 font-black text-monchito-purple">{item.orderNumber}</td>
-                                                        <td className="px-2 py-2 border-r border-slate-50">
-                                                            <span className="text-[10px] font-black text-monchito-purple/60 uppercase tracking-tighter">CAMBIO</span>
-                                                        </td>
-                                                        <td className="px-2 py-2 border-r border-slate-50 font-bold text-slate-700">{item.brandName}</td>
-                                                        <td className="px-2 py-2 border-r border-slate-50 text-center font-black text-slate-500">{item.quantity}</td>
-                                                        <td className="px-2 py-2 border-r border-slate-50 text-right font-black text-slate-900">${Number(item.total).toFixed(2)}</td>
-                                                        <td className="px-2 py-2 border-r border-slate-50 text-right font-bold text-emerald-600">${Number(item.deposit || 0).toFixed(2)}</td>
-                                                        <td className="px-2 py-2 border-r border-slate-50 text-right font-black text-red-500">${(Number(item.total) - Number(item.deposit || 0)).toFixed(2)}</td>
-                                                        <td className="px-2 py-2 border-r border-slate-50 text-center text-slate-500 font-medium">{item.possibleDeliveryDate}</td>
-                                                        <td className="px-2 py-2 text-center text-xs">
-                                                            <div className="flex justify-center">
-                                                                {(!isEditing || (item.id && item.status !== 'ENTREGADO')) && (
-                                                                    <Button 
-                                                                        variant="ghost" 
-                                                                        size="icon" 
-                                                                        onClick={() => {
-                                                                            if (item.id) {
-                                                                                handleDeleteOrder(item);
-                                                                            } else {
-                                                                                removeItem(idx);
-                                                                            }
-                                                                        }} 
-                                                                        className="h-8 w-8 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
-                                                                    >
-                                                                        <X className="h-4 w-4" />
-                                                                    </Button>
-                                                                )}
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                ))
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </Card>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </Card>
 
-                    {/* Notes and Save button */}
-                    <Card className="border-slate-200 shadow-xl shadow-slate-100 overflow-hidden rounded-2xl">
-                        <CardContent className="p-4 bg-slate-50/30">
-                            <div className="flex flex-col sm:flex-row gap-4 items-center">
-                                <div className="flex-1 w-full relative">
+                {/* Notes and Save button */}
+                <Card className="border-slate-200 shadow-xl shadow-slate-100 overflow-hidden rounded-2xl">
+                    <CardContent className="p-4 bg-slate-50/30">
+                        <div className="flex flex-col sm:flex-row gap-4 items-center">
+                            <div className="flex-1 w-full relative">
+                                <div className="relative">
                                     <FileText className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                                     <textarea 
                                         {...formik.getFieldProps('notes')} 
-                                        className="w-full h-12 pl-10 pr-4 py-2 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-monchito-purple/20 focus:border-monchito-purple outline-none transition-all resize-none bg-white font-medium" 
+                                        className="w-full h-12 pl-10 pr-12 py-2 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-monchito-purple/20 focus:border-monchito-purple outline-none transition-all resize-none bg-white font-medium" 
                                         placeholder="Notas adicionales de la guía..." 
                                     ></textarea>
-                                </div>
-                                <div className="flex flex-wrap gap-2 justify-end w-full sm:w-auto">
-                                    {!isEditing ? (
-                                        <>
-                                            <AsyncButton 
-                                                onClick={() => handleMainSave('RECOLECTADO')} 
-                                                variant="outline"
-                                                className="h-12 px-6 border-monchito-purple text-monchito-purple hover:bg-monchito-purple/5 font-black rounded-xl transition-all flex items-center gap-2 whitespace-nowrap"
-                                                isLoading={isSubmitting && saveStatus === 'RECOLECTADO'}
-                                            >
-                                                <PackageOpen className="h-5 w-5" /> 
-                                                Guardar Recolección
-                                            </AsyncButton>
-                                            <AsyncButton 
-                                                onClick={() => handleMainSave('EN_TRANSITO')} 
-                                                className="h-12 px-8 bg-monchito-purple hover:bg-monchito-purple/90 text-white font-black rounded-xl shadow-lg shadow-monchito-purple/20 transition-all flex items-center gap-2 whitespace-nowrap"
-                                                isLoading={isSubmitting && saveStatus === 'EN_TRANSITO'}
-                                            >
-                                                <Send className="h-5 w-5" /> 
-                                                Guardar y Enviar
-                                            </AsyncButton>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Button 
-                                                variant="outline"
-                                                onClick={handlePrintReceipt} 
-                                                className="h-12 px-6 border-slate-900 text-slate-900 hover:bg-slate-50 font-black rounded-xl transition-all flex items-center gap-2 whitespace-nowrap"
-                                                disabled={isSubmitting}
-                                            >
-                                                <Printer className="h-5 w-5" /> 
-                                                Imprimir Recibo
-                                            </Button>
-                                            <AsyncButton 
-                                                onClick={() => handleUpdateBatchStatus('RECOLECTADO')} 
-                                                variant="outline"
-                                                className="h-12 px-6 border-monchito-purple text-monchito-purple hover:bg-monchito-purple/5 font-black rounded-xl transition-all flex items-center gap-2 whitespace-nowrap"
-                                                isLoading={isSubmitting}
-                                            >
-                                                Guardar Recolección
-                                            </AsyncButton>
-                                            <AsyncButton 
-                                                onClick={() => handleUpdateBatchStatus('EN_TRANSITO')} 
-                                                className="h-12 px-8 bg-monchito-purple hover:bg-monchito-purple/90 text-white font-black rounded-xl shadow-lg shadow-monchito-purple/20 transition-all flex items-center gap-2 whitespace-nowrap"
-                                                isLoading={isSubmitting}
-                                            >
-                                                <Send className="h-5 w-5" /> 
-                                                Enviar Guía
-                                            </AsyncButton>
-                                        </>
+                                    {isEditing && (
+                                        <button 
+                                            type="button"
+                                            onClick={handleSaveNotes}
+                                            disabled={isSavingNotes}
+                                            className="absolute right-2 top-2 p-2 text-monchito-purple hover:bg-monchito-purple/10 rounded-lg transition-all"
+                                            title="Guardar notas de la guía"
+                                        >
+                                            {isSavingNotes ? (
+                                                <RefreshCw className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <Save className="h-4 w-4" />
+                                            )}
+                                        </button>
                                     )}
                                 </div>
                             </div>
-                        </CardContent>
-                    </Card>
-                </div>
+                            <div className="flex flex-wrap gap-2 justify-end w-full sm:w-auto">
+                                {!isEditing ? (
+                                    <>
+                                        <AsyncButton 
+                                            onClick={() => handleMainSave('POR_ENVIAR')} 
+                                            className="h-12 px-8 bg-monchito-purple hover:bg-monchito-purple/90 text-white font-black rounded-xl shadow-lg shadow-monchito-purple/20 transition-all flex items-center gap-2 whitespace-nowrap"
+                                            isLoading={isSubmitting && saveStatus === 'POR_ENVIAR'}
+                                        >
+                                            <PackageOpen className="h-5 w-5" /> 
+                                            Guardar Recolección
+                                        </AsyncButton>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Button 
+                                            variant="outline"
+                                            onClick={handlePrintReceipt} 
+                                            className="h-12 px-6 border-slate-900 text-slate-900 hover:bg-slate-50 font-black rounded-xl transition-all flex items-center gap-2 whitespace-nowrap"
+                                            disabled={isSubmitting}
+                                        >
+                                            <Printer className="h-5 w-5" /> 
+                                            Imprimir Recibo
+                                        </Button>
+                                        {/* El botón de Guardar Recolección no se muestra en edición por decisión del usuario */}
+                                        <AsyncButton 
+                                            onClick={() => handleUpdateBatchStatus('EN_TRANSITO')} 
+                                            className="h-12 px-8 bg-monchito-purple hover:bg-monchito-purple/90 text-white font-black rounded-xl shadow-lg shadow-monchito-purple/20 transition-all flex items-center gap-2 whitespace-nowrap"
+                                            isLoading={isSubmitting}
+                                        >
+                                            <Send className="h-5 w-5" /> 
+                                            Enviar Guía
+                                        </AsyncButton>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
 
             <SourceOrderModal 
                 isOpen={isSourceModalOpen}
                 onClose={() => setIsSourceModalOpen(false)}
                 clientId={formik.values.clientId}
-                alreadySelectedIds={formik.values.brandItems.map((item: any) => item.sourceOrderId).filter(Boolean)}
-                alreadySelectedNumbers={formik.values.brandItems.map((item: any) => item.sourceOrderNumber).filter(Boolean)}
+                alreadySelectedIds={alreadySelectedIds}
                 onSelect={(order) => {
                     // Optimized traceability prefixing: CAM001-, CAM002-, etc.
                     let newOrderNumber = order.orderNumber || "";
@@ -1442,8 +1760,9 @@ export function NewExchangePage() {
                         sourceBrandId: order.brandId || "",
                         sourceBrandName: order.brandName || order.brand?.name || "",
                         sourceQuantity: order.items?.[0]?.quantity || 1,
-                        sourceDescription: order.notes || "",
-                        orderNumber: newOrderNumber // Assign indexed number
+                        sourceDescription: "", // Always empty - user will fill manually
+                        orderNumber: newOrderNumber, // Assign indexed number
+                        description: "" // Clear description for new exchange item
                     }));
                 }}
             />
@@ -1471,9 +1790,12 @@ export function NewExchangePage() {
                     referenceNumber: formik.values.receiptNumber, 
                     description: "Guía de Cambio" 
                 }}
-                expectedAmount={totalRowDeposit > 0 ? totalRowDeposit : totalOrderValue}
+                expectedAmount={totalRowDeposit}
+                initialAmount={totalRowDeposit}
                 allowMultiplePayments={true}
                 saveWithZeroPermission="exchanges.save_with_zero_deposit"
+                lockAmount={totalRowDeposit > 0}
+                forceExactAmount={true}
                 orderItems={formik.values.brandItems.map((item, idx) => ({ 
                     id: item.tempId || `item-${idx}`, 
                     brandName: item.brandName, 
@@ -1482,12 +1804,148 @@ export function NewExchangePage() {
                 }))}
             />
 
+            {/* Row Edit Modal */}
+            <Dialog open={isRowEditModalOpen} onOpenChange={setIsRowEditModalOpen}>
+                <DialogContent className="max-w-4xl p-6">
+                    <DialogHeader className="mb-4">
+                        <DialogTitle className="text-xl font-bold text-slate-800">Editar Pedido</DialogTitle>
+                    </DialogHeader>
+                    
+                    <div className="overflow-x-auto">
+                         <table className="w-full text-xs border-collapse">
+                            <thead className="bg-slate-50 text-slate-500 border-b uppercase font-bold text-[10px]">
+                                <tr>
+                                    <th className="px-3 py-3 border-r text-left w-[180px]">Catálogo</th>
+                                    <th className="px-3 py-3 border-r text-left w-[180px]">N° Pedido (Pref)</th>
+                                    <th className="px-3 py-3 border-r text-right w-[150px]">Valor Pedido</th>
+                                    <th className="px-3 py-3 border-r text-right w-[150px]">Abono</th>
+                                    <th className="px-3 py-3 border-r text-right w-[120px]">Saldo</th>
+                                    <th className="px-3 py-3 text-left min-w-[150px]">Posible Entrega</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {itemToEdit && (
+                                    <tr className="hover:bg-indigo-50/20 transition-colors border-b last:border-0">
+                                        <td className="px-3 py-2 border-r bg-slate-50/30">
+                                            <Input
+                                                value={itemToEdit.brandName}
+                                                disabled
+                                                className="h-8 text-xs border-none bg-transparent font-medium text-slate-500"
+                                            />
+                                        </td>
+                                        <td className="px-3 py-2 border-r">
+                                            <Input
+                                                value={itemToEdit.orderNumber}
+                                                onChange={(e) => setItemToEdit({ ...itemToEdit, orderNumber: e.target.value })}
+                                                placeholder="Ej: CAM-2024-001"
+                                                className="h-8 text-xs font-mono font-bold border-monchito-purple/20 focus:border-monchito-purple"
+                                            />
+                                        </td>
+                                        <td className="px-3 py-2 border-r text-right">
+                                            <div className="flex justify-end items-center gap-1">
+                                                <span className="text-slate-400 text-xs font-bold">$</span>
+                                                <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    className="h-8 w-24 text-right font-black border-none focus:ring-0 outline-none text-xs bg-slate-50 rounded px-2 hide-spinner focus:bg-white transition-all"
+                                                    value={itemToEdit.total}
+                                                    onChange={(e) => setItemToEdit({ ...itemToEdit, total: Number(e.target.value) })}
+                                                    required
+                                                />
+                                            </div>
+                                        </td>
+                                        <td className="px-3 py-2 border-r text-right">
+                                            <div className="flex justify-end items-center gap-1">
+                                                <span className="text-emerald-600 text-xs font-bold">$</span>
+                                                <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    className="h-8 w-24 text-right text-emerald-600 font-black rounded border border-emerald-100 focus:ring-1 focus:ring-emerald-500 outline-none text-xs bg-emerald-50/30 hide-spinner transition-all px-2"
+                                                    value={itemToEdit.deposit}
+                                                    onChange={(e) => setItemToEdit({ ...itemToEdit, deposit: Number(e.target.value) })}
+                                                    required
+                                                />
+                                            </div>
+                                        </td>
+                                        <td className="px-3 py-2 border-r text-right">
+                                            <span className={`font-black text-xs ${(itemToEdit.total - itemToEdit.deposit) > 0.01 ? 'text-red-500' : 'text-slate-400'}`}>
+                                                ${(itemToEdit.total - itemToEdit.deposit).toFixed(2)}
+                                            </span>
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            <Input
+                                                type="date"
+                                                value={itemToEdit.possibleDeliveryDate}
+                                                onChange={(e) => setItemToEdit({ ...itemToEdit, possibleDeliveryDate: e.target.value })}
+                                                required
+                                                className="h-8 text-xs border-slate-200 focus:border-monchito-purple"
+                                            />
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {itemToEdit && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] font-black uppercase text-slate-500">Método de Pago:</Label>
+                                <select
+                                    disabled
+                                    className="w-full h-9 rounded-lg border border-slate-200 text-xs px-3 bg-slate-50 opacity-60 cursor-not-allowed"
+                                    value={itemToEdit.paymentMethod || formik.values.paymentMethod}
+                                >
+                                    <option value="EFECTIVO">EFECTIVO</option>
+                                    <option value="BILLETERA_VIRTUAL">BILLETERA VIRTUAL</option>
+                                    <option value="TRANSFERENCIA">TRANSFERENCIA</option>
+                                </select>
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] font-black uppercase text-slate-500">Cuenta Bancaria:</Label>
+                                <select
+                                    disabled
+                                    className="w-full h-9 rounded-lg border border-slate-200 text-xs px-3 bg-slate-50 opacity-60 cursor-not-allowed"
+                                    value={itemToEdit.bankAccountId}
+                                >
+                                    <option value="">Seleccione una cuenta...</option>
+                                    {bankAccounts.map((acc: any) => (
+                                        <option key={acc.id} value={acc.id}>
+                                            {acc.name} ({acc.bankName || (acc.type === 'CASH' ? 'Efectivo' : 'Banco')})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    )}
+
+                    <Separator className="my-6 bg-slate-100" />
+
+                    <div className="flex gap-2 justify-end">
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() => setIsRowEditModalOpen(false)}
+                            className="h-9 px-6 text-xs font-bold text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                        >
+                            Cancelar
+                        </Button>
+                        <Button 
+                            onClick={handleSaveRowEdit}
+                            className="bg-slate-800 hover:bg-slate-900 text-white font-black px-8 h-9 text-xs rounded-lg shadow-lg transition-transform active:scale-95"
+                        >
+                            Guardar Cambios
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
             {pdfPreview.pdfDocument && (
                 <PDFPreviewModal
                     open={pdfPreview.isOpen}
                     onOpenChange={(open) => { 
                         pdfPreview.closePreview(); 
-                        if (!open && !isEditing) navigate('/exchanges'); 
+                        if (!open) navigate('/exchanges'); 
                     }}
                     title={pdfTitle}
                     pdfDocument={pdfPreview.pdfDocument as any}

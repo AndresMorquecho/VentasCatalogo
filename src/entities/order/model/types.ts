@@ -78,6 +78,18 @@ export interface Order {
     deliveredByName?: string; // Usuario que procesó la entrega
     documentType?: string;    // FACTURA/NOTA_VENTA
     entryDate?: string;       // Fecha de ingreso físico
+    
+    // Exchange Info
+    sourceOrderId?: string;
+    sourceOrderNumber?: string;
+    sourceBrandName?: string;
+    sourceQuantity?: number;
+    sourceDescription?: string;
+    description?: string;
+    
+    // Batch Relations
+    receptionBatchId?: string;
+    exchangeBatchItems?: any[];
 }
 
 export interface OrderPayload {
@@ -106,6 +118,15 @@ export interface OrderPayload {
     trackingGuide?: string;
     changeStatus?: 'OFICINA' | 'EMPRESA' | 'RECIBIDO';
     orderNumber?: string;
+
+    // Exchange Info
+    sourceOrderId?: string;
+    sourceOrderNumber?: string;
+    sourceBrandName?: string;
+    sourceQuantity?: number;
+    sourceDescription?: string;
+    description?: string;
+    deposit?: number;
 }
 
 export interface PaginatedResponse<T> {

@@ -11,6 +11,7 @@ import { PackageCheck, RotateCcw } from "lucide-react" // Added RotateCcw
 import type { Order } from "@/entities/order/model/types"
 import { getPaidAmount } from "@/entities/order/model/model"
 import { cn } from "@/shared/lib/utils"
+import { Badge } from "@/shared/ui/badge"
 
 interface OrderReceptionTableProps {
     orders: Order[]
@@ -59,14 +60,31 @@ export function OrderReceptionTable({ orders, onReceive, onReverse, isProcessing
                                         order.status === 'RECIBIDO_EN_BODEGA' ? 'bg-monchito-purple/[0.03]' : ''
                                     )}>
                                 <TableCell>{formatDate(order.createdAt)}</TableCell>
-                                <TableCell className="font-medium">
-                                    {order.receiptNumber}
-                                    {order.orderNumber && (
-                                        <span className="block text-[10px] text-muted-foreground">
-                                            N°: {order.orderNumber}
-                                        </span>
-                                    )}
-                                </TableCell>
+                                    <TableCell className="font-medium">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="font-bold underline decoration-monchito-purple/20 underline-offset-4">{order.receiptNumber}</span>
+                                            {order.type === 'CAMBIO' && (
+                                                <Badge variant="outline" className="bg-monchito-purple/5 text-monchito-purple border-monchito-purple/20 text-[8px] h-4 px-1.5 font-black uppercase tracking-tighter">
+                                                    Cambio
+                                                </Badge>
+                                            )}
+                                            {order.status === 'EN_TRANSITO' && (
+                                                <Badge variant="outline" className="bg-sky-50 text-sky-700 border-sky-200 text-[8px] h-4 px-1.5 font-black uppercase tracking-tighter">
+                                                    En Tránsito
+                                                </Badge>
+                                            )}
+                                            {order.status === 'POR_RECIBIR' && (
+                                                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[8px] h-4 px-1.5 font-black uppercase tracking-tighter">
+                                                    Por Recibir
+                                                </Badge>
+                                            )}
+                                        </div>
+                                        {order.orderNumber && (
+                                            <span className="block text-[10px] text-muted-foreground font-medium">
+                                                N° Ref: {order.orderNumber}
+                                            </span>
+                                        )}
+                                    </TableCell>
                                 <TableCell>{order.clientName}</TableCell>
                                 <TableCell>{order.brandName}</TableCell>
                                 <TableCell className="text-right">{formatCurrency(order.total)}</TableCell>
