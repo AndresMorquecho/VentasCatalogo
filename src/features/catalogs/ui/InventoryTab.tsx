@@ -66,7 +66,7 @@ export function InventoryTab() {
             <Package className="h-5 w-5 text-monchito-purple" />
             <h3 className="text-sm font-bold text-monchito-purple">Registrar Ingreso de Catálogos</h3>
           </div>
-          <form onSubmit={handleSubmit} className="grid grid-cols-4 gap-3">
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <div>
               <Label className="text-xs font-medium">Marca</Label>
               <Select value={brandId} onValueChange={setBrandId}>
@@ -128,7 +128,7 @@ export function InventoryTab() {
             <Filter className="h-4 w-4 text-slate-600" />
             <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Filtros</h3>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <div>
               <Label className="text-xs font-medium">Filtrar por Marca</Label>
               <Select value={filterBrand} onValueChange={setFilterBrand}>
@@ -179,7 +179,7 @@ export function InventoryTab() {
               <Loader2 className="h-8 w-8 animate-spin text-monchito-purple" />
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto custom-scrollbar pb-2">
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>

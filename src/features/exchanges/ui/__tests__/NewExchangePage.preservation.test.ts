@@ -130,7 +130,6 @@ describe('Exchange Duplicate Order Prevention - Preservation Tests', () => {
     
     it('Example 1: Valid order (not in brandItems) should be added correctly', () => {
       // ARRANGE: Empty brandItems (no orders added yet)
-      const brandItems: BrandItem[] = [];
       
       // A new order that has NOT been added
       const newOrder: Order = {

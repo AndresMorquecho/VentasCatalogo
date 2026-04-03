@@ -493,6 +493,13 @@ export function NewExchangePage() {
     const [pdfTitle, setPdfTitle] = useState('')
     const [pdfFileName, setPdfFileName] = useState('')
     const [isActionsPinned, setIsActionsPinned] = useState(true)
+
+    useEffect(() => {
+        // En móviles (< 768px), la columna no se fija por defecto
+        if (window.innerWidth < 768) {
+            setIsActionsPinned(false);
+        }
+    }, [])
     const pdfPreview = usePDFPreview({
         fileName: pdfFileName,
         onDownloadComplete: () => {
@@ -1543,7 +1550,7 @@ export function NewExchangePage() {
                                         <th className="px-2 py-3 border-r border-monchito-purple/10 w-24 font-black text-monchito-purple uppercase tracking-widest text-center">Abono</th>
                                         <th className="px-2 py-3 border-r border-monchito-purple/10 w-20 font-black text-monchito-purple uppercase tracking-widest text-center">Saldo</th>
                                         <th className="px-2 py-3 border-r border-monchito-purple/10 w-24 font-black text-monchito-purple uppercase tracking-widest text-center">Entrega</th>
-                                        <th className={`px-2 py-3 bg-monchito-purple/10 w-20 font-black text-monchito-purple uppercase tracking-widest text-center transition-all ${isActionsPinned ? 'sticky right-0 z-30 shadow-[-4px_0_8px_rgba(0,0,0,0.05)] border-l border-monchito-purple/20' : ''}`}>
+                                        <th className={`px-2 py-3 w-20 font-black text-monchito-purple uppercase tracking-widest text-center transition-all ${isActionsPinned ? 'sticky right-0 z-30 bg-[#f8f7ff] shadow-[-4px_0_8px_rgba(0,0,0,0.05)] border-l border-monchito-purple/20' : 'bg-monchito-purple/10'}`}>
                                             <div className="flex items-center justify-center gap-1.5">
                                                 <span>Acción</span>
                                                 <Button 
@@ -1573,7 +1580,7 @@ export function NewExchangePage() {
                                         </tr>
                                     ) : (
                                         formik.values.brandItems.map((item, idx) => (
-                                            <tr key={item.id || item.tempId || idx} className="hover:bg-monchito-purple/5 transition-all duration-200 border-b border-slate-50 last:border-0">
+                                            <tr key={item.id || item.tempId || idx} className="group hover:bg-monchito-purple/5 transition-all duration-200 border-b border-slate-50 last:border-0">
                                                 <td className="px-2 py-2 border-r border-slate-50 text-center font-bold text-slate-400">{idx + 1}</td>
                                                 <td className="px-2 py-2 border-r border-slate-50">
                                                     <span className="font-bold text-slate-700 truncate block" title={item.clientName}>
@@ -1621,17 +1628,19 @@ export function NewExchangePage() {
                                                     ${(Number(item.total) - Number(item.deposit || 0)).toFixed(2)}
                                                 </td>
                                                 <td className="px-2 py-2 border-r border-slate-50 text-center font-bold text-slate-500">{item.possibleDeliveryDate}</td>
-                                                <td className={`px-2 py-2 text-center transition-all bg-white/80 backdrop-blur-[2px] ${isActionsPinned ? 'sticky right-0 z-20 shadow-[-4px_0_8px_rgba(0,0,0,0.02)] border-l border-slate-100' : ''}`}>
+                                                <td className={`px-2 py-2 text-center transition-all bg-white group-hover:bg-slate-50 ${isActionsPinned ? 'sticky right-0 z-20 shadow-[-4px_0_8px_rgba(0,0,0,0.02)] border-l border-slate-100' : ''}`}>
                                                     <div className="flex gap-1.5 items-center justify-center">
-                                                        <Button 
-                                                            variant="ghost" 
-                                                            size="icon" 
-                                                            onClick={() => handleOpenRowEdit(item, idx)}
-                                                            className="h-6 w-6 text-monchito-purple hover:text-white hover:bg-monchito-purple/80 rounded-lg transition-all"
-                                                            title="Editar valores del pedido"
-                                                        >
-                                                            <Pencil className="h-3 w-3" />
-                                                        </Button>
+                                                        {isEditing && (
+                                                            <Button 
+                                                                variant="ghost" 
+                                                                size="icon" 
+                                                                onClick={() => handleOpenRowEdit(item, idx)}
+                                                                className="h-6 w-6 text-monchito-purple hover:text-white hover:bg-monchito-purple/80 rounded-lg transition-all"
+                                                                title="Editar valores del pedido"
+                                                            >
+                                                                <Pencil className="h-3 w-3" />
+                                                            </Button>
+                                                        )}
                                                         {(!isEditing || (item.id && item.status !== 'ENTREGADO')) && (
                                                             <Button 
                                                                 variant="ghost" 

@@ -151,44 +151,44 @@ export function BatchPrintModal({ isOpen, onClose, orders, batchDetails }: Props
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-2xl bg-white">
-                <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2 text-emerald-800">
-                        <Printer className="h-5 w-5" />
+            <DialogContent className="w-[98vw] max-w-[98vw] sm:max-w-2xl bg-white p-3 sm:p-6 overflow-hidden flex flex-col">
+                <DialogHeader className="mb-2">
+                    <DialogTitle className="flex items-center gap-2 text-emerald-800 text-sm sm:text-lg">
+                        <Printer className="h-4 w-4 sm:h-5 sm:h-5" />
                         Imprimir etiquetas de recepción
                     </DialogTitle>
                 </DialogHeader>
 
-                <div className="py-2">
-                    <p className="text-sm text-slate-500 mb-4">
+                <div className="flex-1 overflow-y-auto">
+                    <p className="text-[11px] sm:text-sm text-slate-500 mb-3 px-1 leading-tight">
                         Selecciona los pedidos para los cuales deseas generar etiquetas de entrega (tickets).
                     </p>
 
-                    <div className="border rounded-lg overflow-hidden border-slate-200">
-                        <div className="bg-slate-50 p-2 border-b flex justify-between items-center">
+                    <div className="border rounded-xl overflow-hidden border-slate-200 bg-white">
+                        <div className="bg-slate-50/80 p-2 border-b flex justify-between items-center h-10">
                             <div className="flex items-center gap-2">
                                 <input 
                                     type="checkbox" 
-                                    className="accent-emerald-600"
+                                    className="accent-emerald-600 h-4 w-4"
                                     checked={selectedIds.size === orders.length && orders.length > 0}
                                     onChange={toggleAll}
                                 />
-                                <span className="text-xs font-bold text-slate-600">Seleccionar todos</span>
+                                <span className="text-[11px] font-bold text-slate-600">Seleccionar todos</span>
                             </div>
-                            <span className="text-xs font-mono text-slate-400">
-                                {selectedIds.size} de {orders.length} seleccionados
+                            <span className="text-[10px] font-mono text-slate-400">
+                                {selectedIds.size}/{orders.length}
                             </span>
                         </div>
 
-                        <div className="max-h-[300px] overflow-y-auto">
-                            <table className="w-full text-xs">
-                                <thead className="bg-slate-50/50 sticky top-0 border-b border-slate-100">
+                        <div className="max-h-[220px] sm:max-h-[300px] overflow-auto">
+                            <table className="w-full text-[11px] sm:text-xs min-w-[360px] table-fixed">
+                                <thead className="bg-slate-50/50 sticky top-0 border-b border-slate-100 z-10">
                                     <tr>
-                                        <th className="p-2 text-left w-10"></th>
-                                        <th className="p-2 text-left">Empresaria</th>
-                                        <th className="p-2 text-left">Catálogo</th>
-                                        <th className="p-2 text-right">Factura</th>
-                                        <th className="p-2 text-right">Saldo</th>
+                                        <th className="p-2 text-left w-8"></th>
+                                        <th className="p-2 text-left w-32">Empresaria</th>
+                                        <th className="p-2 text-left w-20">Catálogo</th>
+                                        <th className="p-2 text-right w-20">Factura</th>
+                                        <th className="p-2 text-right w-20">Saldo</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -207,15 +207,15 @@ export function BatchPrintModal({ isOpen, onClose, orders, batchDetails }: Props
                                                 <td className="p-2 text-center">
                                                     <input 
                                                         type="checkbox" 
-                                                        className="accent-emerald-600"
+                                                        className="accent-emerald-600 h-3.5 w-3.5"
                                                         checked={isSelected}
                                                         onChange={() => {}} // Controlled by row click
                                                     />
                                                 </td>
-                                                <td className="p-2 font-medium">{o.clientName}</td>
-                                                <td className="p-2"><span className="bg-slate-100 px-1 py-0.5 rounded text-[10px]">{o.brandName}</span></td>
-                                                <td className="p-2 text-right font-mono">${total.toFixed(2)}</td>
-                                                <td className="p-2 text-right font-mono font-bold text-amber-600">${saldo.toFixed(2)}</td>
+                                                <td className="p-2 font-medium truncate">{o.clientName}</td>
+                                                <td className="p-2"><span className="bg-slate-100 px-1 py-0.5 rounded text-[9px] truncate block text-center">{o.brandName}</span></td>
+                                                <td className="p-2 text-right font-mono text-[10px]">${total.toFixed(2)}</td>
+                                                <td className="p-2 text-right font-mono font-bold text-amber-600 text-[10px]">${saldo.toFixed(2)}</td>
                                             </tr>
                                         )
                                     })}
@@ -225,16 +225,20 @@ export function BatchPrintModal({ isOpen, onClose, orders, batchDetails }: Props
                     </div>
                 </div>
 
-                <DialogFooter className="gap-2 sm:justify-between items-center">
-                    <Button variant="outline" onClick={onClose} className="border-slate-200">
+                <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 pt-3 border-t mt-3">
+                    <Button 
+                        variant="outline" 
+                        onClick={onClose} 
+                        className="w-full sm:w-auto border-slate-200 text-slate-500 h-10 text-[11px] font-bold"
+                    >
                         <X className="mr-2 h-4 w-4" /> Cerrar
                     </Button>
                     
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                         <Button 
                             onClick={handleGenerateReport}
                             disabled={isGenerating || isGeneratingReport}
-                            className="bg-amber-600 hover:bg-amber-700 text-white font-bold"
+                            className="bg-amber-600 hover:bg-amber-700 text-white font-bold w-full sm:w-auto h-11 sm:h-10 text-[10px] sm:text-xs px-2"
                         >
                             {isGeneratingReport ? (
                                 <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
@@ -247,7 +251,7 @@ export function BatchPrintModal({ isOpen, onClose, orders, batchDetails }: Props
                         <Button 
                             onClick={handleGeneratePdf} 
                             disabled={selectedIds.size === 0 || isGenerating || isGeneratingReport}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold w-full sm:w-auto h-11 sm:h-10 text-[10px] sm:text-xs px-2"
                         >
                             {isGenerating ? (
                                 <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
@@ -258,6 +262,8 @@ export function BatchPrintModal({ isOpen, onClose, orders, batchDetails }: Props
                         </Button>
                     </div>
                 </DialogFooter>
+
+
             </DialogContent>
             
             {previewContent.document && (

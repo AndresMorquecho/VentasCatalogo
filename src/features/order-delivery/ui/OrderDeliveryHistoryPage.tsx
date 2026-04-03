@@ -17,7 +17,7 @@ import { PageHeader } from "@/shared/ui/PageHeader"
 import { useDebounce } from "@/shared/lib/hooks"
 import { DateRangePicker } from "@/shared/ui/filters"
 import type { DateRange } from "react-day-picker"
-import { RotateCcw, ChevronRight, ChevronDown } from "lucide-react"
+import { RotateCcw, ChevronDown } from "lucide-react"
 import { ConfirmDialog } from "@/shared/ui/confirm-dialog"
 import { cn } from "@/shared/lib/utils"
 import {

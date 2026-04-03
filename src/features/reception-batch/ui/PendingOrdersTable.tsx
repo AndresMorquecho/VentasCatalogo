@@ -148,10 +148,10 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
         <div className="space-y-4 h-full flex flex-col">
             {/* Filters Section */}
             <div className="bg-monchito-purple/5 p-3 rounded-lg border border-monchito-purple/10 shrink-0">
-                <div className="flex flex-col sm:flex-row gap-2 items-center justify-between">
-                    <div className="flex flex-1 gap-2 items-center w-full">
+                <div className="flex flex-col gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:flex lg:flex-1 gap-2 items-center w-full">
                         {/* Search Input (Client) */}
-                        <div className="relative flex-1 min-w-[150px]">
+                        <div className="relative col-span-2 sm:col-span-1 lg:flex-1 min-w-[150px]">
                             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-monchito-purple/50" />
                             <Input
                                 placeholder="Empresaria..."
@@ -164,7 +164,7 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
                         </div>
 
                         {/* Receipt Filter */}
-                        <div className="relative flex-1 min-w-[100px]">
+                        <div className="relative lg:flex-1 min-w-[100px]">
                             <Input
                                 placeholder="N° Recibo..."
                                 value={receiptFilter}
@@ -176,7 +176,7 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
                         </div>
 
                         {/* Order Number Filter */}
-                        <div className="relative flex-1 min-w-[100px]">
+                        <div className="relative lg:flex-1 min-w-[100px]">
                             <Input
                                 placeholder="N° Pedido..."
                                 value={orderNumberFilter}
@@ -188,7 +188,7 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
                         </div>
 
                         {/* Brand Select */}
-                        <div className="relative flex-1 min-w-[130px]">
+                        <div className="relative lg:flex-1 min-w-[130px]">
                             <Tag className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-monchito-purple/50" />
                             <select
                                 value={brandFilter}
@@ -205,7 +205,7 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
                         </div>
 
                         {/* Type Filter */}
-                        <div className="relative flex-1 min-w-[90px]">
+                        <div className="relative lg:flex-1 min-w-[90px]">
                             <select
                                 value={typeFilter}
                                 onChange={(e) => setTypeFilter(e.target.value)}
@@ -223,44 +223,46 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
                         </div>
 
                         {/* Date Range Picker */}
-                        <div className="relative flex-1 min-w-[150px]">
+                        <div className="relative col-span-2 sm:col-span-1 lg:flex-1 min-w-[150px]">
                             <DateRangePicker
                                 value={dateRange}
                                 onChange={setDateRange}
                                 showLabel={false}
                                 placeholder="dd/mm/aaaa"
                                 className="h-9 text-xs font-normal"
-                                // Note: DateRangePicker would need internal logic to handle arrow navigation if desired
                             />
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-[10px] font-bold text-monchito-purple bg-monchito-purple/10 px-2 py-1 rounded-md">
-                            {filteredOrders.length}
-                        </span>
-                        {(searchTerm || receiptFilter || orderNumberFilter || brandFilter || typeFilter || dateRange) && (
-                            <button
-                                onClick={() => { 
-                                    setSearchTerm(''); 
-                                    setReceiptFilter(''); 
-                                    setOrderNumberFilter(''); 
-                                    setBrandFilter(''); 
-                                    setTypeFilter('');
-                                    setDateRange(undefined); 
-                                }}
-                                className="text-[10px] text-slate-400 hover:text-red-500 underline"
-                            >
-                                Limpiar
-                            </button>
-                        )}
+                    <div className="flex items-center justify-between border-t border-monchito-purple/5 pt-2">
+                        <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-monchito-purple bg-monchito-purple/10 px-2 py-1 rounded-md">
+                                {filteredOrders.length} Resultados
+                            </span>
+                            {(searchTerm || receiptFilter || orderNumberFilter || brandFilter || typeFilter || dateRange) && (
+                                <button
+                                    onClick={() => { 
+                                        setSearchTerm(''); 
+                                        setReceiptFilter(''); 
+                                        setOrderNumberFilter(''); 
+                                        setBrandFilter(''); 
+                                        setTypeFilter('');
+                                        setDateRange(undefined); 
+                                    }}
+                                    className="text-[10px] text-slate-400 hover:text-red-500 underline"
+                                >
+                                    Limpiar filtros
+                                </button>
+                            )}
+                        </div>
+                        
                         <Button
                             size="sm"
                             onClick={handleMove}
                             disabled={selected.size === 0}
-                            className="bg-monchito-purple hover:bg-monchito-purple/90 text-white shadow-sm transition-all active:scale-95 h-7 text-xs px-3 ml-2"
+                            className="bg-monchito-purple hover:bg-monchito-purple/90 text-white shadow-sm transition-all active:scale-95 h-8 text-xs px-4"
                         >
-                            Mover ({selected.size}) <ArrowRight className="ml-1 h-3 w-3" />
+                            Mover Seleccionados ({selected.size}) <ArrowRight className="ml-1 h-3 w-3" />
                         </Button>
                     </div>
                 </div>

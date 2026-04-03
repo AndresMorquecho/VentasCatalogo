@@ -196,12 +196,6 @@ export function OrderFormPage() {
             const activePayments = paymentData.payments.filter(p => p.amount > 0);
             const isSplitPayment = activePayments.length > 1;
 
-            // Detectar si el usuario especificó abonos individuales por fila
-            // Si al menos un abono es > 0, significa que el usuario ingresó valores específicos
-            // que deben preservarse sin redistribución automática
-            const hasUserSpecifiedDeposits = formik.values.brandItems.some((item: BrandItem) => 
-                Number(item.deposit) > 0
-            );
 
             // Construir el batchPayload — todo en una sola transacción atómica
             const batchPayload = {
@@ -234,9 +228,6 @@ export function OrderFormPage() {
                 orders: formik.values.brandItems.map((item: BrandItem) => {
                     const unitPrice = item.quantity > 0 ? item.total / item.quantity : 0;
                     const rowDeposit = Number(item.deposit) || 0;
-                    // No redistribuir automáticamente. Respetar estrictamente lo ingresado en la tabla (item.deposit).
-                    // Al forzar que el PaymentModal coincida con totalRowDeposit, el total pagado 
-                    // siempre coincidirá con la suma de estos depósitos individuales.
                     
                     return {
                         brand_id: item.brandId,

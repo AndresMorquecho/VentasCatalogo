@@ -14,7 +14,6 @@ import {
   Edit,
   Edit2,
   X,
-  AlertTriangle,
   Send,
   PackageOpen,
   StickyNote,
@@ -508,20 +507,36 @@ export function ExchangesPage() {
                         </td>
                         <td className="px-4 h-[72px] p-0 border-r border-slate-50 text-center group/td relative">
                              <div className="flex items-center justify-center h-full w-full">
-                                <div className={`flex items-center justify-center min-w-[64px] h-11 px-3 rounded-full transition-all duration-200 group-hover/td:opacity-0 group-hover/td:scale-50 ${
-                                    enviado > 0 
-                                        ? 'bg-indigo-600 shadow-lg shadow-indigo-100 scale-110 font-black text-white' 
-                                        : 'bg-indigo-100/50 text-indigo-400 border border-indigo-100 font-bold'
-                                }`}>
-                                    <span className="text-sm">{count}</span>
+                                <div className="relative">
+                                    <div className={`flex items-center justify-center min-w-[64px] h-11 px-3 rounded-full transition-all duration-200 sm:group-hover/td:opacity-0 sm:group-hover/td:scale-50 ${
+                                        enviado > 0 
+                                            ? 'bg-indigo-600 shadow-lg shadow-indigo-100 scale-110 font-black text-white' 
+                                            : 'bg-indigo-100/50 text-indigo-400 border border-indigo-100 font-bold'
+                                    }`}>
+                                        <span className="text-sm">{count}</span>
+                                    </div>
+                                    
+                                    {/* Botón flotante para Móvil (Visible siempre en SM < 640px) */}
+                                    {(transito === 0 && enBodega === 0 && entregado === 0) && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                navigate(`/exchanges/group/${first.receiptNumber}`);
+                                            }}
+                                            className="flex sm:hidden absolute -right-2 -top-2 w-7 h-7 bg-white text-indigo-600 rounded-full items-center justify-center shadow-[0_4px_12px_rgba(79,70,229,0.3)] border-2 border-indigo-50 active:scale-75 transition-all z-20"
+                                        >
+                                            <Plus className="w-4 h-4 stroke-[3]" />
+                                        </button>
+                                    )}
                                 </div>
+
                                  {(transito === 0 && enBodega === 0 && entregado === 0) && (
                                      <button
                                          onClick={(e) => {
                                              e.stopPropagation();
                                              navigate(`/exchanges/group/${first.receiptNumber}`);
                                          }}
-                                         className="absolute inset-0 m-auto w-28 h-10 bg-indigo-600 text-white text-[9px] font-black uppercase rounded-xl opacity-0 scale-50 group-hover/td:opacity-100 group-hover/td:scale-100 transition-all duration-200 shadow-xl shadow-indigo-200 flex items-center justify-center gap-1.5 z-10"
+                                         className="absolute inset-0 m-auto w-28 h-10 bg-indigo-600 text-white text-[9px] font-black uppercase rounded-xl opacity-0 scale-50 sm:group-hover/td:opacity-100 sm:group-hover/td:scale-100 transition-all duration-200 shadow-xl shadow-indigo-200 hidden sm:flex items-center justify-center gap-1.5 z-10"
                                      >
                                          <Plus className="h-3 w-3" /> Agregar más
                                      </button>
@@ -582,17 +597,14 @@ export function ExchangesPage() {
         )}
       </div>
       
-      {/* Detail Modal Configured to look like Registro de Ventas */}
       <Dialog open={!!selectedGroup} onOpenChange={(open) => !open && setSelectedGroup(null)}>
-        <DialogContent className="sm:max-w-7xl h-[85vh] flex flex-col rounded-3xl p-0 gap-0 border-none shadow-2xl overflow-hidden">
+        <DialogContent className="w-[98vw] max-w-[98vw] sm:max-w-7xl h-[95vh] sm:h-[85vh] flex flex-col rounded-3xl p-0 gap-0 border-none shadow-2xl overflow-hidden pointer-events-auto">
           {selectedGroup && (() => {
                const firstOrder = selectedGroup[0];
-               const batchInfo = firstOrder.exchangeBatchItems?.[0]?.batch;
                const totalAmount = selectedGroup.reduce((acc, curr) => acc + Number(curr.total || 0), 0);
                const isAnyDelivered = selectedGroup.some(o => o.status === 'ENTREGADO');
                const isAllDelivered = selectedGroup.every(o => o.status === 'ENTREGADO');
                const isAllBodega = selectedGroup.every(o => o.status === 'RECIBIDO_EN_BODEGA' || o.status === 'ENTREGADO');
-               // Relaxed condition: All elements are in some form of "recolectado" or "por enviar"
                const isAllRecolectado = selectedGroup.every(o => ['RECOLECTADO', 'POR_ENVIAR', 'POR_RECIBIR'].includes(o.status));
                
                let globalStatus = 'Diversos';
@@ -604,141 +616,130 @@ export function ExchangesPage() {
                const isTechnicalId = firstOrder.receiptNumber?.startsWith('S/N-') || firstOrder.receiptNumber?.startsWith('SN-');
 
                return (
-            <>
-                <DialogHeader className="px-6 pt-6 pb-4 border-b border-slate-100 bg-white">
+            <div className="flex flex-col h-full w-full overflow-hidden">
+                <DialogHeader className="px-4 sm:px-6 pt-5 sm:pt-6 pb-4 border-b border-slate-100 bg-white shrink-0">
                     <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-[10px] font-black uppercase text-monchito-purple tracking-widest mb-1">Registro de Cambios</p>
-                            <DialogTitle className="text-2xl font-black text-slate-800 tracking-tight">
+                        <div className="flex-1 min-w-0">
+                            <p className="text-[9px] sm:text-[10px] font-black uppercase text-monchito-purple tracking-widest mb-1">Registro de Cambios</p>
+                            <DialogTitle className="text-lg sm:text-2xl font-black text-slate-800 tracking-tight truncate">
                                 {isTechnicalId ? (
                                     <div className="flex flex-col">
                                         <span>SIN GUÍA</span>
-                                        <p className="text-[10px] text-red-500 font-bold italic tracking-normal mt-0.5 normal-case">obligatorio ingresar al enviar la guía</p>
+                                        <p className="text-[9px] text-red-500 font-bold italic tracking-normal mt-0.5 normal-case">obligatorio al enviar</p>
                                     </div>
                                 ) : (
                                     `Guía ${firstOrder.receiptNumber}`
                                 )}
                             </DialogTitle>
                         </div>
-                        <div className="flex flex-col items-end gap-1">
-                            <Badge className={`${STATUS_COLORS[globalStatus] || 'bg-slate-100 text-slate-700'} border font-black uppercase text-[10px] tracking-widest px-3 py-1 rounded-full shadow-sm`}>
+                        <div className="flex flex-col items-end gap-1 shrink-0 ml-2">
+                             <Badge className={`${STATUS_COLORS[globalStatus] || 'bg-slate-100 text-slate-700'} border font-black uppercase text-[8px] sm:text-[10px] tracking-widest px-2 sm:px-3 py-0.5 sm:py-1 rounded-full shadow-sm`}>
                                 {STATUS_LABELS[globalStatus] || globalStatus}
-                            </Badge>
+                             </Badge>
                         </div>
                     </div>
                 </DialogHeader>
                 
-                <div className="px-6 py-6 pb-2 bg-slate-50/50">
-                    {/* Global Summary Card Grid */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                        {/* Estado General */}
-                        <div className="bg-white border border-slate-100 p-4 rounded-xl shadow-sm">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Estado General</p>
-                            <div className="flex justify-between items-baseline mb-0.5">
-                                <span className="text-xs text-slate-500 font-semibold">Recolectados:</span>
-                                <span className="font-black text-indigo-600">{selectedGroup.filter(o => o.status === 'RECOLECTADO' || o.status === 'POR_ENVIAR' || o.status === 'POR_RECIBIR').length}</span>
-                            </div>
-                            <div className="flex justify-between items-baseline mb-0.5">
-                                <span className="text-xs text-slate-500 font-semibold">En Tránsito:</span>
-                                <span className="font-black text-sky-600">{selectedGroup.filter(o => o.status === 'EN_TRANSITO').length}</span>
-                            </div>
-                            <div className="flex justify-between items-baseline mb-0.5">
-                                <span className="text-slate-300 italic font-medium">-</span>
-                                <span className="font-black text-amber-600">{selectedGroup.filter(o => o.status === 'RECIBIDO_EN_BODEGA').length}</span>
-                            </div>
-                            <div className="flex justify-between items-baseline">
-                                <span className="text-xs text-slate-500 font-semibold">Entregados:</span>
-                                <span className="font-black text-emerald-600">{selectedGroup.filter(o => o.status === 'ENTREGADO').length}</span>
-                            </div>
-                        </div>
-
-                        <div className="bg-white border border-slate-100 p-4 rounded-xl shadow-sm">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Registro</p>
-                            <p className="font-bold text-slate-700 text-sm leading-tight">{fmtDate(firstOrder.createdAt).split(' ')[0]}</p>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase mt-2">Recepción bod.</p>
-                            <p className="font-bold text-amber-700 text-[11px] leading-tight">{firstOrder.receptionDate ? fmtDate(firstOrder.receptionDate).split(' ')[0] : 'Pendiente'}</p>
-                        </div>
-
-                        <div className="bg-white border border-slate-100 p-4 rounded-xl shadow-sm">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Gestionado por</p>
-                            <div className="flex items-center gap-2 mt-1">
-                                <div className="w-8 h-8 rounded-full bg-monchito-purple/10 text-monchito-purple border border-monchito-purple/20 flex items-center justify-center text-xs font-black">
-                                    {(firstOrder.createdByName || 'U').charAt(0)}
-                                </div>
-                                <div>
-                                    <p className="font-bold text-slate-700 text-sm truncate">{firstOrder.createdByName || 'S/N'}</p>
-                                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Vendedor</p>
+                <div className="flex-1 overflow-y-auto bg-slate-50/50 min-h-0 scrollbar-none sm:custom-scrollbar">
+                    <div className="px-4 sm:px-6 py-4 sm:py-6">
+                        {/* Global Summary Card Grid */}
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
+                            <div className="bg-white border border-slate-100 p-3 sm:p-4 rounded-xl shadow-sm col-span-2 lg:col-span-1">
+                                <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase mb-1">Estado General</p>
+                                <div className="grid grid-cols-2 gap-x-4">
+                                    <div className="flex justify-between items-baseline mb-0.5">
+                                        <span className="text-[10px] sm:text-xs text-slate-500 font-semibold">Recol.:</span>
+                                        <span className="font-black text-indigo-600 text-xs sm:text-sm">{selectedGroup.filter(o => o.status === 'RECOLECTADO' || o.status === 'POR_ENVIAR' || o.status === 'POR_RECIBIR').length}</span>
+                                    </div>
+                                    <div className="flex justify-between items-baseline mb-0.5">
+                                        <span className="text-[10px] sm:text-xs text-slate-500 font-semibold">Trán.:</span>
+                                        <span className="font-black text-sky-600 text-xs sm:text-sm">{selectedGroup.filter(o => o.status === 'EN_TRANSITO').length}</span>
+                                    </div>
+                                    <div className="flex justify-between items-baseline mb-0.5">
+                                        <span className="text-[10px] sm:text-xs text-slate-500 font-semibold">Bod.:</span>
+                                        <span className="font-black text-amber-600 text-xs sm:text-sm">{selectedGroup.filter(o => o.status === 'RECIBIDO_EN_BODEGA').length}</span>
+                                    </div>
+                                    <div className="flex justify-between items-baseline">
+                                        <span className="text-[10px] sm:text-xs text-slate-500 font-semibold">Entr.:</span>
+                                        <span className="font-black text-emerald-600 text-xs sm:text-sm">{selectedGroup.filter(o => o.status === 'ENTREGADO').length}</span>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        
-                        {/* Nueva 4ta Card: Notas Generales */}
-                        <div className="bg-white border border-slate-100 p-4 rounded-xl shadow-sm overflow-hidden flex flex-col">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase mb-1 flex items-center gap-1.5">
-                                <StickyNote className="w-2.5 h-2.5 text-amber-500" />
-                                Notas de la Guía
-                            </p>
-                            <div className="flex-1 min-h-0 flex items-center">
-                                <p className="text-[11px] font-semibold text-slate-600 line-clamp-3 italic leading-snug">
-                                    {(firstOrder as any).receipt?.notes || firstOrder.notes || "Sin notas adicionales."}
+
+                            <div className="bg-white border border-slate-100 p-3 sm:p-4 rounded-xl shadow-sm">
+                                <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase mb-1">Registro</p>
+                                <p className="font-bold text-slate-700 text-xs sm:text-sm leading-tight">{fmtDate(firstOrder.createdAt).split(' ')[0]}</p>
+                                <p className="text-[9px] font-bold text-slate-400 uppercase mt-2">Bodega</p>
+                                <p className="font-bold text-amber-700 text-[10px] sm:text-[11px] leading-tight">{firstOrder.receptionDate ? fmtDate(firstOrder.receptionDate).split(' ')[0] : 'Pendiente'}</p>
+                            </div>
+
+                            <div className="bg-white border border-slate-100 p-3 sm:p-4 rounded-xl shadow-sm">
+                                <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase mb-1">Responsable</p>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-monchito-purple/10 text-monchito-purple border border-monchito-purple/20 flex items-center justify-center text-[10px] sm:text-xs font-black shrink-0">
+                                        {(firstOrder.createdByName || 'U').charAt(0)}
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="font-bold text-slate-700 text-[11px] sm:text-sm truncate">{firstOrder.createdByName || 'S/N'}</p>
+                                        <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Vendedor</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="bg-white border border-slate-100 p-3 sm:p-4 rounded-xl shadow-sm flex flex-col col-span-2 lg:col-span-1">
+                                <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase mb-1 flex items-center gap-1.5">
+                                    <StickyNote className="w-2.5 h-2.5 text-amber-500" />
+                                    Notas de la Guía
                                 </p>
+                                <div className="flex-1 min-h-0 flex items-center">
+                                    <p className="text-[10px] sm:text-[11px] font-semibold text-slate-600 line-clamp-2 italic leading-tight">
+                                        {(firstOrder as any).receipt?.notes || firstOrder.notes || "Sin notas adicionales."}
+                                    </p>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-
-
-                    <div className="flex justify-between items-end mb-1 border-b-2 border-monchito-purple/10 pb-2">
-                        <div className="flex items-center gap-2">
-                            <ListOrdered className="w-5 h-5 text-monchito-purple" />
-                            <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest">Desglose de la Guía</h4>
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-4 border-b-2 border-monchito-purple/10 pb-3 gap-2">
+                            <div className="flex items-center gap-2">
+                                <ListOrdered className="w-4 h-4 sm:w-5 sm:h-5 text-monchito-purple" />
+                                <h4 className="text-xs sm:text-sm font-black text-slate-800 uppercase tracking-widest">Desglose de la Guía</h4>
+                            </div>
+                            <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto">
+                                <p className="text-[8px] sm:text-[10px] text-muted-foreground font-black uppercase tracking-widest leading-tight sm:mb-1">Total Guía:</p>
+                                <p className="text-xl sm:text-3xl font-black text-monchito-purple leading-none ml-2 sm:ml-0">{formatCurrency(totalAmount)}</p>
+                            </div>
                         </div>
-                        <div className="flex flex-col items-end">
-                            <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest leading-tight mb-1">Total de Guía</p>
-                            <p className="text-3xl font-black text-monchito-purple leading-none">{formatCurrency(totalAmount)}</p>
-                        </div>
-                    </div>
-                </div>
 
-                <div className="flex-1 overflow-auto px-6 pb-6 bg-slate-50/50 custom-scrollbar">
-                    {/* Associated Orders Table */}
-                    <div className="mb-4">
-
-                        <div className="rounded-2xl border border-slate-200 overflow-hidden bg-white shadow-xl">
+                        <div className="rounded-2xl border border-slate-200 overflow-hidden bg-white shadow-lg">
                             <div className="overflow-x-auto custom-scrollbar">
-                                <table className="w-full text-xs text-left border-collapse min-w-[1400px]">
+                                <table className="w-full text-xs text-left border-collapse min-w-[1200px]">
                                     <thead>
-                                        <tr className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase font-bold text-slate-500 sticky top-0 z-20">
-                                            <th className="px-4 py-4 border-r border-slate-100 text-center" colSpan={5}>Información de lo que se Devuelve (Original)</th>
+                                        <tr className="bg-slate-50 border-b border-slate-200 text-[9px] sm:text-[10px] uppercase font-bold text-slate-500 sticky top-0 z-20">
+                                            <th className="px-4 py-3 border-r border-slate-100 text-center" colSpan={5}>Información del Original</th>
                                             <th className="px-2 w-8 text-center text-slate-300 border-r border-slate-100">
                                                <ArrowRightLeft className="w-3 h-3 mx-auto" />
                                             </th>
-                                            <th className="px-4 py-4 border-r border-slate-100 text-center" colSpan={7}>Información del Reemplazo Solicitado (Cambio)</th>
+                                            <th className="px-4 py-3 border-r border-slate-100 text-center" colSpan={7}>Información del Cambio</th>
                                         </tr>
-                                        <tr className="bg-slate-50 border-b border-slate-200 text-[9px] uppercase font-black text-slate-400 bg-slate-100/30 sticky top-12 z-20">
-                                            <th className="px-4 py-3 border-r border-slate-100 text-slate-500 text-center bg-white/50">Empresaria</th>
-                                            {/* Original */}
-                                            <th className="px-4 py-3 border-r border-slate-100 w-28 text-slate-500">N° Pedido</th>
-                                            <th className="px-4 py-3 border-r border-slate-100 text-center w-12 text-slate-500">Cant</th>
-                                            <th className="px-4 py-3 border-r border-slate-100 w-28 text-slate-500">Catálogo</th>
-                                            <th className="px-4 py-3 border-r border-slate-100 min-w-[200px] text-slate-500">Descripción del Cambio</th>
-                                            {/* Middle */}
+                                        <tr className="bg-slate-50 border-b border-slate-200 text-[8px] sm:text-[9px] uppercase font-black text-slate-400 bg-slate-100/30 sticky top-10 z-20">
+                                            <th className="px-4 py-2 border-r border-slate-100 text-slate-500 text-center bg-white/50">Empresaria</th>
+                                            <th className="px-4 py-2 border-r border-slate-100 w-28 text-slate-500">N° Pedido</th>
+                                            <th className="px-4 py-2 border-r border-slate-100 text-center w-12 text-slate-500">Cant</th>
+                                            <th className="px-4 py-2 border-r border-slate-100 w-28 text-slate-500">Catálogo</th>
+                                            <th className="px-4 py-2 border-r border-slate-100 min-w-[180px] text-slate-500">Descripción Original</th>
                                             <th className="px-2 text-center border-r border-slate-100 bg-white"></th>
-                                            {/* New */}
-                                            <th className="px-4 py-3 border-r border-slate-100 w-28 text-monchito-purple/70">N° Pedido</th>
-                                            <th className="px-4 py-3 border-r border-slate-100 w-24 text-monchito-purple/70">Pedido por</th>
-                                            <th className="px-4 py-3 border-r border-slate-100 text-center w-12 text-monchito-purple/70">Cant</th>
-                                            <th className="px-4 py-3 border-r border-slate-100 w-28 text-monchito-purple/70">Catálogo</th>
-                                            <th className="px-4 py-3 border-r border-slate-100 min-w-[200px] text-monchito-purple/70">Descripción</th>
-                                            <th className="px-4 py-3 border-r border-slate-100 w-28 text-center text-monchito-purple/70">Entrega</th>
-                                            <th className="px-4 py-3 text-center w-28 text-monchito-purple/70">Estado</th>
+                                            <th className="px-4 py-2 border-r border-slate-100 w-28 text-monchito-purple/70">N° Cambio</th>
+                                            <th className="px-4 py-2 border-r border-slate-100 w-24 text-monchito-purple/70">Canal</th>
+                                            <th className="px-4 py-2 border-r border-slate-100 text-center w-12 text-monchito-purple/70">Cant</th>
+                                            <th className="px-4 py-2 border-r border-slate-100 w-28 text-monchito-purple/70">Catálogo</th>
+                                            <th className="px-4 py-2 border-r border-slate-100 min-w-[180px] text-monchito-purple/70">Descripción Cambio</th>
+                                            <th className="px-4 py-2 border-r border-slate-100 w-28 text-center text-monchito-purple/70">Entrega</th>
+                                            <th className="px-4 py-2 text-center w-28 text-monchito-purple/70">Estado</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 bg-white">
                                         {selectedGroup.map((child) => {
                                             const parsed = parseExchangeNotesDetailed(child.notes || '');
-                                            
-                                            // Prefer new structured fields if available, otherwise fallback to parsed notes
                                             const displayData = {
                                                 originalOrder: child.sourceOrderNumber || parsed.originalOrder,
                                                 originalQty: child.sourceQuantity || parsed.originalQty,
@@ -751,43 +752,36 @@ export function ExchangesPage() {
 
                                             return (
                                                 <tr key={child.id} className="hover:bg-slate-50 transition-colors">
-                                                    {/* Empresaria Header */}
-                                                    <td className="px-4 py-4 font-bold text-slate-800 border-r border-slate-100 bg-white">
+                                                    <td className="px-4 py-3 font-bold text-slate-800 border-r border-slate-100 bg-white truncate max-w-[120px]">
                                                        {child.clientName}
                                                     </td>
-
-                                                    {/* Original Info */}
-                                                    <td className="px-4 py-4 font-black text-slate-400 border-r border-slate-100">{displayData.originalOrder}</td>
-                                                    <td className="px-4 py-4 text-center font-black text-slate-500 border-r border-slate-100 bg-slate-50/50">{displayData.originalQty}</td>
-                                                    <td className="px-4 py-4 font-bold text-slate-700 border-r border-slate-100">{displayData.originalBrand}</td>
-                                                    <td className="px-4 py-4 font-medium text-slate-600 border-r border-slate-100">
-                                                        <p className="line-clamp-2" title={displayData.originalDesc}>{displayData.originalDesc}</p>
+                                                    <td className="px-4 py-3 font-black text-slate-400 border-r border-slate-100">{displayData.originalOrder}</td>
+                                                    <td className="px-4 py-3 text-center font-black text-slate-500 border-r border-slate-100 bg-slate-50/50">{displayData.originalQty}</td>
+                                                    <td className="px-4 py-3 font-bold text-slate-700 border-r border-slate-100">{displayData.originalBrand}</td>
+                                                    <td className="px-4 py-3 font-medium text-slate-600 border-r border-slate-100">
+                                                        <p className="line-clamp-1 text-[10px]" title={displayData.originalDesc}>{displayData.originalDesc}</p>
                                                     </td>
-                                                    
-                                                    <td className="px-2 py-4 text-center text-slate-300 border-r border-slate-100 bg-slate-50/50">
-                                                        <ArrowRightLeft className="w-4 h-4 mx-auto text-monchito-purple/30" />
+                                                    <td className="px-2 py-3 text-center text-slate-300 border-r border-slate-100 bg-slate-50/50">
+                                                        <ArrowRightLeft className="w-3 h-3 mx-auto text-monchito-purple/30" />
                                                     </td>
-                                                    
-                                                    {/* Replacement Info */}
-                                                    <td className="px-4 py-4 font-black text-monchito-purple border-r border-slate-100 bg-monchito-purple/5">
+                                                    <td className="px-4 py-3 font-black text-monchito-purple border-r border-slate-100 bg-monchito-purple/5">
                                                         {child.orderNumber}
                                                     </td>
-                                                    <td className="px-4 py-4 font-black text-slate-800 border-r border-slate-100">
-                                                       <Badge variant="outline" className="text-[9px] w-full justify-center px-1 py-0.5 uppercase font-black text-slate-500 border-slate-200">
+                                                    <td className="px-4 py-3 font-black text-slate-800 border-r border-slate-100">
+                                                       <Badge variant="outline" className="text-[8px] w-full justify-center px-1 py-0.5 uppercase font-black text-slate-500 border-slate-200">
                                                          {child.salesChannel}
                                                        </Badge>
                                                     </td>
-                                                    <td className="px-4 py-4 text-center font-black text-monchito-purple border-r border-slate-100 bg-monchito-purple/5">{displayData.newQty}</td>
-                                                    <td className="px-4 py-4 font-bold text-monchito-purple border-r border-slate-100">{displayData.newBrand}</td>
-                                                    <td className="px-4 py-4 font-bold text-monchito-purple border-r border-slate-100">
-                                                        <p className="line-clamp-2" title={displayData.newDesc}>{displayData.newDesc}</p>
+                                                    <td className="px-4 py-3 text-center font-black text-monchito-purple border-r border-slate-100 bg-monchito-purple/5">{displayData.newQty}</td>
+                                                    <td className="px-4 py-3 font-bold text-monchito-purple border-r border-slate-100">{displayData.newBrand}</td>
+                                                    <td className="px-4 py-3 font-bold text-monchito-purple border-r border-slate-100">
+                                                        <p className="line-clamp-1 text-[10px]" title={displayData.newDesc}>{displayData.newDesc}</p>
                                                     </td>
-                                                    <td className="px-4 py-4 text-center font-bold text-slate-600 border-r border-slate-100 whitespace-nowrap">
+                                                    <td className="px-4 py-3 text-center font-bold text-slate-600 border-r border-slate-100 whitespace-nowrap">
                                                         {child.possibleDeliveryDate ? fmtDate(child.possibleDeliveryDate).split(' ')[0] : 'N/A'}
                                                     </td>
-                                                    
-                                                    <td className="px-4 py-4 text-center">
-                                                        <Badge className={`${STATUS_COLORS[child.status] || 'bg-slate-100 text-slate-700'} border font-black uppercase text-[8px] tracking-widest px-2 py-1 rounded-xl shadow-sm`}>
+                                                    <td className="px-4 py-3 text-center">
+                                                        <Badge className={`${STATUS_COLORS[child.status] || 'bg-slate-100 text-slate-700'} border font-black uppercase text-[8px] tracking-widest px-2 py-1 rounded shadow-sm`}>
                                                             {STATUS_LABELS[child.status] || child.status}
                                                         </Badge>
                                                     </td>
@@ -800,105 +794,100 @@ export function ExchangesPage() {
                     </div>
                 </div>
 
-                <DialogFooter className="px-6 py-4 bg-white border-t border-slate-100 flex flex-col sm:flex-row gap-3 justify-between items-center">
-                    <div className="flex gap-2">
-                        {batchInfo?.status === 'POR_ENVIAR' && hasPermission('exchanges.manage') && (
-                            <Button 
-                                className="rounded-xl h-11 font-black bg-indigo-600 hover:bg-indigo-700 text-white transition-all px-8 shadow-md"
-                                onClick={() => handleStartShipment(batchInfo.id)}
-                            >
-                                <Send className="w-4 h-4 mr-2" />
-                                Enviar a Proveedor
-                            </Button>
-                        )}
+                <DialogFooter className="px-4 sm:px-6 py-4 bg-white border-t border-slate-100 shrink-0 mt-auto">
+                    <div className="flex flex-col sm:flex-row gap-3 w-full justify-between items-center">
+                        <div className="flex flex-wrap gap-2 w-full sm:w-auto justify-center sm:justify-start">
+                             {(() => {
+                                 const batchInfo = firstOrder.exchangeBatchItems?.[0]?.batch;
+                                 return (
+                                     <>
+                                        {batchInfo?.status === 'POR_ENVIAR' && hasPermission('exchanges.manage') && (
+                                            <Button 
+                                                className="rounded-xl h-10 sm:h-11 font-black bg-indigo-600 hover:bg-indigo-700 text-white px-4 sm:px-8 text-xs"
+                                                onClick={() => handleStartShipment(batchInfo.id)}
+                                            >
+                                                <Send className="w-4 h-4 mr-2" />
+                                                Enviar a Proveedor
+                                            </Button>
+                                        )}
 
-                        {batchInfo?.status === 'EN_TRANSITO' && hasPermission('exchanges.manage') && (
-                            <Button 
-                                className="rounded-xl h-11 font-black bg-amber-600 hover:bg-amber-700 text-white transition-all px-8 shadow-md"
-                                onClick={() => handleStatusUpdate(batchInfo.id, 'EN_BODEGA')}
-                                disabled={isUpdatingStatus}
-                            >
-                                <PackageOpen className="w-4 h-4 mr-2" />
-                                Recibir en Bodega
-                            </Button>
-                        )}
+                                        {batchInfo?.status === 'EN_TRANSITO' && hasPermission('exchanges.manage') && (
+                                            <Button 
+                                                className="rounded-xl h-10 sm:h-11 font-black bg-amber-600 hover:bg-amber-700 text-white px-4 sm:px-8 text-xs"
+                                                onClick={() => handleStatusUpdate(batchInfo.id, 'EN_BODEGA')}
+                                                disabled={isUpdatingStatus}
+                                            >
+                                                <PackageOpen className="w-4 h-4 mr-2" />
+                                                Recibir Bodega
+                                            </Button>
+                                        )}
 
-                        {/* Improved Logic: Enviar Guía if all items are in RECOLECTADO status group */}
-                        {globalStatus === 'RECOLECTADO' && hasPermission('exchanges.manage') && (
-                            <Button 
-                                className="rounded-xl h-11 font-black bg-monchito-purple hover:bg-monchito-purple/90 text-white transition-all px-8 shadow-xl shadow-monchito-purple/20 animate-in fade-in zoom-in duration-300"
-                                onClick={() => {
-                                    const batchId = batchInfo?.id || firstOrder.receptionBatchId;
-                                    // Use receiptNumber as ultimate fallback for tracking number
-                                    const initialTracking = batchInfo?.trackingGuide || 
-                                                           firstOrder.trackingGuide || 
-                                                           (firstOrder.receiptNumber && !firstOrder.receiptNumber.startsWith('S/N-') ? firstOrder.receiptNumber : '');
-                                    
-                                    if (batchId) {
-                                        handleStartShipment(batchId, initialTracking);
-                                    } else {
-                                        // Fallback for cases without explicit batch entity: use receiptNumber
-                                        setShipmentData({ isOpen: true, batchId: firstOrder.receiptNumber, trackingGuide: initialTracking });
-                                    }
-                                }}
-                            >
-                                <Send className="w-4 h-4 mr-2" />
-                                Enviar Guía
-                            </Button>
-                        )}
+                                        {globalStatus === 'RECOLECTADO' && hasPermission('exchanges.manage') && (
+                                            <Button 
+                                                className="rounded-xl h-10 sm:h-11 font-black bg-monchito-purple hover:bg-monchito-purple/90 text-white px-4 sm:px-8 shadow-xl shadow-monchito-purple/20 text-xs"
+                                                onClick={() => {
+                                                    const bId = batchInfo?.id || firstOrder.receptionBatchId;
+                                                    const iTracking = batchInfo?.trackingGuide || 
+                                                                        firstOrder.trackingGuide || 
+                                                                        (firstOrder.receiptNumber && !firstOrder.receiptNumber.startsWith('S/N-') ? firstOrder.receiptNumber : '');
+                                                    
+                                                    if (bId) handleStartShipment(bId, iTracking);
+                                                    else setShipmentData({ isOpen: true, batchId: firstOrder.receiptNumber, trackingGuide: iTracking });
+                                                }}
+                                            >
+                                                <Send className="w-4 h-4 mr-2" />
+                                                Enviar Guía
+                                            </Button>
+                                        )}
 
-                        {globalStatus === 'RECOLECTADO' && !isAnyDelivered && hasPermission('exchanges.edit') && (
-                            <Button 
-                                variant="outline" 
-                                className="rounded-xl h-11 font-bold text-monchito-purple border-monchito-purple/20 hover:bg-monchito-purple/5 transition-all px-6"
-                                onClick={() => handleEditBatch(firstOrder.receiptNumber!)}
-                            >
-                                <Edit className="w-4 h-4 mr-2" />
-                                Editar Guía
-                            </Button>
-                        )}
-                        {(globalStatus === 'RECOLECTADO' || globalStatus === 'EN_TRANSITO') && !isAnyDelivered && hasPermission('exchanges.delete') && (
-                            <Button 
-                                variant="ghost" 
-                                className="rounded-xl h-11 font-bold text-red-500 hover:bg-red-50 transition-all px-6"
-                                onClick={() => setDeleteData({ isOpen: true, receiptNumber: firstOrder.receiptNumber! })}
-                            >
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                Eliminar Todo
-                            </Button>
-                        )}
+                                        {globalStatus === 'RECOLECTADO' && !isAnyDelivered && hasPermission('exchanges.edit') && (
+                                            <Button 
+                                                variant="outline" 
+                                                className="rounded-xl h-10 sm:h-11 font-bold text-monchito-purple border-monchito-purple/20 px-4 sm:px-6 text-xs"
+                                                onClick={() => handleEditBatch(firstOrder.receiptNumber!)}
+                                            >
+                                                <Edit className="w-4 h-4 mr-2" />
+                                                Editar
+                                            </Button>
+                                        )}
 
-                        {globalStatus !== 'RECOLECTADO' && (
-                            <Button 
-                                variant="outline" 
-                                className="rounded-xl h-11 font-black bg-monchito-purple/10 hover:bg-monchito-purple/20 text-monchito-purple border-monchito-purple/20 transition-all px-8 shadow-sm"
-                                disabled={isPrinting}
-                                onClick={() => handlePrintReceipt(firstOrder, selectedGroup!.slice(1))}
-                            >
-                                {isPrinting ? (
-                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                ) : (
-                                    <Printer className="w-4 h-4 mr-2" />
-                                )}
-                                Imprimir Recibo
-                            </Button>
-                        )}
-                        {isAnyDelivered && (
-                            <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                                <AlertTriangle className="w-4 h-4 text-slate-400" />
-                                <span className="text-[10px] font-bold text-slate-400 uppercase">Guía con items entregados (Restringida)</span>
-                            </div>
-                        )}
+                                        {globalStatus !== 'RECOLECTADO' && (
+                                            <Button 
+                                                variant="outline" 
+                                                className="rounded-xl h-10 sm:h-11 font-black bg-monchito-purple/10 hover:bg-monchito-purple/20 text-monchito-purple border-monchito-purple/20 px-4 sm:px-8 text-xs"
+                                                disabled={isPrinting}
+                                                onClick={() => handlePrintReceipt(firstOrder, selectedGroup!.slice(1))}
+                                            >
+                                                {isPrinting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4 mr-2" />}
+                                                Recibo
+                                            </Button>
+                                        )}
+
+                                        {(globalStatus === 'RECOLECTADO' || globalStatus === 'EN_TRANSITO') && !isAnyDelivered && hasPermission('exchanges.delete') && (
+                                            <Button 
+                                                variant="ghost" 
+                                                className="rounded-xl h-10 sm:h-11 font-bold text-red-500 hover:bg-red-50 px-4 sm:px-6 text-xs"
+                                                onClick={() => setDeleteData({ isOpen: true, receiptNumber: firstOrder.receiptNumber! })}
+                                            >
+                                                <Trash2 className="w-4 h-4 mr-2" />
+                                                Eliminar
+                                            </Button>
+                                        )}
+                                     </>
+                                 );
+                             })()}
+                        </div>
+
+                        <Button 
+                            variant="default" 
+                            className="rounded-xl h-10 sm:h-11 font-black bg-slate-900 hover:bg-slate-800 text-white px-8 shadow-lg w-full sm:w-auto text-xs"
+                            onClick={() => setSelectedGroup(null)}
+                        >
+                            Cerrar Detalles
+                        </Button>
                     </div>
-                    <Button 
-                        variant="default" 
-                        className="rounded-xl h-11 font-black bg-slate-900 hover:bg-slate-800 text-white transition-all px-8 shadow-lg w-full sm:w-auto"
-                        onClick={() => setSelectedGroup(null)}
-                    >
-                        Cerrar Detalles
-                    </Button>
                 </DialogFooter>
-            </>
+            </div>
           );})()}
         </DialogContent>
       </Dialog>

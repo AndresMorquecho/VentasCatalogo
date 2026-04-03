@@ -5,11 +5,11 @@ import type { CreditDistribution } from "@/entities/financial-record/model/types
 import { orderApi } from "@/entities/order/model/api"
 import { getPaidAmount } from "@/entities/order/model/model"
 import { PaymentModal, type PaymentModalData, type PaymentContext } from "@/shared/ui/PaymentModal"
-import { prepareDeliveryReceiptForPreview } from "../lib/generateDeliveryReceiptWithPreview"
 import { useAuth } from "@/shared/auth/AuthProvider"
 import { useNotifications } from "@/shared/lib/notifications"
 import { logAction } from "@/shared/lib/auditService"
 import { useClientCredit } from "@/features/wallet/model/hooks"
+import { prepareBatchDeliveryReceiptForPreview } from "../lib/generateDeliveryReceiptWithPreview"
 import { usePDFPreview } from "@/shared/hooks/usePDFPreview"
 import { PDFPreviewModal } from "@/shared/ui/PDFPreviewModal"
 
@@ -188,7 +188,6 @@ export function DeliverOrderModalNew({
 
             // PDF Preview para el lote o pedido único
             try {
-                const { prepareBatchDeliveryReceiptForPreview } = await import("../lib/generateDeliveryReceiptWithPreview")
                 const { document, fileName, title } = await prepareBatchDeliveryReceiptForPreview(
                     updatedOrders, 
                     {
@@ -198,8 +197,7 @@ export function DeliverOrderModalNew({
                         currentCreditAmount: currentCreditAmount,
                         hasCurrentCredit: currentCreditAmount > 0
                     },
-                    realDeliveryNumber,
-                    updatedOrders[0]?.client
+                    realDeliveryNumber
                 )
                 
                 setPdfTitle(title)

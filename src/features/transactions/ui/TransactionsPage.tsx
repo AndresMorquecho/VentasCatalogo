@@ -3,7 +3,7 @@ import { useTransactions } from "../model/hooks"
 import { TransactionsTable } from "./TransactionsTable"
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
-import { Search, Loader2, RotateCcw, DollarSign, Filter, Activity } from "lucide-react"
+import { Search, Loader2, RotateCcw, DollarSign, Filter, Activity, FileDown } from "lucide-react"
 import { useDebounce } from "@/shared/lib/hooks"
 import { Pagination } from "@/shared/ui/pagination"
 import { PageHeader } from "@/shared/ui/PageHeader"
@@ -92,24 +92,23 @@ export function TransactionsPage() {
                     description="Trazabilidad total de fondos, arqueo de caja y auditoría transaccional."
                     icon={DollarSign}
                     actions={
-                        <div className="flex items-center gap-3">
-                            {response?.data && response.data.length > 0 && (
-                                <Button 
-                                    variant="outline" 
-                                    onClick={handleExport} 
-                                    className="h-10 px-4 gap-2 rounded-xl border-emerald-200 text-emerald-600 hover:bg-emerald-50 transition-all duration-300"
-                                >
-                                    <Activity className="h-4 w-4" />
-                                    <span className="text-xs font-black uppercase tracking-widest">Excel</span>
-                                </Button>
-                            )}
+                        <div className="grid grid-cols-2 sm:flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+                            <Button 
+                                variant="outline" 
+                                onClick={handleExport} 
+                                disabled={!response?.data || response.data.length === 0}
+                                className="h-10 px-2 sm:px-4 gap-1.5 sm:gap-2 rounded-xl border-emerald-200 text-emerald-600 hover:bg-emerald-50 transition-all duration-300 w-full sm:w-auto"
+                            >
+                                <FileDown className="h-4 w-4" />
+                                <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest">Excel</span>
+                            </Button>
                             <Button 
                                 variant="outline" 
                                 onClick={handleClear} 
-                                className="h-10 px-4 gap-2 rounded-xl border-slate-200 text-slate-500 hover:text-monchito-purple transition-all duration-300"
+                                className="h-10 px-2 sm:px-4 gap-1.5 sm:gap-2 rounded-xl border-slate-200 text-slate-500 hover:text-monchito-purple transition-all duration-300 w-full sm:w-auto"
                             >
                                 <RotateCcw className="h-4 w-4" />
-                                <span className="text-xs font-black uppercase tracking-widest">Reiniciar Filtros</span>
+                                <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest leading-none">Reiniciar</span>
                             </Button>
                         </div>
                     }

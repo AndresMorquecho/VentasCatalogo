@@ -237,7 +237,7 @@ export function DeliveryTab() {
         </CardHeader>
         <CardContent className="pt-0">
           <form onSubmit={handleSubmit} className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Cliente con búsqueda */}
               <div className="relative">
                 <Label className="text-xs font-medium">Cliente</Label>
@@ -315,7 +315,7 @@ export function DeliveryTab() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Campaña filtrada por marca */}
               <div>
                 <Label className="text-xs font-medium">Campaña (disponible)</Label>
@@ -397,7 +397,7 @@ export function DeliveryTab() {
               </div>
 
               {type === 'CON_COSTO' && (
-                <div className="flex items-end gap-4 animate-in fade-in slide-in-from-left-2 duration-300">
+                <div className="flex flex-wrap items-end gap-3 sm:gap-4 animate-in fade-in slide-in-from-left-2 duration-300">
                   <div className="w-32">
                     <Label className="text-[10px] font-bold text-slate-500 uppercase">Precio Unitario ($)</Label>
                     <Input
