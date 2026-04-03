@@ -20,6 +20,7 @@ interface DeliverOrderModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onSuccess?: () => void;
+    onClearSelection?: () => void;
 }
 
 export function DeliverOrderModalNew({ 
@@ -28,7 +29,8 @@ export function DeliverOrderModalNew({
     creditDistributions = {},
     open, 
     onOpenChange, 
-    onSuccess 
+    onSuccess,
+    onClearSelection
 }: DeliverOrderModalProps) {
     const [deliveryNumber, setDeliveryNumber] = useState('')
     const isBatch = orders.length > 0
@@ -92,11 +94,15 @@ export function DeliverOrderModalNew({
     // Fetch delivery number on open
     useEffect(() => {
         if (open && !deliveryNumber) {
-            orderApi.generateDeliveryNumber().then(res => {
-                if (res.deliveryNumber) setDeliveryNumber(res.deliveryNumber)
-            }).catch(err => {
-                console.error("Error generating delivery number:", err)
-            })
+            orderApi.generateDeliveryNumber()
+                .then(res => {
+                    if (res?.deliveryNumber) {
+                        setDeliveryNumber(res.deliveryNumber)
+                    }
+                })
+                .catch(err => {
+                    console.error("Error generating delivery number - Request or session failure:", err)
+                })
         }
         if (!open) setDeliveryNumber('')
     }, [open])
@@ -233,6 +239,27 @@ export function DeliverOrderModalNew({
             }
 
             if (onSuccess) onSuccess()
+        } catch (error: any) {
+            console.error("[DeliverOrderModalNew] Submission Error:", error);
+            
+            // Mostrar mensaje detallado del backend (ej: qué pedido falló)
+            const errorMsg = error?.message || 'Error desconocido al procesar la entrega';
+            notifyError({ 
+                message: errorMsg,
+                duration: 8000 // Más tiempo para que el usuario pueda leer qué pedido falló
+            });
+
+            // Si es un error de concurrencia (pedido ya entregado o índice usado)
+            // refrescamos todo para que el usuario vea la realidad
+            if (errorMsg.includes('estado') || errorMsg.includes('ya fue') || errorMsg.includes('concurrencia')) {
+                qc.invalidateQueries({ queryKey: ['orders'] });
+                // Forzamos que se pida un nuevo número de entrega al volver a abrir
+                setDeliveryNumber('');
+                onClearSelection?.(); // LIMPIAR SELECCIÓN EN CASO DE CONFLICTO
+                onOpenChange(false); // Cerramos el modal para que el usuario refresque su selección
+            }
+            
+            throw error; // Re-lanzar para que el PaymentModal sepa que no debe cerrarse exitosamente
         } finally {
             isProcessingRef.current = false
         }

@@ -60,9 +60,25 @@ export function OrderReceptionPage() {
         setPage(1)
     }, [debouncedSearch, startDate, endDate])
 
-    const handleReceive = (order: Order) => {
-        setSelectedOrder(order)
-        setIsReceiveModalOpen(true)
+    const handleReceive = async (order: Order) => {
+        // Opción 2: Validación Justo a Tiempo (UX Preventiva)
+        setIsProcessing(order.id);
+        try {
+            const freshOrder = await orderApi.getById(order.id);
+            // Verificar que aún esté en un estado válido para recepción
+            if (!['POR_RECIBIR', 'EN_TRANSITO'].includes(freshOrder.status)) {
+                showToast("Este pedido ya ha sido procesado o actualizado por otro usuario.", "warning");
+                qc.invalidateQueries({ queryKey: ['orders'] });
+                return;
+            }
+            setSelectedOrder(freshOrder);
+            setIsReceiveModalOpen(true);
+        } catch (error) {
+            console.error("Error verifying order status", error);
+            showToast("No se pudo verificar el estado actual del pedido.", "error");
+        } finally {
+            setIsProcessing(null);
+        }
     }
 
     const handleReverse = (orderId: string) => {

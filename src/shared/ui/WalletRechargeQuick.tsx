@@ -20,6 +20,7 @@ export function WalletRechargeQuick({ clientId, onBack, onRechargeSuccess }: Pro
     const [amount, setAmount] = useState<string>('');
     const [bankAccountId, setBankAccountId] = useState<string>('');
     const [reference, setReference] = useState<string>('');
+    const [controlValidation, setControlValidation] = useState<string>('');
     const [notes, setNotes] = useState<string>('');
     const [error, setError] = useState<string | null>(null);
     const [submitted, setSubmitted] = useState(false);
@@ -38,6 +39,7 @@ export function WalletRechargeQuick({ clientId, onBack, onRechargeSuccess }: Pro
             paymentMethod: method,
             bankAccountId,
             reference: reference.trim() || undefined,
+            controlValidation: controlValidation.trim() || undefined,
             notes: notes.trim() || undefined
         }),
         onSuccess: (data) => {
@@ -179,14 +181,25 @@ export function WalletRechargeQuick({ clientId, onBack, onRechargeSuccess }: Pro
                 </select>
             </div>
 
-            <div className="space-y-1">
-                <label className="text-xs font-medium text-slate-600">Referencia / Comprobante</label>
-                <Input
-                    value={reference}
-                    onChange={(e) => setReference(e.target.value)}
-                    placeholder="N° de transacción o comprobante"
-                    className="h-8 text-xs"
-                />
+            <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                    <label className="text-xs font-black uppercase text-monchito-purple/60 tracking-wider mb-1 block">N° TRANSACCIÓN / DOC</label>
+                    <Input
+                        value={reference}
+                        onChange={(e) => setReference(e.target.value)}
+                        placeholder="N° Comprobante..."
+                        className="h-8 text-xs rounded-xl"
+                    />
+                </div>
+                <div className="space-y-1">
+                    <label className="text-xs font-black uppercase text-amber-600 tracking-wider mb-1 block">CONTROL / VALIDACIÓN</label>
+                    <Input
+                        value={controlValidation}
+                        onChange={(e) => setControlValidation(e.target.value)}
+                        placeholder="Cod. Control..."
+                        className="h-8 text-xs rounded-xl border-amber-200 focus:ring-amber-100"
+                    />
+                </div>
             </div>
 
             <div className="space-y-1">

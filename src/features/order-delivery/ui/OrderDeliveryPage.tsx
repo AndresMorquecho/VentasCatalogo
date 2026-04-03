@@ -634,6 +634,11 @@ export function OrderDeliveryPage() {
                     setSelectedOrdersMap({})
                     setCreditDistributions({}) // Clear distributions on success
                 }}
+                onClearSelection={() => {
+                    setSelectedOrderIds([])
+                    setSelectedOrdersMap({})
+                    setCreditDistributions({})
+                }}
             />
 
             <PendingOrdersModal 

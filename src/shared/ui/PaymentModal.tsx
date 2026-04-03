@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/ui/dialog";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { AsyncButton } from "@/shared/ui/async-button";
-import { X, Plus, AlertTriangle, Wallet } from "lucide-react";
+import { X, Plus, AlertTriangle, Wallet, RefreshCw } from "lucide-react";
 import { useBankAccountList } from "@/features/bank-accounts/api/hooks";
 import { useClientCredit } from "@/features/wallet/model/hooks";
 import { formatCurrency } from "@/entities/order/model/financialCalculator";
@@ -70,6 +71,7 @@ export function PaymentModal({
     saveWithZeroPermission
 }: Props) {
     const { data: bankAccountsResponse } = useBankAccountList();
+    const qc = useQueryClient();
     const { hasPermission } = useAuth();
     const bankAccounts = bankAccountsResponse?.data || [];
     const { data: creditData } = useClientCredit(paymentContext?.clientId || "");
@@ -418,14 +420,31 @@ export function PaymentModal({
 
                     {/* Quick wallet recharge button — only shown when wallet is enabled (Requirement 8.5) */}
                     {walletEnabled && paymentContext?.clientId && (
-                        <button
-                            type="button"
-                            onClick={() => setView('recharge')}
-                            className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-monchito-purple border border-dashed border-monchito-purple/40 rounded-lg py-2 hover:bg-monchito-purple/5 transition-colors mb-1"
-                        >
-                            <Wallet className="h-3.5 w-3.5" />
-                            + Recargar billetera
-                        </button>
+                        <div className="flex gap-2 mb-2 items-stretch">
+                            <button
+                                type="button"
+                                onClick={() => setView('recharge')}
+                                className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold text-monchito-purple border border-dashed border-monchito-purple/40 rounded-lg py-2 hover:bg-monchito-purple/5 transition-colors"
+                            >
+                                <Wallet className="h-3.5 w-3.5" />
+                                + Recargar billetera
+                            </button>
+                            
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                    qc.invalidateQueries({ queryKey: ["client-credit"] });
+                                    // Also invalidate transactions and info for good measure
+                                    qc.invalidateQueries({ queryKey: ["client-credits"] });
+                                }}
+                                title="Actualizar saldo de billetera"
+                                className="px-3 border-monchito-purple/20 text-monchito-purple hover:bg-monchito-purple/5 group"
+                            >
+                                <RefreshCw className="h-3.5 w-3.5 group-active:animate-spin" />
+                            </Button>
+                        </div>
                     )}
 
                     {/* Métodos de Pago */}

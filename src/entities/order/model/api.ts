@@ -82,10 +82,10 @@ export const orderApi = {
         return httpClient.get<{ orderNumber: string }>('/orders/generate-order-number');
     },
     generatePackingNumber: async (): Promise<{ packingNumber: string }> => {
-        return httpClient.get<{ packingNumber: string }>('/orders/generate-packing-number');
+        return httpClient.get<{ packingNumber: string }>(`/orders/generate-packing-number?t=${Date.now()}`);
     },
     generateDeliveryNumber: async (): Promise<{ deliveryNumber: string }> => {
-        return httpClient.get<{ deliveryNumber: string }>('/orders/generate-delivery-number');
+        return httpClient.get<{ deliveryNumber: string }>(`/orders/generate-delivery-number?t=${Date.now()}`);
     },
 
     /**

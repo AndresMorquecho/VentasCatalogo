@@ -187,6 +187,11 @@ export function OrderFormPage() {
     // Función para procesar el pago y crear el recibo
     const handlePaymentSubmit = async (paymentData: PaymentModalData) => {
         setIsSubmitting(true);
+        
+        // Mantener rastro de los valores actuales para permitir reintentos
+        let currentReceiptNumber = formik.values.receiptNumber;
+        let currentBrandItems = [...formik.values.brandItems];
+        
         try {
             const totalAmount = paymentData.payments.reduce((sum, p) => sum + p.amount, 0);
             const walletCreditUsed = paymentData.payments
@@ -196,74 +201,127 @@ export function OrderFormPage() {
             const activePayments = paymentData.payments.filter(p => p.amount > 0);
             const isSplitPayment = activePayments.length > 1;
 
+            let createdOrders: any = null;
+            let success = false;
+            let attempts = 0;
+            const MAX_ATTEMPTS = 2;
 
-            // Construir el batchPayload — todo en una sola transacción atómica
-            const batchPayload = {
-                receipt_number: formik.values.receiptNumber,
-                client_id: formik.values.clientId,
-                sales_channel: formik.values.salesChannel,
-                created_at: new Date().toISOString(),
-                payment_method: activePayments[0]?.method || "EFECTIVO",
-                bank_account_id: activePayments[0]?.bankAccountId || "",
-                transaction_date: new Date().toISOString().split('T')[0],
-                transaction_reference: activePayments[0]?.transactionReference || "",
-                deposit: totalAmount,
-                credit_to_use: walletCreditUsed,
-                notes: activePayments[0]?.notes || formik.values.notes,
-                // Split payment: múltiples métodos de pago
-                ...(isSplitPayment && {
-                    payment_data: {
-                        payments: activePayments.map(p => ({
-                            method: p.method,
-                            amount: p.amount,
-                            bankAccountId: p.bankAccountId,
-                            transactionDate: new Date().toISOString().split('T')[0],
-                            transactionReference: p.transactionReference,
-                            notes: p.notes
-                        })),
-                        walletCreditUsed,
-                        totalAmount
+            while (!success && attempts < MAX_ATTEMPTS) {
+                attempts++;
+                
+                // Construir el batchPayload
+                const batchPayload = {
+                    receipt_number: currentReceiptNumber,
+                    client_id: formik.values.clientId,
+                    sales_channel: formik.values.salesChannel,
+                    created_at: new Date().toISOString(),
+                    payment_method: activePayments[0]?.method || "EFECTIVO",
+                    bank_account_id: activePayments[0]?.bankAccountId || "",
+                    transaction_date: new Date().toISOString().split('T')[0],
+                    transaction_reference: activePayments[0]?.transactionReference || "",
+                    deposit: totalAmount,
+                    credit_to_use: walletCreditUsed,
+                    notes: activePayments[0]?.notes || formik.values.notes,
+                    ...(isSplitPayment && {
+                        payment_data: {
+                            payments: activePayments.map(p => ({
+                                method: p.method,
+                                amount: p.amount,
+                                bankAccountId: p.bankAccountId,
+                                transactionDate: new Date().toISOString().split('T')[0],
+                                transactionReference: p.transactionReference,
+                                notes: p.notes
+                            })),
+                            walletCreditUsed,
+                            totalAmount
+                        }
+                    }),
+                    orders: currentBrandItems.map((item: BrandItem) => {
+                        const unitPrice = item.quantity > 0 ? item.total / item.quantity : 0;
+                        return {
+                            brand_id: item.brandId,
+                            brand_name: item.brandName,
+                            total: item.total,
+                            deposit: Number(item.deposit) || 0,
+                            type: item.type,
+                            possible_delivery_date: item.possibleDeliveryDate,
+                            order_number: item.orderNumber || "",
+                            items: [{
+                                product_name: item.brandName,
+                                quantity: item.quantity,
+                                unit_price: unitPrice
+                            }]
+                        };
+                    })
+                };
+
+                try {
+                    createdOrders = await orderApi.batchCreate(batchPayload);
+                    success = true;
+                    if (attempts > 1) dismiss(); // Limpiar toast de reintento si existe
+                } catch (error: any) {
+                    const errorMsg = error?.message?.toLowerCase() || "";
+                    const isConflict = error?.status === 409 || 
+                                     errorMsg.includes('existe') || 
+                                     errorMsg.includes('duplicado') || 
+                                     errorMsg.includes('duplicate');
+
+                    // Si es conflicto y nos quedan intentos, sincronizamos y reintentamos
+                    if (isConflict && attempts < MAX_ATTEMPTS) {
+                        notifyLoading("Conflicto de N° de pedido/recibo detectado. Sincronizando nuevos números y reintentando envío...");
+                        
+                        // 1. Obtener nuevos números reales del server
+                        const [newReceiptRes, newOrderRes] = await Promise.all([
+                            orderApi.generateReceiptNumber(),
+                            orderApi.generateOrderNumber()
+                        ]);
+                        
+                        const newReceipt = newReceiptRes.receiptNumber;
+                        const newGlobalOrder = newOrderRes.orderNumber;
+
+                        // 2. Actualizar el estado para el UI
+                        formik.setFieldValue('receiptNumber', newReceipt);
+                        setLastAutoGeneratedReceiptNumber(newReceipt);
+                        setLastSyncTime(new Date());
+
+                        // 3. Actualizar ítems de la tabla para el siguiente intento
+                        currentReceiptNumber = newReceipt;
+                        let nextNum = newGlobalOrder;
+                        currentBrandItems = currentBrandItems.map(item => {
+                            const updated = { ...item, orderNumber: nextNum };
+                            nextNum = incrementOrderNumber(nextNum);
+                            return updated;
+                        });
+                        
+                        // Sincronizar formik para que la tabla muestre los números reales con los que se reintenta
+                        formik.setFieldValue("brandItems", currentBrandItems);
+                        
+                        // Actualizar también el currentItem del POST (donde se agregan nuevos)
+                        setCurrentItem((prev: BrandItem) => ({ ...prev, orderNumber: nextNum }));
+                        setLastAutoGeneratedOrderNumber(nextNum);
+
+                        await new Promise(resolve => setTimeout(resolve, 1000)); // Pausa breve para que el usuario vea el toast
+                        continue;
                     }
-                }),
-                orders: formik.values.brandItems.map((item: BrandItem) => {
-                    const unitPrice = item.quantity > 0 ? item.total / item.quantity : 0;
-                    const rowDeposit = Number(item.deposit) || 0;
-                    
-                    return {
-                        brand_id: item.brandId,
-                        brand_name: item.brandName,
-                        total: item.total,
-                        deposit: rowDeposit,
-                        type: item.type,
-                        possible_delivery_date: item.possibleDeliveryDate,
-                        order_number: item.orderNumber || "",
-                        items: [{
-                            product_name: item.brandName,
-                            quantity: item.quantity,
-                            unit_price: unitPrice
-                        }]
-                    };
-                })
-            };
-
-            const createdOrders = await orderApi.batchCreate(batchPayload);
+                    // Si no es un conflicto o falló el reintento, lanzamos el error
+                    throw error;
+                }
+            }
 
             // Invalidar queries en paralelo para evitar cascadas
             await Promise.all([
                 queryClient.invalidateQueries({ queryKey: ['orders'] }),
                 queryClient.invalidateQueries({ queryKey: ['financial-records'] }),
                 queryClient.invalidateQueries({ queryKey: ['transactions'] }),
-                // Invalidate client wallet balance so it updates without refresh
                 queryClient.invalidateQueries({ queryKey: ['client-credit', formik.values.clientId] }),
                 queryClient.invalidateQueries({ queryKey: ['client-credits', formik.values.clientId] }),
                 queryClient.invalidateQueries({ queryKey: ['client-credits-summary'] }),
-                // This ensures the client list (which might show balances) is also updated
                 queryClient.invalidateQueries({ queryKey: ['clients'] })
             ]);
 
-            // Map orderNumbers from original form values back to the created orders
+            // Map orderNumbers from final created items back (using the ones from currentBrandItems)
             const ordersWithNumbers = createdOrders.map((createdOrder: any, index: number) => {
-                const originalItem = formik.values.brandItems[index];
+                const originalItem = currentBrandItems[index];
                 return {
                     ...createdOrder,
                     orderNumber: originalItem.orderNumber
@@ -294,12 +352,9 @@ export function OrderFormPage() {
                     localStorage.removeItem(DRAFT_KEY);
                     localStorage.removeItem(ITEM_DRAFT_KEY);
                 }
-                // NO navegar automáticamente - dejar que el usuario vea el PDF primero
-                // El usuario puede cerrar el modal y luego navegar manualmente
             } catch (pdfError) {
                 console.error("Error preparing PDF", pdfError)
                 notifyError(pdfError, "Error al preparar el recibo PDF.")
-                // Si falla el PDF, navegar de todos modos
                 notifySuccess(`Se han creado ${createdOrders.length} pedidos exitosamente.`);
                 if (!isEditing) {
                     localStorage.removeItem(DRAFT_KEY);
@@ -309,7 +364,11 @@ export function OrderFormPage() {
             }
         } catch (error: any) {
             console.error("Error saving order", error)
+            dismiss(); // Limpiar posibles toasts de carga
             notifyError(error, "Error al guardar el pedido.");
+            // Actualizar índices por si acaso para la próxima vez que el usuario intente manualmente
+            generateNextReceiptNumber(false, true);
+            generateNextOrderNumber(false, true);
         } finally {
             setIsSubmitting(false);
         }
@@ -368,14 +427,14 @@ export function OrderFormPage() {
         }
     }, [formik.values, isEditing]);
 
-    const generateNextReceiptNumber = async (isPeriodic = false) => {
+    const generateNextReceiptNumber = async (isPeriodic = false, force = false) => {
         try {
             if (!isPeriodic) setIsLoadingReceiptNumber(true);
             const { receiptNumber } = await orderApi.generateReceiptNumber();
             
             // Si el valor actual es igual al último que auto-generamos, o si está vacío, lo actualizamos.
-            // Esto evita sobreescribir si el usuario escribió algo manualmente.
-            if (!formik.values.receiptNumber || formik.values.receiptNumber === lastAutoGeneratedReceiptNumber) {
+            // Esto evita sobreescribir si el usuario escribió algo manualmente, a menos que se force.
+            if (force || !formik.values.receiptNumber || formik.values.receiptNumber === lastAutoGeneratedReceiptNumber) {
                 if (isPeriodic && formik.values.receiptNumber && formik.values.receiptNumber !== receiptNumber) {
                     setJustUpdated(true);
                     setTimeout(() => setJustUpdated(false), 2000);
@@ -395,7 +454,7 @@ export function OrderFormPage() {
         }
     };
 
-    const generateNextOrderNumber = async (isPeriodic = false) => {
+    const generateNextOrderNumber = async (isPeriodic = false, force = false) => {
         try {
             if (!isPeriodic) setIsLoadingOrderNumber(true);
             const { orderNumber } = await orderApi.generateOrderNumber();
@@ -406,7 +465,7 @@ export function OrderFormPage() {
             const isCurrentEmpty = !currentItem.orderNumber;
             const isDefaultPattern = currentItem.orderNumber && currentItem.orderNumber.startsWith(`PD-${new Date().getFullYear()}`);
 
-            if (isCurrentEmpty || isCurrentMatchLast || (isPeriodic && isDefaultPattern)) {
+            if (force || isCurrentEmpty || isCurrentMatchLast || (isPeriodic && isDefaultPattern)) {
                 setCurrentItem((prev: BrandItem) => ({ ...prev, orderNumber: orderNumber }));
                 setLastAutoGeneratedOrderNumber(orderNumber);
             }
@@ -1276,8 +1335,8 @@ export function OrderFormPage() {
                                             variant="ghost"
                                             size="icon"
                                             onClick={() => {
-                                                generateNextReceiptNumber();
-                                                generateNextOrderNumber();
+                                                generateNextReceiptNumber(false, true);
+                                                generateNextOrderNumber(false, true);
                                             }}
                                             disabled={isLoadingReceiptNumber || isLoadingOrderNumber}
                                             className="h-8 w-8 text-monchito-purple hover:bg-monchito-purple/10 rounded-lg"

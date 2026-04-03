@@ -120,9 +120,20 @@ export function ReceiveOrderModal({ order, open, onOpenChange }: ReceiveOrderMod
             }
 
             onOpenChange(false)
-        } catch (error) {
+        } catch (error: any) {
             console.error(error)
-            notifyError(error, 'Error al recibir el pedido')
+            const errorMsg = error?.message?.toLowerCase() || ""
+            const isAlreadyReceived = errorMsg.includes('ya fue recibido') || 
+                                     errorMsg.includes('no tiene un estado válido') ||
+                                     error?.status === 409;
+
+            if (isAlreadyReceived) {
+                notifyError({ message: "¡Conflicto! Este pedido ya ha sido recibido por otro usuario hace un momento." })
+                qc.invalidateQueries({ queryKey: ['orders'] })
+                onOpenChange(false)
+            } else {
+                notifyError(error, 'Error al recibir el pedido')
+            }
         } finally {
             setIsSubmitting(false)
         }

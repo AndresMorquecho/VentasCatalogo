@@ -47,7 +47,13 @@ export function WalletValidationPage() {
             queryClient.invalidateQueries({ queryKey: ["client-credits"] });
             queryClient.invalidateQueries({ queryKey: ["financial-records"] });
         },
-        onError: (error) => notifyError(error, "Error al validar pagos.")
+        onError: (error) => {
+            notifyError(error, "Error al validar pagos.");
+            setSelectedIds([]);
+            setConfirmDialogOpen(false);
+            // Refresh to see what's actually still pending
+            queryClient.invalidateQueries({ queryKey: ["wallet-recharges"] });
+        }
     });
 
     const rejectMutation = useMutation({

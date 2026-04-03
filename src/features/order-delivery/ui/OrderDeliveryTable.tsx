@@ -216,7 +216,8 @@ export function OrderDeliveryTable({
     }, [creditDistributions]);
 
     const firstSelectedId = selectedOrderIds[0]
-    const selectedClientId = firstSelectedId ? orders.find(o => o.id === firstSelectedId)?.clientId : null
+    const firstSelectedOrder = firstSelectedId ? orders.find(o => o.id === firstSelectedId) : null
+    const selectedClientId = firstSelectedOrder?.clientId || null
 
     const handleToggleAll = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.checked) {

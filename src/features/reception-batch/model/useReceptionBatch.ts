@@ -51,24 +51,48 @@ export const useReceptionBatch = () => {
     // Auto-generate on load (if not editing)
     useEffect(() => {
         if (!editingBatchId && !packingNumber) {
-            orderApi.generatePackingNumber().then(res => {
-                setPackingNumber(res.packingNumber);
-            }).catch(err => {
-                console.error('Error generating packing number:', err);
-                // Fallback to manual if API fails
-                setPackingNumber(`PK-${new Date().getFullYear()}-001`);
-            });
+            orderApi.generatePackingNumber()
+                .then(res => {
+                    if (res?.packingNumber) {
+                        setPackingNumber(res.packingNumber);
+                    } else {
+                        console.warn("[useReceptionBatch] API returned success but without packingNumber:", res);
+                    }
+                })
+                .catch(err => {
+                    console.error('CRITICAL: API de numeración falló con error de red o sesión:', err);
+                });
         }
-    }, [editingBatchId]);
+    }, [editingBatchId, packingNumber]);
 
     // Mutations
     const saveBatch = useMutation({
-        mutationFn: (data: { items: any[], packingNumber: string, packingTotal: number, id?: string }) => 
-            orderApi.batchReception(data.items, { 
-                packingNumber: data.packingNumber, 
-                packingTotal: data.packingTotal,
-                id: data.id
-            }),
+        mutationFn: async (data: { items: any[], packingNumber: string, packingTotal: number, id?: string, attempt?: number }) => {
+            try {
+                return await orderApi.batchReception(data.items, { 
+                    packingNumber: data.packingNumber, 
+                    packingTotal: data.packingTotal,
+                    id: data.id
+                });
+            } catch (error: any) {
+                const errorMsg = error?.message?.toLowerCase() || "";
+                const isIdConflict = errorMsg.includes('packing') || errorMsg.includes('existe') || error?.status === 409;
+                
+                // Si es un conflicto de Packing y nos quedan intentos, reintentamos con un número nuevo
+                if (isIdConflict && (data.attempt || 0) < 1) {
+                    console.warn("Packing conflict. Retrying...");
+                    const res = await orderApi.generatePackingNumber();
+                    setPackingNumber(res.packingNumber);
+                    
+                    return await orderApi.batchReception(data.items, { 
+                        packingNumber: res.packingNumber, 
+                        packingTotal: data.packingTotal,
+                        id: data.id
+                    });
+                }
+                throw error;
+            }
+        },
         onSuccess: (data: any) => {
             queryClient.invalidateQueries({ queryKey: ['orders-pending-reception'] });
             queryClient.invalidateQueries({ queryKey: ['reception-batches'] });
@@ -101,7 +125,37 @@ export const useReceptionBatch = () => {
             showToast(editingBatchId ? 'Packing actualizado' : 'Pedidos recepcionados correctamente', 'success');
         },
         onError: (error: any) => {
-            showToast(error.message || 'Error al procesar recepción', 'error');
+            console.error("[BatchReception] Error Details:", error);
+            const errorMsg = (error?.message || error?.error || "").toLowerCase();
+            
+            // Detectar conflictos de forma extrema
+            const isStatusConflict = /recibido|estado|permite|recep|válido|conflict/.test(errorMsg);
+            const isPackingConflict = /packing|existe|duplicado/.test(errorMsg) || error?.status === 409;
+
+            // Independientemente del tipo de error, si falló en modo NO edición, actualizamos el N° de packing
+            // para estar seguros de que el usuario vea el consecutivo más reciente.
+            if (!editingBatchId) {
+                console.log("[BatchReception] Fetching fresh packing number after error...");
+                orderApi.generatePackingNumber().then(res => {
+                    console.log("[BatchReception] New number received from API:", res.packingNumber);
+                    setPackingNumber(res.packingNumber);
+                });
+            }
+
+            if (isStatusConflict || isPackingConflict) {
+                if (isStatusConflict) {
+                    showToast("¡Conflicto de Pedidos! Refrescando lista y número de packing...", "error");
+                    queryClient.refetchQueries({ queryKey: ['orders-pending-reception'] });
+                    
+                    // Asegurar limpieza de la zona de recepción
+                    setSelectedOrders([]);
+                    setPackingTotal(0);
+                } else {
+                    showToast("El N° de Packing actual ya existe o es inválido. El sistema generó uno nuevo.", "error");
+                }
+            } else {
+                showToast(error.message || 'Error al procesar recepción', 'error');
+            }
         },
     });
 
