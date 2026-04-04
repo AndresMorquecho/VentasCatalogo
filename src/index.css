@@ -108,15 +108,15 @@
     scrollbar-width: none;
   }
 
-  /* Hide number input arrows */
-  .hide-spinner::-webkit-outer-spin-button,
-  .hide-spinner::-webkit-inner-spin-button {
-    -webkit-appearance: none;
+  /* Hide number input arrows globally */
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none !important;
     margin: 0;
   }
-  .hide-spinner {
-    -moz-appearance: textfield;
-    appearance: textfield;
+  input[type="number"] {
+    -moz-appearance: textfield !important;
+    appearance: textfield !important;
   }
 
   .glass {

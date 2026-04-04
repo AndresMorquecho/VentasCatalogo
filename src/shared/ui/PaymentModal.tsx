@@ -532,9 +532,10 @@ export function PaymentModal({
                                                     step="0.01"
                                                     min="0"
                                                     max={expectedAmount > 0 ? expectedAmount : undefined}
-                                                    value={payment.amount || ''}
+                                                    value={payment.amount === 0 ? '' : payment.amount}
                                                     onChange={(e) => {
-                                                        const value = parseFloat(e.target.value) || 0;
+                                                        const rawValue = e.target.value;
+                                                        const value = rawValue === '' ? 0 : parseFloat(rawValue) || 0;
                                                         const limitedValue = (!lockAmount && expectedAmount > 0)
                                                             ? Math.min(value, expectedAmount)
                                                             : value;

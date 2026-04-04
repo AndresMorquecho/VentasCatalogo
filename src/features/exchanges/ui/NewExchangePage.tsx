@@ -729,6 +729,18 @@ export function NewExchangePage() {
         } catch (error: any) {
             console.error("Error saving order", error)
             notifyError(error, "Error al guardar el pedido.");
+            
+            // Clean the form and items as requested by user upon error
+            formik.setFieldValue("brandItems", []);
+            formik.setFieldValue("notes", "");
+            if (!isEditing) {
+                formik.setFieldValue("receiptNumber", "");
+                formik.setFieldValue("clientId", "");
+            }
+            // Trigger a refetch to sync current status of eligible orders
+            queryClient.invalidateQueries({ queryKey: ["orders"] });
+            queryClient.invalidateQueries({ queryKey: ["activeExchangeOrderIds"] });
+            
         } finally {
             setIsSubmitting(false);
         }
@@ -1412,8 +1424,8 @@ export function NewExchangePage() {
                                 <Label className="text-xs font-bold uppercase text-slate-500">Cant:</Label>
                                 <Input
                                     type="number"
-                                    value={currentItem.sourceQuantity}
-                                    onChange={(e) => setCurrentItem(prev => ({ ...prev, sourceQuantity: Number(e.target.value) }))}
+                                    value={currentItem.sourceQuantity === 0 ? '' : currentItem.sourceQuantity}
+                                    onChange={(e) => setCurrentItem(prev => ({ ...prev, sourceQuantity: e.target.value === '' ? 0 : Number(e.target.value) }))}
                                     className="h-8 text-center font-bold border-slate-200 rounded-md text-xs px-1 hide-spinner"
                                 />
                             </div>
@@ -1472,9 +1484,9 @@ export function NewExchangePage() {
                                 <Label className="text-xs font-bold uppercase text-slate-500">Cant:</Label>
                                 <Input
                                     type="number"
-                                    value={currentItem.quantity}
-                                    onChange={(e) => setCurrentItem(prev => ({ ...prev, quantity: Number(e.target.value) }))}
-                                    className="h-8 text-center font-bold border-slate-200 rounded-md px-1 text-xs hide-spinner"
+                                    value={currentItem.quantity === 0 ? '' : currentItem.quantity}
+                                    onChange={(e) => setCurrentItem(prev => ({ ...prev, quantity: e.target.value === '' ? 0 : Number(e.target.value) }))}
+                                    className="h-8 text-center font-bold border-slate-200 rounded-md text-xs px-1 hide-spinner"
                                 />
                             </div>
                             <div className="w-full sm:flex-1 min-w-[140px] space-y-1">
@@ -1502,9 +1514,11 @@ export function NewExchangePage() {
                                 <Label className="text-xs font-bold uppercase text-slate-500 text-right pr-2">Valor:</Label>
                                 <Input
                                     type="number"
-                                    value={currentItem.total}
-                                    onChange={(e) => setCurrentItem(prev => ({ ...prev, total: Number(e.target.value) }))}
+                                    value={currentItem.total === 0 ? '' : currentItem.total}
+                                    onChange={(e) => setCurrentItem(prev => ({ ...prev, total: e.target.value === '' ? 0 : Number(e.target.value) }))}
                                     className="h-8 text-right font-black text-emerald-600 border-slate-200 rounded-md px-2 text-xs hide-spinner"
+                                    placeholder="0.00"
+                                    step="0.01"
                                 />
                             </div>
                             <div className="w-full sm:w-[150px] space-y-1 shrink-0">

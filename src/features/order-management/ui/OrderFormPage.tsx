@@ -797,10 +797,10 @@ export function OrderFormPage() {
                     setIsLoadingRelated(false);
                 }
             }
-            // Caso 3: Modo creación
+            // Caso 3: Modo creación - Forzar sincronización inicial para evitar números obsoletos del draft
             else if (!isEditing) {
-                generateNextReceiptNumber();
-                generateNextOrderNumber();
+                generateNextReceiptNumber(false, true);
+                generateNextOrderNumber(false, true);
             }
         };
 
@@ -1459,8 +1459,8 @@ export function OrderFormPage() {
                         <Input
                             type="number"
                             className="h-8 w-full text-xs px-2 hide-spinner"
-                            value={currentItem.quantity}
-                            onChange={(e) => setCurrentItem({ ...currentItem, quantity: Number(e.target.value) })}
+                            value={currentItem.quantity === 0 ? '' : currentItem.quantity}
+                            onChange={(e) => setCurrentItem({ ...currentItem, quantity: e.target.value === '' ? 0 : Number(e.target.value) })}
                             onKeyDown={e => handleHeaderKeyDown(e, 'quantity')}
                             data-nav="quantity"
                         />
@@ -1484,8 +1484,8 @@ export function OrderFormPage() {
                         <Input
                             type="number"
                             className="h-8 w-full font-bold text-xs px-2 hide-spinner"
-                            value={currentItem.total}
-                            onChange={(e) => setCurrentItem({ ...currentItem, total: Number(e.target.value) })}
+                            value={currentItem.total === 0 ? '' : currentItem.total}
+                            onChange={(e) => setCurrentItem({ ...currentItem, total: e.target.value === '' ? 0 : Number(e.target.value) })}
                             onKeyDown={e => handleHeaderKeyDown(e, 'total')}
                             data-nav="total"
                             step="0.01"
@@ -1609,10 +1609,11 @@ export function OrderFormPage() {
                                                                 type="number"
                                                                 step="0.01"
                                                                 className="h-7 w-16 text-right text-xs font-bold border border-slate-200 rounded-lg px-1 focus:ring-1 focus:ring-monchito-purple outline-none hide-spinner"
-                                                                value={item.total}
+                                                                value={item.total === 0 ? '' : item.total}
                                                                 onChange={(e) => {
                                                                     const newItems = [...formik.values.brandItems]
-                                                                    newItems[idx] = { ...newItems[idx], total: Number(e.target.value) }
+                                                                    const val = e.target.value === '' ? 0 : Number(e.target.value)
+                                                                    newItems[idx] = { ...newItems[idx], total: val }
                                                                     formik.setFieldValue('brandItems', newItems)
                                                                 }}
                                                                 onKeyDown={(e) => handleTableKeyDown(e as any, idx, 'total')}
@@ -1636,7 +1637,7 @@ export function OrderFormPage() {
                                                                 max={item.total}
                                                                 placeholder="0.00"
                                                                 className="h-7 w-16 text-right text-xs font-bold border border-slate-200 rounded-lg px-1 focus:ring-1 focus:ring-emerald-500 outline-none text-emerald-600 hide-spinner"
-                                                                value={item.deposit === 0 ? '0' : (item.deposit || '')}
+                                                                value={item.deposit === 0 ? '' : item.deposit}
                                                                 onChange={(e) => {
                                                                     const newItems = [...formik.values.brandItems];
                                                                     const value = e.target.value === '' ? 0 : Number(e.target.value);
