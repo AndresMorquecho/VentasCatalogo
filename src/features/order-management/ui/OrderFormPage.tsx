@@ -39,6 +39,7 @@ import { usePDFPreview } from "@/shared/hooks/usePDFPreview"
 import { PDFPreviewModal } from "@/shared/ui/PDFPreviewModal"
 import { SearchableSelect } from "@/shared/ui/SearchableSelect"
 import { OrderEditModal } from "./OrderEditModal"
+import { systemSettingsApi } from "@/features/system-settings/api/systemSettingsApi"
 
 const DRAFT_KEY = 'ventascatalogo_new_order_draft';
 const ITEM_DRAFT_KEY = 'ventascatalogo_current_item_draft';
@@ -138,6 +139,34 @@ export function OrderFormPage() {
     // PDF Preview state
     const [pdfTitle, setPdfTitle] = useState('')
     const [pdfFileName, setPdfFileName] = useState('')
+
+    // Dynamic configuration states
+    const [dynamicOrderTypes, setDynamicOrderTypes] = useState<any[]>([])
+    const [dynamicSalesChannels, setDynamicSalesChannels] = useState<any[]>([])
+
+    useEffect(() => {
+        const fetchSystemConfig = async () => {
+            try {
+                const [types, channels] = await Promise.all([
+                    systemSettingsApi.getOrderTypes(),
+                    systemSettingsApi.getSalesChannels()
+                ])
+                setDynamicOrderTypes(types.filter((t: any) => t.isActive))
+                setDynamicSalesChannels(channels.filter((c: any) => c.isActive))
+            } catch (error) {
+                console.error("Error fetching system config", error)
+                // Fallback to defaults to prevent breakage
+                setDynamicOrderTypes([
+                    { name: 'NORMAL' }, { name: 'PREVENTA' }, { name: 'REPROGRAMACION' }
+                ])
+                setDynamicSalesChannels([
+                    { name: 'OFICINA' }, { name: 'WHATSAPP' }, { name: 'DOMICILIO' }
+                ])
+            }
+        }
+        fetchSystemConfig()
+    }, [])
+
     const pdfPreview = usePDFPreview({
         fileName: pdfFileName,
         onDownloadComplete: () => {
@@ -1415,7 +1444,7 @@ export function OrderFormPage() {
             {/* Item Entry Bar & Table */}
             <Card className="shadow-sm border-slate-200 rounded-2xl">
                 <div className="p-3 bg-monchito-purple/5 border-b border-monchito-purple/10 flex flex-wrap lg:flex-nowrap gap-3 items-end">
-                    <div className="w-full sm:w-[110px] space-y-1 shrink-0">
+                    <div className="w-full sm:w-[130px] space-y-1 shrink-0">
                         <Label className="text-xs font-bold uppercase text-slate-500">Pedido por:</Label>
                         <select
                             value={currentItem.salesChannel}
@@ -1424,9 +1453,15 @@ export function OrderFormPage() {
                             data-nav="salesChannel"
                             className="h-8 w-full rounded-md border border-input text-xs px-2 py-1 focus:ring-1 focus:ring-monchito-purple outline-none"
                         >
-                            <option value="OFICINA">OFICINA</option>
-                            <option value="WHATSAPP">WHATSAPP</option>
-                            <option value="DE CAMPO">DE CAMPO</option>
+                            {dynamicSalesChannels.length > 0 ? (
+                                dynamicSalesChannels.map(c => <option key={c.name} value={c.name}>{c.name}</option>)
+                            ) : (
+                                <>
+                                    <option value="OFICINA">OFICINA</option>
+                                    <option value="WHATSAPP">WHATSAPP</option>
+                                    <option value="DOMICILIO">DOMICILIO</option>
+                                </>
+                            )}
                         </select>
                     </div>
                     <div className="w-full sm:w-[130px] space-y-1 shrink-0">
@@ -1438,9 +1473,15 @@ export function OrderFormPage() {
                             data-nav="type"
                             className="h-8 w-full rounded-md border border-input text-xs px-2 py-1 focus:ring-1 focus:ring-monchito-purple outline-none"
                         >
-                            <option value="NORMAL">NORMAL</option>
-                            <option value="PREVENTA">PREVENTA</option>
-                            <option value="REPROGRAMACION">REPROGRAMACION</option>
+                            {dynamicOrderTypes.length > 0 ? (
+                                dynamicOrderTypes.map(t => <option key={t.name} value={t.name}>{t.name}</option>)
+                            ) : (
+                                <>
+                                    <option value="NORMAL">NORMAL</option>
+                                    <option value="PREVENTA">PREVENTA</option>
+                                    <option value="REPROGRAMACION">REPROGRAMACION</option>
+                                </>
+                            )}
                         </select>
                     </div>
                     <div className="w-full sm:w-[110px] space-y-1 shrink-0">

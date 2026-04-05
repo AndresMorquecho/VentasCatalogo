@@ -167,15 +167,9 @@ interface Props {
         hasCurrentCredit?: boolean;
     };
     deliveryId?: string;
-    settings?: {
-        location?: string;
-        phone?: string;
-        support_phone?: string;
-        note?: string;
-    };
 }
 
-export const DeliveryReceiptDocument = ({ order, orders, client, paymentInfo, deliveryId, settings }: Props) => {
+export const DeliveryReceiptDocument = ({ order, orders, client, paymentInfo, deliveryId }: Props) => {
     const activeOrders = orders || (order ? [order] : []);
     const logoUrl = '/images/BannerHeader.jpg';
     const currentTime = new Date().toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -215,12 +209,16 @@ export const DeliveryReceiptDocument = ({ order, orders, client, paymentInfo, de
                             <Text style={styles.bold}>Nombre:</Text>
                             <Text style={{ textTransform: 'uppercase' }}>{firstOrder?.clientName}</Text>
                         </View>
+                        {client && (
+                            <View style={styles.textRow}>
+                                <Text style={styles.bold}>Contacto:</Text>
+                                <Text>
+                                    {client.phone1}{client.phone2 ? ` / ${client.phone2}` : ""}
+                                </Text>
+                            </View>
+                        )}
                     </View>
                     <View style={styles.rightInfo}>
-                        <Text style={styles.headerSubtext}>
-                            Teléfonos: {settings?.phone || "2787237"}{settings?.support_phone ? ` / ${settings.support_phone}` : ""}
-                        </Text>
-                        <Text style={styles.headerSubtext}>{settings?.location || "Quito - Ecuador"}</Text>
                     </View>
                 </View>
 

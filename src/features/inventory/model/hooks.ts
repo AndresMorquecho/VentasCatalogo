@@ -50,6 +50,8 @@ export const useInventory = (params?: {
                 clientName: `${client.firstName} ${client.lastName || ''}`.trim() || order.clientName || "Unknown Client",
                 clientIdentification: client.identificationNumber || "-",
                 clientPhone: [client.phone1, client.phone2].filter(Boolean).join(" / ") || "-",
+                clientPhone1: client.phone1 || "-",
+                clientPhone2: client.phone2 || "-",
                 
                 // FINANCIALS
                 orderTotal: Number(order.total || 0),

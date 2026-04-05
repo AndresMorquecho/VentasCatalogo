@@ -16,6 +16,8 @@ export interface GroupedInventoryMovement {
     clientName: string;
     clientIdentification: string;
     clientPhone: string;
+    clientPhone1: string;
+    clientPhone2: string;
     
     // FINANCIALS
     orderTotal: number;
@@ -63,7 +65,7 @@ export function InventoryTable({ movements, startIndex = 0 }: Props) {
     return (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden">
             <div className="overflow-x-auto no-scrollbar">
-                <Table className="min-w-[1800px]">
+                <Table className="min-w-[2000px]">
                     <TableHeader className="bg-slate-50/50">
                         <TableRow className="border-b border-slate-200 hover:bg-transparent">
                             <TableHead className="w-[60px] text-[10px] font-black uppercase tracking-tighter text-slate-400 py-4 pl-4 text-center">N°</TableHead>
@@ -74,6 +76,8 @@ export function InventoryTable({ movements, startIndex = 0 }: Props) {
                             <TableHead className="text-[10px] font-black uppercase tracking-tighter text-slate-400 py-4">Tipo</TableHead>
                             <TableHead className="text-[10px] font-black uppercase tracking-tighter text-slate-400 py-4">Catálogo</TableHead>
                             <TableHead className="text-[10px] font-black uppercase tracking-tighter text-slate-400 py-4">Empresaria</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-tighter text-slate-400 py-4">Celular 1</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-tighter text-slate-400 py-4">Celular 2</TableHead>
                             <TableHead className="text-[10px] font-black uppercase tracking-tighter text-slate-400 py-4">Valor Pedido</TableHead>
                             <TableHead className="text-[10px] font-black uppercase tracking-tighter text-slate-400 py-4">Posible Entrega</TableHead>
                             <TableHead className="text-[10px] font-black uppercase tracking-tighter text-slate-400 py-4">No. Factura</TableHead>
@@ -106,6 +110,8 @@ export function InventoryTable({ movements, startIndex = 0 }: Props) {
                                         {move.clientName}
                                     </div>
                                 </TableCell>
+                                <TableCell className="text-[11px] font-bold text-slate-600 whitespace-nowrap">{move.clientPhone1}</TableCell>
+                                <TableCell className="text-[11px] font-bold text-slate-600 whitespace-nowrap">{move.clientPhone2}</TableCell>
 
                                 <TableCell className="text-[11px]">{formatCurrency(move.orderTotal)}</TableCell>
                                 <TableCell className="text-[11px] whitespace-nowrap text-slate-400 font-medium italic underline decoration-slate-200">

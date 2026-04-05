@@ -329,6 +329,8 @@ export function exportInventoryToExcel(movements: any[], filename: string = 'Inv
         'Tipo': m.orderType || '---',
         'Catálogo': m.brandName || '---',
         'Empresaria': m.clientName || '---',
+        'Celular 1': m.clientPhone1 || '---',
+        'Celular 2': m.clientPhone2 || '---',
         'Valor Pedido': Number(m.orderTotal || 0),
         'Posible Entrega': m.possibleDeliveryDate ? new Date(m.possibleDeliveryDate).toLocaleDateString('es-EC') : '---',
         'No. Factura': m.invoiceNumber || '---',
@@ -356,6 +358,8 @@ export function exportInventoryToExcel(movements: any[], filename: string = 'Inv
         { wch: 15 }, // Tipo
         { wch: 18 }, // Catalogo
         { wch: 35 }, // Empresaria
+        { wch: 15 }, // Celular 1
+        { wch: 15 }, // Celular 2
         { wch: 15 }, // Valor P
         { wch: 15 }, // Posible E
         { wch: 15 }, // No. Fact

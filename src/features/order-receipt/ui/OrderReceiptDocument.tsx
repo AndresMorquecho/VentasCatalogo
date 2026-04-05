@@ -296,12 +296,14 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({
                                 <Text style={styles.label}>Nombre:</Text>
                                 <Text style={{ textTransform: 'uppercase', fontWeight: 'bold' }}>{order.clientName || client?.firstName}</Text>
                             </View>
-                        </View>
-                        <View style={{ gap: 2, alignItems: 'flex-end', paddingTop: 5 }}>
-                            <Text style={{ fontSize: 10, fontWeight: 'bold' }}>
-                                Teléfonos:  {settings?.phone || "2787237"}{settings?.support_phone ? ` / ${settings.support_phone}` : ""}
-                            </Text>
-                            <Text style={{ fontSize: 10 }}>{settings?.location || "Quito - Ecuador"}</Text>
+                            {client && (
+                                <View style={styles.infoRow}>
+                                    <Text style={styles.label}>Contacto:</Text>
+                                    <Text style={{ fontSize: 11 }}>
+                                        {client.phone1}{client.phone2 ? ` / ${client.phone2}` : ""}
+                                    </Text>
+                                </View>
+                            )}
                         </View>
                     </View>
                     <View style={{ borderBottom: '1pt solid black', marginTop: 10, width: '100%' }} />
@@ -354,17 +356,7 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({
                     </View>
                 </View>
 
-                {/* FOOTER INFO */}
                 <View style={styles.footerInfo}>
-                    <View style={{ flexDirection: 'row', marginBottom: 5 }}>
-                        <Text style={{ width: '47%' }}>No de documento: {(() => {
-                            const r = order.receiptNumber || "";
-                            const isSN = /^(S\/N-|SN-)/i.test(r);
-                            return isSN ? "-" : r;
-                        })()}</Text>
-                        <Text>Teléfono de contacto: {client?.phone1 || (order as any).clientPhone || ""}</Text>
-                    </View>
-                    
                     {/* DESGLOSE DE ABONOS */}
                     {paymentBreakdown.length > 0 && (
                         <View style={{ marginTop: 5, marginBottom: 10 }}>

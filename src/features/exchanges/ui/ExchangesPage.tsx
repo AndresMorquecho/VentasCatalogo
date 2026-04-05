@@ -346,25 +346,25 @@ export function ExchangesPage() {
                  <SelectValue placeholder="Todos los estados" />
                </SelectTrigger>
                <SelectContent className="rounded-xl border-slate-200">
-                  <SelectItem value="ALL">
+                  <SelectItem value="ALL" label="Todos los estados">
                     <span className="font-bold text-slate-500 text-xs uppercase tracking-widest">Todos los estados</span>
                   </SelectItem>
-                  <SelectItem value="POR_ENVIAR,RECOLECTADO,POR_RECIBIR">
+                  <SelectItem value="POR_ENVIAR,RECOLECTADO,POR_RECIBIR" label="Recolectado">
                     <div className="flex items-center gap-2 font-bold text-indigo-700 text-xs uppercase tracking-widest">
                       <div className="w-2 h-2 rounded-full bg-indigo-600" /> Recolectado
                     </div>
                   </SelectItem>
-                  <SelectItem value="EN_TRANSITO">
+                  <SelectItem value="EN_TRANSITO" label="En Tránsito">
                     <div className="flex items-center gap-2 font-bold text-sky-700 text-xs uppercase tracking-widest">
                       <div className="w-2 h-2 rounded-full bg-sky-500" /> En Tránsito
                     </div>
                   </SelectItem>
-                  <SelectItem value="RECIBIDO_EN_BODEGA">
+                  <SelectItem value="RECIBIDO_EN_BODEGA" label="En Bodega">
                     <div className="flex items-center gap-2 font-bold text-amber-700 text-xs uppercase tracking-widest">
                       <div className="w-2 h-2 rounded-full bg-amber-500" /> En Bodega
                     </div>
                   </SelectItem>
-                  <SelectItem value="ENTREGADO,ENVIADO_A_CAMBIO">
+                  <SelectItem value="ENTREGADO,ENVIADO_A_CAMBIO" label="Entregados">
                     <div className="flex items-center gap-2 font-bold text-emerald-700 text-xs uppercase tracking-widest">
                       <div className="w-2 h-2 rounded-full bg-emerald-500" /> Entregados
                     </div>

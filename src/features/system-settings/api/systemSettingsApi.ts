@@ -16,6 +16,21 @@ export interface NoteTemplate {
     isActive: boolean;
 }
 
+export interface OrderType {
+    id: string;
+    name: string;
+    description?: string;
+    isActive: boolean;
+    isSystem: boolean;
+}
+
+export interface SalesChannel {
+    id: string;
+    name: string;
+    description?: string;
+    isActive: boolean;
+}
+
 export const systemSettingsApi = {
     getSettings: async () => {
         return httpClient.get<SystemSetting[]>('/system-settings');
@@ -39,5 +54,31 @@ export const systemSettingsApi = {
 
     deleteNote: async (id: string) => {
         return httpClient.delete(`/system-settings/notes/${id}`);
+    },
+
+    // Order Types
+    getOrderTypes: async () => {
+        return httpClient.get<OrderType[]>('/system-settings/order-types');
+    },
+
+    upsertOrderType: async (data: Partial<OrderType>) => {
+        return httpClient.post<OrderType>('/system-settings/order-types', data);
+    },
+
+    deleteOrderType: async (id: string) => {
+        return httpClient.delete(`/system-settings/order-types/${id}`);
+    },
+
+    // Sales Channels
+    getSalesChannels: async () => {
+        return httpClient.get<SalesChannel[]>('/system-settings/sales-channels');
+    },
+
+    upsertSalesChannel: async (data: Partial<SalesChannel>) => {
+        return httpClient.post<SalesChannel>('/system-settings/sales-channels', data);
+    },
+
+    deleteSalesChannel: async (id: string) => {
+        return httpClient.delete(`/system-settings/sales-channels/${id}`);
     }
 };
