@@ -9,6 +9,8 @@ import { ReceptionHistory } from "./ReceptionHistory"
 import { BatchPrintModal } from "./BatchPrintModal"
 import { useAuth } from "@/shared/auth"
 import { useNotifications } from "@/shared/lib/notifications"
+import { useLocking } from "@/features/lock-management/hooks/useLocking"
+import { ConcurrencyLockDialog } from "@/shared/ui/ConcurrencyLockDialog"
 
 export function ReceptionBatchPage() {
     const { hasPermission } = useAuth()
@@ -41,6 +43,22 @@ export function ReceptionBatchPage() {
         setHistoryFilters,
         pagination
     } = useReceptionBatch();
+
+    // Manejo de Bloqueos por Concurrencia
+    const { isLockedByOther, lockingUser, isLockingLoading } = useLocking({
+        resourceId: editingBatchId || undefined,
+        resourceType: 'RECEPTION_BATCH',
+        enabled: !!editingBatchId
+    });
+
+    if (isLockingLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[400px] bg-slate-50/50 rounded-2xl">
+                <div className="h-10 w-10 border-4 border-monchito-purple border-t-transparent rounded-full animate-spin mb-3"></div>
+                <p className="text-slate-500 font-medium text-sm animate-pulse">Verificando disponibilidad del lote...</p>
+            </div>
+        );
+    }
 
     const [activeTab, setActiveTab] = useState("reception");
 
@@ -178,6 +196,13 @@ export function ReceptionBatchPage() {
                 onClose={clearLastSaved}
                 orders={lastSavedOrders || []}
                 batchDetails={lastSavedBatch}
+            />
+
+            <ConcurrencyLockDialog
+                isOpen={isLockedByOther}
+                lockingUser={lockingUser}
+                resourceName="lote de recepción"
+                onClose={cancelEdit}
             />
         </div>
     );

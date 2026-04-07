@@ -20,6 +20,8 @@ import { logAction } from "@/shared/lib/auditService";
 import { useNotifications } from "@/shared/lib/notifications";
 import { useDebounce } from "@/shared/lib/hooks";
 import { Pagination } from "@/shared/ui/pagination";
+import { useLocking } from "@/features/lock-management/hooks/useLocking";
+import { ConcurrencyLockDialog } from "@/shared/ui/ConcurrencyLockDialog";
 import { differenceInDays } from "date-fns";
 import {
     Select,
@@ -131,6 +133,13 @@ export function ClientList({ triggerCreate, onTriggerHandled }: {
         setSelectedClient(client);
         setIsFormOpen(true);
     };
+
+    // Manejo de Bloqueos por Concurrencia
+    const { isLockedByOther, lockingUser } = useLocking({
+        resourceId: selectedClient?.id,
+        resourceType: 'CLIENT',
+        enabled: isFormOpen && !!selectedClient
+    });
 
     const handleView = (client: Client) => {
         setViewingClient(client);
@@ -349,6 +358,13 @@ export function ClientList({ triggerCreate, onTriggerHandled }: {
                 client={viewingClient}
                 open={isDetailOpen}
                 onOpenChange={setIsDetailOpen}
+            />
+
+            <ConcurrencyLockDialog
+                isOpen={isLockedByOther}
+                lockingUser={lockingUser}
+                resourceName="empresaria"
+                onClose={() => setIsFormOpen(false)}
             />
 
             {pagination && (

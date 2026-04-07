@@ -6,7 +6,7 @@ import * as Yup from "yup"
 import { 
     ArrowLeft, Plus, X, RotateCw, RefreshCw, 
     Edit2, Trash2, Printer, FileText, 
-    AlertTriangle, Lock 
+    AlertTriangle, Lock, Save 
 } from "lucide-react"
 
 import { incrementOrderNumber } from "@/shared/lib/utils"
@@ -32,6 +32,8 @@ import { getActiveBrands } from "@/entities/brand/model/model"
 import { useNotifications } from "@/shared/lib/notifications"
 import { prepareOrderReceiptForPreview } from "@/features/order-receipt/lib/prepareOrderReceiptForPreview"
 import { useClientCredits } from "@/features/transactions/model/hooks"
+import { useLocking } from "@/features/lock-management/hooks/useLocking"
+import { ConcurrencyLockDialog } from "@/shared/ui/ConcurrencyLockDialog"
 import { useAuth } from "@/shared/auth"
 import { useCashClosurePreview } from "@/features/cash-closure/api/hooks"
 import { PaymentModal, type PaymentModalData } from "@/shared/ui/PaymentModal"
@@ -90,6 +92,13 @@ export function OrderFormPage() {
     const navigate = useNavigate()
     const isEditing = !!(id || receiptNumber)
     const queryClient = useQueryClient()
+
+    // Manejo de Bloqueos por Concurrencia
+    const { isLockedByOther, lockingUser, isLockingLoading } = useLocking({
+        resourceId: id || receiptNumber || undefined,
+        resourceType: id ? 'ORDER' : (receiptNumber ? 'ORDER_RECEIPT' : 'ORDER'),
+        enabled: !!(id || receiptNumber)
+    });
 
     // Caso 1: Edición por receiptNumber (carga múltiples pedidos)
     const { data: receiptOrders, isLoading: isLoadingReceiptOrders } = useReceiptOrders(receiptNumber || "")
@@ -402,6 +411,32 @@ export function OrderFormPage() {
             setIsSubmitting(false);
         }
     }
+
+    // Función para guardar solo las notas del recibo
+    const handleSaveNotes = async () => {
+        if (!receiptNumber) return;
+        
+        setIsSubmitting(true);
+        try {
+            notifyLoading("Actualizando observaciones del recibo...");
+            await orderApi.updateReceiptHeader(receiptNumber, { 
+                notes: formik.values.notes 
+            });
+            
+            // Invalidar las queries para reflejar el cambio en todos lados
+            queryClient.invalidateQueries({ queryKey: ['orders'] });
+            queryClient.invalidateQueries({ queryKey: ['receiptOrders', receiptNumber] });
+            
+            dismiss();
+            notifySuccess("Observaciones actualizadas correctamente.");
+        } catch (error: any) {
+            dismiss();
+            console.error("Error updating receipt notes", error);
+            notifyError(error, "Error al actualizar las observaciones.");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     const getInitialValues = () => {
         if (!isEditing) {
@@ -1281,8 +1316,18 @@ export function OrderFormPage() {
         setPaymentModalOpen(true)
     }
 
+    // Si está cargando el bloqueo, mostramos un overlay para evitar parpadeo o edición antes de tiempo
+    if (isLockingLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50/50">
+                <div className="h-12 w-12 border-4 border-monchito-purple border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p className="text-slate-500 font-medium animate-pulse">Verificando acceso exclusivo...</p>
+            </div>
+        );
+    }
+
     return (
-        <div className="space-y-4 pb-12">
+        <div className="space-y-6">
             {/* Modal de Permiso Requerido */}
             <Dialog open={permissionModalOpen} onOpenChange={setPermissionModalOpen}>
                 <DialogContent className="sm:max-w-md">
@@ -1883,16 +1928,29 @@ export function OrderFormPage() {
             <Card className="shadow-sm border-slate-200 rounded-2xl">
                 <CardContent className="p-3">
                     <div className="flex flex-col sm:flex-row gap-3 items-end">
-                        <textarea
-                            {...formik.getFieldProps('notes')}
-                            className="flex-1 h-12 p-2 text-xs rounded-lg border border-slate-200 focus:ring-1 focus:ring-monchito-purple outline-none resize-none"
-                            placeholder="Notas adicionales sobre el pedido..."
-                        />
+                        <div className="relative flex-1 group">
+                            <textarea
+                                {...formik.getFieldProps('notes')}
+                                className="w-full h-12 p-2 pr-10 text-xs rounded-lg border border-slate-200 focus:ring-1 focus:ring-monchito-purple outline-none resize-none transition-all"
+                                placeholder="Notas adicionales sobre el pedido..."
+                            />
+                            {isEditing && (
+                                <button
+                                    type="button"
+                                    onClick={handleSaveNotes}
+                                    disabled={isSubmitting}
+                                    className="absolute right-2 top-2 p-1.5 text-monchito-purple hover:bg-monchito-purple/10 rounded-md transition-colors disabled:opacity-50"
+                                    title="Guardar observaciones"
+                                >
+                                    <Save className="h-4 w-4" />
+                                </button>
+                            )}
+                        </div>
                         {!isEditing ? (
                             <AsyncButton
                                 type="button"
                                 onClick={handleMainSave}
-                                className="shrink-0 bg-monchito-purple hover:bg-monchito-purple/90 font-bold px-8"
+                                className="shrink-0 bg-monchito-purple hover:bg-monchito-purple/90 font-bold px-8 h-12"
                                 isLoading={isSubmitting}
                             >
                                 <Plus className="h-4 w-4 mr-2" /> 
@@ -1902,7 +1960,7 @@ export function OrderFormPage() {
                             <AsyncButton
                                 type="button"
                                 onClick={handlePrintReceipt}
-                                className="shrink-0 bg-monchito-purple hover:bg-monchito-purple/90 font-bold px-8"
+                                className="shrink-0 bg-monchito-purple hover:bg-monchito-purple/90 font-bold px-8 h-12"
                                 isLoading={isSubmitting}
                             >
                                 <Printer className="h-4 w-4 mr-2" /> Imprimir Recibo
@@ -1961,6 +2019,14 @@ export function OrderFormPage() {
                 lockAmount={totalRowDeposit > 0}
                 forceExactAmount={true}
                 saveWithZeroPermission="orders.save_with_zero_deposit"
+            />
+
+            {/* Modal de Bloqueo por Concurrencia */}
+            <ConcurrencyLockDialog
+                isOpen={isLockedByOther}
+                lockingUser={lockingUser}
+                resourceName={id ? "pedido" : "recibo"}
+                onClose={() => navigate('/orders')}
             />
 
             {/* Modal de edición de pedido individual */}

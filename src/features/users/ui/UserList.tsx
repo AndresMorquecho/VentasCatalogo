@@ -16,9 +16,11 @@ import { useDebounce } from '@/shared/lib/hooks';
 
 const EMPTY_FORM: UserFormData = { username: '', password: '', roleId: '', active: true };
 
-type ModalMode = 'create' | 'edit' | 'password' | 'toggle' | 'delete' | null;
-
 import { Pagination } from '@/shared/ui/pagination';
+import { useLocking } from '@/features/lock-management/hooks/useLocking';
+import { ConcurrencyLockDialog } from '@/shared/ui/ConcurrencyLockDialog';
+
+type ModalMode = 'create' | 'edit' | 'password' | 'toggle' | 'delete' | null;
 
 export function UserList() {
     const [page, setPage] = useState(1);
@@ -41,6 +43,13 @@ export function UserList() {
     const [newPw, setNewPw] = useState('');
     const [confirmPw, setConfirmPw] = useState('');
     const [error, setError] = useState('');
+
+    // Manejo de Bloqueos por Concurrencia
+    const { isLockedByOther, lockingUser } = useLocking({
+        resourceId: target?.id,
+        resourceType: 'USER',
+        enabled: mode === 'edit' && !!target
+    });
 
 
     const openCreate = () => {
@@ -392,6 +401,13 @@ export function UserList() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <ConcurrencyLockDialog
+                isOpen={isLockedByOther}
+                lockingUser={lockingUser}
+                resourceName="usuario"
+                onClose={closeModal}
+            />
         </div>
     );
 }
