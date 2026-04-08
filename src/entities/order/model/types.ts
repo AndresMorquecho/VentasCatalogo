@@ -1,4 +1,4 @@
-export type OrderStatus = 'POR_ENVIAR' | 'EN_TRANSITO' | 'POR_RECIBIR' | 'RECIBIDO_EN_BODEGA' | 'ENTREGADO' | 'ANULADO' | 'DESMANTELADO' | 'CAMBIADO' | 'RECOLECTADO';
+export type OrderStatus = 'POR_ENVIAR' | 'EN_TRANSITO' | 'POR_RECIBIR' | 'RECIBIDO_EN_BODEGA' | 'ENTREGADO' | 'ANULADO' | 'DESMANTELADO' | 'CAMBIADO';
 export type SalesChannel = 'OFICINA' | 'WHATSAPP' | 'DOMICILIO';
 export type OrderType = 'NORMAL' | 'PREVENTA' | 'REPROGRAMACION' | 'CATALOGO' | 'CAMBIO';
 export type PaymentMethod = 'EFECTIVO' | 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE' | 'CREDITO_CLIENTE' | 'SPLIT_PAYMENT';
@@ -38,6 +38,7 @@ export interface Order {
     // Financials
     total: number; // Initial / Estimated Total
     realInvoiceTotal?: number; // Actual Invoice Total upon reception
+    deposit?: number; // Initial payment / Advance
     paymentMethod: PaymentMethod;
     bankAccountId?: string;
     transactionDate?: string;

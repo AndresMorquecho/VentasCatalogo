@@ -14,7 +14,8 @@ export function SearchableSelect({
     placeholder,
     disabled = false,
     onKeyDownNavigation,
-    navId
+    navId,
+    className,
 }: {
     options: Option[],
     value: string,
@@ -22,7 +23,8 @@ export function SearchableSelect({
     placeholder: string,
     disabled?: boolean,
     onKeyDownNavigation?: (e: React.KeyboardEvent) => void,
-    navId?: string
+    navId?: string,
+    className?: string
 }) {
     const [isOpen, setIsOpen] = useState(false)
     const [searchTerm, setSearchTerm] = useState("")
@@ -95,7 +97,7 @@ export function SearchableSelect({
         <div className="relative" ref={wrapperRef}>
             <div
                 tabIndex={disabled ? -1 : 0}
-                className={`flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm items-center justify-between overflow-hidden focus:outline-none focus:ring-1 focus:ring-monchito-purple ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-monchito-purple/50 transition-colors'}`}
+                className={`flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm items-center justify-between overflow-hidden focus:outline-none focus:ring-1 focus:ring-monchito-purple ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-monchito-purple/50 transition-colors'} ${className ?? ''}`}
                 onClick={() => {
                     if (disabled) return;
                     setIsOpen(!isOpen)
@@ -109,10 +111,10 @@ export function SearchableSelect({
                 }}
                 data-nav={navId}
             >
-                <span className={selectedOption ? "text-foreground" : "text-muted-foreground"}>
+                <span className={`truncate flex-1 text-left ${selectedOption ? "text-foreground" : "text-muted-foreground"} text-inherit`}>
                     {selectedOption ? `${selectedOption.label} ${selectedOption.subLabel ? `(${selectedOption.subLabel})` : ''}` : placeholder}
                 </span>
-                <span className="opacity-50 text-xs text-muted-foreground">▼</span>
+                <span className="opacity-50 text-[9px] text-muted-foreground ml-2 shrink-0">▼</span>
             </div>
 
             {isOpen && (

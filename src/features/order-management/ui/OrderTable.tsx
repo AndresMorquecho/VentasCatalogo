@@ -24,7 +24,6 @@ const ROW_STATUS_CLASSES: Record<OrderStatus, string> = {
     ANULADO: "bg-slate-50/10 opacity-60",
     DESMANTELADO: "bg-red-50/10 hover:bg-red-50/20",
     CAMBIADO: "bg-purple-50/20 hover:bg-purple-50/40",
-    RECOLECTADO: "bg-emerald-50/20 hover:bg-emerald-50/40",
 }
 
 function formatDate(dateString: string): string {
@@ -68,7 +67,11 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, lastClosur
                                 <div className="space-y-1">
                                     <div className="flex items-center gap-2">
                                         <Receipt className="h-3.5 w-3.5 text-monchito-purple" />
-                                        <span className="font-black text-slate-900">{formatReceipt(order.receiptNumber)}</span>
+                                        <span className={`font-black tracking-tight ${order.type === 'CAMBIO' ? 'text-monchito-purple font-mono' : 'text-slate-900'}`}>
+                                            {order.type === 'CAMBIO' && order.trackingGuide 
+                                                ? order.trackingGuide 
+                                                : formatReceipt(order.receiptNumber)}
+                                        </span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <User className="h-3.5 w-3.5 text-slate-400" />
@@ -112,9 +115,9 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, lastClosur
                                             variant="outline"
                                             size="icon"
                                             className={`h-9 w-9 rounded-xl border-slate-100 ${!canEditReceipt ? 'opacity-40' : ''}`}
-                                            onClick={() => canEditReceipt && onEdit(order)}
+                                            onClick={() => canEditReceipt && order.type !== 'CAMBIO' && onEdit(order)}
                                         >
-                                            <Pencil className="h-4 w-4 text-slate-700" />
+                                            <Pencil className={`h-4 w-4 ${order.type === 'CAMBIO' ? 'text-slate-300' : 'text-slate-700'}`} />
                                         </Button>
                                     )}
                                     {hasPermission('orders.delete') && (
@@ -122,9 +125,9 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, lastClosur
                                             variant="outline"
                                             size="icon"
                                             className={`h-9 w-9 rounded-xl border-slate-100 ${!canDeleteReceipt ? 'opacity-40' : ''}`}
-                                            onClick={() => canDeleteReceipt && onDelete(order)}
+                                            onClick={() => canDeleteReceipt && order.type !== 'CAMBIO' && onDelete(order)}
                                         >
-                                            <Trash2 className="h-4 w-4 text-red-600" />
+                                            <Trash2 className={`h-4 w-4 ${order.type === 'CAMBIO' ? 'text-slate-300' : 'text-red-600'}`} />
                                         </Button>
                                     )}
                                 </div>
@@ -189,8 +192,10 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, lastClosur
                                         </td>
 
                                         <td className="px-6 py-4">
-                                            <span className="text-sm tracking-tight text-slate-700 font-medium">
-                                                {formatReceipt(order.receiptNumber)}
+                                            <span className={`text-sm tracking-tight font-bold ${order.type === 'CAMBIO' ? 'text-monchito-purple font-mono' : 'text-slate-700 font-medium'}`}>
+                                                {order.type === 'CAMBIO' && order.trackingGuide 
+                                                    ? order.trackingGuide 
+                                                    : formatReceipt(order.receiptNumber)}
                                             </span>
                                         </td>
 
@@ -274,10 +279,10 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, lastClosur
                                                         className="h-8 w-8 text-slate-900 hover:bg-slate-100 font-bold"
                                                         onClick={async (e) => {
                                                             e.stopPropagation()
-                                                            onEdit(order)
+                                                            if (order.type !== 'CAMBIO') onEdit(order)
                                                         }}
-                                                        disabled={!canEditReceipt}
-                                                        title={!canEditReceipt ? "No se puede editar: Periodo de caja cerrado" : "Editar recibo completo"}
+                                                        disabled={!canEditReceipt || order.type === 'CAMBIO'}
+                                                        title={order.type === 'CAMBIO' ? "Los cambios se gestionan desde el módulo de Exchanges" : !canEditReceipt ? "No se puede editar: Periodo de caja cerrado" : "Editar recibo completo"}
                                                     >
                                                         <Edit2 className="h-4 w-4" />
                                                     </Button>
@@ -290,10 +295,10 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, lastClosur
                                                         className="h-8 w-8 text-slate-300 hover:text-red-600 hover:bg-red-50 transition-colors"
                                                         onClick={async (e) => {
                                                             e.stopPropagation()
-                                                            onDelete(order)
+                                                            if (order.type !== 'CAMBIO') onDelete(order)
                                                         }}
-                                                        disabled={!canDeleteReceipt}
-                                                        title={!canDeleteReceipt ? "No se puede eliminar: Periodo cerrado o con abonos reales" : "Eliminar recibo completo"}
+                                                        disabled={!canDeleteReceipt || order.type === 'CAMBIO'}
+                                                        title={order.type === 'CAMBIO' ? "Los cambios se gestionan desde el módulo de Exchanges" : !canDeleteReceipt ? "No se puede eliminar: Periodo cerrado o con abonos reales" : "Eliminar recibo completo"}
                                                     >
                                                         <Trash2 className="h-4 w-4" />
                                                     </Button>

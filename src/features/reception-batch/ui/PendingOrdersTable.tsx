@@ -318,9 +318,13 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
                                                     onClick={(e) => e.stopPropagation()}
                                                 />
                                             </TableCell>
-                                            <TableCell className="py-2 px-2 font-mono text-xs font-medium text-center">#{order.receiptNumber}</TableCell>
+                                            <TableCell className="py-2 px-2 font-mono text-xs font-medium text-center">
+                                                {order.type === 'CAMBIO' ? order.orderNumber : `#${order.receiptNumber}`}
+                                            </TableCell>
                                             <TableCell className="py-2 px-2 text-xs font-bold text-center">{order.clientName}</TableCell>
-                                            <TableCell className="py-2 px-2 text-xs font-medium text-center">{order.orderNumber || '---'}</TableCell>
+                                            <TableCell className="py-2 px-2 text-xs font-medium text-center">
+                                                {order.type === 'CAMBIO' ? (order.sourceOrderNumber || '---') : (order.orderNumber || '---')}
+                                            </TableCell>
                                             <TableCell className="py-2 px-2 text-[10px] text-center">
                                                 <span className={`px-2 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-tighter shadow-sm ${
                                                     order.type === 'CAMBIO' ? 'bg-orange-100 text-orange-700 border-orange-200' :
