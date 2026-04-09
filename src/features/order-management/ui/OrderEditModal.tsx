@@ -27,22 +27,42 @@ export function OrderEditModal({ order, open, onOpenChange, onSuccess, lastClosu
     const queryClient = useQueryClient()
 
     // Determine if this order already has a deposit recorded
-    const originalDeposit = getPaidAmount(order) || 0
+    const originalDeposit = Number(order.deposit ?? getPaidAmount(order) ?? 0)
     const hasExistingDeposit = originalDeposit > 0
 
     // The original payment method — locked if there's an existing deposit
     const originalMethod = order.paymentMethod || 'EFECTIVO'
     const originalBankAccountId = order.bankAccountId || ''
 
+    const formatDateForInput = (date: any) => {
+        if (!date) return '';
+        const d = new Date(date);
+        return isNaN(d.getTime()) ? '' : d.toISOString().split('T')[0];
+    };
+
     const [formData, setFormData] = useState({
         total: Number(order.total) || 0,
         deposit: originalDeposit,
-        possibleDeliveryDate: order.possibleDeliveryDate ? new Date(order.possibleDeliveryDate).toISOString().split('T')[0] : '',
+        possibleDeliveryDate: formatDateForInput(order.possibleDeliveryDate),
         orderNumber: order.orderNumber || '',
-        // If locked, always use the original. If new, default to EFECTIVO.
         paymentMethod: originalMethod,
         bankAccountId: originalBankAccountId
     })
+
+    useEffect(() => {
+        if (open && order) {
+            const dep = Number(order.deposit ?? getPaidAmount(order) ?? 0)
+            const method = order.paymentMethod || 'EFECTIVO'
+            setFormData({
+                total: Number(order.total) || 0,
+                deposit: dep,
+                possibleDeliveryDate: formatDateForInput(order.possibleDeliveryDate),
+                orderNumber: order.orderNumber || '',
+                paymentMethod: method,
+                bankAccountId: order.bankAccountId || ''
+            })
+        }
+    }, [open, order])
 
     const { data: walletData } = useClientCredits(order.clientId || '')
     // Use remainingAmount of AVAILABLE credits only — never the total generated

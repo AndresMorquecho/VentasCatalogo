@@ -27,6 +27,8 @@ import { useAuth } from "@/shared/auth"
 import { PaymentModal, type PaymentModalData } from "@/shared/ui/PaymentModal"
 import { usePDFPreview } from "@/shared/hooks/usePDFPreview"
 import { PDFPreviewModal } from "@/shared/ui/PDFPreviewModal"
+import { ExchangeEditModal } from "./ExchangeEditModal"
+import { useBankAccountList } from "@/features/bank-accounts/api/hooks"
 
 const validationSchema = Yup.object({
   clientId: Yup.string().required("El cliente es requerido"),
@@ -111,9 +113,11 @@ export function NewExchangePage() {
   const { isLoading: isLoadingOrder } = useOrder(id || "");
   const { data: clientsResponse } = useClientList({ limit: 1000 });
   const { data: brandsResponse } = useBrandList({ limit: 500 });
+  const { data: bankAccountsResponse } = useBankAccountList();
 
   const clients = clientsResponse?.data || [];
   const brands = brandsResponse?.data || [];
+  const bankAccounts = bankAccountsResponse?.data || [];
 
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -151,7 +155,6 @@ export function NewExchangePage() {
 
   const [isRowEditModalOpen, setIsRowEditModalOpen] = useState(false);
   const [itemToEdit, setItemToEdit] = useState<any>(null);
-  const [itemToEditIdx, setItemToEditIdx] = useState<number | null>(null);
 
   const formik = useFormik({
     initialValues: {
@@ -170,8 +173,12 @@ export function NewExchangePage() {
   const totalPedidos = formik.values.brandItems.reduce((sum, item) => sum + Number(item.total || 0), 0);
   const totalAbonos = formik.values.brandItems.reduce((sum, item) => sum + Number(item.deposit || 0), 0);
 
-  const handleOpenRowEdit = (item: any, idx: number) => { setItemToEdit({ ...item }); setItemToEditIdx(idx); setIsRowEditModalOpen(true); };
-  const handleSaveRowEdit = () => { if (itemToEditIdx !== null) { const newItems = [...formik.values.brandItems]; newItems[itemToEditIdx] = itemToEdit; formik.setFieldValue("brandItems", newItems); setIsRowEditModalOpen(false); } };
+  const handleOpenRowEdit = (item: any) => { setItemToEdit(item); setIsRowEditModalOpen(true); };
+  const handleSaveRowEdit = (updated: any) => { 
+    const newItems = formik.values.brandItems.map(it => it.id === updated.id ? updated : it);
+    formik.setFieldValue("brandItems", newItems);
+    setIsRowEditModalOpen(false);
+  };
 
   const generateNextOrderNumber = async () => {
     try {
@@ -217,6 +224,9 @@ export function NewExchangePage() {
             quantity: o.items?.[0]?.quantity || 1, total: Number(o.total), type: o.type,
             possibleDeliveryDate: o.possibleDeliveryDate?.split('T')[0], orderNumber: o.orderNumber,
             deposit: getPaidAmount(o) || 0, status: o.status,
+            payments: o.payments || [],
+            paymentMethod: o.paymentMethod || "EFECTIVO",
+            bankAccountId: o.bankAccountId || "",
             sourceOrderNumber: o.sourceOrderNumber || parsed.originalOrder,
             sourceBrandName: o.sourceBrandName || parsed.originalBrand,
             sourceQuantity: o.sourceQuantity || 1,
@@ -244,6 +254,10 @@ export function NewExchangePage() {
           receiptNumber: formik.values.receiptNumber,
           status: 'POR_ENVIAR',
           createdAt: formik.values.createdAt,
+          deposit: 0, // Ensure new items have 0 deposit by default
+          payments: [],
+          paymentMethod: 'EFECTIVO',
+          bankAccountId: '',
             items: [{ 
               productName: currentItem.brandName || "Cambio", 
               quantity: Math.max(1, Number(currentItem.quantity) || 1), 
@@ -737,7 +751,7 @@ export function NewExchangePage() {
                           {item.possibleDeliveryDate}
                         </td>
                         <td className={`px-6 py-4 flex justify-center gap-1 opacity-100 lg:opacity-40 lg:group-hover:opacity-100 transition-opacity bg-white transition-all ${pinnedColumns.has('action') ? 'sticky right-0 z-20 shadow-[-1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`}>
-                          <Button variant="ghost" size="icon" onClick={() => handleOpenRowEdit(item, idx)} className="h-8 w-8 text-slate-400 hover:text-monchito-purple hover:bg-monchito-purple/5 transition-colors">
+                          <Button variant="ghost" size="icon" onClick={() => handleOpenRowEdit(item)} className="h-8 w-8 text-slate-400 hover:text-monchito-purple hover:bg-monchito-purple/5 transition-colors">
                             <Pencil className="h-4 w-4" />
                           </Button>
                           <Button variant="ghost" size="icon" onClick={() => removeItem(idx)} className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors">
@@ -766,8 +780,7 @@ export function NewExchangePage() {
               <AsyncButton onClick={() => handleMainSave('POR_ENVIAR')} className="h-12 px-8 bg-monchito-purple font-black shadow-lg shadow-monchito-purple/20 rounded-xl" isLoading={isSubmitting}><PackageOpen className="mr-2 h-5 w-5" /> Guardar Recolección</AsyncButton>
             ) : (
               <>
-                <Button variant="outline" className="h-12 px-6 font-black rounded-xl border-slate-900"><Printer className="mr-2 h-5 w-5" /> Imprimir</Button>
-                <AsyncButton onClick={() => handleUpdateBatchStatus('EN_TRANSITO')} className="h-12 px-8 bg-monchito-purple font-black shadow-lg shadow-monchito-purple/20 rounded-xl" isLoading={isSubmitting}><Send className="mr-2 h-5 w-5" /> Enviar Guía</AsyncButton>
+                <Button variant="outline" className="h-12 px-6 font-black rounded-xl border-slate-900" onClick={() => window.print()}><Printer className="mr-2 h-5 w-5" /> Imprimir</Button>
               </>
             )}
           </div>
@@ -802,23 +815,15 @@ export function NewExchangePage() {
         />
       )}
 
-      <Dialog open={isRowEditModalOpen} onOpenChange={setIsRowEditModalOpen}>
-        <DialogContent className="max-w-xl rounded-3xl">
-          <DialogHeader><DialogTitle className="text-xl font-black">Editar Ítem</DialogTitle></DialogHeader>
-          <div className="space-y-6 py-4">
-            {itemToEdit && (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1"><Label className="text-[10px] font-bold uppercase text-slate-500">Valor</Label><Input type="number" value={itemToEdit.total} onChange={e => setItemToEdit({ ...itemToEdit, total: Number(e.target.value) })} className="h-10 rounded-xl" /></div>
-                <div className="space-y-1"><Label className="text-[10px] font-bold uppercase text-slate-500">Abono</Label><Input type="number" value={itemToEdit.deposit} onChange={e => setItemToEdit({ ...itemToEdit, deposit: Number(e.target.value) })} className="h-10 rounded-xl" /></div>
-              </div>
-            )}
-            <div className="flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setIsRowEditModalOpen(false)}>Cancelar</Button>
-              <Button onClick={handleSaveRowEdit} className="bg-slate-900 text-white font-bold h-10 px-8 rounded-xl">Guardar</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {itemToEdit && (
+        <ExchangeEditModal 
+          open={isRowEditModalOpen} 
+          onOpenChange={setIsRowEditModalOpen} 
+          order={itemToEdit} 
+          onSuccess={handleSaveRowEdit} 
+          bankAccounts={bankAccounts}
+        />
+      )}
       {pdfPreview.pdfDocument && (
         <PDFPreviewModal open={pdfPreview.isOpen} onOpenChange={open => { pdfPreview.closePreview(); if (!open) navigate('/exchanges') }} title={pdfTitle} pdfDocument={pdfPreview.pdfDocument as any} fileName={pdfFileName} onDownload={pdfPreview.downloadPDF} onPrint={pdfPreview.printPDF} />
       )}

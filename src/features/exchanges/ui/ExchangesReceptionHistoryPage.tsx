@@ -159,17 +159,29 @@ export function ExchangesReceptionHistoryPage() {
                 {/* Filters */}
                 <Card className="border border-slate-200 shadow-sm rounded-2xl overflow-hidden bg-white">
                     <CardContent className="p-4">
-                        <div className="relative group">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-monchito-purple transition-colors" />
-                            <input 
-                                placeholder="Buscar por N° de cambio, N° manual, empresaria..." 
-                                className="pl-11 h-12 bg-slate-50/50 border-transparent rounded-xl focus:ring-monchito-purple/20 transition-all font-medium text-sm w-full outline-none focus:bg-white border focus:border-monchito-purple/20"
-                                value={searchTerm}
-                                onChange={(e) => {
-                                    setSearchTerm(e.target.value)
-                                    setPage(1)
-                                }}
-                            />
+                        <div className="flex flex-col md:flex-row gap-4 items-center">
+                            <div className="relative group flex-1">
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-monchito-purple transition-colors" />
+                                <input 
+                                    placeholder="Buscar por N° de cambio, N° manual, empresaria..." 
+                                    className="pl-11 h-12 bg-slate-50/50 border-transparent rounded-xl focus:ring-monchito-purple/20 transition-all font-medium text-sm w-full outline-none focus:bg-white border focus:border-monchito-purple/20"
+                                    value={searchTerm}
+                                    onChange={(e) => {
+                                        setSearchTerm(e.target.value)
+                                        setPage(1)
+                                    }}
+                                />
+                            </div>
+                            <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-100">
+                                <div className="px-3 py-1.5 bg-white rounded-lg shadow-sm border border-slate-200 flex items-center gap-2">
+                                    <Lock className="h-3 w-3 text-red-500" />
+                                    <span className="text-[10px] font-black text-slate-600 uppercase">Bloqueado = Recibido/Entregado</span>
+                                </div>
+                                <div className="px-3 py-1.5 bg-white rounded-lg shadow-sm border border-slate-200 flex items-center gap-2">
+                                    <Send className="h-3 w-3 text-amber-500" />
+                                    <span className="text-[10px] font-black text-slate-600 uppercase">Tránsito = Por recibir</span>
+                                </div>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
@@ -189,57 +201,93 @@ export function ExchangesReceptionHistoryPage() {
                                 <p className="text-sm">Los recibos CAM-XXXX aparecerán aquí</p>
                             </div>
                         ) : (
-                            <Accordion type="multiple" className="w-full">
-                                {groupedExchanges.map(([receipt, orders]) => {
-                                    const firstOrder = orders[0]
-                                    const clientName = firstOrder.clientName
-                                    const date = firstOrder.createdAt
-                                    const totalItems = orders.length
-                                    const totalValue = orders.reduce((sum, o) => sum + Number(o.total), 0)
-                                    const { canDelete, canEdit, deleteBlockReason, blockedCount, inTransitCount } = getGroupRestrictions(orders)
+                            <>
+                                {/* Table-like Header */}
+                                <div className="hidden lg:grid grid-cols-[180px_1fr_180px_120px_240px_140px_48px] px-6 py-3 bg-slate-50 border-b border-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-500 sticky top-0 z-10 items-center">
+                                    <div className="text-center">N° de Recibo</div>
+                                    <div className="pl-2">Empresaria</div>
+                                    <div className="text-center">Fecha Registro</div>
+                                    <div className="text-center">Total</div>
+                                    <div className="text-center">Resumen de Estados</div>
+                                    <div className="text-center">Acciones</div>
+                                    <div></div>
+                                </div>
 
-                                    return (
-                                        <AccordionItem key={receipt} value={receipt} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/30 transition-colors">
-                                            <AccordionTrigger className="px-6 py-5 hover:no-underline group">
-                                                <div className="flex flex-col sm:flex-row flex-1 items-start sm:items-center justify-between gap-4 mr-4">
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="bg-monchito-purple/10 p-3 rounded-xl shadow-sm group-hover:scale-110 transition-transform">
-                                                            <ClipboardList className="h-5 w-5 text-monchito-purple" />
-                                                        </div>
-                                                        <div className="text-left">
-                                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Recibo de Cambio</p>
-                                                            <h3 className="text-base font-black text-monchito-purple tracking-tight">{receipt}</h3>
-                                                        </div>
-                                                    </div>
+                                <Accordion type="multiple" className="w-full">
+                                    {groupedExchanges.map(([receipt, orders]) => {
+                                        const firstOrder = orders[0]
+                                        const clientName = firstOrder.clientName
+                                        const date = firstOrder.createdAt
+                                        const totalItems = orders.length
+                                        const totalValue = orders.reduce((sum, o) => sum + Number(o.total), 0)
+                                        const { canDelete, canEdit, deleteBlockReason, blockedCount, inTransitCount } = getGroupRestrictions(orders)
 
-                                                    <div className="flex items-center gap-8">
-                                                        <div className="hidden lg:flex items-center gap-3">
-                                                            <div className="bg-slate-100 p-2 rounded-full">
+                                        return (
+                                            <AccordionItem key={receipt} value={receipt} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/40 transition-colors">
+                                                <AccordionTrigger className="px-6 py-4 hover:no-underline group [&[data-state=open]>div>div>div>svg]:rotate-180">
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[180px_1fr_180px_120px_240px_140px] items-center gap-4 w-full">
+                                                        {/* ID Column */}
+                                                        <div className="flex items-center justify-center lg:justify-start gap-3">
+                                                            <div className="bg-monchito-purple/10 p-2 rounded-lg group-hover:scale-110 transition-transform hidden sm:block">
+                                                                <ClipboardList className="h-4 w-4 text-monchito-purple" />
+                                                            </div>
+                                                            <div className="text-left">
+                                                                <h3 className="text-sm font-black text-monchito-purple tracking-tight">{receipt}</h3>
+                                                                <p className="lg:hidden text-[9px] font-bold text-slate-400 uppercase">Recibo</p>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Empresaria Column */}
+                                                        <div className="flex items-center gap-2 pl-2">
+                                                            <div className="bg-slate-100 p-1.5 rounded-full lg:hidden">
                                                                 <User className="h-3 w-3 text-slate-500" />
                                                             </div>
                                                             <div className="text-left">
-                                                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Empresaria</p>
-                                                                <p className="text-xs font-bold text-slate-700 uppercase">{clientName}</p>
+                                                                <p className="text-[11px] font-bold text-slate-700 uppercase line-clamp-1">{clientName}</p>
+                                                                <p className="lg:hidden text-[9px] font-bold text-slate-400 uppercase">Empresaria</p>
                                                             </div>
                                                         </div>
 
-                                                        <div className="hidden md:flex flex-col items-end">
-                                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Fecha Registro</p>
+                                                        {/* Fecha Column */}
+                                                        <div className="flex flex-col items-center lg:items-center">
                                                             <div className="flex items-center gap-1.5 font-bold text-slate-600">
-                                                                <Calendar className="h-3 w-3" />
+                                                                <Calendar className="h-3 w-3 text-slate-400" />
                                                                 <span className="text-[11px]">{format(new Date(date), 'dd/MM/yyyy HH:mm')}</span>
                                                             </div>
+                                                            <p className="lg:hidden text-[9px] font-bold text-slate-400 uppercase">Registro</p>
                                                         </div>
                                                         
-                                                        <div className="flex flex-col items-end min-w-[80px]">
-                                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Total Cambio</p>
+                                                        {/* Total Column */}
+                                                        <div className="flex flex-col items-center">
                                                             <span className="text-sm font-mono font-black text-emerald-600">${totalValue.toFixed(2)}</span>
-                                                                                                                 <div className="flex items-center gap-2">
-                                                            <div className="bg-slate-100 px-3 py-1.5 rounded-lg flex items-center gap-2">
-                                                                <LayoutList className="h-3 w-3 text-slate-400" />
-                                                                <span className="text-[11px] font-black text-slate-600 uppercase tracking-tighter">{totalItems} ITEMS</span>
+                                                            <p className="lg:hidden text-[9px] font-bold text-slate-400 uppercase">Total</p>
+                                                        </div>
+
+                                                        {/* Resumen/Badges Column */}
+                                                        <div className="grid grid-cols-2 gap-2 w-full max-w-[200px] mx-auto">
+                                                            <div className="flex justify-end">
+                                                                <div className="bg-slate-100 px-2 py-1 rounded flex items-center gap-1.5 min-w-[65px] justify-center">
+                                                                    <LayoutList className="h-3 w-3 text-slate-400" />
+                                                                    <span className="text-[10px] font-black text-slate-600 uppercase">{totalItems} ITM</span>
+                                                                </div>
                                                             </div>
 
+                                                            <div className="flex justify-start">
+                                                                {inTransitCount > 0 && (
+                                                                    <span className="flex items-center gap-1 bg-amber-50 text-amber-600 border border-amber-200 text-[9px] font-black uppercase px-2 py-0.5 rounded shadow-xs min-w-[75px] justify-center">
+                                                                        <Send className="h-2.5 w-2.5" /> {inTransitCount} TRANS.
+                                                                    </span>
+                                                                )}
+                                                                {blockedCount > 0 && (
+                                                                    <span className="flex items-center gap-1 bg-red-50 text-red-600 border border-red-200 text-[9px] font-black uppercase px-2 py-0.5 rounded shadow-xs min-w-[75px] justify-center">
+                                                                        <Lock className="h-2.5 w-2.5" /> {blockedCount} BLOQ.
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Acciones Column */}
+                                                        <div className="flex items-center justify-center lg:justify-end gap-1.5" onClick={e => e.stopPropagation()}>
                                                             {/* Editar */}
                                                             <Button
                                                                 size="sm"
@@ -274,7 +322,7 @@ export function ExchangesReceptionHistoryPage() {
                                                             <Button
                                                                 size="sm"
                                                                 variant="outline"
-                                                                className="h-8 w-8 p-0 rounded-lg hover:bg-monchito-purple hover:text-white transition-colors"
+                                                                className="h-8 w-8 p-0 rounded-lg hover:bg-monchito-purple hover:text-white transition-colors border-slate-200"
                                                                 onClick={async (e) => {
                                                                     e.stopPropagation();
                                                                     try {
@@ -293,80 +341,67 @@ export function ExchangesReceptionHistoryPage() {
                                                             >
                                                                 <Printer className="h-4 w-4" />
                                                             </Button>
-
-                                                            {/* Badges de estado */}
-                                                            {inTransitCount > 0 && (
-                                                                <span className="flex items-center gap-1 bg-amber-50 text-amber-600 border border-amber-200 text-[9px] font-black uppercase px-2 py-1 rounded-full">
-                                                                    <Send className="h-2.5 w-2.5" /> {inTransitCount} en tránsito
-                                                                </span>
-                                                            )}
-                                                            {blockedCount > 0 && (
-                                                                <span className="flex items-center gap-1 bg-red-50 text-red-600 border border-red-200 text-[9px] font-black uppercase px-2 py-1 rounded-full">
-                                                                    <Lock className="h-2.5 w-2.5" /> {blockedCount} bloqueados
-                                                                </span>
-                                                            )}
                                                         </div>
- </div>
                                                     </div>
-                                                </div>
-                                            </AccordionTrigger>
-                                            <AccordionContent className="px-0 pt-0 pb-6 bg-slate-50/50 animate-in fade-in duration-300">
-                                                <div className="px-4 overflow-x-auto">
-                                                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden min-w-[1400px] mb-4">
-                                                        <Table>
-                                                            <TableHeader className="bg-slate-50">
-                                                                <TableRow>
-                                                                    <TableHead className="text-center font-black text-[10px] uppercase tracking-widest w-12">N</TableHead>
-                                                                    <TableHead className="font-black text-[10px] uppercase tracking-widest min-w-[150px]">Empresaria</TableHead>
-                                                                    <TableHead className="font-black text-[10px] uppercase tracking-widest w-[100px]">Catálogo</TableHead>
-                                                                    <TableHead className="text-center font-black text-[10px] uppercase tracking-widest w-[120px]">N° Cambio M.</TableHead>
-                                                                    <TableHead className="text-center font-black text-[10px] uppercase tracking-widest w-[60px]">Cant. E</TableHead>
-                                                                    <TableHead className="font-black text-[10px] uppercase tracking-widest min-w-[200px]">Descrip. Se Va</TableHead>
-                                                                    <TableHead className="font-black text-[10px] uppercase tracking-widest min-w-[200px]">Descrip. Viene</TableHead>
-                                                                    <TableHead className="text-center font-black text-[10px] uppercase tracking-widest w-[60px]">Cant. R</TableHead>
-                                                                    <TableHead className="text-right font-black text-[10px] uppercase tracking-widest w-[90px]">Valor</TableHead>
-                                                                    <TableHead className="text-right font-black text-[10px] uppercase tracking-widest w-[90px]">Abonado</TableHead>
-                                                                    <TableHead className="text-right font-black text-[10px] uppercase tracking-widest w-[90px]">Saldo</TableHead>
-                                                                    <TableHead className="text-center font-black text-[10px] uppercase tracking-widest w-[120px]">P. Entrega</TableHead>
-                                                                    <TableHead className="text-center font-black text-[10px] uppercase tracking-widest w-[110px]">Estado</TableHead>
-                                                                </TableRow>
-                                                            </TableHeader>
-                                                            <TableBody>
-                                                                {orders.map((order, idx) => {
-                                                                    const paid = (order as any).paidAmount || 0;
-                                                                    const pending = Number(order.total) - paid;
-                                                                    
-                                                                    return (
-                                                                        <TableRow key={order.id} className="hover:bg-slate-50/50">
-                                                                            <TableCell className="text-center text-slate-400 font-bold">{idx + 1}</TableCell>
-                                                                            <TableCell className="font-bold text-slate-800 uppercase text-[10px]">{order.clientName}</TableCell>
-                                                                            <TableCell className="font-bold text-monchito-purple uppercase text-[10px]">{order.brandName}</TableCell>
-                                                                            <TableCell className="text-center font-mono font-black text-slate-500 text-[10px]">{order.sourceOrderNumber || '---'}</TableCell>
-                                                                            <TableCell className="text-center font-black text-slate-600 text-[10px]">{order.sourceQuantity || 1}</TableCell>
-                                                                            <TableCell className="text-[10px] text-slate-500 italic max-w-[200px] truncate">{order.sourceDescription || '---'}</TableCell>
-                                                                            <TableCell className="text-[10px] text-monchito-purple font-medium max-w-[200px] truncate">{order.description || '---'}</TableCell>
-                                                                            <TableCell className="text-center font-black text-slate-600 text-[10px]">{order.items?.[0]?.quantity || 1}</TableCell>
-                                                                            <TableCell className="text-right font-mono font-bold text-slate-600 text-[10px]">${Number(order.total).toFixed(2)}</TableCell>
-                                                                            <TableCell className="text-right font-mono font-bold text-emerald-600 text-[10px]">${Number(paid).toFixed(2)}</TableCell>
-                                                                            <TableCell className="text-right font-mono font-bold text-red-500 text-[10px]">${Number(pending).toFixed(2)}</TableCell>
-                                                                            <TableCell className="text-center text-slate-600 font-bold text-[10px]">
-                                                                                {order.possibleDeliveryDate ? format(new Date(order.possibleDeliveryDate), 'dd/MM/yyyy') : '---'}
-                                                                            </TableCell>
-                                                                            <TableCell className="text-center">
-                                                                                <OrderStatusBadge status={order.status} />
-                                                                            </TableCell>
-                                                                        </TableRow>
-                                                                    )
-                                                                })}
-                                                            </TableBody>
-                                                        </Table>
+                                                </AccordionTrigger>
+                                                <AccordionContent className="px-0 pt-0 pb-6 bg-slate-50/50 animate-in fade-in duration-300">
+                                                    <div className="px-4 overflow-x-auto">
+                                                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden min-w-[1400px] mb-4">
+                                                            <Table>
+                                                                <TableHeader className="bg-slate-50">
+                                                                    <TableRow>
+                                                                        <TableHead className="text-center font-black text-[10px] uppercase tracking-widest w-12">N</TableHead>
+                                                                        <TableHead className="font-black text-[10px] uppercase tracking-widest min-w-[150px]">Empresaria</TableHead>
+                                                                        <TableHead className="font-black text-[10px] uppercase tracking-widest w-[100px]">Catálogo</TableHead>
+                                                                        <TableHead className="text-center font-black text-[10px] uppercase tracking-widest w-[120px]">N° Cambio M.</TableHead>
+                                                                        <TableHead className="text-center font-black text-[10px] uppercase tracking-widest w-[60px]">Cant. E</TableHead>
+                                                                        <TableHead className="font-black text-[10px] uppercase tracking-widest min-w-[200px]">Descrip. Se Va</TableHead>
+                                                                        <TableHead className="font-black text-[10px] uppercase tracking-widest min-w-[200px]">Descrip. Viene</TableHead>
+                                                                        <TableHead className="text-center font-black text-[10px] uppercase tracking-widest w-[60px]">Cant. R</TableHead>
+                                                                        <TableHead className="text-right font-black text-[10px] uppercase tracking-widest w-[90px]">Valor</TableHead>
+                                                                        <TableHead className="text-right font-black text-[10px] uppercase tracking-widest w-[90px]">Abonado</TableHead>
+                                                                        <TableHead className="text-right font-black text-[10px] uppercase tracking-widest w-[90px]">Saldo</TableHead>
+                                                                        <TableHead className="text-center font-black text-[10px] uppercase tracking-widest w-[120px]">P. Entrega</TableHead>
+                                                                        <TableHead className="text-center font-black text-[10px] uppercase tracking-widest w-[110px]">Estado</TableHead>
+                                                                    </TableRow>
+                                                                </TableHeader>
+                                                                <TableBody>
+                                                                    {orders.map((order, idx) => {
+                                                                        const paid = (order as any).paidAmount || 0;
+                                                                        const pending = Number(order.total) - paid;
+                                                                        
+                                                                        return (
+                                                                            <TableRow key={order.id} className="hover:bg-slate-50/50">
+                                                                                <TableCell className="text-center text-slate-400 font-bold">{idx + 1}</TableCell>
+                                                                                <TableCell className="font-bold text-slate-800 uppercase text-[10px]">{order.clientName}</TableCell>
+                                                                                <TableCell className="font-bold text-monchito-purple uppercase text-[10px]">{order.brandName}</TableCell>
+                                                                                <TableCell className="text-center font-mono font-black text-slate-500 text-[10px]">{order.sourceOrderNumber || '---'}</TableCell>
+                                                                                <TableCell className="text-center font-black text-slate-600 text-[10px]">{order.sourceQuantity || 1}</TableCell>
+                                                                                <TableCell className="text-[10px] text-slate-500 italic max-w-[200px] truncate">{order.sourceDescription || '---'}</TableCell>
+                                                                                <TableCell className="text-[10px] text-monchito-purple font-medium max-w-[200px] truncate">{order.description || '---'}</TableCell>
+                                                                                <TableCell className="text-center font-black text-slate-600 text-[10px]">{order.items?.[0]?.quantity || 1}</TableCell>
+                                                                                <TableCell className="text-right font-mono font-bold text-slate-600 text-[10px]">${Number(order.total).toFixed(2)}</TableCell>
+                                                                                <TableCell className="text-right font-mono font-bold text-emerald-600 text-[10px]">${Number(paid).toFixed(2)}</TableCell>
+                                                                                <TableCell className="text-right font-mono font-bold text-red-500 text-[10px]">${Number(pending).toFixed(2)}</TableCell>
+                                                                                <TableCell className="text-center text-slate-600 font-bold text-[10px]">
+                                                                                    {order.possibleDeliveryDate ? format(new Date(order.possibleDeliveryDate), 'dd/MM/yyyy') : '---'}
+                                                                                </TableCell>
+                                                                                <TableCell className="text-center">
+                                                                                    <OrderStatusBadge status={order.status} />
+                                                                                </TableCell>
+                                                                            </TableRow>
+                                                                        )
+                                                                    })}
+                                                                </TableBody>
+                                                            </Table>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            </AccordionContent>
-                                        </AccordionItem>
-                                    )
-                                })}
-                            </Accordion>
+                                                </AccordionContent>
+                                            </AccordionItem>
+                                        )
+                                    })}
+                                </Accordion>
+                            </>
                         )}
                     </div>
                     

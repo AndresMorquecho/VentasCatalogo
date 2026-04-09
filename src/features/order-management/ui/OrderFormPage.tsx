@@ -88,6 +88,12 @@ interface BrandItem {
 
 
 export function OrderFormPage() {
+    const formatDateSafe = (date: any) => {
+        if (!date) return '';
+        const d = new Date(date);
+        return isNaN(d.getTime()) ? '' : d.toISOString().split('T')[0];
+    };
+
     const { id, receiptNumber } = useParams()
     const navigate = useNavigate()
     const isEditing = !!(id || receiptNumber)
@@ -773,11 +779,16 @@ export function OrderFormPage() {
                 if (receiptOrders && receiptOrders.length > 0) {
                     setIsLoadingRelated(true);
                     try {
-                        const allItems = receiptOrders;
-                        const firstOrder = allItems[0];
+                        const allItems = Array.isArray(receiptOrders) ? receiptOrders : [];
+                        const firstOrder = allItems.length > 0 ? allItems[0] : null;
+                        
+                        if (!firstOrder) {
+                            setIsLoadingRelated(false);
+                            return;
+                        }
 
                         const parentOrderNumber = allItems.find(item => 
-                            item.type === 'NORMAL' || item.type === 'PREVENTA'
+                            item && (item.type === 'NORMAL' || item.type === 'PREVENTA')
                         )?.orderNumber || "";
 
                         formik.setValues({
@@ -791,7 +802,7 @@ export function OrderFormPage() {
                                 quantity: o.items?.[0]?.quantity || 1,
                                 total: Number(o.total) || 0,
                                 type: o.type || "NORMAL",
-                                possibleDeliveryDate: o.possibleDeliveryDate ? new Date(o.possibleDeliveryDate).toISOString().split('T')[0] : "",
+                                possibleDeliveryDate: formatDateSafe(o.possibleDeliveryDate),
                                 salesChannel: o.salesChannel || "OFICINA",
                                 orderNumber: o.orderNumber || (o.type === 'REPROGRAMACION' ? parentOrderNumber : ""),
                                 bankAccountId: o.bankAccountId,
@@ -804,8 +815,8 @@ export function OrderFormPage() {
                             })),
                             deposit: 0,
                             creditToUse: 0,
-                            createdAt: firstOrder.createdAt ? new Date(firstOrder.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-                            transactionDate: firstOrder.transactionDate ? new Date(firstOrder.transactionDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+                            createdAt: formatDateSafe(firstOrder.createdAt) || formatDateSafe(new Date()),
+                            transactionDate: formatDateSafe(firstOrder.transactionDate) || formatDateSafe(new Date()),
                             paymentMethod: firstOrder.paymentMethod || "EFECTIVO",
                             notes: firstOrder.notes || "",
                         });
@@ -827,11 +838,14 @@ export function OrderFormPage() {
                 try {
                     // Fetch all orders sharing the same receipt number
                     const response = await orderApi.getAll({ search: order.receiptNumber, limit: 100 });
-                    const allItems = (response as any).data || (Array.isArray(response) ? response : [order]);
+                    const responseData = (response as any)?.data;
+                    const allItems = Array.isArray(responseData) 
+                        ? responseData 
+                        : (Array.isArray(response) ? response : [order]);
 
                     // Encontrar el orderNumber de un pedido NORMAL o PREVENTA para las reprogramaciones
                     const parentOrderNumber = allItems.find((item: any) => 
-                        item.type === 'NORMAL' || item.type === 'PREVENTA'
+                        item && (item.type === 'NORMAL' || item.type === 'PREVENTA')
                     )?.orderNumber || "";
 
                     formik.setValues({
@@ -845,7 +859,7 @@ export function OrderFormPage() {
                             quantity: o.items?.[0]?.quantity || 1,
                             total: Number(o.total) || 0,
                             type: o.type || "NORMAL",
-                            possibleDeliveryDate: o.possibleDeliveryDate ? new Date(o.possibleDeliveryDate).toISOString().split('T')[0] : "",
+                            possibleDeliveryDate: formatDateSafe(o.possibleDeliveryDate),
                             salesChannel: o.salesChannel || "OFICINA",
                             orderNumber: o.orderNumber || (o.type === 'REPROGRAMACION' ? parentOrderNumber : ""),
                             bankAccountId: o.bankAccountId,
@@ -858,8 +872,8 @@ export function OrderFormPage() {
                         })),
                         deposit: 0,
                         creditToUse: 0,
-                        createdAt: order.createdAt ? new Date(order.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-                        transactionDate: order.transactionDate ? new Date(order.transactionDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+                        createdAt: formatDateSafe(order.createdAt) || formatDateSafe(new Date()),
+                        transactionDate: formatDateSafe(order.transactionDate) || formatDateSafe(new Date()),
                         paymentMethod: order.paymentMethod || "EFECTIVO",
                         notes: order.notes || "",
                     });
@@ -2041,9 +2055,7 @@ export function OrderFormPage() {
                                 ...original,
                                 total: Number(updatedOrder.total) || original.total,
                                 deposit: Number((updatedOrder as any).deposit ?? original.deposit) || original.deposit,
-                                possibleDeliveryDate: updatedOrder.possibleDeliveryDate
-                                    ? new Date(updatedOrder.possibleDeliveryDate).toISOString().split('T')[0]
-                                    : original.possibleDeliveryDate,
+                                possibleDeliveryDate: formatDateSafe(updatedOrder.possibleDeliveryDate) || original.possibleDeliveryDate,
                                 orderNumber: updatedOrder.orderNumber || original.orderNumber,
                                 status: updatedOrder.status || original.status,
                                 payments: updatedOrder.payments || original.payments,
