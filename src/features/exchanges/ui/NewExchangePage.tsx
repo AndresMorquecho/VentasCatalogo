@@ -3,7 +3,7 @@ import { useFormik } from "formik"
 import { useNavigate, useParams } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
 import * as Yup from "yup"
-import { ArrowLeft, Plus, RefreshCw, Printer, FileText, PackageOpen, Send, Pencil, Save, Trash2, Pin, PinOff } from "lucide-react"
+import { ArrowLeft, Plus, RefreshCw, Printer, FileText, PackageOpen, Pencil, Save, Trash2, Pin, PinOff } from "lucide-react"
 
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
@@ -11,7 +11,6 @@ import { AsyncButton } from "@/shared/ui/async-button"
 import { Label } from "@/shared/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card"
 import { ConfirmDialog } from "@/shared/ui/confirm-dialog"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/ui/dialog"
 import { PageHeader } from "@/shared/ui/PageHeader"
 
 import { useOrder, useReceiptOrders } from "@/entities/order/model/hooks"
@@ -127,11 +126,6 @@ export function NewExchangePage() {
   const [saveStatus, setSaveStatus] = useState<'POR_ENVIAR' | 'EN_TRANSITO'>('POR_ENVIAR');
   const [pinnedColumns, setPinnedColumns] = useState<Set<string>>(new Set(['total', 'deposit', 'saldo', 'possibleDeliveryDate', 'action']));
 
-  // Per-row deposit modal state (edit mode only)
-  const [depositModalOpen, setDepositModalOpen] = useState(false);
-  const [depositModalItem, setDepositModalItem] = useState<any>(null); // The brandItem row being edited
-  const [depositModalIdx, setDepositModalIdx] = useState<number | null>(null);
-
   const togglePin = (colId: string) => {
     const newPinned = new Set(pinnedColumns);
     if (newPinned.has(colId)) newPinned.delete(colId);
@@ -173,7 +167,22 @@ export function NewExchangePage() {
   const totalPedidos = formik.values.brandItems.reduce((sum, item) => sum + Number(item.total || 0), 0);
   const totalAbonos = formik.values.brandItems.reduce((sum, item) => sum + Number(item.deposit || 0), 0);
 
-  const handleOpenRowEdit = (item: any) => { setItemToEdit(item); setIsRowEditModalOpen(true); };
+  const handleOpenRowEdit = (item: any) => { 
+    // Validation: Only editable if status is POR_ENVIAR or EN_TRANSITO (not yet processed for reception)
+    const BLOCKED_STATUSES = ['POR_RECIBIR', 'RECIBIDO_EN_BODEGA', 'ENTREGADO', 'CAMBIADO'];
+    if (BLOCKED_STATUSES.includes(item.status)) {
+      return notifyError(null, `No se puede editar: el pedido ya está en estado ${item.status}.`);
+    }
+
+    // Validation: Only editable if it ONLY has the initial payment (length <= 1)
+    // If it has more than 1 payment, it means it received extra payments from the Abonos module
+    if (item.payments && item.payments.length > 1) {
+      return notifyError(null, "No se puede editar: el pedido ya tiene abonos adicionales registrados desde el módulo de abonos.");
+    }
+
+    setItemToEdit(item); 
+    setIsRowEditModalOpen(true); 
+  };
   const handleSaveRowEdit = (updated: any) => { 
     const newItems = formik.values.brandItems.map(it => it.id === updated.id ? updated : it);
     formik.setFieldValue("brandItems", newItems);
@@ -343,71 +352,7 @@ export function NewExchangePage() {
     } catch (e) { notifyError(e, "Error al guardar notas"); } finally { setIsSavingNotes(false); }
   };
 
-  /**
-   * Handle deposit update for a specific row in edit mode.
-   * Covers all 4 cases:
-   *   A) deposit=0 -> newAmount>0  → CREATE new payment
-   *   B) deposit>0 -> newAmount=0  → DELETE existing payment(s) + rollback bank/wallet
-   *   C) deposit>0 -> newAmount different → DELETE old + CREATE new at new amount
-   *   D) No change  → no-op
-   */
-  const handleRowDepositSubmit = async (paymentData: PaymentModalData) => {
-    if (!depositModalItem || depositModalIdx === null) return;
-    const item = depositModalItem;
-    const orderId = item.id;
-    if (!orderId) return notifyError(null, 'Este ítem aún no tiene ID persistido. Guárdalo primero.');
 
-    const activePayments = paymentData.payments.filter((p: any) => p.amount > 0);
-    const newTotal = activePayments.reduce((s: number, p: any) => s + p.amount, 0);
-    const currentDeposit = Number(item.deposit || 0);
-
-    // Case D: no change
-    if (Math.abs(newTotal - currentDeposit) < 0.001) {
-      setDepositModalOpen(false);
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      // Step 1: Delete ALL existing payments for this order to start fresh
-      if (currentDeposit > 0) {
-        const existingPayments = await orderApi.getOrderPayments(orderId);
-        for (const p of existingPayments) {
-          await orderApi.removePayment(p.id);
-        }
-      }
-
-      // Step 2: Create new payment(s) if new amount > 0
-      if (newTotal > 0) {
-        for (const p of activePayments) {
-          await orderApi.createPayment({
-            orderId,
-            amount: p.amount,
-            method: p.method || 'EFECTIVO',
-            bankAccountId: p.bankAccountId,
-            description: `Abono cambio ${item.sourceOrderNumber || ''}`.trim(),
-            transactionReference: p.transactionReference,
-          });
-        }
-      }
-
-      // Step 3: Refresh the item in the form with the new deposit value
-      const newItems = [...formik.values.brandItems];
-      newItems[depositModalIdx] = { ...newItems[depositModalIdx], deposit: newTotal };
-      formik.setFieldValue('brandItems', newItems);
-
-      // Also invalidate queries so the history pages refresh
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
-      queryClient.invalidateQueries({ queryKey: ['receiptOrders', receiptNumber] });
-
-      notifySuccess(newTotal === 0 ? 'Abono eliminado correctamente' : `Abono actualizado a $${newTotal.toFixed(2)}`);
-      setDepositModalOpen(false);
-    } catch (e: any) {
-      notifyError(e, e?.message || 'Error al actualizar el abono');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const handlePaymentSubmit = async (paymentData: PaymentModalData) => {
     console.log("Submit attempt - current brandItems:", formik.values.brandItems);
@@ -511,16 +456,32 @@ export function NewExchangePage() {
     }
   };
 
-  const handleUpdateBatchStatus = async (status: 'POR_ENVIAR' | 'EN_TRANSITO') => {
-    if (!receiptNumber) return;
-    setIsSubmitting(true);
+  const handlePrint = async () => {
+    if (!receiptOrders || receiptOrders.length === 0) {
+      notifyError(null, "No hay pedidos para imprimir");
+      return;
+    }
+    
     try {
-      const orders = await orderApi.getByReceipt(receiptNumber);
-      for (const o of orders) await orderApi.update(o.id, { status });
-      notifySuccess("Estado actualizado");
-      navigate('/exchanges');
-    } catch (e) { notifyError(e, "Error"); } finally { setIsSubmitting(false); }
+      const { document, fileName, title } = await prepareExchangeReceiptForPreview(
+        receiptOrders,
+        {
+          id: user?.id || "1",
+          username: user?.username || "Vendedor",
+        } as any,
+        formik.values.orderNumber || formik.values.receiptNumber,
+        formik.values.notes
+      );
+
+      setPdfTitle(title);
+      setPdfFileName(fileName);
+      pdfPreview.openPreview(document);
+    } catch (error) {
+      notifyError(error, "Error al generar el PDF");
+    }
   };
+
+
 
   const handleMainSave = (status: 'POR_ENVIAR' | 'EN_TRANSITO') => {
     if (formik.values.brandItems.length === 0) return notifyError(null, "Agregue ítems");
@@ -726,23 +687,11 @@ export function NewExchangePage() {
                           {formatCurrency(item.total)}
                         </td>
                         <td className={`px-6 py-4 text-center bg-white transition-all ${pinnedColumns.has('deposit') ? 'sticky right-[320px] z-20 shadow-[-1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`}>
-                          {isEditing ? (
-                            // Edit mode: show deposit amount + button to open payment modal
-                            <button
-                              onClick={() => { setDepositModalItem(item); setDepositModalIdx(idx); setDepositModalOpen(true); }}
-                              className={`inline-flex items-center gap-1.5 px-3 h-8 rounded-lg border text-[11px] font-black transition-all ${
-                                Number(item.deposit) > 0
-                                  ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
-                                  : 'bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100 hover:text-slate-600'
-                              }`}
-                              title="Clic para gestionar el abono de esta fila"
-                            >
-                              {Number(item.deposit) > 0 ? `$${Number(item.deposit).toFixed(2)}` : '+ Abono'}
-                            </button>
-                          ) : (
-                            // Create mode: inline input
-                            <Input type="number" value={item.deposit || 0} onChange={(e) => { const newItems = [...formik.values.brandItems]; newItems[idx] = { ...newItems[idx], deposit: Number(e.target.value) }; formik.setFieldValue("brandItems", newItems); }} className="h-8 w-24 border-slate-200 text-right text-[11px] font-medium text-indigo-600 bg-transparent hover:bg-white focus:bg-white mx-auto" />
-                          )}
+                          <span className={`inline-flex items-center gap-1.5 px-3 h-8 rounded-lg text-[11px] font-black ${
+                            Number(item.deposit) > 0 ? 'text-emerald-700 bg-emerald-50' : 'text-slate-400'
+                          }`}>
+                            {formatCurrency(Number(item.deposit || 0))}
+                          </span>
                         </td>
                         <td className={`px-6 py-4 text-right text-[11px] font-black text-slate-900 bg-white transition-all ${pinnedColumns.has('saldo') ? 'sticky right-[210px] z-20 shadow-[-1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`}>
                           {formatCurrency(Number(item.total) - Number(item.deposit || 0))}
@@ -780,7 +729,7 @@ export function NewExchangePage() {
               <AsyncButton onClick={() => handleMainSave('POR_ENVIAR')} className="h-12 px-8 bg-monchito-purple font-black shadow-lg shadow-monchito-purple/20 rounded-xl" isLoading={isSubmitting}><PackageOpen className="mr-2 h-5 w-5" /> Guardar Recolección</AsyncButton>
             ) : (
               <>
-                <Button variant="outline" className="h-12 px-6 font-black rounded-xl border-slate-900" onClick={() => window.print()}><Printer className="mr-2 h-5 w-5" /> Imprimir</Button>
+                <Button variant="outline" className="h-12 px-6 font-black rounded-xl border-slate-900" onClick={handlePrint}><Printer className="mr-2 h-5 w-5" /> Imprimir</Button>
               </>
             )}
           </div>
@@ -794,26 +743,7 @@ export function NewExchangePage() {
       {/* Payment modal for global creation flow */}
       <PaymentModal open={paymentModalOpen} onOpenChange={setPaymentModalOpen} onSubmit={handlePaymentSubmit} paymentContext={{ type: "PEDIDO", clientId: formik.values.clientId, clientName: clients.find(c => c.id === formik.values.clientId)?.firstName || "Cliente", referenceNumber: formik.values.receiptNumber, description: "Cambio" }} expectedAmount={totalAbonos} initialAmount={totalAbonos} allowMultiplePayments={true} lockAmount={false} forceExactAmount={true} />
 
-      {/* Per-row deposit modal (edit mode): smartly creates, updates or deletes the payment */}
-      {depositModalItem && (
-        <PaymentModal
-          open={depositModalOpen}
-          onOpenChange={(open) => { if (!open) setDepositModalOpen(false); }}
-          onSubmit={handleRowDepositSubmit}
-          paymentContext={{
-            type: "PEDIDO",
-            clientId: formik.values.clientId,
-            clientName: clients.find(c => c.id === formik.values.clientId)?.firstName || "Cliente",
-            referenceNumber: depositModalItem?.sourceOrderNumber || depositModalItem?.id,
-            description: `Abono para ${depositModalItem?.brandName || 'cambio'}`
-          }}
-          expectedAmount={Number(depositModalItem?.total || 0)}
-          initialAmount={Number(depositModalItem?.deposit || 0)}
-          allowMultiplePayments={false}
-          lockAmount={false}
-          forceExactAmount={false}
-        />
-      )}
+
 
       {itemToEdit && (
         <ExchangeEditModal 
@@ -825,7 +755,7 @@ export function NewExchangePage() {
         />
       )}
       {pdfPreview.pdfDocument && (
-        <PDFPreviewModal open={pdfPreview.isOpen} onOpenChange={open => { pdfPreview.closePreview(); if (!open) navigate('/exchanges') }} title={pdfTitle} pdfDocument={pdfPreview.pdfDocument as any} fileName={pdfFileName} onDownload={pdfPreview.downloadPDF} onPrint={pdfPreview.printPDF} />
+        <PDFPreviewModal open={pdfPreview.isOpen} onOpenChange={open => { pdfPreview.closePreview(); if (!open && !isEditing) navigate('/exchanges') }} title={pdfTitle} pdfDocument={pdfPreview.pdfDocument as any} fileName={pdfFileName} onDownload={pdfPreview.downloadPDF} onPrint={pdfPreview.printPDF} />
       )}
     </div>
   )

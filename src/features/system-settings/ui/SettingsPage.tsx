@@ -339,12 +339,13 @@ function SimpleCard({ title, description, isActive, isSystem, onEdit, onDelete }
             <CardHeader className="pb-2">
                 <div className="flex justify-between items-start">
                     <CardTitle className="text-sm font-black uppercase tracking-tight group-hover:text-primary transition-colors cursor-pointer" onClick={onEdit}>{title}</CardTitle>
-                    <div className="flex gap-1">
-                        {isSystem ? (
+                    <div className="flex gap-2 items-center">
+                        {isSystem && (
                             <Badge className="bg-slate-100 text-slate-500 font-black text-[8px] uppercase tracking-tighter rounded-md h-5 px-1.5 border-none">Sistema</Badge>
-                        ) : (
-                            <Button variant="ghost" size="icon" onClick={onDelete} className="h-7 w-7 text-slate-200 hover:text-red-500 transition-colors"><Trash2 className="h-3.5 w-3.5" /></Button>
                         )}
+                        <Button variant="ghost" size="icon" onClick={onDelete} className="h-7 w-7 text-slate-200 hover:text-red-500 transition-colors">
+                            <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
                     </div>
                 </div>
                 <CardDescription className="text-[10px] font-bold text-slate-400 line-clamp-1">{description || "Sin descripción"}</CardDescription>
@@ -422,7 +423,7 @@ function GenericModal({ isOpen, onClose, title, data, onSave, isSaving }: any) {
                 <div className="p-8 space-y-6">
                     <div className="space-y-3">
                         <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Nombre</Label>
-                        <Input value={name} onChange={(e) => setName(e.target.value)} disabled={data?.isSystem} className="h-12 rounded-2xl bg-slate-50 border-slate-200 font-bold" />
+                        <Input value={name} onChange={(e) => setName(e.target.value)} className="h-12 rounded-2xl bg-slate-50 border-slate-200 font-bold" />
                     </div>
                     <div className="space-y-3">
                         <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Descripción</Label>

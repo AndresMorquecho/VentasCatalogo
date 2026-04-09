@@ -27,6 +27,7 @@ export type OperationType =
   | 'REEMBOLSO'
   | 'CAMBIO'
   | 'TRASPASO'
+  | 'VENTA_CATALOGO'
   | 'INTERNO';
 
 export type AccountMovementType = 'CASH' | 'BANK' | 'WALLET';

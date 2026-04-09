@@ -32,8 +32,6 @@ import { getActiveBrands } from "@/entities/brand/model/model"
 import { useNotifications } from "@/shared/lib/notifications"
 import { prepareOrderReceiptForPreview } from "@/features/order-receipt/lib/prepareOrderReceiptForPreview"
 import { useClientCredits } from "@/features/transactions/model/hooks"
-import { useLocking } from "@/features/lock-management/hooks/useLocking"
-import { ConcurrencyLockDialog } from "@/shared/ui/ConcurrencyLockDialog"
 import { useAuth } from "@/shared/auth"
 import { useCashClosurePreview } from "@/features/cash-closure/api/hooks"
 import { PaymentModal, type PaymentModalData } from "@/shared/ui/PaymentModal"
@@ -99,17 +97,7 @@ export function OrderFormPage() {
     const isEditing = !!(id || receiptNumber)
     const queryClient = useQueryClient()
 
-    // Manejo de Bloqueos por Concurrencia    // Concurrency locking disabled as requested
-    const isLockedByOther = false;
-    const lockingUser = null;
-    const isLockingLoading = false;
-    /*
-    const { isLockedByOther, lockingUser, isLockingLoading } = useLocking({
-        resourceId: id || receiptNumber || "",
-        resourceType: id ? "ORDER" : "RECEIPT",
-        enabled: !!(id || receiptNumber)
-    });
-    */
+
 
     // Caso 1: Edición por receiptNumber (carga múltiples pedidos)
     const { data: receiptOrders, isLoading: isLoadingReceiptOrders } = useReceiptOrders(receiptNumber || "")
@@ -171,7 +159,7 @@ export function OrderFormPage() {
                     systemSettingsApi.getOrderTypes(),
                     systemSettingsApi.getSalesChannels()
                 ])
-                setDynamicOrderTypes(types.filter((t: any) => t.isActive))
+                setDynamicOrderTypes(types.filter((t: any) => t.isActive && t.name !== 'CAMBIO' && t.name !== 'CATALOGO'))
                 setDynamicSalesChannels(channels.filter((c: any) => c.isActive))
             } catch (error) {
                 console.error("Error fetching system config", error)
@@ -586,37 +574,24 @@ export function OrderFormPage() {
             }
         }
 
-        // 2. Verificar estado del pedido
-        if (order.status === 'RECIBIDO_EN_BODEGA') {
-            return {
-                canEdit: false,
-                reason: 'No se puede editar: El pedido ya ha sido receptado en bodega.'
-            }
-        }
-        
-        if (order.status === 'ENTREGADO') {
-            return {
-                canEdit: false,
-                reason: 'No se puede editar: El pedido ya ha sido entregado.'
-            }
-        }
-
-        if (order.status && order.status !== 'POR_RECIBIR') {
+        // 2. Verificar estado del pedido (No editable si ya fue receptado o entregado)
+        const BLOCKED_STATUSES = ['RECIBIDO_EN_BODEGA', 'ENTREGADO', 'CAMBIADO'];
+        if (BLOCKED_STATUSES.includes(order.status)) {
             return {
                 canEdit: false,
                 reason: `No se puede editar: El pedido ya está en estado ${order.status}.`
             }
         }
 
-        // 3. Verificar pagos múltiples del pedido ESPECÍFICO
-        // Se permiten hasta 2 abonos si uno de ellos es 'CREDITO_CLIENTE' (abono inicial + saldo a favor)
+        // 3. Verificar abonos adicionales
+        // Se permiten hasta 2 abonos si uno de ellos es 'CREDITO_CLIENTE' (abono inicial combinado)
         const payments = order.payments || [];
         const hasExtraPayments = payments.length > 2 || (payments.length > 1 && !payments.some((p: any) => p.method === 'CREDITO_CLIENTE'));
         
         if (hasExtraPayments) {
             return {
                 canEdit: false,
-                reason: 'No se puede editar este pedido: Ya tiene abonos adicionales vinculados.'
+                reason: 'No se puede editar: El pedido ya tiene abonos adicionales registrados desde el módulo de abonos.'
             }
         }
 
@@ -1414,7 +1389,7 @@ export function OrderFormPage() {
                         <CardTitle className="text-[10px] font-black uppercase tracking-widest text-monchito-purple">Encabezado Recibo</CardTitle>
                     </CardHeader>
                     <CardContent className="p-3">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
                             <div className="space-y-1">
                                 <Label className="text-xs font-bold text-slate-600">No de recibo:</Label>
                                 <div className="flex gap-1">
@@ -1424,7 +1399,7 @@ export function OrderFormPage() {
                                             disabled={isLoadingReceiptNumber || isEditing}
                                             onKeyDown={e => handleHeaderKeyDown(e, 'receiptNumber')}
                                             data-nav="receiptNumber"
-                                            className={`h-8 text-sm font-mono font-bold text-monchito-purple bg-monchito-purple/5 transition-all duration-500 ${justUpdated ? 'ring-2 ring-monchito-purple animate-pulse shadow-[0_0_15px_-3px_rgba(111,63,169,0.3)]' : ''}`}
+                                            className={`h-9 text-sm font-mono font-bold text-monchito-purple bg-monchito-purple/5 transition-all duration-500 ${justUpdated ? 'ring-2 ring-monchito-purple animate-pulse shadow-[0_0_15px_-3px_rgba(111,63,169,0.3)]' : ''}`}
                                         />
                                         {!isEditing && lastSyncTime && (
                                             <span className="absolute -bottom-3.5 right-0 text-[8px] font-black uppercase tracking-[0.05em] text-monchito-purple/40 flex items-center gap-1 animate-in fade-in slide-in-from-top-1 duration-500">
@@ -1451,9 +1426,7 @@ export function OrderFormPage() {
                                 </div>
                             </div>
                             <div className="space-y-1">
-                                <div className="flex items-center gap-1.5 pb-0.5">
-                                    <Label className="text-xs font-bold text-slate-600">Fecha de Registro:</Label>
-                                </div>
+                                <Label className="text-xs font-bold text-slate-600">Fecha de Registro:</Label>
                                 <div className="h-9 w-full rounded-lg border border-slate-200 bg-slate-50 flex items-center px-3 gap-2">
                                     <Lock className="h-3 w-3 text-slate-400" />
                                     <span className="text-sm font-semibold text-slate-500">

@@ -485,7 +485,7 @@ export function DeliveryTab() {
             description: `Venta de catálogo ${selectedBrand.name} - ${campaign} (Total: $${totalPrice.toFixed(2)})`
           }}
           expectedAmount={totalPrice}
-          allowMultiplePayments={true}
+          allowMultiplePayments={false}
           initialAmount={totalPrice}
           lockAmount={false}
         />

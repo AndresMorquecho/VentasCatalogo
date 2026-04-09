@@ -10,9 +10,7 @@ import {
     Printer,
     Pencil,
     Trash2,
-    Lock,
     AlertTriangle,
-    Send,
 } from "lucide-react"
 import { Card, CardContent } from "@/shared/ui/card"
 import { Button } from "@/shared/ui/button"
@@ -172,16 +170,7 @@ export function ExchangesReceptionHistoryPage() {
                                     }}
                                 />
                             </div>
-                            <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-100">
-                                <div className="px-3 py-1.5 bg-white rounded-lg shadow-sm border border-slate-200 flex items-center gap-2">
-                                    <Lock className="h-3 w-3 text-red-500" />
-                                    <span className="text-[10px] font-black text-slate-600 uppercase">Bloqueado = Recibido/Entregado</span>
-                                </div>
-                                <div className="px-3 py-1.5 bg-white rounded-lg shadow-sm border border-slate-200 flex items-center gap-2">
-                                    <Send className="h-3 w-3 text-amber-500" />
-                                    <span className="text-[10px] font-black text-slate-600 uppercase">Tránsito = Por recibir</span>
-                                </div>
-                            </div>
+
                         </div>
                     </CardContent>
                 </Card>
@@ -220,7 +209,7 @@ export function ExchangesReceptionHistoryPage() {
                                         const date = firstOrder.createdAt
                                         const totalItems = orders.length
                                         const totalValue = orders.reduce((sum, o) => sum + Number(o.total), 0)
-                                        const { canDelete, canEdit, deleteBlockReason, blockedCount, inTransitCount } = getGroupRestrictions(orders)
+                                        const { canDelete, canEdit, deleteBlockReason } = getGroupRestrictions(orders)
 
                                         return (
                                             <AccordionItem key={receipt} value={receipt} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/40 transition-colors">
@@ -263,26 +252,10 @@ export function ExchangesReceptionHistoryPage() {
                                                             <p className="lg:hidden text-[9px] font-bold text-slate-400 uppercase">Total</p>
                                                         </div>
 
-                                                        {/* Resumen/Badges Column */}
-                                                        <div className="grid grid-cols-2 gap-2 w-full max-w-[200px] mx-auto">
-                                                            <div className="flex justify-end">
-                                                                <div className="bg-slate-100 px-2 py-1 rounded flex items-center gap-1.5 min-w-[65px] justify-center">
-                                                                    <LayoutList className="h-3 w-3 text-slate-400" />
-                                                                    <span className="text-[10px] font-black text-slate-600 uppercase">{totalItems} ITM</span>
-                                                                </div>
-                                                            </div>
-
-                                                            <div className="flex justify-start">
-                                                                {inTransitCount > 0 && (
-                                                                    <span className="flex items-center gap-1 bg-amber-50 text-amber-600 border border-amber-200 text-[9px] font-black uppercase px-2 py-0.5 rounded shadow-xs min-w-[75px] justify-center">
-                                                                        <Send className="h-2.5 w-2.5" /> {inTransitCount} TRANS.
-                                                                    </span>
-                                                                )}
-                                                                {blockedCount > 0 && (
-                                                                    <span className="flex items-center gap-1 bg-red-50 text-red-600 border border-red-200 text-[9px] font-black uppercase px-2 py-0.5 rounded shadow-xs min-w-[75px] justify-center">
-                                                                        <Lock className="h-2.5 w-2.5" /> {blockedCount} BLOQ.
-                                                                    </span>
-                                                                )}
+                                                        <div className="flex items-center justify-center">
+                                                            <div className="bg-slate-100 px-3 py-1.5 rounded-lg flex items-center gap-1.5 min-w-[80px] justify-center">
+                                                                <LayoutList className="h-3.5 w-3.5 text-slate-400" />
+                                                                <span className="text-[11px] font-black text-slate-600 uppercase">{totalItems} ITM</span>
                                                             </div>
                                                         </div>
 
@@ -307,7 +280,7 @@ export function ExchangesReceptionHistoryPage() {
                                                                 size="sm"
                                                                 variant="outline"
                                                                 title={canDelete ? `Eliminar ${receipt}` : deleteBlockReason || 'No se puede eliminar'}
-                                                                className={`h-8 w-8 p-0 rounded-lg transition-colors ${canDelete ? 'hover:bg-red-50 hover:text-red-600 hover:border-red-300' : 'opacity-40 cursor-not-allowed'}`}
+                                                                className={`h-8 w-8 p-0 rounded-lg transition-colors ${canDelete ? 'hover:bg-red-50 hover:text-red-600 hover:border-red-300 text-slate-400' : 'opacity-40 cursor-not-allowed text-slate-200'}`}
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
                                                                     if (canDelete) {
@@ -315,7 +288,7 @@ export function ExchangesReceptionHistoryPage() {
                                                                     }
                                                                 }}
                                                             >
-                                                                {canDelete ? <Trash2 className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+                                                                <Trash2 className="h-4 w-4" />
                                                             </Button>
 
                                                             {/* Imprimir PDF */}

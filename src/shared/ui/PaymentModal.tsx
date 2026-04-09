@@ -63,7 +63,7 @@ export function PaymentModal({
     onSubmit,
     paymentContext,
     expectedAmount,
-    allowMultiplePayments = true,
+    allowMultiplePayments = false,
     initialAmount,
     orderItems,
     lockAmount = false,

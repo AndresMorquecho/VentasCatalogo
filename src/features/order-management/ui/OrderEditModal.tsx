@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useNotifications } from "@/shared/lib/notifications"
 import { useUpdateOrder } from "@/entities/order/model/hooks"
@@ -91,11 +91,16 @@ export function OrderEditModal({ order, open, onOpenChange, onSuccess, lastClosu
         }
         
         // 2. Verificar estado del pedido y movimientos
-        if (order.status !== 'POR_RECIBIR' || (order.payments && order.payments.length > 1)) {
+        const BLOCKED_STATUSES = ['RECIBIDO_EN_BODEGA', 'ENTREGADO', 'CAMBIADO'];
+        const payments = order.payments || [];
+        const hasExtraPayments = payments.length > 2 || (payments.length > 1 && !payments.some((p: any) => p.method === 'CREDITO_CLIENTE'));
+
+        if (BLOCKED_STATUSES.includes(order.status) || hasExtraPayments) {
             let reason = 'No se puede editar: El pedido ya tiene movimientos procesados.'
             if (order.status === 'RECIBIDO_EN_BODEGA') reason = 'No se puede editar: El pedido ya ha sido receptado en bodega.'
             if (order.status === 'ENTREGADO') reason = 'No se puede editar: El pedido ya ha sido entregado.'
-            if (order.payments && order.payments.length > 1) reason = 'No se puede editar: El pedido ya tiene abonos adicionales vinculados.'
+            if (BLOCKED_STATUSES.includes(order.status)) reason = `No se puede editar: El pedido ya está en estado ${order.status}.`
+            if (hasExtraPayments) reason = 'No se puede editar: El pedido ya tiene abonos adicionales registrados desde el módulo de abonos.'
             notifyError(null, reason)
             return
         }

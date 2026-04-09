@@ -17,7 +17,7 @@
 import {
     ArrowUpCircle, ArrowDownCircle,
     Building2, Wallet, Banknote, RefreshCw, CreditCard,
-    Loader2, ChevronDown, ChevronUp
+    Loader2, ChevronDown, ChevronUp, BookOpen
 } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
@@ -41,6 +41,7 @@ const OPERATION_COLOR: Record<OperationType, { bg: string; text: string; badge: 
     CAMBIO:    { bg: 'bg-gradient-to-br from-amber-50 to-orange-50',  text: 'text-amber-800',   badge: 'bg-amber-100 text-amber-700' },
     TRASPASO:  { bg: 'bg-gradient-to-br from-slate-50 to-gray-50',    text: 'text-slate-700',   badge: 'bg-slate-100 text-slate-600' },
     INTERNO:   { bg: 'bg-gradient-to-br from-slate-50 to-gray-50',    text: 'text-slate-700',   badge: 'bg-slate-100 text-slate-600' },
+    VENTA_CATALOGO: { bg: 'bg-gradient-to-br from-pink-50 to-fuchsia-50', text: 'text-fuchsia-800', badge: 'bg-fuchsia-100 text-fuchsia-700' },
 }
 
 const OPERATION_ICON: Record<OperationType, React.ElementType> = {
@@ -51,6 +52,7 @@ const OPERATION_ICON: Record<OperationType, React.ElementType> = {
     CAMBIO:    RefreshCw,
     TRASPASO:  ArrowUpCircle,
     INTERNO:   ArrowUpCircle,
+    VENTA_CATALOGO: BookOpen,
 }
 
 const ACCOUNT_ICON: Record<string, React.ElementType> = {
@@ -171,31 +173,46 @@ function TransactionCard({ card }: { card: TransactionCardDTO }) {
                             )}
                         </div>
 
-                        {/* Col 2: N° Orden(es) */}
-                        <div className="space-y-0.5">
-                            <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">N° Orden</span>
-                            <p className="text-xs font-mono font-bold text-slate-600 bg-slate-100/50 px-1.5 py-0.5 rounded w-fit line-clamp-2">
-                                {card.orders.length > 0 ? card.orders.map(o => o.receiptNumber).join(', ') : '—'}
-                            </p>
-                        </div>
+                        {/* Col 2: N° Orden(es) o N° Transacción */}
+                        {card.operationType === 'RECARGA' ? (
+                            <div className="space-y-0.5">
+                                <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">N° Transacción / Doc</span>
+                                <p className="text-xs font-mono font-bold text-slate-600 bg-slate-100/50 px-1.5 py-0.5 rounded w-fit line-clamp-2">
+                                    {card.reference || '—'}
+                                </p>
+                            </div>
+                        ) : (
+                            card.operationType !== 'VENTA_CATALOGO' && (
+                                <div className="space-y-0.5">
+                                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">N° Orden</span>
+                                    <p className="text-xs font-mono font-bold text-slate-600 bg-slate-100/50 px-1.5 py-0.5 rounded w-fit line-clamp-2">
+                                        {card.orders.length > 0 ? card.orders.map(o => o.receiptNumber).join(', ') : '—'}
+                                    </p>
+                                </div>
+                            )
+                        )}
 
                         {/* Col 3: N° Pedido(s) */}
-                        <div className="space-y-0.5">
-                            <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">N° Pedido</span>
-                            <p className="text-xs font-mono text-slate-500 line-clamp-2">
-                                {card.orders.length > 0
-                                    ? card.orders.map(o => o.orderNumber ?? '—').join(', ')
-                                    : '—'}
-                            </p>
-                        </div>
+                        {card.operationType !== 'VENTA_CATALOGO' && card.operationType !== 'RECARGA' && (
+                            <div className="space-y-0.5">
+                                <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">N° Pedido</span>
+                                <p className="text-xs font-mono text-slate-500 line-clamp-2">
+                                    {card.orders.length > 0
+                                        ? card.orders.map(o => o.orderNumber ?? '—').join(', ')
+                                        : '—'}
+                                </p>
+                            </div>
+                        )}
 
                         {/* Col 4: Marca(s) */}
-                        <div className="space-y-0.5">
-                            <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">Marca</span>
-                            <p className="text-xs font-black text-slate-700 truncate">
-                                {card.brands.length > 0 ? card.brands.join(', ') : '—'}
-                            </p>
-                        </div>
+                        {card.operationType !== 'RECARGA' && (
+                            <div className="space-y-0.5">
+                                <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">Marca</span>
+                                <p className="text-xs font-black text-slate-700 truncate">
+                                    {card.brands.length > 0 ? card.brands.join(', ') : '—'}
+                                </p>
+                            </div>
+                        )}
 
                         {/* Col 5: Tipo */}
                         <div className="space-y-0.5">
@@ -206,8 +223,8 @@ function TransactionCard({ card }: { card: TransactionCardDTO }) {
                         </div>
                     </div>
 
-                    {/* Control / Validación extraído del campo extra */}
-                    {card.extra && (
+                    {/* Control / Validación extraído del campo extra - SOLO PARA RECARGAS */}
+                    {card.extra && card.operationType === 'RECARGA' && (
                         <div className="bg-slate-50/70 p-3 flex flex-col gap-1 rounded border border-slate-100 mt-2">
                             <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">Control / Validación</span>
                             <p className="text-xs font-mono font-bold text-slate-600 line-clamp-1">{card.extra.replace('Control: ', '')}</p>
@@ -217,7 +234,9 @@ function TransactionCard({ card }: { card: TransactionCardDTO }) {
                     {/* Observaciones extraídas del campo description/notes */}
                     {card.notes && (
                         <div className="bg-slate-50/70 p-3 flex flex-col gap-1 rounded border border-slate-100 mt-2">
-                            <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">Observaciones</span>
+                            <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">
+                                {card.operationType === 'RECARGA' ? 'Notas Adicionales' : 'Observaciones'}
+                            </span>
                             <p className="text-xs text-slate-600 whitespace-pre-wrap">{card.notes}</p>
                         </div>
                     )}

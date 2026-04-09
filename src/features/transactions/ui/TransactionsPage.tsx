@@ -18,7 +18,7 @@ const ACCOUNT_TYPE_OPTIONS = [
     { value: "", label: "Todas las Cuentas" },
     { value: "CASH", label: "Caja Efectivo" },
     { value: "BANK_ACCOUNT", label: "Cuentas Bancarias" },
-    { value: "WALLET", label: "Saldos a Favor (Wallet)" },
+    { value: "WALLET", label: "Abonos con Billetera (Wallet)" },
 ]
 
 export function TransactionsPage() {
@@ -115,7 +115,7 @@ export function TransactionsPage() {
                 />
 
                 {/* Glassmorphic Filter Panel */}
-                <div className="bg-white/80 backdrop-blur-md p-8 rounded-3xl border border-slate-100 shadow-[0_15px_50px_rgba(0,0,0,0.03)] focus-within:shadow-[0_20px_60px_rgba(0,0,0,0.05)] transition-all duration-500">
+                <div className="relative z-[20] bg-white/80 backdrop-blur-md p-8 rounded-3xl border border-slate-100 shadow-[0_15px_50px_rgba(0,0,0,0.03)] focus-within:shadow-[0_20px_60px_rgba(0,0,0,0.05)] transition-all duration-500">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-6">
                         <div className="space-y-2">
                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 flex items-center gap-2">

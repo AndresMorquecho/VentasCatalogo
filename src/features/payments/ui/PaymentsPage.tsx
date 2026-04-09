@@ -361,19 +361,24 @@ export function PaymentsPage() {
                                 <div className="rounded-2xl border border-slate-100 overflow-hidden">
                                     <PaymentsHistoryTable
                                         payments={selectedOrder.payments.map((p: any) => ({
-                                        id: p.id,
-                                        amount: p.amount,
-                                        date: p.createdAt,
-                                        method: p.method,
-                                        reference: p.reference,
-                                        receiptNumber: p.receiptNumber,
-                                        description: p.description,
-                                        createdBy: p.createdByName || p.createdBy,
-                                        financialRecords: p.financialRecords || []
-                                    }))}
+                                            id: p.id,
+                                            amount: p.amount,
+                                            date: p.createdAt,
+                                            method: p.method,
+                                            reference: p.reference,
+                                            receiptNumber: p.receiptNumber,
+                                            description: p.description,
+                                            createdBy: p.createdByName || p.createdBy,
+                                            financialRecords: p.financialRecords || []
+                                        }))}
                                         orderTotal={getEffectiveTotal(selectedOrder)}
                                         onDelete={handleDeletePayment}
                                         readOnly={!hasPermission('payments.delete')}
+                                        orderMetadata={{
+                                            createdAt: selectedOrder.createdAt,
+                                            createdBy: selectedOrder.createdByName,
+                                            receiptNumber: selectedOrder.receiptNumber
+                                        }}
                                     />
                                 </div>
                             </div>
@@ -414,7 +419,7 @@ export function PaymentsPage() {
                         description: "Abono a pedido"
                     }}
                     expectedAmount={Math.max(0, (selectedOrder.realInvoiceTotal || selectedOrder.total) - getPaidAmount(selectedOrder))}
-                    allowMultiplePayments={true}
+                    allowMultiplePayments={false}
                 />
             )}
 

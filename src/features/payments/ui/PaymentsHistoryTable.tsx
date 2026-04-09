@@ -26,13 +26,6 @@ interface Payment {
     financialRecords?: FinancialRecord[];
 }
 
-interface Props {
-    payments: Payment[];
-    orderTotal?: number;
-    onDelete?: (paymentId: string) => void;
-    readOnly?: boolean;
-}
-
 const METHOD_LABELS: Record<string, string> = {
     EFECTIVO: 'Efectivo',
     TRANSFERENCIA: 'Transferencia',
@@ -41,7 +34,22 @@ const METHOD_LABELS: Record<string, string> = {
     BILLETERA_VIRTUAL: 'Billetera Virtual',
     CREDITO_CLIENTE: 'Crédito Cliente',
     SPLIT_PAYMENT: 'Pago Dividido',
+    CAMBIO: 'Nota de Crédito/Cambio'
 };
+
+interface OrderMetadata {
+    createdAt: string;
+    createdBy?: string;
+    receiptNumber: string;
+}
+
+interface Props {
+    payments: Payment[];
+    orderTotal?: number;
+    onDelete?: (paymentId: string) => void;
+    readOnly?: boolean;
+    orderMetadata?: OrderMetadata;
+}
 
 function formatMethod(method: string): string {
     return METHOD_LABELS[method] || method;
@@ -96,14 +104,8 @@ function buildRows(payment: Payment): Array<{
     }];
 }
 
-export function PaymentsHistoryTable({ payments, orderTotal, onDelete, readOnly = false }: Props) {
-    if (payments.length === 0) {
-        return (
-            <div className="text-center py-6 text-slate-400 text-sm italic">
-                No hay abonos registrados para este pedido.
-            </div>
-        );
-    }
+export function PaymentsHistoryTable({ payments, orderTotal, onDelete, readOnly = false, orderMetadata }: Props) {
+
 
     const allRows = payments.flatMap(buildRows);
 
@@ -132,10 +134,22 @@ export function PaymentsHistoryTable({ payments, orderTotal, onDelete, readOnly 
                         const initialRow = (
                             <TableRow key="initial-debt" className="bg-slate-50/30">
                                 <TableCell className="font-black text-slate-400 text-xs">-</TableCell>
-                                <TableCell className="font-mono text-[10px] text-slate-400">-</TableCell>
+                                <TableCell className="font-mono text-[10px] text-slate-400">
+                                    {orderMetadata?.createdAt ? new Date(orderMetadata.createdAt).toLocaleString('es-EC', {
+                                        year: 'numeric',
+                                        month: '2-digit',
+                                        day: '2-digit',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                    }) : '-'}
+                                </TableCell>
                                 <TableCell className="text-[10px] text-slate-400">-</TableCell>
-                                <TableCell className="text-[10px] text-slate-400">-</TableCell>
-                                <TableCell className="text-[10px] text-slate-400 italic font-bold">Sistema</TableCell>
+                                <TableCell className="text-[10px] text-slate-400 truncate max-w-[100px]">
+                                    {orderMetadata?.receiptNumber || '-'}
+                                </TableCell>
+                                <TableCell className="text-[10px] text-slate-500 italic font-bold">
+                                    {orderMetadata?.createdBy || 'Sistema'}
+                                </TableCell>
                                 <TableCell className="text-[10px] text-slate-600 font-bold italic">Deuda Inicial</TableCell>
                                 <TableCell className="text-right font-black text-slate-700 text-sm">
                                     ${baseTotal.toFixed(2)}

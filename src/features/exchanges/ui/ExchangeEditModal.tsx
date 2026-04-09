@@ -7,7 +7,6 @@ import { getPaidAmount } from "@/entities/order/model/model"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/ui/dialog"
 import { Input } from "@/shared/ui/input"
 import { Label } from "@/shared/ui/label"
-import { Separator } from "@/shared/ui/separator"
 import { Button } from "@/shared/ui/button"
 import { AsyncButton } from "@/shared/ui/async-button"
 import { Lock } from "lucide-react"
@@ -83,6 +82,7 @@ export function ExchangeEditModal({ order, open, onOpenChange, onSuccess, bankAc
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
 
+        // 1. Validations
         if (hasExistingDeposit) {
             if (formData.deposit < 0) return notifyError(null, 'El abono no puede ser negativo.')
             if (formData.deposit > formData.total) return notifyError(null, 'El abono no puede ser mayor al valor.')
@@ -96,7 +96,6 @@ export function ExchangeEditModal({ order, open, onOpenChange, onSuccess, bankAc
         }
 
         try {
-            notifyLoading('Actualizando datos del cambio...')
             const quantity = Number(order.items?.[0]?.quantity || 1)
             const unitPrice = quantity > 0 ? formData.total / quantity : 0
 
@@ -122,17 +121,30 @@ export function ExchangeEditModal({ order, open, onOpenChange, onSuccess, bankAc
                 bankAccountId: hasExistingDeposit ? originalBankAccountId : formData.bankAccountId
             }
 
-            await updateOrder.mutateAsync({ id: order.id, data: payload })
+            // ONLY call the API if this is a PERSISTED order (has a numeric-looking ID or we are in a context where orders exist)
+            // In this app, temporary IDs are often UUIDs from crypto.randomUUID()
+            // Real IDs from the backend are often also UUIDs, but we can check if it's a "draft" context.
+            // A simple way to check if it's a draft is if it lacks a 'status' or if it's explicitly marked.
+            // In NewExchangePage, items have 'id: crypto.randomUUID()' but no status until saved.
             
-            queryClient.invalidateQueries({ queryKey: ['orders'] })
-            queryClient.invalidateQueries({ queryKey: ['receiptOrders', order.receiptNumber] })
+            const isPersisted = !!(order.status || order.createdAt);
+
+            if (isPersisted) {
+                notifyLoading('Actualizando datos del cambio...')
+                await updateOrder.mutateAsync({ id: order.id, data: payload })
+                queryClient.invalidateQueries({ queryKey: ['orders'] })
+                queryClient.invalidateQueries({ queryKey: ['receiptOrders', order.receiptNumber] })
+                dismiss()
+                notifySuccess('Cambio actualizado correctamente.')
+            } else {
+                notifySuccess('Ítem actualizado localmente.')
+            }
             
-            dismiss()
-            notifySuccess('Cambio actualizado correctamente.')
             onSuccess({
                 ...order,
                 ...payload
             })
+            onOpenChange(false)
         } catch (error: any) {
             dismiss()
             notifyError(error, 'Error al actualizar.')
@@ -154,12 +166,12 @@ export function ExchangeEditModal({ order, open, onOpenChange, onSuccess, bankAc
                         <table className="w-full text-[11px] border-collapse min-w-[1100px]">
                             <thead className="bg-slate-50 text-slate-500 border-b uppercase font-black tracking-widest">
                                 <tr>
-                                    <th className="px-3 py-3 border-r text-left">Catálogo Destino</th>
+                                    <th className="px-3 py-3 border-r text-left">Catálogo</th>
                                     <th className="px-3 py-3 border-r text-left w-[180px]">N° Cambio</th>
                                     <th className="px-3 py-3 border-r text-right w-[110px]">Valor</th>
                                     <th className="px-3 py-3 border-r text-right w-[110px]">Abono</th>
                                     <th className="px-3 py-3 border-r text-right w-[90px]">Saldo</th>
-                                    <th className="px-3 py-3 border-r text-left">Cat. Origen</th>
+
                                     <th className="px-3 py-3 border-r text-center w-[60px]">Cant.</th>
                                     <th className="px-3 py-3 border-r text-left">Descrip. Origen</th>
                                     <th className="px-3 py-3 border-r text-left">Descrip. Destino</th>
@@ -202,7 +214,7 @@ export function ExchangeEditModal({ order, open, onOpenChange, onSuccess, bankAc
                                     <td className="px-3 py-4 border-r text-right">
                                         <span className={`font-black ${saldo > 0 ? 'text-red-500' : 'text-slate-400'}`}>${saldo.toFixed(2)}</span>
                                     </td>
-                                    <td className="px-3 py-4 border-r text-slate-500 font-medium uppercase truncate max-w-[100px]">{formData.sourceBrandName || "---"}</td>
+
                                     <td className="px-3 py-4 border-r text-center text-slate-500 font-black">{formData.sourceQuantity}</td>
                                     <td className="px-3 py-4 border-r text-slate-400 italic truncate max-w-[120px]" title={formData.sourceDescription}>{formData.sourceDescription || "---"}</td>
                                     <td className="px-3 py-4 border-r text-slate-400 italic truncate max-w-[120px]" title={formData.description}>{formData.description || "---"}</td>
