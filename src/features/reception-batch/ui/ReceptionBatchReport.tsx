@@ -180,10 +180,10 @@ export const ReceptionBatchReport: React.FC<Props> = ({ orders, packingNumber, p
 
                     {orders.map((o, i) => (
                         <View key={o.id || i} style={styles.tableRow}>
-                            <Text style={[styles.tableCell, styles.colReceipt]}>{o.receiptNumber}</Text>
+                            <Text style={[styles.tableCell, styles.colReceipt]}>{o.type === 'CAMBIO' ? o.orderNumber : o.receiptNumber}</Text>
                             <Text style={[styles.tableCell, styles.colClient]}>{o.clientName}</Text>
                             <Text style={[styles.tableCell, styles.colBrand]}>{o.brandName}</Text>
-                            <Text style={[styles.tableCell, styles.colOrderNo]}>{o.orderNumber}</Text>
+                            <Text style={[styles.tableCell, styles.colOrderNo]}>{o.type === 'CAMBIO' ? (o.sourceOrderNumber || '---') : (o.orderNumber || '---')}</Text>
                             <Text style={[styles.tableCell, styles.colDocType]}>{o.documentType || 'FACTURA'}</Text>
                             <Text style={[styles.tableCell, styles.colInvNo]}>{o.invoiceNumber || '-'}</Text>
                             <Text style={[styles.tableCell, styles.colAbono]}>

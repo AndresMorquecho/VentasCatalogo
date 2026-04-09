@@ -178,7 +178,7 @@ export const OrderLabelsDocument = ({ orders, clientsMap, user, packingNumber }:
                                     </View>
 
                                     <Text style={styles.receiptNumberLine}>
-                                        No de recibo: {order.receiptNumber} {order.type || 'NORMAL'}
+                                        No de recibo: {order.type === 'CAMBIO' ? order.orderNumber : order.receiptNumber} {order.type || 'NORMAL'}
                                     </Text>
 
                                     {/* Table */}
@@ -191,7 +191,7 @@ export const OrderLabelsDocument = ({ orders, clientsMap, user, packingNumber }:
                                             <Text style={[styles.tableHeaderCell, { width: '20%', borderRightWidth: 0 }]}>Saldo</Text>
                                         </View>
                                         <View style={[styles.tableRow, { borderBottomWidth: 0 }]}>
-                                            <Text style={[styles.tableDataCell, { width: '25%' }]}>{order.orderNumber || order.receiptNumber}</Text>
+                                            <Text style={[styles.tableDataCell, { width: '25%' }]}>{order.type === 'CAMBIO' ? (order.sourceOrderNumber || '---') : (order.orderNumber || order.receiptNumber)}</Text>
                                             <Text style={[styles.tableDataCell, { width: '20%' }]}>{order.invoiceNumber || '---'}</Text>
                                             <Text style={[styles.tableDataCell, { width: '20%' }]}>{effectiveTotal.toFixed(2)}</Text>
                                             <Text style={[styles.tableDataCell, { width: '15%' }]}>{paid.toFixed(2)}</Text>

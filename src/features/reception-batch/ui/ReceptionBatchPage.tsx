@@ -53,6 +53,8 @@ export function ReceptionBatchPage() {
         enabled: !!editingBatchId
     });
 
+    const [activeTab, setActiveTab] = useState("reception");
+
     if (isLockingLoading) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[400px] bg-slate-50/50 rounded-2xl">
@@ -61,8 +63,6 @@ export function ReceptionBatchPage() {
             </div>
         );
     }
-
-    const [activeTab, setActiveTab] = useState("reception");
 
     const onEditBatch = (batch: any) => {
         if (!hasPermission('reception.edit')) {

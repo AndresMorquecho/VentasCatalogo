@@ -139,9 +139,9 @@ export function SelectedOrdersTable({
                                         <TableCell className="p-1 w-[30px] text-center py-4">
                                             <CheckCircle className="h-3.5 w-3.5 text-emerald-500 mx-auto" />
                                         </TableCell>
-                                        <TableCell className="py-4 px-2 font-mono text-xs font-medium">#{order.receiptNumber}</TableCell>
+                                        <TableCell className="py-4 px-2 font-mono text-xs font-medium">{order.type === 'CAMBIO' ? order.orderNumber : `#${order.receiptNumber}`}</TableCell>
                                         <TableCell className="py-4 px-2 text-xs font-bold">{order.clientName}</TableCell>
-                                        <TableCell className="py-4 px-2 text-xs font-medium">{order.orderNumber || '---'}</TableCell>
+                                        <TableCell className="py-4 px-2 text-xs font-medium">{order.type === 'CAMBIO' ? (order.sourceOrderNumber || '---') : (order.orderNumber || '---')}</TableCell>
                                         <TableCell className="py-4 px-2 text-[10px]">
                                             <span className={`px-2 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-tighter shadow-sm ${
                                                 order.type === 'CAMBIO' ? 'bg-orange-100 text-orange-700 border-orange-200' :
