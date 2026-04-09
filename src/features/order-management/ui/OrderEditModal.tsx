@@ -10,6 +10,7 @@ import { Label } from "@/shared/ui/label"
 import { Separator } from "@/shared/ui/separator"
 import { Button } from "@/shared/ui/button"
 import { AsyncButton } from "@/shared/ui/async-button"
+import { Lock } from "lucide-react"
 
 interface OrderEditModalProps {
     order: any
@@ -24,17 +25,31 @@ export function OrderEditModal({ order, open, onOpenChange, onSuccess, lastClosu
     const { notifySuccess, notifyError, notifyLoading, dismiss } = useNotifications()
     const updateOrder = useUpdateOrder()
     const queryClient = useQueryClient()
+
+    // Determine if this order already has a deposit recorded
+    const originalDeposit = getPaidAmount(order) || 0
+    const hasExistingDeposit = originalDeposit > 0
+
+    // The original payment method — locked if there's an existing deposit
+    const originalMethod = order.paymentMethod || 'EFECTIVO'
+    const originalBankAccountId = order.bankAccountId || ''
+
     const [formData, setFormData] = useState({
         total: Number(order.total) || 0,
-        deposit: getPaidAmount(order) || 0,
+        deposit: originalDeposit,
         possibleDeliveryDate: order.possibleDeliveryDate ? new Date(order.possibleDeliveryDate).toISOString().split('T')[0] : '',
         orderNumber: order.orderNumber || '',
-        paymentMethod: order.paymentMethod || 'EFECTIVO',
-        bankAccountId: order.bankAccountId || ''
+        // If locked, always use the original. If new, default to EFECTIVO.
+        paymentMethod: originalMethod,
+        bankAccountId: originalBankAccountId
     })
 
     const { data: walletData } = useClientCredits(order.clientId || '')
-    const walletBalance = walletData?.reduce((acc: number, curr: any) => acc + Number(curr.amount || 0), 0) || 0
+    // Use remainingAmount of AVAILABLE credits only — never the total generated
+    const walletBalance = walletData?.reduce((acc: number, curr: any) => {
+        if (curr.status === 'AVAILABLE') return acc + Number(curr.remainingAmount || 0)
+        return acc
+    }, 0) || 0
 
     const filteredBankAccounts = useMemo(() => {
         if (formData.paymentMethod === 'EFECTIVO') {
@@ -57,13 +72,35 @@ export function OrderEditModal({ order, open, onOpenChange, onSuccess, lastClosu
         
         // 2. Verificar estado del pedido y movimientos
         if (order.status !== 'POR_RECIBIR' || (order.payments && order.payments.length > 1)) {
-            let reason = 'No se puede editar: El pedido ya tiene movimientos procesados.';
-            if (order.status === 'RECIBIDO_EN_BODEGA') reason = 'No se puede editar: El pedido ya ha sido receptado en bodega.';
-            if (order.status === 'ENTREGADO') reason = 'No se puede editar: El pedido ya ha sido entregado.';
-            if (order.payments && order.payments.length > 1) reason = 'No se puede editar: El pedido ya tiene abonos adicionales vinculados.';
-            
-            notifyError(null, reason);
-            return;
+            let reason = 'No se puede editar: El pedido ya tiene movimientos procesados.'
+            if (order.status === 'RECIBIDO_EN_BODEGA') reason = 'No se puede editar: El pedido ya ha sido receptado en bodega.'
+            if (order.status === 'ENTREGADO') reason = 'No se puede editar: El pedido ya ha sido entregado.'
+            if (order.payments && order.payments.length > 1) reason = 'No se puede editar: El pedido ya tiene abonos adicionales vinculados.'
+            notifyError(null, reason)
+            return
+        }
+
+        // 3. Business rules for locked method
+        if (hasExistingDeposit) {
+            // Only allow reducing or keeping the same deposit — not increasing beyond original for safety
+            if (formData.deposit < 0) {
+                notifyError(null, 'El abono no puede ser negativo.')
+                return
+            }
+            if (formData.deposit > formData.total) {
+                notifyError(null, 'El abono no puede ser mayor al valor del pedido.')
+                return
+            }
+        } else {
+            // New deposit: validate wallet balance if using BILLETERA_VIRTUAL
+            if (formData.paymentMethod === 'BILLETERA_VIRTUAL' && formData.deposit > walletBalance) {
+                notifyError(null, `Saldo insuficiente en billetera. Disponible: $${walletBalance.toFixed(2)}, Requerido: $${formData.deposit.toFixed(2)}`)
+                return
+            }
+            if (formData.paymentMethod === 'EFECTIVO' && !formData.bankAccountId) {
+                notifyError(null, 'Seleccione una cuenta bancaria para el abono.')
+                return
+            }
         }
 
         try {
@@ -85,18 +122,15 @@ export function OrderEditModal({ order, open, onOpenChange, onSuccess, lastClosu
                     brandName: order.brand?.name || order.brandName || "Marca"
                 }],
                 deposit: formData.deposit,
-                paymentMethod: formData.paymentMethod,
-                bankAccountId: formData.bankAccountId
+                // If locked, always send the original method — backend uses this to know which account to adjust
+                paymentMethod: hasExistingDeposit ? originalMethod : formData.paymentMethod,
+                bankAccountId: hasExistingDeposit ? originalBankAccountId : formData.bankAccountId
             }
 
-            console.log('[OrderEditModal] Updating order:', order.id, 'with payload:', payload)
-            
             await updateOrder.mutateAsync({ id: order.id, data: payload })
             
-            console.log('[OrderEditModal] Update successful')
-            
-            // Invalidar la query específica del recibo para refrescar caches
             queryClient.invalidateQueries({ queryKey: ['orders', 'receipt', order.receiptNumber] })
+            queryClient.invalidateQueries({ queryKey: ['client-credits', order.clientId] })
             
             dismiss()
             notifySuccess('Pedido actualizado correctamente.')
@@ -106,7 +140,7 @@ export function OrderEditModal({ order, open, onOpenChange, onSuccess, lastClosu
                 total: payload.total,
                 possibleDeliveryDate: payload.possibleDeliveryDate,
                 orderNumber: payload.orderNumber,
-                payments: order.payments, // se mantienen igual a nivel de frontend
+                payments: order.payments,
             })
         } catch (error: any) {
             dismiss()
@@ -172,6 +206,8 @@ export function OrderEditModal({ order, open, onOpenChange, onSuccess, lastClosu
                                             <input
                                                 type="number"
                                                 step="0.01"
+                                                min="0"
+                                                max={formData.total}
                                                 className="h-7 w-20 text-right text-green-600 font-bold rounded border-green-100 focus:ring-1 focus:ring-green-500 outline-none text-xs bg-green-50/30 hide-spinner"
                                                 value={formData.deposit}
                                                 onChange={(e) => setFormData({ ...formData, deposit: Number(e.target.value) })}
@@ -200,45 +236,76 @@ export function OrderEditModal({ order, open, onOpenChange, onSuccess, lastClosu
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
                         <div className="space-y-1.5">
-                            <Label className="text-xs font-bold text-slate-600">
+                            <Label className="text-xs font-bold text-slate-600 flex items-center gap-1.5">
                                 Método de Pago:
-                                {formData.paymentMethod === 'BILLETERA_VIRTUAL' && (
-                                    <span className="ml-2 text-emerald-600 font-medium"> (Saldo: ${walletBalance.toFixed(2)})</span>
+                                {hasExistingDeposit && <Lock className="h-3 w-3 text-slate-400" />}
+                                {formData.paymentMethod === 'BILLETERA_VIRTUAL' && !hasExistingDeposit && (
+                                    <span className="ml-1 text-emerald-600 font-medium">(Saldo: ${walletBalance.toFixed(2)})</span>
                                 )}
                             </Label>
-                            <select
-                                className="w-full h-9 rounded-md border border-slate-200 text-xs px-3 focus:ring-1 focus:ring-monchito-purple outline-none"
-                                value={formData.paymentMethod}
-                                onChange={(e) => {
-                                    const method = e.target.value
-                                    setFormData({ 
-                                        ...formData, 
-                                        paymentMethod: method,
-                                        bankAccountId: method === 'EFECTIVO' 
-                                            ? (bankAccounts.find((a: any) => a.type === 'CASH')?.id || '') 
-                                            : ''
-                                    })
-                                }}
-                            >
-                                <option value="EFECTIVO">EFECTIVO</option>
-                                <option value="BILLETERA_VIRTUAL">BILLETERA VIRTUAL</option>
-                            </select>
+                            {hasExistingDeposit ? (
+                                // LOCKED: show as badge, cannot change
+                                <div className="w-full h-9 rounded-md border border-slate-200 bg-slate-50 text-xs px-3 flex items-center gap-2 text-slate-500 cursor-not-allowed">
+                                    <Lock className="h-3 w-3 text-slate-400" />
+                                    <span className="font-medium">{originalMethod === 'BILLETERA_VIRTUAL' ? 'BILLETERA VIRTUAL' : originalMethod}</span>
+                                    {originalMethod === 'BILLETERA_VIRTUAL' && (
+                                        <span className="ml-auto text-emerald-600 font-bold">Saldo: ${walletBalance.toFixed(2)}</span>
+                                    )}
+                                </div>
+                            ) : (
+                                // UNLOCKED: user can choose
+                                <select
+                                    className="w-full h-9 rounded-md border border-slate-200 text-xs px-3 focus:ring-1 focus:ring-monchito-purple outline-none"
+                                    value={formData.paymentMethod}
+                                    onChange={(e) => {
+                                        const method = e.target.value
+                                        setFormData({ 
+                                            ...formData, 
+                                            paymentMethod: method,
+                                            bankAccountId: method === 'EFECTIVO' 
+                                                ? (bankAccounts.find((a: any) => a.type === 'CASH')?.id || '') 
+                                                : ''
+                                        })
+                                    }}
+                                >
+                                    <option value="EFECTIVO">EFECTIVO</option>
+                                    <option value="BILLETERA_VIRTUAL">BILLETERA VIRTUAL</option>
+                                </select>
+                            )}
+                            {hasExistingDeposit && (
+                                <p className="text-[10px] text-slate-400 mt-1">
+                                    Para cambiar el método de pago, elimine este pedido y cree uno nuevo.
+                                </p>
+                            )}
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-xs font-bold text-slate-600">Cuenta Bancaria:</Label>
-                            <select
-                                className="w-full h-9 rounded-md border border-slate-200 text-xs px-3 focus:ring-1 focus:ring-monchito-purple outline-none"
-                                value={formData.bankAccountId}
-                                onChange={(e) => setFormData({ ...formData, bankAccountId: e.target.value })}
-                                disabled={formData.paymentMethod === 'BILLETERA_VIRTUAL'}
-                            >
-                                <option value="">{formData.paymentMethod === 'BILLETERA_VIRTUAL' ? 'No se requiere (Se usa Saldo a Favor)' : 'Seleccione una cuenta...'}</option>
-                                {filteredBankAccounts.map((acc: any) => (
-                                    <option key={acc.id} value={acc.id}>
-                                        {acc.name} ({acc.bankName || (acc.type === 'CASH' ? 'Efectivo' : 'Banco')})
-                                    </option>
-                                ))}
-                            </select>
+                            <Label className="text-xs font-bold text-slate-600 flex items-center gap-1.5">
+                                Cuenta Bancaria:
+                                {hasExistingDeposit && <Lock className="h-3 w-3 text-slate-400" />}
+                            </Label>
+                            {hasExistingDeposit || formData.paymentMethod === 'BILLETERA_VIRTUAL' ? (
+                                <div className="w-full h-9 rounded-md border border-slate-200 bg-slate-50 text-xs px-3 flex items-center gap-2 text-slate-400 cursor-not-allowed">
+                                    <Lock className="h-3 w-3 text-slate-400" />
+                                    <span>
+                                        {originalMethod === 'BILLETERA_VIRTUAL' 
+                                            ? 'No aplica (Billetera Virtual)' 
+                                            : bankAccounts.find(a => a.id === originalBankAccountId)?.name || 'Cuenta original'}
+                                    </span>
+                                </div>
+                            ) : (
+                                <select
+                                    className="w-full h-9 rounded-md border border-slate-200 text-xs px-3 focus:ring-1 focus:ring-monchito-purple outline-none"
+                                    value={formData.bankAccountId}
+                                    onChange={(e) => setFormData({ ...formData, bankAccountId: e.target.value })}
+                                >
+                                    <option value="">Seleccione una cuenta...</option>
+                                    {filteredBankAccounts.map((acc: any) => (
+                                        <option key={acc.id} value={acc.id}>
+                                            {acc.name} ({acc.bankName || (acc.type === 'CASH' ? 'Efectivo' : 'Banco')})
+                                        </option>
+                                    ))}
+                                </select>
+                            )}
                         </div>
                     </div>
 

@@ -8,12 +8,22 @@ import { getPaidAmount } from "@/entities/order/model/model"
 import { DateRangePicker } from "@/shared/ui/filters"
 import type { DateRange } from "react-day-picker"
 
+import { Pagination } from "@/shared/ui/pagination"
+
 interface Props {
     orders: Order[]
     onMove: (ids: string[]) => void
+    pagination?: {
+        page: number;
+        limit: number;
+        total: number;
+        pages: number;
+    }
+    currentPage?: number;
+    onPageChange?: (page: number) => void;
 }
 
-export function PendingOrdersTable({ orders, onMove }: Props) {
+export function PendingOrdersTable({ orders, onMove, pagination, currentPage = 1, onPageChange }: Props) {
     const [selected, setSelected] = useState<Set<string>>(new Set())
     const [searchTerm, setSearchTerm] = useState("")
     const [receiptFilter, setReceiptFilter] = useState("")
@@ -362,10 +372,24 @@ export function PendingOrdersTable({ orders, onMove }: Props) {
                     </Table>
                 </div>
                 {/* Summary Footer */}
-                <div className="bg-slate-50 border-t p-2 flex justify-end gap-8 pr-12 shrink-0 overflow-x-auto">
-                    <div className="flex items-center gap-2">
-                        <span className="text-[10px] uppercase font-bold text-slate-500">Total Pedidos:</span>
-                        <span className="font-mono font-bold text-slate-800">${filteredOrders.reduce((sum, o) => sum + o.total, 0).toFixed(2)}</span>
+                <div className="bg-slate-50 border-t p-2 flex items-center justify-between px-6 shrink-0 overflow-x-auto min-h-[50px]">
+                    <div className="flex-1">
+                        {pagination && pagination.pages > 1 && onPageChange && (
+                            <Pagination
+                                currentPage={currentPage}
+                                totalPages={pagination.pages}
+                                onPageChange={onPageChange}
+                                totalItems={pagination.total}
+                                itemsPerPage={pagination.limit}
+                            />
+                        )}
+                    </div>
+                    
+                    <div className="flex items-center gap-6">
+                        <div className="flex items-center gap-2">
+                            <span className="text-[10px] uppercase font-bold text-slate-500">Total Pedidos:</span>
+                            <span className="font-mono font-bold text-slate-800">${filteredOrders.reduce((sum, o) => sum + o.total, 0).toFixed(2)}</span>
+                        </div>
                     </div>
                 </div>
             </div>

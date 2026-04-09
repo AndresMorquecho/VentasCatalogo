@@ -13,6 +13,8 @@ export interface OrderQueryParams {
     onlyParents?: boolean;
     startDate?: string;
     endDate?: string;
+    sortBy?: string;
+    order?: 'asc' | 'desc';
 }
 
 export const orderApi = {
@@ -420,5 +422,46 @@ export const orderApi = {
         const qs = params.toString();
         const response = await httpClient.get<{ success: boolean; data: string[] }>(`/exchanges/active-order-ids${qs ? `?${qs}` : ''}`);
         return (response as any).data; // Response.data is the array
-    }
+    },
+
+    /**
+     * Cancel an exchange receipt (CAM-XXXX) and reverse all associated transactions.
+     * Returns 409 if any order is in a blocked state (received, delivered, or in active guide).
+     * @endpoint DELETE /api/orders/receipt/:receiptNumber
+     */
+    cancelExchangeReceipt: async (receiptNumber: string): Promise<{ message: string; cancelledCount: number }> => {
+        return httpClient.delete<{ message: string; cancelledCount: number }>(`/orders/receipt/${encodeURIComponent(receiptNumber)}`);
+    },
+
+    /**
+     * Register a payment for a specific order.
+     * Handles EFECTIVO (bank account) and BILLETERA_VIRTUAL (client credit).
+     */
+    createPayment: async (payload: {
+        orderId: string;
+        amount: number;
+        method: string;
+        bankAccountId?: string;
+        creditAmount?: number;
+        description?: string;
+        transactionReference?: string;
+    }): Promise<any> => {
+        return httpClient.post<any>('/payments', payload);
+    },
+
+    /**
+     * Delete a specific payment record by ID.
+     * This reverses the financial transaction (bank account / credit).
+     */
+    removePayment: async (paymentId: string): Promise<any> => {
+        return httpClient.delete<any>(`/payments/${paymentId}`);
+    },
+
+    /**
+     * Get all payments associated with a specific order.
+     */
+    getOrderPayments: async (orderId: string): Promise<any[]> => {
+        const result = await httpClient.get<any>(`/payments?orderId=${orderId}`);
+        return (result as any).data || result || [];
+    },
 };

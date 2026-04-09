@@ -93,12 +93,17 @@ export function OrderFormPage() {
     const isEditing = !!(id || receiptNumber)
     const queryClient = useQueryClient()
 
-    // Manejo de Bloqueos por Concurrencia
+    // Manejo de Bloqueos por Concurrencia    // Concurrency locking disabled as requested
+    const isLockedByOther = false;
+    const lockingUser = null;
+    const isLockingLoading = false;
+    /*
     const { isLockedByOther, lockingUser, isLockingLoading } = useLocking({
-        resourceId: id || receiptNumber || undefined,
-        resourceType: id ? 'ORDER' : (receiptNumber ? 'ORDER_RECEIPT' : 'ORDER'),
+        resourceId: id || receiptNumber || "",
+        resourceType: id ? "ORDER" : "RECEIPT",
         enabled: !!(id || receiptNumber)
     });
+    */
 
     // Caso 1: Edición por receiptNumber (carga múltiples pedidos)
     const { data: receiptOrders, isLoading: isLoadingReceiptOrders } = useReceiptOrders(receiptNumber || "")
@@ -294,7 +299,11 @@ export function OrderFormPage() {
                 };
 
                 try {
-                    createdOrders = await orderApi.batchCreate(batchPayload);
+                    if (isEditing && formik.values.receiptNumber) {
+                        createdOrders = await orderApi.batchUpdate(formik.values.receiptNumber, batchPayload);
+                    } else {
+                        createdOrders = await orderApi.batchCreate(batchPayload);
+                    }
                     success = true;
                     if (attempts > 1) dismiss(); // Limpiar toast de reintento si existe
                 } catch (error: any) {
@@ -1075,8 +1084,14 @@ export function OrderFormPage() {
                 const client = clients.find(c => c.id === formik.values.clientId);
                 const clientName = client ? client.firstName : "Desconocido";
 
-                // Crear cada nuevo pedido
+                // Crear cada nuevo pedido con números incrementales
+                let nextNum = currentItem.orderNumber;
                 for (const itemToCreate of itemsToCreate) {
+                    // Si es reprogramación y ya avanzamos del primero, incrementar número
+                    if (itemToCreate.type === 'REPROGRAMACION' && itemsToCreate.indexOf(itemToCreate) > 0) {
+                        nextNum = incrementOrderNumber(nextNum);
+                    }
+
                     // Garantizar que brandName esté presente buscando en la lista local si falta
                     let finalBrandName = itemToCreate.brandName
                     if (!finalBrandName && itemToCreate.brandId) {
@@ -1117,7 +1132,7 @@ export function OrderFormPage() {
                         deposit: 0, // Nuevo pedido sin abono inicial
                         creditToUse: 0,
                         parentOrderId: parentOrderId || undefined,
-                        orderNumber: itemToCreate.orderNumber?.trim() || undefined
+                        orderNumber: nextNum || undefined
                     }
 
                     await createOrder.mutateAsync(payload as any)
@@ -1148,14 +1163,21 @@ export function OrderFormPage() {
             // Modo creación: agregar a la tabla local
             const baseId = crypto.randomUUID();
             if (currentItem.type === 'REPROGRAMACION' && currentItem.quantity > 1) {
-                const newItems = Array.from({ length: currentItem.quantity }).map(() => ({
-                    ...currentItem,
-                    tempId: crypto.randomUUID(),
-                    quantity: 1,
-                    total: Number((currentItem.total / currentItem.quantity).toFixed(2)),
-                    deposit: 0
-                }));
-                formik.setFieldValue("brandItems", [...formik.values.brandItems, ...newItems]);
+                let subNextNum = currentItem.orderNumber;
+                const subItems = Array.from({ length: currentItem.quantity }).map((_, i) => {
+                    const item = {
+                        ...currentItem,
+                        id: crypto.randomUUID(),
+                        tempId: `temp-${baseId}-${i}`,
+                        quantity: 1,
+                        total: Number((currentItem.total / currentItem.quantity).toFixed(2)),
+                        orderNumber: subNextNum,
+                        brandName: currentItem.brandName || brands.find(b => b.id === currentItem.brandId)?.name || 'Sin marca'
+                    };
+                    subNextNum = incrementOrderNumber(subNextNum);
+                    return item;
+                });
+                formik.setFieldValue("brandItems", [...formik.values.brandItems, ...subItems]);
             } else {
                 formik.setFieldValue("brandItems", [...formik.values.brandItems, { 
                     ...currentItem, 
@@ -1317,14 +1339,7 @@ export function OrderFormPage() {
     }
 
     // Si está cargando el bloqueo, mostramos un overlay para evitar parpadeo o edición antes de tiempo
-    if (isLockingLoading) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50/50">
-                <div className="h-12 w-12 border-4 border-monchito-purple border-t-transparent rounded-full animate-spin mb-4"></div>
-                <p className="text-slate-500 font-medium animate-pulse">Verificando acceso exclusivo...</p>
-            </div>
-        );
-    }
+    // Removed locking loading state check
 
     return (
         <div className="space-y-6">
@@ -1610,10 +1625,9 @@ export function OrderFormPage() {
                                 <tr className="bg-monchito-purple/5 border-b border-monchito-purple/10">
                                     <th className="px-2 py-3 border-r border-monchito-purple/10 text-center w-8 text-[10px] font-black text-monchito-purple uppercase tracking-widest">N°</th>
                                     <th className="px-2 py-3 border-r border-monchito-purple/10 text-[10px] font-black text-monchito-purple uppercase tracking-widest">Pedido Por</th>
-                                    <th className="px-2 py-3 border-r border-monchito-purple/10 text-[10px] font-black text-monchito-purple uppercase tracking-widest">N° Pedido</th>
                                     <th className="px-2 py-3 border-r border-monchito-purple/10 text-[10px] font-black text-monchito-purple uppercase tracking-widest">Tipo</th>
                                     <th className="px-2 py-3 border-r border-monchito-purple/10 text-[10px] font-black text-monchito-purple uppercase tracking-widest">Catálogo</th>
-                                    <th className="px-2 py-3 border-r border-monchito-purple/10 text-center text-[10px] font-black text-monchito-purple uppercase tracking-widest">Cant</th>
+                                    <th className="px-2 py-3 border-r border-monchito-purple/10 text-center text-[10px] font-black text-monchito-purple uppercase tracking-widest w-12">Cant</th>
                                     <th className="px-2 py-3 border-r border-monchito-purple/10 text-right text-[10px] font-black text-monchito-purple uppercase tracking-widest">Valor Pedido</th>
                                     <th className="px-2 py-3 border-r border-monchito-purple/10 text-right text-[10px] font-black text-monchito-purple uppercase tracking-widest">Abono</th>
                                     <th className="px-2 py-3 border-r border-monchito-purple/10 text-right text-[10px] font-black text-monchito-purple uppercase tracking-widest">Saldo</th>
@@ -1645,26 +1659,6 @@ export function OrderFormPage() {
                                                     </Badge>
                                                 </td>
 
-                                                {/* N° Pedido */}
-                                                <td className="px-2 py-2 border-r border-slate-50">
-                                                    {!isEditing ? (
-                                                        <Input
-                                                            value={item.orderNumber || ''}
-                                                            onChange={(e) => {
-                                                                const newItems = [...formik.values.brandItems]
-                                                                newItems[idx] = { ...newItems[idx], orderNumber: e.target.value }
-                                                                formik.setFieldValue('brandItems', newItems)
-                                                            }}
-                                                            onKeyDown={(e) => handleTableKeyDown(e, idx, 'orderNumber')}
-                                                            data-row-index={idx}
-                                                            data-field-name="orderNumber"
-                                                            placeholder="---"
-                                                            className="h-7 text-xs font-mono px-1 border-slate-200"
-                                                        />
-                                                    ) : (
-                                                        <span className="text-xs font-bold text-monchito-purple">{item.orderNumber || '---'}</span>
-                                                    )}
-                                                </td>
 
                                                 {/* Tipo */}
                                                 <td className="px-2 py-2 border-r border-slate-50">
@@ -1700,6 +1694,12 @@ export function OrderFormPage() {
                                                                     const newItems = [...formik.values.brandItems]
                                                                     const val = e.target.value === '' ? 0 : Number(e.target.value)
                                                                     newItems[idx] = { ...newItems[idx], total: val }
+                                                                    
+                                                                    // Ensure deposit doesn't exceed new total
+                                                                    if (Number(newItems[idx].deposit || 0) > val) {
+                                                                        newItems[idx].deposit = val;
+                                                                    }
+                                                                    
                                                                     formik.setFieldValue('brandItems', newItems)
                                                                 }}
                                                                 onKeyDown={(e) => handleTableKeyDown(e as any, idx, 'total')}
@@ -1726,7 +1726,9 @@ export function OrderFormPage() {
                                                                 value={item.deposit === 0 ? '' : item.deposit}
                                                                 onChange={(e) => {
                                                                     const newItems = [...formik.values.brandItems];
-                                                                    const value = e.target.value === '' ? 0 : Number(e.target.value);
+                                                                    const rawValue = e.target.value === '' ? 0 : Number(e.target.value);
+                                                                    // Prevent entering a deposit greater than the total value
+                                                                    const value = Math.min(rawValue, Number(newItems[idx].total || 0));
                                                                     newItems[idx] = { ...newItems[idx], deposit: value };
                                                                     formik.setFieldValue('brandItems', newItems);
                                                                 }}
@@ -2008,7 +2010,7 @@ export function OrderFormPage() {
                     description: "Pago inicial de recibo"
                 }}
                 expectedAmount={totalRowDeposit}
-                allowMultiplePayments={true}
+                allowMultiplePayments={false}
                 initialAmount={totalRowDeposit}
                 orderItems={formik.values.brandItems.map((item: BrandItem, idx: number) => ({
                     id: item.tempId || `item-${idx}`,
@@ -2021,13 +2023,7 @@ export function OrderFormPage() {
                 saveWithZeroPermission="orders.save_with_zero_deposit"
             />
 
-            {/* Modal de Bloqueo por Concurrencia */}
-            <ConcurrencyLockDialog
-                isOpen={isLockedByOther}
-                lockingUser={lockingUser}
-                resourceName={id ? "pedido" : "recibo"}
-                onClose={() => navigate('/orders')}
-            />
+            {/* Modal de Bloqueo por Concurrencia (DESHABILITADO) */}
 
             {/* Modal de edición de pedido individual */}
             {editModalOpen && orderToEdit && (

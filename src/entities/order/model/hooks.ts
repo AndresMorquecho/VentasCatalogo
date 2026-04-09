@@ -10,11 +10,12 @@ const KEYS = {
     byClient: (clientId: string) => [...KEYS.all, 'client', clientId] as const,
 }
 
-export function useOrderList(params?: OrderQueryParams) {
+export function useOrderList(params?: OrderQueryParams, options?: any) {
     return useQuery({
         queryKey: KEYS.list(params),
         queryFn: () => orderApi.getAll(params),
-        placeholderData: (previousData: PaginatedResponse<Order> | undefined) => previousData
+        placeholderData: (previousData: PaginatedResponse<Order> | undefined) => previousData,
+        ...options
     })
 }
 

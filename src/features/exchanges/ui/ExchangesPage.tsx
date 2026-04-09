@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { 
-  Plus, Search, RefreshCw, Trash2, Send, CheckCircle2, Replace
+  Plus, Search, RefreshCw, Trash2, Send, CheckCircle2, Replace, History as HistoryIcon, Truck
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/shared/ui/button';
@@ -15,6 +15,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { useOrderList } from '@/entities/order/model/hooks';
 import { orderApi } from '@/entities/order/model/api';
+import { useBrandList } from '@/features/brands/api/hooks';
 import { AsyncButton } from '@/shared/ui/async-button';
 import type { Order } from '@/entities/order/model/types';
 import type { DateRange } from 'react-day-picker';
@@ -22,21 +23,29 @@ import { DateRangePicker } from '@/shared/ui/filters/DateRangePicker';
 import { usePDFPreview } from '@/shared/hooks/usePDFPreview';
 import { PDFPreviewModal } from '@/shared/ui/PDFPreviewModal';
 import { PageHeader } from '@/shared/ui/PageHeader';
+import { Pagination } from '@/shared/ui/pagination';
+import { useAuth } from '@/shared/auth';
+import { prepareExchangeShipmentReceiptForPreview } from '../lib/prepareExchangeShipmentReceiptForPreview';
+import { SearchableSelect } from '@/shared/ui/SearchableSelect';
 
 export function ExchangesPage() {
   const navigate = useNavigate();
   const { notifySuccess, notifyError } = useNotifications();
   const queryClient = useQueryClient();
+  const [pdfFileName, setPdfFileName] = useState('recibo-cambio.pdf');
+  const [pdfTitle, setPdfTitle] = useState('Recibo de Cambio');
   const { 
     closePreview, 
     isOpen, 
     pdfDocument, 
     downloadPDF, 
-    printPDF 
-  } = usePDFPreview({ fileName: 'recibo-cambio.pdf' });
+    printPDF,
+    openPreview
+  } = usePDFPreview({ fileName: pdfFileName });
 
-  // Filters & State
+  const { user } = useAuth();
   const [searchText, setSearchText] = useState('');
+  const [selectedBrandId, setSelectedBrandId] = useState<string>('all');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -56,19 +65,34 @@ export function ExchangesPage() {
   // Query Data
   const { data, isLoading } = useOrderList({
     page,
-    limit: 50,
+    limit: 15,
     search: searchText,
+    brandId: selectedBrandId === 'all' ? undefined : selectedBrandId,
     startDate: dateRange?.from?.toISOString(),
     endDate: dateRange?.to?.toISOString(),
     status: 'POR_ENVIAR',
     type: 'CAMBIO'
+  }, {
+    refetchInterval: 10000 // Live updates
   });
 
-  const orders = data?.data || [];
-  const pagination = data?.pagination;
+  // Load all brands directly — not derived from filtered orders
+  const { data: brandsResponse } = useBrandList({ limit: 200 });
+
+  const availableBrands = useMemo(() => {
+    const brands = (brandsResponse as any)?.data || (brandsResponse as any)?.brands || [];
+    return brands
+      .filter((b: any) => b.isActive !== false)
+      .map((b: any) => ({ id: b.id, label: (b.name || b.brandName || '').toUpperCase() }))
+      .sort((a: any, b: any) => a.label.localeCompare(b.label));
+  }, [brandsResponse]);
+
+  const orders = (data as any)?.data || [];
+  const pagination = (data as any)?.pagination;
 
   const clearFilters = () => {
     setSearchText('');
+    setSelectedBrandId('all');
     setDateRange(undefined);
     setPage(1);
     setSelectedIds(new Set());
@@ -81,12 +105,26 @@ export function ExchangesPage() {
 
     setIsUpdatingStatus(true);
     try {
+      // 1. Update orders in backend
       for (const o of stagedOrders) {
         await orderApi.update(o.id, { 
           status: 'POR_RECIBIR', 
           trackingGuide: shipmentData.trackingGuide 
         } as any);
       }
+
+      // 2. Prepare PDF data
+      const { document, fileName, title } = await prepareExchangeShipmentReceiptForPreview(
+        stagedOrders,
+        user as any,
+        shipmentData.trackingGuide
+      );
+
+      // 3. Open Preview
+      setPdfFileName(fileName);
+      setPdfTitle(title);
+      openPreview(document);
+
       notifySuccess("Envío procesado correctamente. Los pedidos ahora están en estado 'Por Recibir'");
       queryClient.invalidateQueries({ queryKey: ['orders'] });
       setStagedOrders([]);
@@ -102,7 +140,7 @@ export function ExchangesPage() {
     if (!deleteData.receiptNumber) return;
     try {
       setIsDeleting(true);
-      const itemToDelete = orders.find(o => o.id === deleteData.receiptNumber);
+      const itemToDelete = orders.find((o: any) => o.id === deleteData.receiptNumber);
       if (!itemToDelete) throw new Error("No se encontró el ítem");
       await orderApi.delete(itemToDelete.id);
       notifySuccess(`Ítem eliminado correctamente.`);
@@ -124,9 +162,24 @@ export function ExchangesPage() {
         icon={Replace}
         actions={
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-             <Button 
+            <Button 
                 variant="outline" 
-                className="rounded-xl h-12 px-6 font-bold border-slate-200"
+                onClick={() => navigate('/exchanges/reception-history')}
+                className="rounded-xl border-slate-200 font-bold text-slate-600 hover:text-monchito-purple"
+            >
+                <HistoryIcon className="mr-2 h-4 w-4" /> Historial de Recepción de Cambios
+            </Button>
+
+            <Button 
+                variant="outline" 
+                onClick={() => navigate('/exchanges/shipping-history')}
+                className="rounded-xl border-slate-200 font-bold text-slate-600 hover:text-monchito-purple"
+            >
+                <Truck className="mr-2 h-4 w-4" /> Historial de Envíos
+            </Button>
+             <Button 
+                variant="default" 
+                className="bg-monchito-purple hover:bg-monchito-purple/90 text-white rounded-xl h-10 px-6 font-bold shadow-lg shadow-monchito-purple/20"
                 onClick={() => navigate('/exchanges/new')}
               >
                 <Plus className="mr-2 h-4 w-4" /> Nuevo Cambio
@@ -146,16 +199,32 @@ export function ExchangesPage() {
            </div>
 
            {/* Filters */}
-           <Card className="border border-slate-200 shadow-sm rounded-2xl overflow-hidden bg-white">
+           <Card className="border border-slate-200 shadow-sm rounded-2xl bg-white relative z-20 overflow-visible">
               <CardContent className="p-4 sm:p-5">
                 <div className="flex flex-col lg:flex-row items-center gap-4">
-                  <div className="relative flex-1 w-full">
+                  <div className="relative flex-[2] w-full">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                     <Input 
-                      placeholder="Buscar por empresaria, catálogo, N° cambio..." 
+                      placeholder="Buscar por empresaria, N° cambio..." 
                       className="pl-11 h-10 bg-slate-50/50 border-slate-100 rounded-xl focus:ring-monchito-purple/20 transition-all font-medium text-xs w-full"
                       value={searchText}
-                      onChange={(e) => setSearchText(e.target.value)}
+                      onChange={(e) => {
+                        setSearchText(e.target.value);
+                        setPage(1);
+                      }}
+                    />
+                  </div>
+
+                  <div className="relative flex-1 w-full lg:w-56">
+                    <SearchableSelect 
+                      options={[{ id: 'all', label: `TODAS LAS MARCAS (${availableBrands.length})` }, ...availableBrands]}
+                      value={selectedBrandId}
+                      onChange={(val) => {
+                        setSelectedBrandId(val);
+                        setPage(1);
+                      }}
+                      placeholder="Filtrar por catálogo..."
+                      className="!h-10 rounded-xl border-slate-100 bg-slate-50/50 text-xs font-medium"
                     />
                   </div>
                   
@@ -178,7 +247,7 @@ export function ExchangesPage() {
                       
                       <Button 
                         onClick={() => {
-                          const selected = orders.filter(o => selectedIds.has(o.id));
+                          const selected = orders.filter((o: any) => selectedIds.has(o.id));
                           setStagedOrders(prev => [...prev, ...selected]);
                           setSelectedIds(new Set());
                         }}
@@ -194,7 +263,7 @@ export function ExchangesPage() {
            </Card>
 
            {/* Table Component */}
-           <div className={`rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden transition-all duration-500 ${stagedOrders.length > 0 ? 'max-h-[300px] opacity-70' : 'min-h-[400px]'}`}>
+           <div className={`rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden flex flex-col transition-all duration-500 ${stagedOrders.length > 0 ? 'max-h-[300px] opacity-70' : 'min-h-[400px]'}`}>
               {stagedOrders.length > 0 && (
                 <div className="bg-slate-50 px-4 py-2 border-b border-slate-100 flex items-center justify-between">
                    <div className="flex items-center gap-2">
@@ -205,77 +274,101 @@ export function ExchangesPage() {
                 </div>
               )}
 
-              <div className="overflow-x-auto custom-scrollbar">
+              <div className="overflow-x-auto custom-scrollbar flex-1">
                 {isLoading ? (
                   <div className="py-20 flex flex-col items-center justify-center gap-3">
                     <div className="h-10 w-10 border-4 border-monchito-purple border-t-transparent rounded-full animate-spin" />
                     <p className="text-xs font-bold text-slate-400">Cargando...</p>
                   </div>
                 ) : (
-                  <table className="text-[10px] border-collapse min-w-[1500px] w-full">
-                    <thead>
-                      <tr className="bg-monchito-purple/5 border-b border-monchito-purple/10 text-[10px] uppercase tracking-widest text-monchito-purple font-bold">
-                        <th className="px-3 py-3 text-center w-10">
-                          <input
-                            type="checkbox"
-                            className="accent-monchito-purple rounded"
-                            checked={orders.length > 0 && orders.every(o => selectedIds.has(o.id))}
-                            onChange={() => {
-                              if (orders.every(o => selectedIds.has(o.id))) setSelectedIds(new Set());
-                              else setSelectedIds(new Set(orders.map(o => o.id)));
-                            }}
-                          />
-                        </th>
-                        <th className="px-3 py-3 text-center w-10">N</th>
-                        <th className="px-3 py-3 text-left">Empresaria</th>
-                        <th className="px-3 py-3 text-left">Catálogo</th>
-                        <th className="px-3 py-3 text-center">N° Cambio (SN)</th>
-                        <th className="px-3 py-3 text-center">N° Cambio (CAM)</th>
-                        <th className="px-3 py-3 text-center w-12">Cant</th>
-                        <th className="px-3 py-3 text-left">Desc. Se Va</th>
-                        <th className="px-3 py-3 text-left">Desc. Viene</th>
-                        <th className="px-3 py-3 text-right">Valor</th>
-                        <th className="px-3 py-3 text-right">Abono</th>
-                        <th className="px-3 py-3 text-right">Saldo</th>
-                        <th className="px-3 py-3 text-center">Fecha Entrega</th>
-                        <th className="px-3 py-3 text-center w-10"></th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {orders.filter(o => !stagedOrders.find(so => so.id === o.id)).map((order: Order, idx: number) => {
-                        const isSelected = selectedIds.has(order.id);
-                        return (
-                          <tr 
-                            key={order.id} 
-                            className={`hover:bg-monchito-purple/5 transition-all cursor-pointer ${isSelected ? 'bg-monchito-purple/[0.08]' : ''}`}
-                            onClick={() => {
-                              const next = new Set(selectedIds);
-                              if (next.has(order.id)) next.delete(order.id);
-                              else next.add(order.id);
-                              setSelectedIds(next);
-                            }}
-                          >
-                            <td className="px-3 py-2 text-center">
-                              <input type="checkbox" checked={isSelected} readOnly className="accent-monchito-purple rounded" />
-                            </td>
-                            <td className="px-3 py-2 text-center text-slate-400 font-bold">{idx + 1}</td>
-                            <td className="px-3 py-2 font-bold text-slate-800 uppercase">{order.clientName}</td>
-                            <td className="px-3 py-2 font-bold text-slate-600 uppercase">{order.brandName}</td>
-                            <td className="px-3 py-2 text-center font-mono font-black text-monchito-purple">{order.sourceOrderNumber || '---'}</td>
-                            <td className="px-3 py-2 text-center font-bold text-monchito-purple">{order.orderNumber}</td>
-                            <td className="px-3 py-2 text-center font-black">{order.items?.[0]?.quantity || 1}</td>
-                            <td className="px-3 py-2 text-slate-500 italic truncate max-w-[150px]">{order.sourceDescription || 'N/A'}</td>
-                            <td className="px-3 py-2 text-slate-800 font-medium truncate max-w-[150px]">{order.description}</td>
-                            <td className="px-3 py-2 text-right font-bold text-slate-700">${Number(order.total).toFixed(2)}</td>
-                            <td className="px-3 py-2 text-right font-bold text-emerald-600">${Number(order.deposit || 0).toFixed(2)}</td>
-                            <td className="px-3 py-2 text-right font-bold text-red-500">${(Number(order.total) - Number(order.deposit || 0)).toFixed(2)}</td>
-                            <td className="px-3 py-2 text-center text-slate-400 font-bold">{order.possibleDeliveryDate ? format(new Date(order.possibleDeliveryDate), 'dd/MM/yyyy') : '--/--/--'}</td>
-                            <td className="px-3 py-2 text-center"></td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                  <>
+                    <table className="text-[10px] border-collapse min-w-[1500px] w-full">
+                      <thead>
+                        <tr className="bg-monchito-purple/5 border-b border-monchito-purple/10 text-[10px] uppercase tracking-widest text-monchito-purple font-bold">
+                          <th className="px-3 py-3 text-center w-10">
+                            <input
+                              type="checkbox"
+                              className="accent-monchito-purple rounded"
+                              checked={orders.length > 0 && orders.every((o: any) => selectedIds.has(o.id))}
+                              onChange={() => {
+                                if (orders.every((o: any) => selectedIds.has(o.id))) setSelectedIds(new Set());
+                                else setSelectedIds(new Set(orders.map((o: any) => o.id)));
+                              }}
+                            />
+                          </th>
+                          <th className="px-3 py-3 text-center w-10">N</th>
+                          <th className="px-3 py-3 text-left">Empresaria</th>
+                          <th className="px-3 py-3 text-left">Catálogo</th>
+                          <th className="px-3 py-3 text-center">N° Cambio (SN)</th>
+                          <th className="px-3 py-3 text-center">N° Cambio (CAM)</th>
+                          <th className="px-3 py-3 text-center w-12">Cant</th>
+                          <th className="px-3 py-3 text-left">Desc. Se Va</th>
+                          <th className="px-3 py-3 text-left">Desc. Viene</th>
+                          <th className="px-3 py-3 text-right">Valor</th>
+                          <th className="px-3 py-3 text-right">Abono</th>
+                          <th className="px-3 py-3 text-right">Saldo</th>
+                          <th className="px-3 py-3 text-center">Fecha Entrega</th>
+                          <th className="px-3 py-3 text-center w-10"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {orders.filter((o: any) => !stagedOrders.find(so => so.id === o.id)).map((order: any, idx: number) => {
+                          const isSelected = selectedIds.has(order.id);
+                          return (
+                            <tr 
+                              key={order.id} 
+                              className={`hover:bg-monchito-purple/5 transition-all cursor-pointer ${isSelected ? 'bg-monchito-purple/[0.08]' : ''}`}
+                              onClick={() => {
+                                const next = new Set(selectedIds);
+                                if (next.has(order.id)) next.delete(order.id);
+                                else next.add(order.id);
+                                setSelectedIds(next);
+                              }}
+                            >
+                              <td className="px-3 py-2 text-center">
+                                <input type="checkbox" checked={isSelected} readOnly className="accent-monchito-purple rounded" />
+                              </td>
+                              <td className="px-3 py-2 text-center text-slate-400 font-bold">{idx + 1 + ((page - 1) * 15)}</td>
+                              <td className="px-3 py-2 font-bold text-slate-800 uppercase">{order.clientName}</td>
+                              <td className="px-3 py-2 font-bold text-slate-600 uppercase">{order.brandName}</td>
+                              <td className="px-3 py-2 text-center font-mono font-black text-monchito-purple">{order.sourceOrderNumber || '---'}</td>
+                              <td className="px-3 py-2 text-center font-bold text-monchito-purple">{order.orderNumber}</td>
+                              <td className="px-3 py-2 text-center font-black">{order.items?.[0]?.quantity || 1}</td>
+                              <td className="px-3 py-2 text-slate-500 italic truncate max-w-[150px]">{order.sourceDescription || 'N/A'}</td>
+                              <td className="px-3 py-2 text-slate-800 font-medium truncate max-w-[150px]">{order.description}</td>
+                              <td className="px-3 py-2 text-right font-bold text-slate-700">${Number(order.total).toFixed(2)}</td>
+                              <td className="px-3 py-2 text-right font-bold text-emerald-600">${Number(order.deposit || 0).toFixed(2)}</td>
+                              <td className="px-3 py-2 text-right font-bold text-red-500">${(Number(order.total) - Number(order.deposit || 0)).toFixed(2)}</td>
+                              <td className="px-3 py-2 text-center text-slate-400 font-bold">{order.possibleDeliveryDate ? format(new Date(order.possibleDeliveryDate), 'dd/MM/yyyy') : '--/--/--'}</td>
+                              <td className="px-3 py-2 text-center"></td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                    
+                    {/* STEP 1 FOOTER: Pagination & Summary */}
+                    <div className="bg-slate-50 border-t p-2 flex items-center justify-between px-6 shrink-0 overflow-x-auto min-h-[50px]">
+                        <div className="flex-1">
+                            {pagination && pagination.pages > 1 && (
+                                <Pagination
+                                    currentPage={page}
+                                    totalPages={pagination.pages}
+                                    onPageChange={setPage}
+                                    totalItems={pagination.total}
+                                    itemsPerPage={pagination.limit}
+                                />
+                            )}
+                        </div>
+                        
+                        <div className="flex items-center gap-6">
+                            <div className="flex items-center gap-2">
+                                <span className="text-[10px] uppercase font-bold text-slate-500 whitespace-nowrap">Total Página:</span>
+                                <span className="font-mono font-bold text-slate-800">${orders.reduce((sum: number, o: any) => sum + Number(o.total), 0).toFixed(2)}</span>
+                            </div>
+                        </div>
+                    </div>
+                  </>
                 )}
               </div>
            </div>
@@ -380,17 +473,6 @@ export function ExchangesPage() {
              </div>
           </div>
         )}
-
-        {pagination && pagination.pages > 1 && (
-          <div className="flex items-center justify-between py-4">
-            <span className="text-xs font-bold text-slate-400">Página {page} de {pagination.pages}</span>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => setPage(1)} disabled={page === 1}>Primera</Button>
-              <Button variant="outline" size="sm" onClick={() => setPage(prev => Math.max(1, prev - 1))} disabled={page === 1}>Anterior</Button>
-              <Button variant="outline" size="sm" onClick={() => setPage(prev => Math.min(pagination.pages, prev + 1))} disabled={page === pagination.pages}>Siguiente</Button>
-            </div>
-          </div>
-        )}
       </div>
       
       <Dialog open={deleteData.isOpen} onOpenChange={(o) => setDeleteData(prev => ({ ...prev, isOpen: o }))}>
@@ -415,9 +497,9 @@ export function ExchangesPage() {
       <PDFPreviewModal 
         open={isOpen} 
         onOpenChange={(open: boolean) => !open && closePreview()}
-        title="Vista Previa del Recibo"
+        title={pdfTitle}
         pdfDocument={pdfDocument || <></>}
-        fileName="recibo-cambio.pdf"
+        fileName={pdfFileName}
         onDownload={() => downloadPDF()}
         onPrint={() => printPDF()}
       />

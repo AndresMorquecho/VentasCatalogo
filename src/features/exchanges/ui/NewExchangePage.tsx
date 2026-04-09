@@ -123,6 +123,11 @@ export function NewExchangePage() {
   const [saveStatus, setSaveStatus] = useState<'POR_ENVIAR' | 'EN_TRANSITO'>('POR_ENVIAR');
   const [pinnedColumns, setPinnedColumns] = useState<Set<string>>(new Set(['total', 'deposit', 'saldo', 'possibleDeliveryDate', 'action']));
 
+  // Per-row deposit modal state (edit mode only)
+  const [depositModalOpen, setDepositModalOpen] = useState(false);
+  const [depositModalItem, setDepositModalItem] = useState<any>(null); // The brandItem row being edited
+  const [depositModalIdx, setDepositModalIdx] = useState<number | null>(null);
+
   const togglePin = (colId: string) => {
     const newPinned = new Set(pinnedColumns);
     if (newPinned.has(colId)) newPinned.delete(colId);
@@ -170,11 +175,14 @@ export function NewExchangePage() {
 
   const generateNextOrderNumber = async () => {
     try {
+      // Clear before fetching to avoid stale UI
+      formik.setFieldValue("orderNumber", "");
+      
       const { orderNumber } = await orderApi.generateOrderNumber();
       const formatted = orderNumber.replace('PD-', 'CAM-');
-      if (!formik.values.orderNumber) {
-        formik.setFieldValue("orderNumber", formatted);
-      }
+      
+      console.log("New automatic consecutive generated:", formatted);
+      formik.setFieldValue("orderNumber", formatted);
     } catch (e) { console.error(e); }
   };
 
@@ -225,6 +233,7 @@ export function NewExchangePage() {
   const handleAddItem = async () => {
     if (!formik.values.clientId) return notifyError(null, "Debe seleccionar una empresaria primero");
     if (!currentItem.brandId) return notifyError(null, "Seleccione un catálogo");
+    // Permitimos total 0 para cambios mano a mano
     
     if (isEditing) {
       setIsSubmitting(true);
@@ -235,24 +244,59 @@ export function NewExchangePage() {
           receiptNumber: formik.values.receiptNumber,
           status: 'POR_ENVIAR',
           createdAt: formik.values.createdAt,
-          items: [{ 
-            productName: currentItem.brandName || "Cambio", 
-            quantity: currentItem.quantity, 
-            unitPrice: currentItem.total / currentItem.quantity 
-          }]
+            items: [{ 
+              productName: currentItem.brandName || "Cambio", 
+              quantity: Math.max(1, Number(currentItem.quantity) || 1), 
+              unitPrice: (Number(currentItem.total) || 0) / Math.max(1, Number(currentItem.quantity) || 1)
+            }]
         };
         await orderApi.create(payload as any);
         queryClient.invalidateQueries({ queryKey: ['orders'] });
         queryClient.invalidateQueries({ queryKey: ['receiptOrders', formik.values.receiptNumber] });
-        notifySuccess("Ítem agregado");
-        setCurrentItem(prev => ({ ...prev, brandId: "", brandName: "", total: 0, deposit: 0 }));
+        
+        // Reset item fields for the next entry
+        setCurrentItem(prev => ({
+          ...prev,
+          brandId: "",
+          brandName: "",
+          quantity: 1,
+          total: 0,
+          orderNumber: "",
+          description: "",
+          deposit: 0,
+          sourceOrderId: "",
+          sourceOrderNumber: "",
+          sourceBrandId: "",
+          sourceBrandName: "",
+          sourceQuantity: 1,
+          sourceDescription: ""
+        }));
+        
+        notifySuccess("Ítem agregado a la lista");
       } catch (e) { notifyError(e, "Error al agregar"); } finally { setIsSubmitting(false); }
     } else {
       formik.setFieldValue("brandItems", [
         ...formik.values.brandItems, 
-        { ...currentItem, tempId: crypto.randomUUID(), deposit: 0 }
+        { ...currentItem, id: crypto.randomUUID(), deposit: 0 }
       ]);
-      setCurrentItem(prev => ({ ...prev, brandId: "", brandName: "", total: 0, deposit: 0 }));
+      // Reset ALL item fields for the next entry
+      setCurrentItem(prev => ({
+        ...prev,
+        brandId: "",
+        brandName: "",
+        quantity: 1,
+        total: 0,
+        orderNumber: "",
+        description: "",
+        deposit: 0,
+        sourceOrderId: "",
+        sourceOrderNumber: "",
+        sourceBrandId: "",
+        sourceBrandName: "",
+        sourceQuantity: 1,
+        sourceDescription: ""
+      }));
+      notifySuccess("Ítem agregado a la lista");
     }
   };
 
@@ -285,6 +329,72 @@ export function NewExchangePage() {
     } catch (e) { notifyError(e, "Error al guardar notas"); } finally { setIsSavingNotes(false); }
   };
 
+  /**
+   * Handle deposit update for a specific row in edit mode.
+   * Covers all 4 cases:
+   *   A) deposit=0 -> newAmount>0  → CREATE new payment
+   *   B) deposit>0 -> newAmount=0  → DELETE existing payment(s) + rollback bank/wallet
+   *   C) deposit>0 -> newAmount different → DELETE old + CREATE new at new amount
+   *   D) No change  → no-op
+   */
+  const handleRowDepositSubmit = async (paymentData: PaymentModalData) => {
+    if (!depositModalItem || depositModalIdx === null) return;
+    const item = depositModalItem;
+    const orderId = item.id;
+    if (!orderId) return notifyError(null, 'Este ítem aún no tiene ID persistido. Guárdalo primero.');
+
+    const activePayments = paymentData.payments.filter((p: any) => p.amount > 0);
+    const newTotal = activePayments.reduce((s: number, p: any) => s + p.amount, 0);
+    const currentDeposit = Number(item.deposit || 0);
+
+    // Case D: no change
+    if (Math.abs(newTotal - currentDeposit) < 0.001) {
+      setDepositModalOpen(false);
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // Step 1: Delete ALL existing payments for this order to start fresh
+      if (currentDeposit > 0) {
+        const existingPayments = await orderApi.getOrderPayments(orderId);
+        for (const p of existingPayments) {
+          await orderApi.removePayment(p.id);
+        }
+      }
+
+      // Step 2: Create new payment(s) if new amount > 0
+      if (newTotal > 0) {
+        for (const p of activePayments) {
+          await orderApi.createPayment({
+            orderId,
+            amount: p.amount,
+            method: p.method || 'EFECTIVO',
+            bankAccountId: p.bankAccountId,
+            description: `Abono cambio ${item.sourceOrderNumber || ''}`.trim(),
+            transactionReference: p.transactionReference,
+          });
+        }
+      }
+
+      // Step 3: Refresh the item in the form with the new deposit value
+      const newItems = [...formik.values.brandItems];
+      newItems[depositModalIdx] = { ...newItems[depositModalIdx], deposit: newTotal };
+      formik.setFieldValue('brandItems', newItems);
+
+      // Also invalidate queries so the history pages refresh
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['receiptOrders', receiptNumber] });
+
+      notifySuccess(newTotal === 0 ? 'Abono eliminado correctamente' : `Abono actualizado a $${newTotal.toFixed(2)}`);
+      setDepositModalOpen(false);
+    } catch (e: any) {
+      notifyError(e, e?.message || 'Error al actualizar el abono');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handlePaymentSubmit = async (paymentData: PaymentModalData) => {
     console.log("Submit attempt - current brandItems:", formik.values.brandItems);
     
@@ -305,7 +415,7 @@ export function NewExchangePage() {
       const totalAmount = activePayments.reduce((sum, p) => sum + p.amount, 0);
       
       const payload = {
-        receiptNumber: formik.values.receiptNumber, 
+        receiptNumber: formik.values.orderNumber || formik.values.receiptNumber, 
         clientId: formik.values.clientId,
         salesChannel: formik.values.salesChannel || "OFICINA", 
         createdAt: new Date().toISOString(),
@@ -319,7 +429,9 @@ export function NewExchangePage() {
         },
         deposit: totalAmount, 
         notes: formik.values.notes,
-        orders: formik.values.brandItems.map((item, idx) => {
+        orders: formik.values.brandItems
+          .filter(item => (item.brandId || item.brand_id))
+          .map((item, idx) => {
           const finalBrandId = (item.brandId || item.brand_id || "").toString().trim();
           console.log(`Mapping item ${idx}: brandId=${finalBrandId}, brandName=${item.brandName}`);
           
@@ -333,17 +445,17 @@ export function NewExchangePage() {
             possibleDeliveryDate: item.possibleDeliveryDate || new Date().toISOString().split('T')[0],
             items: [{ 
               productName: item.brandName || "Cambio", 
-              quantity: Number(item.quantity || 1), 
-              unitPrice: Number(item.total) / Number(item.quantity || 1) 
+              quantity: Math.max(1, Number(item.quantity) || 1), 
+              unitPrice: (Number(item.total) || 0) / Math.max(1, Number(item.quantity) || 1)
             }],
-            notes: item.description || "",
-            sourceOrderId: item.sourceOrderId,
-            sourceBrandName: item.sourceBrandName,
-            sourceOrderNumber: item.sourceOrderNumber,
-            sourceQuantity: item.sourceQuantity,
-            sourceDescription: item.sourceDescription,
+            notes: null,
+            sourceOrderId: item.sourceOrderId || null,
+            sourceBrandName: item.sourceBrandName || null,
+            sourceOrderNumber: item.sourceOrderNumber || null,
+            sourceQuantity: Math.max(1, Number(item.sourceQuantity) || 1),
+            sourceDescription: item.sourceDescription || null,
             orderNumber: formik.values.orderNumber || item.orderNumber,
-            description: item.description
+            description: item.description || null
           };
         })
       };
@@ -370,6 +482,14 @@ export function NewExchangePage() {
       pdfPreview.openPreview(document);
 
       notifySuccess("Cambio guardado exitosamente");
+      
+      // Reset form and generate NEW consecutive for next transaction
+      if (!isEditing) {
+        formik.resetForm();
+        setTimeout(() => {
+          generateNextOrderNumber();
+        }, 100);
+      }
     } catch (e) {
       notifyError(e, "Error al guardar");
     } finally {
@@ -412,11 +532,17 @@ export function NewExchangePage() {
           <CardContent className="p-3 grid grid-cols-1 md:grid-cols-12 gap-4 items-center flex-1">
             <div className="md:col-span-3 space-y-1">
               <Label className="text-xs font-bold text-slate-600">N° Consecutivo (CAM):</Label>
-              <Input 
-                value={formik.values.orderNumber} 
-                onChange={e => formik.setFieldValue("orderNumber", e.target.value.toUpperCase())}
-                className="h-8 w-full px-3 border-slate-200 bg-monchito-purple/5 text-monchito-purple rounded-lg text-[11px] font-black tracking-tight focus:ring-1 focus:ring-monchito-purple" 
-              />
+              {isEditing ? (
+                <div className="h-8 w-full px-3 border border-slate-200 bg-slate-100 text-slate-500 rounded-lg text-[11px] font-black tracking-tight flex items-center cursor-not-allowed select-none">
+                  {formik.values.orderNumber || '—'}
+                </div>
+              ) : (
+                <Input 
+                  value={formik.values.orderNumber} 
+                  onChange={e => formik.setFieldValue("orderNumber", e.target.value.toUpperCase())}
+                  className="h-8 w-full px-3 border-slate-200 bg-monchito-purple/5 text-monchito-purple rounded-lg text-[11px] font-black tracking-tight focus:ring-1 focus:ring-monchito-purple" 
+                />
+              )}
             </div>
             <div className="md:col-span-3 space-y-1">
               <Label className="text-xs font-bold text-slate-600">Fecha:</Label>
@@ -586,7 +712,23 @@ export function NewExchangePage() {
                           {formatCurrency(item.total)}
                         </td>
                         <td className={`px-6 py-4 text-center bg-white transition-all ${pinnedColumns.has('deposit') ? 'sticky right-[320px] z-20 shadow-[-1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`}>
-                          <Input type="number" value={item.deposit || 0} onChange={(e) => { const newItems = [...formik.values.brandItems]; newItems[idx] = { ...newItems[idx], deposit: Number(e.target.value) }; formik.setFieldValue("brandItems", newItems); }} className="h-8 w-24 border-slate-200 text-right text-[11px] font-medium text-indigo-600 bg-transparent hover:bg-white focus:bg-white mx-auto" />
+                          {isEditing ? (
+                            // Edit mode: show deposit amount + button to open payment modal
+                            <button
+                              onClick={() => { setDepositModalItem(item); setDepositModalIdx(idx); setDepositModalOpen(true); }}
+                              className={`inline-flex items-center gap-1.5 px-3 h-8 rounded-lg border text-[11px] font-black transition-all ${
+                                Number(item.deposit) > 0
+                                  ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
+                                  : 'bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100 hover:text-slate-600'
+                              }`}
+                              title="Clic para gestionar el abono de esta fila"
+                            >
+                              {Number(item.deposit) > 0 ? `$${Number(item.deposit).toFixed(2)}` : '+ Abono'}
+                            </button>
+                          ) : (
+                            // Create mode: inline input
+                            <Input type="number" value={item.deposit || 0} onChange={(e) => { const newItems = [...formik.values.brandItems]; newItems[idx] = { ...newItems[idx], deposit: Number(e.target.value) }; formik.setFieldValue("brandItems", newItems); }} className="h-8 w-24 border-slate-200 text-right text-[11px] font-medium text-indigo-600 bg-transparent hover:bg-white focus:bg-white mx-auto" />
+                          )}
                         </td>
                         <td className={`px-6 py-4 text-right text-[11px] font-black text-slate-900 bg-white transition-all ${pinnedColumns.has('saldo') ? 'sticky right-[210px] z-20 shadow-[-1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`}>
                           {formatCurrency(Number(item.total) - Number(item.deposit || 0))}
@@ -636,7 +778,29 @@ export function NewExchangePage() {
         <p className="text-sm">¿Deseas eliminar este ítem del cambio?</p>
       </ConfirmDialog>
 
+      {/* Payment modal for global creation flow */}
       <PaymentModal open={paymentModalOpen} onOpenChange={setPaymentModalOpen} onSubmit={handlePaymentSubmit} paymentContext={{ type: "PEDIDO", clientId: formik.values.clientId, clientName: clients.find(c => c.id === formik.values.clientId)?.firstName || "Cliente", referenceNumber: formik.values.receiptNumber, description: "Cambio" }} expectedAmount={totalAbonos} initialAmount={totalAbonos} allowMultiplePayments={true} lockAmount={false} forceExactAmount={true} />
+
+      {/* Per-row deposit modal (edit mode): smartly creates, updates or deletes the payment */}
+      {depositModalItem && (
+        <PaymentModal
+          open={depositModalOpen}
+          onOpenChange={(open) => { if (!open) setDepositModalOpen(false); }}
+          onSubmit={handleRowDepositSubmit}
+          paymentContext={{
+            type: "PEDIDO",
+            clientId: formik.values.clientId,
+            clientName: clients.find(c => c.id === formik.values.clientId)?.firstName || "Cliente",
+            referenceNumber: depositModalItem?.sourceOrderNumber || depositModalItem?.id,
+            description: `Abono para ${depositModalItem?.brandName || 'cambio'}`
+          }}
+          expectedAmount={Number(depositModalItem?.total || 0)}
+          initialAmount={Number(depositModalItem?.deposit || 0)}
+          allowMultiplePayments={false}
+          lockAmount={false}
+          forceExactAmount={false}
+        />
+      )}
 
       <Dialog open={isRowEditModalOpen} onOpenChange={setIsRowEditModalOpen}>
         <DialogContent className="max-w-xl rounded-3xl">

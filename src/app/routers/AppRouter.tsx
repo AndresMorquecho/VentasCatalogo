@@ -34,7 +34,9 @@ const AdminUsersPage = lazy(() => import('@/features/users').then(m => ({ defaul
 const ExchangesPage = lazy(() => import('@/features/exchanges/ui/ExchangesPage').then(m => ({ default: m.ExchangesPage })));
 const NewExchangePage = lazy(() => import('@/features/exchanges/ui/NewExchangePage').then(m => ({ default: m.NewExchangePage })));
 const ExchangesReceptionPage = lazy(() => import('@/features/exchanges/ui/ExchangesReceptionPage').then(m => ({ default: m.ReceptionBatchPage })));
+const ExchangesReceptionHistoryPage = lazy(() => import('@/features/exchanges/ui/ExchangesReceptionHistoryPage').then(m => ({ default: m.ExchangesReceptionHistoryPage })));
 const ExchangesDeliveryPage = lazy(() => import('@/features/exchanges/ui/ExchangesDeliveryPage').then(m => ({ default: m.OrderDeliveryPage })));
+const ExchangesShippingHistoryPage = lazy(() => import('@/features/exchanges/ui/ExchangesShippingHistoryPage').then(m => ({ default: m.ExchangesShippingHistoryPage })));
 const LoginPage = lazy(() => import('@/features/auth/ui/LoginPage').then(m => ({ default: m.LoginPage })));
 const OrderFormPage = lazy(() => import('@/features/order-management/ui/OrderFormPage').then(m => ({ default: m.OrderFormPage })));
 const SettingsPage = lazy(() => import('@/features/system-settings/ui/SettingsPage').then(m => ({ default: m.SettingsPage })));
@@ -140,7 +142,9 @@ const protectedChildren = [
     { path: 'exchanges/edit/:id', element: <ProtectedRoute permission="exchanges.edit"><NewExchangePage /></ProtectedRoute> },
     { path: 'exchanges/group/:receiptNumber', element: <ProtectedRoute permission="exchanges.edit"><NewExchangePage /></ProtectedRoute> },
     { path: 'exchanges/reception', element: <ProtectedRoute permission="exchanges.view"><ExchangesReceptionPage /></ProtectedRoute> },
+    { path: 'exchanges/reception-history', element: <ProtectedRoute permission="exchanges.view"><ExchangesReceptionHistoryPage /></ProtectedRoute> },
     { path: 'exchanges/delivery', element: <ProtectedRoute permission="exchanges.view"><ExchangesDeliveryPage /></ProtectedRoute> },
+    { path: 'exchanges/shipping-history', element: <ProtectedRoute permission="exchanges.view"><ExchangesShippingHistoryPage /></ProtectedRoute> },
     {
         path: 'admin/users',
         element: <ProtectedRoute permission="users.view"><AdminUsersPage /></ProtectedRoute>,

@@ -198,8 +198,12 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({
 }) => {
     const allOrders = [order, ...childOrders];
     
-    const totalVal = allOrders.reduce((sum, o) => sum + Number(o.total), 0);
-    const totalAbo = allOrders.reduce((sum, o) => sum + Number(getPaidAmount(o)), 0);
+    const totalVal = allOrders.reduce((sum, o) => sum + Number(o.total || 0), 0);
+    const totalAbo = allOrders.reduce((sum, o) => {
+        const fromPayments = getPaidAmount(o);
+        // Fallback: if payments array is missing/empty but there is a partial deposit in the object trait
+        return sum + (fromPayments > 0 ? fromPayments : Number((o as any).deposit || 0));
+    }, 0);
     const totalSal = totalVal - totalAbo;
 
     // Obtener desglose de métodos de pago — siempre iterar sobre los pagos reales
@@ -207,32 +211,37 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({
     const methodsMap = new Map<string, number>();
 
     allOrders.forEach(o => {
-        o.payments?.forEach((p: any) => {
-            if (p.financialRecords && p.financialRecords.length > 0) {
-                // Usar los registros financieros que tienen el método exacto (EFECTIVO, BILLETERA_VIRTUAL, etc.)
-                p.financialRecords.forEach((fr: any) => {
-                    const m = fr.paymentMethod || p.method || 'OTROS';
-                    // Normalizar CREDITO_CLIENTE → BILLETERA_VIRTUAL para consistencia en el recibo
-                    const normalized = (m === 'CREDITO_CLIENTE' || m === 'SALDO_A_FAVOR') ? 'BILLETERA_VIRTUAL' : m;
-                    if (normalized !== 'SPLIT_PAYMENT') {
-                        methodsMap.set(normalized, (methodsMap.get(normalized) || 0) + Number(fr.amount));
-                    }
-                });
-            } else if (p.method && p.method !== 'SPLIT_PAYMENT') {
-                // Fallback: usar el método directo del pago
-                const normalized = (p.method === 'CREDITO_CLIENTE' || p.method === 'SALDO_A_FAVOR') ? 'BILLETERA_VIRTUAL' : p.method;
-                methodsMap.set(normalized, (methodsMap.get(normalized) || 0) + Number(p.amount));
-            }
-        });
+        const fromPayments = o.payments || [];
+        if (fromPayments.length > 0) {
+            fromPayments.forEach((p: any) => {
+                if (p.financialRecords && p.financialRecords.length > 0) {
+                    p.financialRecords.forEach((fr: any) => {
+                        const m = fr.paymentMethod || p.method || 'OTROS';
+                        const normalized = (m === 'CREDITO_CLIENTE' || m === 'SALDO_A_FAVOR') ? 'BILLETERA_VIRTUAL' : m;
+                        if (normalized !== 'SPLIT_PAYMENT') {
+                            methodsMap.set(normalized, (methodsMap.get(normalized) || 0) + Number(fr.amount));
+                        }
+                    });
+                } else if (p.method && p.method !== 'SPLIT_PAYMENT') {
+                    const normalized = (p.method === 'CREDITO_CLIENTE' || p.method === 'SALDO_A_FAVOR') ? 'BILLETERA_VIRTUAL' : p.method;
+                    methodsMap.set(normalized, (methodsMap.get(normalized) || 0) + Number(p.amount));
+                }
+            });
+        } else if (Number((o as any).deposit || 0) > 0) {
+            // Fallback for new orders where payments might not be populated in local state
+            const m = (o as any).paymentMethod || order.paymentMethod || 'EFECTIVO';
+            const normalized = (m === 'CREDITO_CLIENTE' || m === 'SALDO_A_FAVOR') ? 'BILLETERA_VIRTUAL' : m;
+            methodsMap.set(normalized, (methodsMap.get(normalized) || 0) + Number((o as any).deposit));
+        }
     });
 
     if (methodsMap.size > 0) {
         methodsMap.forEach((amount, method) => {
-            paymentBreakdown.push({ method, amount });
+            paymentBreakdown.push({ method: method.toUpperCase(), amount });
         });
-    } else {
-        // Fallback absoluto si no hay pagos vinculados
-        paymentBreakdown.push({ method: order.paymentMethod, amount: totalAbo });
+    } else if (totalAbo > 0) {
+        // Fallback absoluto
+        paymentBreakdown.push({ method: order.paymentMethod.toUpperCase(), amount: totalAbo });
     }
 
     const formattedDate = new Date().toLocaleString('es-EC', { 
@@ -323,8 +332,9 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({
                     </View>
 
                     {allOrders.map((o, idx) => {
-                        const paid = getPaidAmount(o);
-                        const pending = Number(o.total) - paid;
+                        const fromPayments = getPaidAmount(o);
+                        const paid = fromPayments > 0 ? fromPayments : Number((o as any).deposit || 0);
+                        const pending = Number(o.total || 0) - paid;
                         return (
                             <View key={idx} style={styles.tableRow}>
                                 <Text style={[styles.tableCell, styles.colNo]}>{o.orderNumber || idx + 1}</Text>

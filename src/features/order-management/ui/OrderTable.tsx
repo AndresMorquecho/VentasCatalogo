@@ -148,9 +148,8 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, lastClosur
                             <tr className="border-b border-monchito-purple/10">
                                 <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest h-12 text-left w-[80px]">Origen</th>
                                 <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left w-[160px]">N° Recibo</th>
-                                <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left w-[90px]">N° Ped.</th>
                                 <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left min-w-[160px]">Cliente</th>
-                                <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left min-w-[80px]">Cat.</th>
+                                <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center w-[70px]">Cant.</th>
                                 <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right w-[75px]">Total</th>
                                 <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right w-[75px]">Abono</th>
                                 <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right w-[75px]">Saldo</th>
@@ -199,38 +198,12 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, lastClosur
                                             </span>
                                         </td>
 
-                                        <td className="px-6 py-4 text-xs font-mono font-bold text-slate-600 bg-slate-50/10">
-                                            {order.childOrdersCount && order.childOrdersCount > 0
-                                                ? <span className="text-monchito-purple bg-purple-50 px-2 py-1 rounded-md border border-purple-100 italic whitespace-nowrap">{order.childOrdersCount + 1} pedidos</span>
-                                                : (order.orderNumber || '---')}
-                                        </td>
-
-
-
                                         <td className="px-6 py-4 font-semibold text-slate-700 truncate max-w-[200px]">{order.clientName}</td>
 
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-2">
-                                                {(() => {
-                                                    const brands = new Set<string>();
-                                                    if (order.brandName) brands.add(order.brandName);
-                                                    order.childOrders?.forEach(child => {
-                                                        if (child.brandName) brands.add(child.brandName);
-                                                    });
-                                                    const brandsArray = Array.from(brands);
-                                                    if (brandsArray.length === 0) return <span className="text-slate-400 font-medium">Sin marca</span>;
-                                                    return (
-                                                        <div className="flex flex-col">
-                                                            <span className="text-slate-600 font-medium">{brandsArray[0]}</span>
-                                                            {brandsArray.length > 1 && (
-                                                                <span className="text-[10px] text-monchito-purple font-bold">
-                                                                    + {brandsArray.length - 1} marca{brandsArray.length > 2 ? 's' : ''} adicional{brandsArray.length > 2 ? 'es' : ''}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    );
-                                                })()}
-                                            </div>
+                                        <td className="px-6 py-4 text-center font-black text-monchito-purple bg-purple-50/30 border-x border-purple-100/50">
+                                            {order.childOrdersCount && order.childOrdersCount > 0
+                                                ? <span>{order.childOrdersCount + 1}</span>
+                                                : 1}
                                         </td>
 
                                         <td className="px-6 py-4 text-right font-bold text-slate-900">

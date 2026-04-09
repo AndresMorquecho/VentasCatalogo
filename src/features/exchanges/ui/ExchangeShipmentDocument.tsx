@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         display: 'flex',
     },
-    // Column Widths (Landscape - 10 col)
+    // Column Widths (Matches ExchangeReceiptDocument)
     colBrand: { width: '10%' },
     colManual: { width: '10%' },
     colQty: { width: '5%' },
@@ -137,24 +137,25 @@ const styles = StyleSheet.create({
     }
 });
 
-interface ExchangeReceiptProps {
+interface ExchangeShipmentProps {
     orders: Order[];
     user?: User;
     client?: Client;
-    receiptNumber: string;
+    trackingGuide: string;
     formattedDate: string;
     notes?: string;
 }
 
-export const ExchangeReceiptDocument: React.FC<ExchangeReceiptProps> = ({ 
+export const ExchangeShipmentDocument: React.FC<ExchangeShipmentProps> = ({ 
     orders, 
     user, 
     client, 
-    receiptNumber,
+    trackingGuide,
     formattedDate,
     notes
 }) => {
     const totalAbo = orders.reduce((sum, o) => sum + Number(getPaidAmount(o)), 0);
+    const totalValue = orders.reduce((sum, o) => sum + Number(o.total), 0);
     const logoUrl = '/images/BannerHeader.jpg';
 
     return (
@@ -164,8 +165,8 @@ export const ExchangeReceiptDocument: React.FC<ExchangeReceiptProps> = ({
                 <View style={styles.headerRow}>
                     <Image style={styles.logo} src={logoUrl} />
                     <View style={styles.headerRight}>
-                        <Text style={styles.headerTitle}>NO. DE CAMBIO</Text>
-                        <Text style={styles.headerNumber}>{receiptNumber}</Text>
+                        <Text style={styles.headerTitle}>GUÍA DE ENVÍO</Text>
+                        <Text style={styles.headerNumber}>{trackingGuide}</Text>
                     </View>
                 </View>
 
@@ -180,7 +181,7 @@ export const ExchangeReceiptDocument: React.FC<ExchangeReceiptProps> = ({
                         <Text style={styles.infoValue}>{(orders[0]?.clientName || client?.firstName || '').toUpperCase()}</Text>
                     </View>
                     <View style={styles.clientInfoRow}>
-                        <Text style={styles.infoLabel}>fecha de entrega:</Text>
+                        <Text style={styles.infoLabel}>Fecha de Envío:</Text>
                         <Text style={styles.infoValue}>{formattedDate}</Text>
                     </View>
                 </View>
@@ -224,15 +225,15 @@ export const ExchangeReceiptDocument: React.FC<ExchangeReceiptProps> = ({
 
                 {/* SUMMARY LINE */}
                 <View style={styles.summaryLine}>
-                    <Text style={{ fontWeight: 'bold' }}>N° DE CAMBIOS: {orders.length}</Text>
-                    <Text style={{ fontWeight: 'bold' }}>Forma de pago: {orders[0]?.paymentMethod || 'EFECTIVO'}</Text>
-                    <Text style={{ fontSize: 13, fontWeight: 'bold' }}>VALOR CANCELADO: {totalAbo.toFixed(2)}</Text>
+                    <Text style={{ fontWeight: 'bold' }}>TOTAL ITEMS EN GUÍA: {orders.length}</Text>
+                    <Text style={{ fontWeight: 'bold' }}>VALOR TOTAL: ${totalValue.toFixed(2)}</Text>
+                    <Text style={{ fontSize: 13, fontWeight: 'bold' }}>TOTAL ABONADO: ${totalAbo.toFixed(2)}</Text>
                 </View>
 
                 {/* ADDITIONAL NOTES */}
                 {notes && (
                     <View style={{ marginTop: 15, paddingHorizontal: 10 }}>
-                        <Text style={{ fontSize: 10, fontWeight: 'bold', marginBottom: 2 }}>Notas adicionales de la guía:</Text>
+                        <Text style={{ fontSize: 10, fontWeight: 'bold', marginBottom: 2 }}>Notas adicionales del envío:</Text>
                         <Text style={{ fontSize: 9, color: '#333' }}>{notes}</Text>
                     </View>
                 )}
@@ -241,14 +242,14 @@ export const ExchangeReceiptDocument: React.FC<ExchangeReceiptProps> = ({
                 <View style={styles.signatureSection}>
                     <View style={styles.signatureBlock}>
                         <View style={styles.signatureLine} />
-                        <Text style={styles.signatureText}>Entregado Por</Text>
+                        <Text style={styles.signatureText}>Despachado Por</Text>
                         <Text style={[styles.signatureText, { fontWeight: 'bold' }]}>{user?.username || 'admin'}</Text>
                     </View>
                     <View style={styles.signatureBlock}>
                         <View style={styles.signatureLine} />
-                        <Text style={styles.signatureText}>Recibido Conforme (Empresaria)</Text>
+                        <Text style={styles.signatureText}>Recibido Por (Empresaria)</Text>
                         <Text style={[styles.signatureText, { fontWeight: 'bold' }]}>{orders[0]?.clientName?.toUpperCase()}</Text>
-                        <Text style={styles.signatureText}>{client?.identificationNumber}</Text>
+                        <Text style={styles.signatureText}>{client?.identificationNumber || ''}</Text>
                     </View>
                 </View>
             </Page>

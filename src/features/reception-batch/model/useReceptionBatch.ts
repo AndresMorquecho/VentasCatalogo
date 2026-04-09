@@ -14,6 +14,10 @@ export const useReceptionBatch = () => {
     const [lastSavedOrders, setLastSavedOrders] = useState<Order[] | null>(null);
     const [lastSavedBatch, setLastSavedBatch] = useState<any | null>(null);
 
+    // Pagination for Pending Orders
+    const [pendingPage, setPendingPage] = useState(1);
+    const [pendingLimit] = useState(15);
+
     const [historyPage, setHistoryPage] = useState(1);
     const [historyLimit] = useState(15);
     const [historyFilters, setHistoryFilters] = useState({
@@ -25,16 +29,21 @@ export const useReceptionBatch = () => {
     });
 
     // Queries
-    const { data: allOrders = [], isLoading: isLoadingOrders } = useQuery({
-        queryKey: ['orders-pending-reception', 'v2'], // Forced cache refresh
+    // Query for PENDING orders with auto-refresh (real-time feel)
+    const { data: pendingResponse, isLoading: isLoadingOrders } = useQuery({
+        queryKey: ['orders-pending-reception', pendingPage, pendingLimit],
         queryFn: async () => {
-            const response = await orderApi.getAll({ 
+            return await orderApi.getAll({ 
                 status: 'POR_RECIBIR,EN_TRANSITO',
-                limit: 500 // Return all candidates for the pick-list
+                page: pendingPage,
+                limit: pendingLimit
             });
-            return response.data;
         },
+        refetchInterval: 10000, // Sync every 10 seconds
     });
+
+    const allOrders = pendingResponse?.data || [];
+    const pendingPagination = pendingResponse?.pagination;
 
     const { data: batchesResponse, isLoading: isLoadingBatches } = useQuery({
         queryKey: ['reception-batches', historyPage, historyLimit, historyFilters],
@@ -285,6 +294,10 @@ export const useReceptionBatch = () => {
         historyLimit,
         historyFilters,
         setHistoryFilters,
-        pagination
+        pagination,
+        // Pending Pagination
+        pendingPage,
+        setPendingPage,
+        pendingPagination
     };
 };

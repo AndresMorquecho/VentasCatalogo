@@ -83,11 +83,6 @@ function MovementRow({ m }: { m: CardMovement }) {
                 <span className={`font-mono font-bold text-sm ${m.informative ? 'text-slate-400' : isIn ? 'text-emerald-700' : 'text-red-600'}`}>
                     {isIn ? '+' : '-'}${Number(m.amount).toFixed(2)}
                 </span>
-                {m.balanceAfter != null && (
-                    <span className="text-[10px] text-slate-400 font-mono">
-                        Saldo: ${Number(m.balanceAfter).toFixed(2)}
-                    </span>
-                )}
             </div>
         </div>
     )

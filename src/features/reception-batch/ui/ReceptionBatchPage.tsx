@@ -29,19 +29,21 @@ export function ReceptionBatchPage() {
         batches,
         deleteBatch,
         isDeleting,
-        editingBatchId,
-        startEditingBatch,
-        cancelEdit,
         updateOrderItem,
         lastSavedOrders,
         lastSavedBatch,
         clearLastSaved,
-        // Pagination & Filters
+        editingBatchId,
+        startEditingBatch,
+        cancelEdit,
         historyPage,
         setHistoryPage,
         historyFilters,
         setHistoryFilters,
-        pagination
+        pagination,
+        pendingPage,
+        setPendingPage,
+        pendingPagination
     } = useReceptionBatch();
 
     // Manejo de Bloqueos por Concurrencia
@@ -143,7 +145,13 @@ export function ReceptionBatchPage() {
                                         Pedidos Pendientes de Recepción
                                     </h3>
                                 </div>
-                                <PendingOrdersTable orders={allOrders} onMove={addOrders} />
+                                <PendingOrdersTable 
+                                    orders={allOrders} 
+                                    onMove={addOrders} 
+                                    pagination={pendingPagination}
+                                    currentPage={pendingPage}
+                                    onPageChange={setPendingPage}
+                                />
                             </div>
                         )}
 
