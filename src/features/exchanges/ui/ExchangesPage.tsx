@@ -14,6 +14,7 @@ import { useNotifications } from '@/shared/lib/notifications';
 import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { useOrderList } from '@/entities/order/model/hooks';
+import { getPaidAmount } from '@/entities/order';
 import { orderApi } from '@/entities/order/model/api';
 import { useBrandList } from '@/features/brands/api/hooks';
 import { AsyncButton } from '@/shared/ui/async-button';
@@ -337,8 +338,8 @@ export function ExchangesPage() {
                               <td className="px-3 py-2 text-slate-500 italic truncate max-w-[150px]">{order.sourceDescription || 'N/A'}</td>
                               <td className="px-3 py-2 text-slate-800 font-medium truncate max-w-[150px]">{order.description}</td>
                               <td className="px-3 py-2 text-right font-bold text-slate-700">${Number(order.total).toFixed(2)}</td>
-                              <td className="px-3 py-2 text-right font-bold text-emerald-600">${Number(order.deposit || 0).toFixed(2)}</td>
-                              <td className="px-3 py-2 text-right font-bold text-red-500">${(Number(order.total) - Number(order.deposit || 0)).toFixed(2)}</td>
+                              <td className="px-3 py-2 text-right font-bold text-emerald-600">${getPaidAmount(order).toFixed(2)}</td>
+                              <td className="px-3 py-2 text-right font-bold text-red-500">${(Number(order.total) - getPaidAmount(order)).toFixed(2)}</td>
                               <td className="px-3 py-2 text-center text-slate-400 font-bold">{order.possibleDeliveryDate ? format(new Date(order.possibleDeliveryDate), 'dd/MM/yyyy') : '--/--/--'}</td>
                               <td className="px-3 py-2 text-center"></td>
                             </tr>
@@ -404,7 +405,7 @@ export function ExchangesPage() {
                             <div className="flex flex-col gap-1">
                                 <Label className="text-[10px] text-monchito-purple font-black uppercase tracking-widest">Saldo Total Lote ($)</Label>
                                 <span className="h-8 flex items-center font-mono font-bold text-red-600 text-sm">
-                                    ${stagedOrders.reduce((acc, curr) => acc + (Number(curr.total) - Number(curr.deposit || 0)), 0).toFixed(2)}
+                                    ${stagedOrders.reduce((acc, curr) => acc + (Number(curr.total) - getPaidAmount(curr)), 0).toFixed(2)}
                                 </span>
                             </div>
                         </div>
@@ -454,8 +455,8 @@ export function ExchangesPage() {
                           <td className="px-3 py-3 text-slate-500 italic truncate max-w-[150px]">{order.sourceDescription || 'N/A'}</td>
                           <td className="px-3 py-2 text-slate-800 font-medium truncate max-w-[150px] text-monchito-purple">{order.description}</td>
                           <td className="px-4 py-3 text-right font-bold text-slate-700">${Number(order.total).toFixed(2)}</td>
-                          <td className="px-4 py-3 text-right font-bold text-emerald-600">${Number(order.deposit || 0).toFixed(2)}</td>
-                          <td className="px-4 py-3 text-right font-bold text-red-500">${(Number(order.total) - Number(order.deposit || 0)).toFixed(2)}</td>
+                          <td className="px-4 py-3 text-right font-bold text-emerald-600">${getPaidAmount(order).toFixed(2)}</td>
+                          <td className="px-4 py-3 text-right font-bold text-red-500">${(Number(order.total) - getPaidAmount(order)).toFixed(2)}</td>
                           <td className="px-3 py-3 text-center text-slate-400 font-bold">{order.possibleDeliveryDate ? format(new Date(order.possibleDeliveryDate), 'dd/MM/yyyy') : '--/--/--'}</td>
                           <td className="px-4 py-3 text-center">
                             <button 

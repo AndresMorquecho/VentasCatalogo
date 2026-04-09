@@ -113,7 +113,7 @@ export function CreditDistributionModal({
           const newDistribution: CreditDistributionItem = {
             targetOrderId: orderId,
             amount: maxAmount,
-            description: `Aplicación de saldo a favor - Origen: Pedido ${sourceOrder.receiptNumber}, Destino: Pedido ${order.receiptNumber}`
+            description: ""
           }
           setDistributions(prev => [...prev, newDistribution])
         }
@@ -151,14 +151,14 @@ export function CreditDistributionModal({
       if (remainingAction === 'return') {
         finalDistributions.push({
           amount: remaining,
-          description: `Devolución al cliente - Origen: Pedido ${sourceOrder.receiptNumber}`,
+          description: "",
           isCashReturn: true,
           bankAccountId: selectedReturnAccountId || undefined
         })
       } else {
         finalDistributions.push({
           amount: remaining,
-          description: `Saldo restante guardado en billetera virtual - Origen: Pedido ${sourceOrder.receiptNumber}`
+          description: ""
         })
       }
     }

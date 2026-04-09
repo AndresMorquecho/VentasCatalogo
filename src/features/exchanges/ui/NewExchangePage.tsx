@@ -95,8 +95,8 @@ const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('es-CO', {
     style: 'currency',
     currency: 'COP',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(amount);
 };
 
@@ -263,7 +263,7 @@ export function NewExchangePage() {
           receiptNumber: formik.values.receiptNumber,
           status: 'POR_ENVIAR',
           createdAt: formik.values.createdAt,
-          deposit: 0, // Ensure new items have 0 deposit by default
+          deposit: Number(currentItem.deposit || 0),
           payments: [],
           paymentMethod: 'EFECTIVO',
           bankAccountId: '',
@@ -300,7 +300,7 @@ export function NewExchangePage() {
     } else {
       formik.setFieldValue("brandItems", [
         ...formik.values.brandItems, 
-        { ...currentItem, id: crypto.randomUUID(), deposit: 0 }
+        { ...currentItem, id: crypto.randomUUID(), deposit: Number(currentItem.deposit || 0) }
       ]);
       // Reset ALL item fields for the next entry
       setCurrentItem(prev => ({
@@ -683,15 +683,49 @@ export function NewExchangePage() {
                         <td className={`px-6 py-4 text-slate-600 text-[11px] font-medium max-w-[400px] overflow-hidden text-ellipsis bg-white transition-all ${pinnedColumns.has('description') ? 'sticky left-[880px] z-20 shadow-[1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`} title={item.description || ""}>
                           {item.description || "---"}
                         </td>
-                        <td className={`px-6 py-4 text-right text-[11px] font-black text-emerald-600 bg-white transition-all ${pinnedColumns.has('total') ? 'sticky right-[450px] z-20 shadow-[-1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`}>
-                          {formatCurrency(item.total)}
+                        <td className={`px-6 py-4 text-right bg-white transition-all ${pinnedColumns.has('total') ? 'sticky right-[450px] z-20 shadow-[-1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`}>
+                          {(!isEditing || !item.status || Number(item.deposit || 0) === 0) ? (
+                            <div className="flex justify-end items-center gap-1">
+                                <span className="text-emerald-400 text-[10px] font-bold">$</span>
+                                <input 
+                                  type="number" 
+                                  className="w-16 h-7 text-right rounded-lg border border-monchito-purple/10 bg-transparent text-[11px] font-black text-emerald-600 outline-none focus:ring-1 focus:ring-monchito-purple/30 hide-spinner"
+                                  value={item.total === 0 ? '' : item.total}
+                                  onChange={(e) => {
+                                    const newItems = [...formik.values.brandItems];
+                                    const val = e.target.value === '' ? 0 : Number(e.target.value);
+                                    newItems[idx] = { ...newItems[idx], total: val };
+                                    formik.setFieldValue("brandItems", newItems);
+                                  }}
+                                />
+                            </div>
+                          ) : (
+                            <span className="text-[11px] font-black text-emerald-600">{formatCurrency(item.total)}</span>
+                          )}
                         </td>
                         <td className={`px-6 py-4 text-center bg-white transition-all ${pinnedColumns.has('deposit') ? 'sticky right-[320px] z-20 shadow-[-1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`}>
-                          <span className={`inline-flex items-center gap-1.5 px-3 h-8 rounded-lg text-[11px] font-black ${
-                            Number(item.deposit) > 0 ? 'text-emerald-700 bg-emerald-50' : 'text-slate-400'
-                          }`}>
-                            {formatCurrency(Number(item.deposit || 0))}
-                          </span>
+                          {(!isEditing || !item.status || Number(item.deposit || 0) === 0) ? (
+                            <div className="flex justify-center items-center gap-1">
+                                <span className="text-emerald-600 text-[10px] font-bold">$</span>
+                                <input 
+                                  type="number" 
+                                  className="w-16 h-7 text-center rounded-lg border border-monchito-purple/10 bg-monchito-purple/5 text-[11px] font-black text-emerald-700 outline-none focus:ring-1 focus:ring-monchito-purple/30 hide-spinner"
+                                  value={item.deposit === 0 ? '' : item.deposit}
+                                  onChange={(e) => {
+                                    const newItems = [...formik.values.brandItems];
+                                    const rawVal = e.target.value === '' ? 0 : Number(e.target.value);
+                                    newItems[idx] = { ...newItems[idx], deposit: Math.min(rawVal, Number(item.total)) };
+                                    formik.setFieldValue("brandItems", newItems);
+                                  }}
+                                />
+                            </div>
+                          ) : (
+                            <span className={`inline-flex items-center gap-1.5 px-3 h-8 rounded-lg text-[11px] font-black ${
+                              Number(item.deposit) > 0 ? 'text-emerald-700 bg-emerald-50' : 'text-slate-400'
+                            }`}>
+                              {formatCurrency(Number(item.deposit || 0))}
+                            </span>
+                          )}
                         </td>
                         <td className={`px-6 py-4 text-right text-[11px] font-black text-slate-900 bg-white transition-all ${pinnedColumns.has('saldo') ? 'sticky right-[210px] z-20 shadow-[-1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`}>
                           {formatCurrency(Number(item.total) - Number(item.deposit || 0))}

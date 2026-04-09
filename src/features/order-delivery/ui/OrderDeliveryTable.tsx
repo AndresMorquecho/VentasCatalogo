@@ -164,14 +164,22 @@ export function OrderDeliveryTable({
             )
             .map(o => {
                 const initialPaid = getPaidAmount(o);
+
+                // Already persisted CREDITO_CLIENTE payments in DB (from prior distributions)
+                const alreadyPersistedCredit = (o.payments || [])
+                    .filter(p => p.method === 'CREDITO_CLIENTE')
+                    .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+
+                // Net credit planned in this session but not yet in DB
                 const incomingFromOthers = Object.entries(creditDistributions).reduce((sum, [orderId, dist]) => {
                     if (orderId === sourceOrder.id) return sum;
                     const distToThisOrder = dist.distributions.find(d => d.targetOrderId === o.id);
                     return sum + (distToThisOrder?.amount || 0);
                 }, 0);
+                const netIncomingFromOthers = Math.max(0, incomingFromOthers - alreadyPersistedCredit);
 
                 const totalAmount = Number(o.realInvoiceTotal ?? o.total ?? 0);
-                const pendingAmount = Math.max(0, totalAmount - initialPaid - incomingFromOthers);
+                const pendingAmount = Math.max(0, totalAmount - initialPaid - netIncomingFromOthers);
 
                 return {
                     id: o.id,
@@ -181,7 +189,7 @@ export function OrderDeliveryTable({
                     orderType: (o.type || 'NORMAL') as any,
                     pendingAmount,
                     totalAmount,
-                    paidAmount: initialPaid + incomingFromOthers,
+                    paidAmount: initialPaid + netIncomingFromOthers,
                     brandName: o.brandName
                 };
             })
@@ -317,7 +325,15 @@ export function OrderDeliveryTable({
                                 const isDisabled = selectedClientId !== null && order.clientId !== selectedClientId
 
                                 const initialPaid = getPaidAmount(order)
-                                const incomingDistributiveCredit = incomingCreditsMap[order.id] || 0;
+                                
+                                // Already persisted CREDITO_CLIENTE payments (from previous distributions saved to DB)
+                                const alreadyPersistedCredit = (order.payments || [])
+                                    .filter(p => p.method === 'CREDITO_CLIENTE')
+                                    .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+
+                                // Only show the NET incoming credit not yet reflected in DB payments
+                                const plannedIncoming = incomingCreditsMap[order.id] || 0;
+                                const incomingDistributiveCredit = Math.max(0, plannedIncoming - alreadyPersistedCredit);
 
                                 const totalAmount = order.realInvoiceTotal ?? order.total ?? 0
                                 const saldo = Math.max(0, totalAmount - initialPaid - incomingDistributiveCredit)

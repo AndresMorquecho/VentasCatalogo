@@ -22,7 +22,7 @@ import type { OrdersTrendData } from '../model/types';
 
 // --- Helpers ---
 const fmt = (n: number) =>
-    new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
+    new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n);
 
 export function DashboardPage() {
     const { data, isLoading, isError } = useDashboard();

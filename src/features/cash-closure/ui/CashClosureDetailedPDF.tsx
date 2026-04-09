@@ -25,115 +25,88 @@ const s = StyleSheet.create({
     headerContainer: { 
         flexDirection: 'row', 
         justifyContent: 'space-between', 
-        marginBottom: 5,
-        alignItems: 'flex-start'
-    },
-    logoContainer: {
-        width: '30%',
-        flexDirection: 'row',
         alignItems: 'center',
-        gap: 5
+        marginBottom: 15
     },
     logo: { 
-        width: 35, 
-        height: 35, 
+        width: 180, 
+        height: 60,
         objectFit: 'contain' 
     },
-    logoText: {
-        fontSize: 6,
-        fontFamily: 'Helvetica-Bold',
-        width: 60
-    },
-    titleContainer: {
-        width: '40%',
-        alignItems: 'center',
-    },
     mainTitle: {
-        fontSize: 14,
+        fontSize: 16,
         fontFamily: 'Helvetica-Bold',
-        marginTop: 10
-    },
-    reportDateContainer: {
-        width: '30%',
-        alignItems: 'flex-end',
-    },
-    reportDate: {
-        fontSize: 10,
-        fontFamily: 'Helvetica',
+        letterSpacing: 1
     },
     subHeaderInfo: {
-        marginTop: 2,
-        marginBottom: 10,
-    },
-    infoText: {
-        fontSize: 9,
-        marginBottom: 3,
+        marginBottom: 25,
     },
     infoBold: {
+        fontSize: 10,
         fontFamily: 'Helvetica-Bold',
-    },
-    headerLine: {
-        borderBottomWidth: 1,
-        borderBottomColor: COLORS.black,
-        borderBottomStyle: 'dotted',
-        marginBottom: 15,
-        width: '100%'
+        marginBottom: 5
     },
     // Table Styles
-    tableTitleBar: {
-        backgroundColor: COLORS.grayHeader,
-        borderWidth: 1,
-        borderColor: COLORS.black,
-        paddingVertical: 3,
-        paddingHorizontal: 8,
-        marginTop: 15,
-        borderRadius: 2,
-    },
-    tableTitleText: {
-        fontSize: 9,
+    sectionTitle: {
+        fontSize: 10,
         fontFamily: 'Helvetica-Bold',
         textTransform: 'uppercase',
+        marginBottom: 8
+    },
+    tableContainer: {
+        borderTopWidth: 1,
+        borderLeftWidth: 1,
+        borderColor: COLORS.black,
     },
     tableHeaderRow: {
         flexDirection: 'row',
-        borderBottomWidth: 1.5,
-        borderBottomColor: COLORS.black,
-        paddingVertical: 3,
-        marginTop: 2,
+        backgroundColor: COLORS.white,
+    },
+    colHeaderView: {
+        borderRightWidth: 1,
+        borderBottomWidth: 1,
+        borderColor: COLORS.black,
+        paddingVertical: 5,
+        paddingHorizontal: 2,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     colHeader: {
         fontFamily: 'Helvetica-Bold',
-        fontSize: 7,
+        fontSize: 6.5,
+        textAlign: 'center',
     },
     row: {
         flexDirection: 'row',
-        paddingVertical: 3,
-        borderBottomWidth: 0.5,
-        borderBottomColor: '#EEE',
     },
-    rowText: {
+    cellView: {
+        borderRightWidth: 1,
+        borderBottomWidth: 1,
+        borderColor: COLORS.black,
+        paddingVertical: 5,
+        paddingHorizontal: 2,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    cellText: {
         fontSize: 6.5,
+        textAlign: 'center',
     },
     tableFooter: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginTop: 5,
-        paddingHorizontal: 10,
+        marginTop: 8,
+        marginBottom: 10,
     },
-    tableCount: {
-        fontSize: 10,
-        fontFamily: 'Helvetica-Bold',
+    tableFooterText: {
+        fontSize: 9,
+        fontFamily: 'Helvetica',
     },
-    tableTotalLine: {
-        width: 80,
-        borderTopWidth: 1.5,
-        borderTopColor: COLORS.black,
-        alignItems: 'flex-end',
-        paddingTop: 2,
-    },
-    tableTotalValue: {
-        fontSize: 11,
-        fontFamily: 'Helvetica-Bold',
+    sectionDivider: {
+        width: '100%',
+        borderBottomWidth: 1,
+        borderColor: COLORS.black,
+        marginBottom: 20
     },
     // Final Summary
     finalSummaryContainer: {
@@ -142,24 +115,6 @@ const s = StyleSheet.create({
         alignItems: 'flex-end',
         marginTop: 35,
         width: '100%'
-    },
-    totalToReportBox: {
-        borderWidth: 1,
-        borderColor: COLORS.black,
-        paddingVertical: 6,
-        paddingHorizontal: 15,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 15,
-        backgroundColor: '#FAFAFA'
-    },
-    totalToReportLabel: {
-        fontSize: 10,
-        fontFamily: 'Helvetica-Bold',
-    },
-    totalToReportValue: {
-        fontSize: 11,
-        fontFamily: 'Helvetica-Bold',
     },
     signatureContainer: {
         flexDirection: 'row',
@@ -174,17 +129,17 @@ const s = StyleSheet.create({
     },
     signatureLine: {
         width: '100%',
-        borderTopWidth: 0.8,
+        borderTopWidth: 1,
         borderTopColor: COLORS.black,
         marginBottom: 4,
     },
     signatureName: {
-        fontSize: 7,
+        fontSize: 8,
         fontFamily: 'Helvetica-Bold',
         textTransform: 'uppercase',
     },
     signatureRole: {
-        fontSize: 6.5,
+        fontSize: 7,
         fontStyle: 'italic',
         color: '#444'
     },
@@ -227,79 +182,79 @@ export function CashClosureDetailedPDF({ report }: Props) {
     const entregas = summaryTables?.entregas || [];
     const catalog = summaryTables?.catalog || [];
 
-    // Optimized column widths for 10 columns in Portrait
+    // Optimized column widths matching the new requested layout
     const W = {
         n: '3%',
         tipo: '7%',
-        ref: '8%',
-        cod: '16%', // Max room for long IDs
-        desc: '16%',
-        hora: '7%',
-        id: '9%',
-        cli: '17%',
-        val: '9%',
-        acum: '8%'
+        trans: '11%',
+        ctrl: '10%',
+        obs: '17%',
+        fecha: '9%',
+        recibo: '15%',
+        emp: '18%',
+        val: '10%'
     };
 
-    const renderFinancialTable = (data: SummaryTableRecord[], title: string) => (
-        <View style={{ marginBottom: 15 }} wrap={false}>
-            {/* Title Bar */}
-            <View style={s.tableTitleBar}>
-                <Text style={s.tableTitleText}>{title}</Text>
-            </View>
+    const renderFinancialTable = (data: SummaryTableRecord[], title: string) => {
+        // Find total balance for the footer
+        const totalBalance = data.length > 0 ? data[data.length - 1].balance : 0;
 
-            {/* Header Row */}
-            <View style={[s.tableHeaderRow, { paddingHorizontal: 2 }]}>
-                <View style={{ width: W.n }}><Text style={s.colHeader}>N°</Text></View>
-                <View style={{ width: W.tipo }}><Text style={s.colHeader}>Tipo</Text></View>
-                <View style={{ width: W.ref }}><Text style={s.colHeader}>Ref.</Text></View>
-                <View style={{ width: W.cod }}><Text style={s.colHeader}>Código</Text></View>
-                <View style={{ width: W.desc }}><Text style={s.colHeader}>Descripción</Text></View>
-                <View style={{ width: W.hora }}><Text style={s.colHeader}>Hora</Text></View>
-                <View style={{ width: W.id }}><Text style={s.colHeader}>Identificación</Text></View>
-                <View style={{ width: W.cli }}><Text style={s.colHeader}>Empresaria/Cliente</Text></View>
-                <View style={{ width: W.val }}><Text style={[s.colHeader, { textAlign: 'right' }]}>Valor</Text></View>
-                <View style={{ width: W.acum }}><Text style={[s.colHeader, { textAlign: 'right' }]}>Acum.</Text></View>
-            </View>
+        return (
+            <View wrap={false}>
+                {/* Title */}
+                <Text style={s.sectionTitle}>{title}</Text>
 
-            {/* Data Rows with strict containment */}
-            {data.length === 0 ? (
-                <View style={{ padding: 10 }}><Text style={{ fontSize: 7, textAlign: 'center', fontStyle: 'italic' }}>Sin movimientos registrados en este periodo</Text></View>
-            ) : (
-                data.map((row, i) => (
-                    <View key={i} style={[s.row, { paddingHorizontal: 2 }]} wrap={false}>
-                        <View style={{ width: W.n, overflow: 'hidden' }}><Text style={{ fontSize: 6.2 }}>{i + 1}</Text></View>
-                        <View style={{ width: W.tipo, paddingRight: 4, overflow: 'hidden' }}><Text style={{ fontSize: 6.2 }}>{row.label || '---'}</Text></View>
-                        <View style={{ width: W.ref, paddingRight: 4, overflow: 'hidden' }}><Text style={{ fontSize: 6.2 }}>{row.reference || '---'}</Text></View>
-                        <View style={{ width: W.cod, paddingRight: 4, overflow: 'hidden' }}><Text style={{ fontSize: 6.2 }}>{row.code || '---'}</Text></View>
-                        <View style={{ width: W.desc, paddingRight: 4, overflow: 'hidden' }}><Text style={{ fontSize: 6.2 }}>{row.description}</Text></View>
-                        <View style={{ width: W.hora, overflow: 'hidden' }}><Text style={{ fontSize: 6.2 }}>{fmtTimeOnly(row.date)}</Text></View>
-                        <View style={{ width: W.id, paddingRight: 2, overflow: 'hidden' }}><Text style={{ fontSize: 6.2 }}>{row.identification || '---'}</Text></View>
-                        <View style={{ width: W.cli, paddingRight: 4, overflow: 'hidden' }}><Text style={{ fontSize: 6.2 }}>{(row.client || '---').toUpperCase()}</Text></View>
-                        <View style={{ width: W.val, overflow: 'hidden' }}>
-                            <Text style={{ 
-                                fontSize: 6.2,
-                                textAlign: 'right', 
-                                fontFamily: 'Helvetica-Bold',
-                                color: row.type === 'INCOME' ? COLORS.green : (row.type === 'EXPENSE' ? COLORS.red : COLORS.text)
-                            }}>
-                                {row.type === 'INCOME' ? '▲ ' : (row.type === 'EXPENSE' ? '▼ ' : '')}{fmt(row.amount)}
-                            </Text>
-                        </View>
-                        <View style={{ width: W.acum, overflow: 'hidden' }}><Text style={{ fontSize: 6.2, textAlign: 'right' }}>{fmt(row.balance)}</Text></View>
+                {/* Table */}
+                <View style={s.tableContainer}>
+                    {/* Header Row */}
+                    <View style={s.tableHeaderRow}>
+                        <View style={[s.colHeaderView, { width: W.n }]}><Text style={s.colHeader}>N°</Text></View>
+                        <View style={[s.colHeaderView, { width: W.tipo }]}><Text style={s.colHeader}>Tipo</Text></View>
+                        <View style={[s.colHeaderView, { width: W.trans }]}><Text style={s.colHeader}>Transaccion / Doc</Text></View>
+                        <View style={[s.colHeaderView, { width: W.ctrl }]}><Text style={s.colHeader}>Control | Validacion</Text></View>
+                        <View style={[s.colHeaderView, { width: W.obs }]}><Text style={s.colHeader}>Observaciones</Text></View>
+                        <View style={[s.colHeaderView, { width: W.fecha }]}><Text style={s.colHeader}>fecha y hora</Text></View>
+                        <View style={[s.colHeaderView, { width: W.recibo }]}><Text style={s.colHeader}>N° Recibo / Pedido</Text></View>
+                        <View style={[s.colHeaderView, { width: W.emp }]}><Text style={s.colHeader}>empresaria</Text></View>
+                        <View style={[s.colHeaderView, { width: W.val }]}><Text style={s.colHeader}>VALOR</Text></View>
                     </View>
-                ))
-            )}
 
-            {/* Table Footer */}
-            <View style={s.tableFooter}>
-                <Text style={s.tableCount}>{data.length}</Text>
-                <View style={s.tableTotalLine}>
-                    <Text style={s.tableTotalValue}>{data.length > 0 ? fmtCurrency(data[data.length - 1].balance) : '0.00'}</Text>
+                    {/* Data Rows */}
+                    {data.length === 0 ? (
+                        <View style={[s.row, s.cellView, { width: '100%', borderRightWidth: 0 }]}><Text style={s.cellText}>Sin movimientos</Text></View>
+                    ) : (
+                        data.map((row, i) => (
+                            <View key={i} style={s.row} wrap={false}>
+                                <View style={[s.cellView, { width: W.n }]}><Text style={s.cellText}>{i + 1}</Text></View>
+                                <View style={[s.cellView, { width: W.tipo }]}><Text style={s.cellText}>{row.label || '-'}</Text></View>
+                                <View style={[s.cellView, { width: W.trans }]}><Text style={s.cellText}>{row.reference || '-'}</Text></View>
+                                <View style={[s.cellView, { width: W.ctrl }]}><Text style={s.cellText}>{row.identification || '-'}</Text></View>
+                                <View style={[s.cellView, { width: W.obs }]}><Text style={s.cellText}>{row.description || '-'}</Text></View>
+                                <View style={[s.cellView, { width: W.fecha }]}>
+                                    <Text style={s.cellText}>{fmtDateOnly(row.date)}</Text>
+                                    <Text style={s.cellText}>{fmtTimeOnly(row.date)}</Text>
+                                </View>
+                                <View style={[s.cellView, { width: W.recibo }]}><Text style={s.cellText}>{row.code || '-'}</Text></View>
+                                <View style={[s.cellView, { width: W.emp }]}><Text style={s.cellText}>{(row.client || '-').toUpperCase()}</Text></View>
+                                <View style={[s.cellView, { width: W.val }]}>
+                                    <Text style={s.cellText}>{fmt(row.amount)}</Text>
+                                </View>
+                            </View>
+                        ))
+                    )}
                 </View>
+
+                {/* Table Footer */}
+                <View style={s.tableFooter}>
+                    <Text style={s.tableFooterText}>N° de Movimientos: {data.length}</Text>
+                    <Text style={s.tableFooterText}>Total Acum: {fmt(totalBalance)}</Text>
+                </View>
+
+                {/* Section Divider */}
+                <View style={s.sectionDivider} />
             </View>
-        </View>
-    );
+        );
+    };
 
     // Filter accounts for summary
     const cashAccounts = report.totalDetails?.accounts.filter(a => a.type === 'CASH') || [];
@@ -313,30 +268,19 @@ export function CashClosureDetailedPDF({ report }: Props) {
             <Page size="A4" style={s.page}>
                 {/* Custom Header based on image */}
                 <View style={s.headerContainer}>
-                    <View style={s.logoContainer}>
-                        <Image src="/images/mochitopng.png" style={s.logo} />
-                        <Text style={s.logoText}>VENTA POR CATÁLOGO</Text>
-                    </View>
-                    <View style={s.titleContainer}>
-                        <Text style={s.mainTitle}>CIERRE DE CAJA</Text>
-                    </View>
-                    <View style={s.reportDateContainer}>
-                        <Text style={s.reportDate}>{fmtDateOnly(new Date())}</Text>
-                    </View>
+                    <Image src="/images/BannerHeader.jpg" style={s.logo} />
+                    <Text style={s.mainTitle}>CIERRE DE CAJA</Text>
                 </View>
 
                 {/* Sub-header info */}
                 <View style={s.subHeaderInfo}>
-                    <Text style={s.infoText}>
-                        Fecha de cierre: <Text style={s.infoBold}>{fmtDateOnly(toDate)}</Text>
+                    <Text style={s.infoBold}>
+                        fecha y hora de cierre: {fmtDateOnly(toDate)}   {fmtTimeOnly(toDate)}
                     </Text>
-                    <Text style={s.infoText}>
-                        Responsable: <Text style={s.infoBold}>{(closedByName || 'ADMINISTRADOR').toUpperCase()}</Text>
+                    <Text style={s.infoBold}>
+                        Responsable: {(closedByName || 'ADMINISTRADOR').toUpperCase()}
                     </Text>
                 </View>
-
-                {/* Separator Line */}
-                <View style={s.headerLine} />
 
                 {/* Tables rendering in portrait */}
                 {renderFinancialTable(wallet, 'Wallet Informativa')}
@@ -347,8 +291,8 @@ export function CashClosureDetailedPDF({ report }: Props) {
 
                 {/* Accounts Summary Section */}
                 <View style={{ marginTop: 20 }} wrap={false}>
-                    <View style={[s.tableTitleBar, { backgroundColor: '#F3F4F6' }]}>
-                        <Text style={s.tableTitleText}>RESUMEN DE SALDOS POR CUENTAS</Text>
+                    <View style={{ borderBottomWidth: 1, borderColor: COLORS.black, paddingBottom: 5, marginBottom: 10 }}>
+                        <Text style={s.sectionTitle}>RESUMEN DE SALDOS POR CUENTAS</Text>
                     </View>
                     
                     <View style={{ flexDirection: 'row', gap: 20, marginTop: 10 }}>
