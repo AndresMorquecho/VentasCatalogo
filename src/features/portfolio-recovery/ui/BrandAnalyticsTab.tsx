@@ -17,7 +17,6 @@ import { KpiCard } from '@/features/dashboard/ui/KpiCard';
 import { formatCurrency, formatPercentage } from '@/features/portfolio-recovery/types';
 import { 
   TrendingUp, 
-  TrendingDown, 
   Package, 
   AlertCircle, 
   Target, 
@@ -108,13 +107,13 @@ export function BrandAnalyticsTab({ filters }: BrandAnalyticsTabProps) {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
             <KpiCard
-                title="Capital en Riesgo"
+                title="Inventario en Cartera"
                 value={formatCurrency(totals.totalInWarehouse)}
                 trend={-4.5}
                 icon={<Package className="h-5 w-5" />}
                 color="info"
                 sparklineData={[65, 60, 62, 58, 55, 50, 48]}
-                description="Venta Total en Cartera"
+                description="Valor total del inventario"
             />
             <KpiCard
                 title="Recuperado Total"
@@ -129,19 +128,19 @@ export function BrandAnalyticsTab({ filters }: BrandAnalyticsTabProps) {
                 title="Cartera Pendiente"
                 value={formatCurrency(totals.totalOutstanding)}
                 trend={-2.1}
-                icon={<TrendingDown className="h-5 w-5" />}
+                icon={<AlertCircle className="h-5 w-5" />}
                 color="danger"
                 sparklineData={[80, 85, 82, 78, 75, 70, 68]}
-                description={`${totals.totalBrands} Marcas Activas`}
+                description="Capital en riesgo"
             />
             <KpiCard
                 title="Estado Crítico"
                 value={totals.critical}
                 trend={totals.critical > 5 ? 10 : -5}
-                icon={<AlertCircle className="h-5 w-5" />}
+                icon={< Zap className="h-5 w-5" />}
                 color="warning"
                 sparklineData={[2, 3, 5, 4, 6, 4, 3]}
-                description="Marcas en Alerta"
+                description="Marcas en alerta"
             />
         </div>
       </div>

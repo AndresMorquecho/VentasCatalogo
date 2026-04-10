@@ -43,7 +43,9 @@ export function ReceptionBatchPage() {
         pagination,
         pendingPage,
         setPendingPage,
-        pendingPagination
+        pendingPagination,
+        pendingFilters,
+        setPendingFilters
     } = useReceptionBatch();
 
     // Manejo de Bloqueos por Concurrencia
@@ -93,7 +95,7 @@ export function ReceptionBatchPage() {
     return (
         <div className="space-y-6">
             <PageHeader
-                title={editingBatchId ? 'Editando Recepción Batch' : 'Recepción de Pedidos (Bodega)'}
+                title={editingBatchId ? 'Editando Recepción' : 'Recepción de Pedidos (Bodega)'}
                 description={editingBatchId ? 'Modificando un lote de pedidos ya registrado' : 'Gestión y control de entrada de mercadería'}
                 icon={Truck}
                 actions={
@@ -151,6 +153,8 @@ export function ReceptionBatchPage() {
                                     pagination={pendingPagination}
                                     currentPage={pendingPage}
                                     onPageChange={setPendingPage}
+                                    filters={pendingFilters}
+                                    onFiltersChange={setPendingFilters}
                                 />
                             </div>
                         )}

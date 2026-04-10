@@ -1,6 +1,7 @@
 import React from 'react';
 import { Page, Text, View, Document, StyleSheet, Image } from '@react-pdf/renderer';
 import type { Order } from '@/entities/order/model/types';
+import { getPaidAmount, getPendingAmount, getEffectiveTotal } from '@/entities/order/model/model';
 
 const styles = StyleSheet.create({
     page: {
@@ -84,14 +85,15 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     // Column widths
-    colReceipt: { width: '12%', textAlign: 'center' },
-    colClient: { width: '25%', textAlign: 'center' },
-    colBrand: { width: '10%', textAlign: 'center' },
-    colOrderNo: { width: '12%', textAlign: 'center' },
-    colDocType: { width: '10%', textAlign: 'center' },
-    colInvNo: { width: '11%', textAlign: 'center' },
-    colAbono: { width: '10%', textAlign: 'center' },
-    colTotal: { width: '10%', textAlign: 'center', borderRight: 0 },
+    colReceipt: { width: '10%', textAlign: 'center' },
+    colClient: { width: '22%', textAlign: 'center' },
+    colBrand: { width: '8%', textAlign: 'center' },
+    colOrderNo: { width: '10%', textAlign: 'center' },
+    colDocType: { width: '8%', textAlign: 'center' },
+    colInvNo: { width: '10%', textAlign: 'center' },
+    colAbono: { width: '8%', textAlign: 'center' },
+    colTotal: { width: '12%', textAlign: 'center' },
+    colSaldo: { width: '12%', textAlign: 'center', borderRight: 0 },
 
     footer: {
         marginTop: 15,
@@ -117,26 +119,9 @@ export const ReceptionBatchReport: React.FC<Props> = ({ orders, packingNumber, p
         hour12: false
     });
 
-    const getBatchAbono = (o: Order) => {
-        const cashAbono = Number((o as any).abonoRecepcion || 0);
-        const payments = o.payments || [];
-        
-        // Sumar pagos hechos en ESTA recepción (Efectivo Packing + Crédito Distributivo)
-        const distributiveAbono = payments
-            .filter(p => 
-                p.method === 'CREDITO_CLIENTE' || 
-                p.description === 'Abono en recepción de bodega (Packing)'
-            )
-            .reduce((sum, p) => sum + Number(p.amount), 0);
-            
-        return distributiveAbono > 0 ? distributiveAbono : cashAbono;
-    };
-
-    const totalAbonos = orders.reduce((sum, o) => {
-        return sum + getBatchAbono(o);
-    }, 0);
-
-    const totalInvoices = orders.reduce((sum, o) => sum + Number(o.realInvoiceTotal || o.total || 0), 0);
+    const totalAbonos = orders.reduce((sum, o) => sum + getPaidAmount(o), 0);
+    const totalInvoices = orders.reduce((sum, o) => sum + getEffectiveTotal(o), 0);
+    const totalPending = orders.reduce((sum, o) => sum + getPendingAmount(o), 0);
 
     return (
         <Document>
@@ -175,7 +160,8 @@ export const ReceptionBatchReport: React.FC<Props> = ({ orders, packingNumber, p
                         <Text style={[styles.tableCell, styles.colDocType]}>Tipo documento</Text>
                         <Text style={[styles.tableCell, styles.colInvNo]}>No documento</Text>
                         <Text style={[styles.tableCell, styles.colAbono]}>Abono</Text>
-                        <Text style={[styles.tableCell, styles.colTotal, styles.tableCellLast]}>Valor factura</Text>
+                        <Text style={[styles.tableCell, styles.colTotal]}>Valor factura</Text>
+                        <Text style={[styles.tableCell, styles.colSaldo, styles.tableCellLast]}>Saldo</Text>
                     </View>
 
                     {orders.map((o, i) => (
@@ -187,20 +173,27 @@ export const ReceptionBatchReport: React.FC<Props> = ({ orders, packingNumber, p
                             <Text style={[styles.tableCell, styles.colDocType]}>{o.documentType || 'FACTURA'}</Text>
                             <Text style={[styles.tableCell, styles.colInvNo]}>{o.invoiceNumber || '-'}</Text>
                             <Text style={[styles.tableCell, styles.colAbono]}>
-                                {getBatchAbono(o).toFixed(2)}
+                                {getPaidAmount(o).toFixed(2)}
                             </Text>
-                            <Text style={[styles.tableCell, styles.colTotal, styles.tableCellLast]}>
-                                {Number(o.realInvoiceTotal || o.total || 0).toFixed(2)}
+                            <Text style={[styles.tableCell, styles.colTotal]}>
+                                {getEffectiveTotal(o).toFixed(2)}
+                            </Text>
+                            <Text style={[styles.tableCell, styles.colSaldo, styles.tableCellLast]}>
+                                {getPendingAmount(o).toFixed(2)}
                             </Text>
                         </View>
                     ))}
                 </View>
 
                 <View style={styles.footer}>
-                    <Text>Cantidad de pedidos: {orders.length}</Text>
-                    <View style={{ flexDirection: 'column', alignItems: 'flex-end' }}>
-                        <Text>VALOR TOTAL PACKING: ${totalInvoices.toFixed(2)}</Text>
-                        <Text style={{ fontSize: 8, marginTop: 2 }}>Total Abonos: ${totalAbonos.toFixed(2)}</Text>
+                    <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+                       <Text style={{ fontSize: 9, color: '#64748b' }}>Cantidad de pedidos: {orders.length}</Text>
+                    </View>
+                    <View style={{ flexDirection: 'column', alignItems: 'flex-end', backgroundColor: '#f8fafc', padding: 10, borderRadius: 5, border: '1pt solid #e2e8f0' }}>
+                        <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#0f172a' }}>TOTAL VALOR FACTURAS: ${totalInvoices.toFixed(2)}</Text>
+                        <Text style={{ fontSize: 10, marginTop: 4, color: '#059669', fontWeight: 'bold' }}>TOTAL ABONOS RECIBIDOS: ${totalAbonos.toFixed(2)}</Text>
+                        <View style={{ height: 1, backgroundColor: '#cbd5e1', width: 150, marginVertical: 4 }} />
+                        <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#b45309' }}>SALDO PENDIENTE TOTAL: ${totalPending.toFixed(2)}</Text>
                     </View>
                 </View>
             </Page>

@@ -343,11 +343,27 @@ export function OrderDeliveryTable({
                                 return (
                                     <TableRow
                                         key={order.id}
+                                        tabIndex={0}
+                                        data-row-index={orders.indexOf(order)}
                                         className={cn(
-                                            "group border-b border-monchito-purple/5 transition-all duration-200 cursor-pointer",
+                                            "group border-b border-monchito-purple/5 transition-all duration-200 cursor-pointer outline-none focus:bg-monchito-purple/[0.05]",
                                             isSelected ? "bg-monchito-purple/[0.03]" : "hover:bg-monchito-purple/[0.02]"
                                         )}
                                         onClick={() => !isDisabled && handleToggleSelect(order)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === ' ' || e.key === 'Enter') {
+                                                e.preventDefault()
+                                                if (!isDisabled) handleToggleSelect(order)
+                                            } else if (e.key === 'ArrowDown') {
+                                                e.preventDefault()
+                                                const next = document.querySelector(`[data-row-index="${orders.indexOf(order) + 1}"]`) as HTMLElement
+                                                if (next) next.focus()
+                                            } else if (e.key === 'ArrowUp') {
+                                                e.preventDefault()
+                                                const prev = document.querySelector(`[data-row-index="${orders.indexOf(order) - 1}"]`) as HTMLElement
+                                                if (prev) prev.focus()
+                                            }
+                                        }}
                                     >
                                         <TableCell className="px-6 py-4">
                                             <input

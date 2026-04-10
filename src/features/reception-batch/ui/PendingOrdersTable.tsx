@@ -5,8 +5,6 @@ import { Input } from "@/shared/ui/input"
 import type { Order } from "@/entities/order/model/types"
 import { ArrowRight, Search, Tag } from "lucide-react"
 import { getPaidAmount } from "@/entities/order/model/model"
-import { DateRangePicker } from "@/shared/ui/filters"
-import type { DateRange } from "react-day-picker"
 
 import { Pagination } from "@/shared/ui/pagination"
 
@@ -21,60 +19,31 @@ interface Props {
     }
     currentPage?: number;
     onPageChange?: (page: number) => void;
+    filters?: {
+        search: string;
+        receiptNumber: string;
+        orderNumber: string;
+        brandId: string;
+        type: string;
+        startDate: string;
+        endDate: string;
+    };
+    onFiltersChange?: (filters: any) => void;
 }
 
-export function PendingOrdersTable({ orders, onMove, pagination, currentPage = 1, onPageChange }: Props) {
+export function PendingOrdersTable({ orders, onMove, pagination, currentPage = 1, onPageChange, filters, onFiltersChange }: Props) {
     const [selected, setSelected] = useState<Set<string>>(new Set())
-    const [searchTerm, setSearchTerm] = useState("")
-    const [receiptFilter, setReceiptFilter] = useState("")
-    const [orderNumberFilter, setOrderNumberFilter] = useState("")
-    const [brandFilter, setBrandFilter] = useState("")
-    const [typeFilter, setTypeFilter] = useState("")
-    const [dateRange, setDateRange] = useState<DateRange | undefined>()
-
-    // Map for faster lookups
-
-
+    
     // Extract unique brands for filter dropdown
     const availableBrands = useMemo(() => {
-        const set = new Set<string>();
-        orders.forEach(o => o.brandName && set.add(o.brandName));
-        return Array.from(set).sort();
-    }, [orders]);
-
-    const filteredOrders = useMemo(() => {
-        const lowerSearch = searchTerm.toLowerCase().trim();
-        const lowerReceipt = receiptFilter.toLowerCase().trim();
-        const lowerOrderNum = orderNumberFilter.toLowerCase().trim();
-        const startDate = dateRange?.from ? dateRange.from.toISOString().split('T')[0] : null;
-        const endDate = dateRange?.to ? dateRange.to.toISOString().split('T')[0] : null;
-
-        return orders.filter(o => {
-            // 1. Client Search
-            if (lowerSearch && !o.clientName.toLowerCase().includes(lowerSearch)) return false;
-
-            // 2. Receipt Search
-            if (lowerReceipt && !o.receiptNumber.toLowerCase().includes(lowerReceipt)) return false;
-
-            // 3. Order Number Search
-            if (lowerOrderNum && !(o.orderNumber || "").toLowerCase().includes(lowerOrderNum)) return false;
-
-            // 4. Brand Filter
-            if (brandFilter && o.brandName !== brandFilter) return false;
-
-            // 5. Type Filter
-            if (typeFilter && o.type !== typeFilter) return false;
-
-            // 6. Date Range Filter
-            if (startDate || endDate) {
-                const orderDate = new Date(o.createdAt).toISOString().split('T')[0];
-                if (startDate && orderDate < startDate) return false;
-                if (endDate && orderDate > endDate) return false;
+        const map = new Map<string, string>();
+        orders.forEach(o => {
+            if (o.brandId && o.brandName) {
+                map.set(o.brandId, o.brandName);
             }
-
-            return true;
         });
-    }, [orders, searchTerm, receiptFilter, orderNumberFilter, brandFilter, typeFilter, dateRange]);
+        return Array.from(map.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+    }, [orders]);
 
     const toggle = (id: string) => {
         setSelected(prev => {
@@ -86,19 +55,19 @@ export function PendingOrdersTable({ orders, onMove, pagination, currentPage = 1
     }
 
     const toggleAll = () => {
-        const allFilteredIds = filteredOrders.map(o => o.id);
-        const allSelected = allFilteredIds.length > 0 && allFilteredIds.every(id => selected.has(id));
+        const allIds = orders.map(o => o.id);
+        const allSelected = allIds.length > 0 && allIds.every(id => selected.has(id));
 
         if (allSelected) {
             setSelected(prev => {
                 const next = new Set(prev);
-                allFilteredIds.forEach(id => next.delete(id));
+                allIds.forEach(id => next.delete(id));
                 return next;
             });
         } else {
             setSelected(prev => {
                 const next = new Set(prev);
-                allFilteredIds.forEach(id => next.add(id));
+                allIds.forEach(id => next.add(id));
                 return next;
             });
         }
@@ -107,8 +76,6 @@ export function PendingOrdersTable({ orders, onMove, pagination, currentPage = 1
     const handleMove = () => {
         onMove(Array.from(selected))
         setSelected(new Set())
-        // Reset filters? Maybe keep them.
-        // Let's keep filters as user might move in batches from same search.
     }
 
     const handleFilterKeyDown = (e: React.KeyboardEvent<HTMLInputElement | HTMLSelectElement>, fieldIndex: number) => {
@@ -141,12 +108,25 @@ export function PendingOrdersTable({ orders, onMove, pagination, currentPage = 1
                     if (nextTarget instanceof HTMLInputElement) nextTarget.select();
                 }
             }
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            // Move to first row of table
+            const firstCell = document.querySelector('tbody tr input[type="checkbox"]') as HTMLElement;
+            if (firstCell) firstCell.focus();
         }
     }
 
-    const areAllFilteredSelected = filteredOrders.length > 0 && filteredOrders.every(o => selected.has(o.id));
+    const handleFilterUpdate = (newFields: Partial<NonNullable<typeof filters>>) => {
+        if (onFiltersChange && filters) {
+            onFiltersChange({ ...filters, ...newFields });
+            if (onPageChange) onPageChange(1);
+        }
+    }
 
-    if (orders.length === 0) {
+    const areAllSelected = orders.length > 0 && orders.every(o => selected.has(o.id));
+    const currentFilters = filters || { search: '', receiptNumber: '', orderNumber: '', brandId: '', type: '', startDate: '', endDate: '' };
+
+    if (orders.length === 0 && !currentFilters.search && !currentFilters.receiptNumber && !currentFilters.orderNumber) {
         return (
             <div className="h-full flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-200 rounded-lg bg-slate-50 text-slate-400">
                 <p>No hay pedidos pendientes de recibir.</p>
@@ -155,128 +135,130 @@ export function PendingOrdersTable({ orders, onMove, pagination, currentPage = 1
     }
 
     return (
-        <div className="space-y-4 h-full flex flex-col">
+        <div className="space-y-4 h-full flex flex-col pt-1">
             {/* Filters Section */}
-            <div className="bg-monchito-purple/5 p-3 rounded-lg border border-monchito-purple/10 shrink-0">
-                <div className="flex flex-col gap-3">
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:flex lg:flex-1 gap-2 items-center w-full">
-                        {/* Search Input (Client) */}
-                        <div className="relative col-span-2 sm:col-span-1 lg:flex-1 min-w-[150px]">
-                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-monchito-purple/50" />
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm shrink-0">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-x-3 gap-y-4 items-end">
+                    {/* Search Input (Client) */}
+                    <div className="lg:col-span-3 space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Empresaria</label>
+                        <div className="relative group">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-monchito-purple transition-colors" />
                             <Input
-                                placeholder="Empresaria..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
+                                placeholder="Nombre de empresaria..."
+                                value={currentFilters.search}
+                                onChange={(e) => handleFilterUpdate({ search: e.target.value })}
                                 onKeyDown={(e) => handleFilterKeyDown(e, 0)}
                                 data-filter-index="0"
-                                className="pl-8 bg-white border-monchito-purple/20 focus-visible:ring-monchito-purple/20 h-9 text-xs font-normal"
+                                tabIndex={1}
+                                className="pl-10 bg-white border-slate-200 focus:ring-monchito-purple/20 h-10 text-sm font-medium rounded-xl shadow-sm transition-all"
                             />
                         </div>
+                    </div>
 
-                        {/* Receipt Filter */}
-                        <div className="relative lg:flex-1 min-w-[100px]">
+                    {/* Receipt Filter */}
+                    <div className="lg:col-span-3 space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">N° Recibo</label>
+                        <div className="relative">
                             <Input
-                                placeholder="N° Recibo..."
-                                value={receiptFilter}
-                                onChange={(e) => setReceiptFilter(e.target.value)}
+                                placeholder="Ej: 4523..."
+                                value={currentFilters.receiptNumber}
+                                onChange={(e) => handleFilterUpdate({ receiptNumber: e.target.value })}
                                 onKeyDown={(e) => handleFilterKeyDown(e, 1)}
                                 data-filter-index="1"
-                                className="bg-white border-monchito-purple/20 focus-visible:ring-monchito-purple/20 h-9 text-xs px-3 font-normal"
+                                tabIndex={2}
+                                className="bg-white border-slate-200 focus:ring-monchito-purple/20 h-10 text-sm font-bold rounded-xl shadow-sm transition-all"
                             />
                         </div>
+                    </div>
 
-                        {/* Order Number Filter */}
-                        <div className="relative lg:flex-1 min-w-[100px]">
+                    {/* Order Number Filter */}
+                    <div className="lg:col-span-3 space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">N° Pedido</label>
+                        <div className="relative">
                             <Input
-                                placeholder="N° Pedido..."
-                                value={orderNumberFilter}
-                                onChange={(e) => setOrderNumberFilter(e.target.value)}
+                                placeholder="Ej: ORD-..."
+                                value={currentFilters.orderNumber}
+                                onChange={(e) => handleFilterUpdate({ orderNumber: e.target.value })}
                                 onKeyDown={(e) => handleFilterKeyDown(e, 2)}
                                 data-filter-index="2"
-                                className="bg-white border-monchito-purple/20 focus-visible:ring-monchito-purple/20 h-9 text-xs px-3 font-normal"
+                                tabIndex={3}
+                                className="bg-white border-slate-200 focus:ring-monchito-purple/20 h-10 text-sm font-bold rounded-xl shadow-sm transition-all text-monchito-purple"
                             />
                         </div>
+                    </div>
 
-                        {/* Brand Select */}
-                        <div className="relative lg:flex-1 min-w-[130px]">
-                            <Tag className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-monchito-purple/50" />
+                    {/* Brand Select */}
+                    <div className="lg:col-span-3 space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Catálogo</label>
+                        <div className="relative">
+                            <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
                             <select
-                                value={brandFilter}
-                                onChange={(e) => setBrandFilter(e.target.value)}
+                                value={currentFilters.brandId}
+                                onChange={(e) => handleFilterUpdate({ brandId: e.target.value })}
                                 onKeyDown={(e) => handleFilterKeyDown(e, 3)}
                                 data-filter-index="3"
-                                className="w-full h-9 pl-8 pr-3 text-xs bg-white border border-monchito-purple/20 rounded-lg focus:border-monchito-purple focus:outline-none appearance-none font-normal"
+                                tabIndex={4}
+                                className="w-full h-10 pl-10 pr-4 text-sm bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-monchito-purple/20 focus:outline-none appearance-none font-bold text-slate-700 shadow-sm transition-all"
                             >
-                                <option value="">Todos Catálogos</option>
+                                <option value="">Todos los Catálogos</option>
+                                <option value="ALL">Mostrar Todo</option>
                                 {availableBrands.map(b => (
-                                    <option key={b} value={b}>{b}</option>
+                                    <option key={b.id} value={b.id}>{b.name}</option>
                                 ))}
                             </select>
                         </div>
-
-                        {/* Type Filter */}
-                        <div className="relative lg:flex-1 min-w-[90px]">
-                            <select
-                                value={typeFilter}
-                                onChange={(e) => setTypeFilter(e.target.value)}
-                                onKeyDown={(e) => handleFilterKeyDown(e, 4)}
-                                data-filter-index="4"
-                                className="w-full h-9 px-3 text-xs bg-white border border-monchito-purple/20 rounded-lg focus:border-monchito-purple focus:outline-none appearance-none font-normal"
-                            >
-                                <option value="">Toda Clase</option>
-                                <option value="NORMAL">Normal</option>
-                                <option value="CAMBIO">Cambio</option>
-                                <option value="PREVENTA">Preventa</option>
-                                <option value="REPROGRAMACION">Repro</option>
-                                <option value="CATALOGO">Catálogo</option>
-                            </select>
-                        </div>
-
-                        {/* Date Range Picker */}
-                        <div className="relative col-span-2 sm:col-span-1 lg:flex-1 min-w-[150px]">
-                            <DateRangePicker
-                                value={dateRange}
-                                onChange={setDateRange}
-                                showLabel={false}
-                                placeholder="dd/mm/aaaa"
-                                className="h-9 text-xs font-normal"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="flex items-center justify-between border-t border-monchito-purple/5 pt-2">
-                        <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-bold text-monchito-purple bg-monchito-purple/10 px-2 py-1 rounded-md">
-                                {filteredOrders.length} Resultados
-                            </span>
-                            {(searchTerm || receiptFilter || orderNumberFilter || brandFilter || typeFilter || dateRange) && (
-                                <button
-                                    onClick={() => { 
-                                        setSearchTerm(''); 
-                                        setReceiptFilter(''); 
-                                        setOrderNumberFilter(''); 
-                                        setBrandFilter(''); 
-                                        setTypeFilter('');
-                                        setDateRange(undefined); 
-                                    }}
-                                    className="text-[10px] text-slate-400 hover:text-red-500 underline"
-                                >
-                                    Limpiar filtros
-                                </button>
-                            )}
-                        </div>
-                        
-                        <Button
-                            size="sm"
-                            onClick={handleMove}
-                            disabled={selected.size === 0}
-                            className="bg-monchito-purple hover:bg-monchito-purple/90 text-white shadow-sm transition-all active:scale-95 h-8 text-xs px-4"
-                        >
-                            Mover Seleccionados ({selected.size}) <ArrowRight className="ml-1 h-3 w-3" />
-                        </Button>
                     </div>
                 </div>
+
+                <div className="flex items-center justify-between border-t border-slate-100 mt-4 pt-3">
+                    <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-md">
+                            {pagination?.total || orders.length} Resultados
+                        </span>
+                        {(currentFilters.search || currentFilters.receiptNumber || currentFilters.orderNumber || currentFilters.brandId) && (
+                            <button
+                                onClick={() => { 
+                                    handleFilterUpdate({ 
+                                        search: '', 
+                                        receiptNumber: '', 
+                                        orderNumber: '', 
+                                        brandId: '', 
+                                        type: '',
+                                        startDate: '',
+                                        endDate: '' 
+                                    }); 
+                                }}
+                                className="text-[10px] text-slate-400 hover:text-red-500 font-bold transition-colors"
+                            >
+                                Limpiar filtros
+                            </button>
+                        )}
+                    </div>
+                    
+                    <Button
+                        size="sm"
+                        onClick={handleMove}
+                        disabled={selected.size === 0}
+                        className="bg-monchito-purple hover:bg-monchito-purple/90 text-white shadow-sm transition-all active:scale-95 h-9 text-xs px-6 rounded-xl font-black uppercase tracking-widest"
+                    >
+                        Continuar con ({selected.size}) <ArrowRight className="ml-2 h-3.5 w-3.5" />
+                    </Button>
+                </div>
             </div>
+
+            {/* Pagination for Pending Orders */}
+            {pagination && pagination.pages > 1 && (
+                <div className="bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm shrink-0">
+                    <Pagination 
+                        currentPage={currentPage}
+                        totalPages={pagination.pages}
+                        onPageChange={onPageChange || (() => {})}
+                        totalItems={pagination.total}
+                        itemsPerPage={pagination.limit}
+                    />
+                </div>
+            )}
 
             {/* Table */}
             <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm flex flex-col h-80">
@@ -287,7 +269,7 @@ export function PendingOrdersTable({ orders, onMove, pagination, currentPage = 1
                                 <TableHead className="w-[30px] p-1 text-center">
                                     <input
                                         type="checkbox"
-                                        checked={areAllFilteredSelected}
+                                        checked={areAllSelected}
                                         onChange={toggleAll}
                                         className="accent-monchito-purple h-3 w-3 cursor-pointer rounded"
                                     />
@@ -304,26 +286,49 @@ export function PendingOrdersTable({ orders, onMove, pagination, currentPage = 1
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {filteredOrders.length === 0 ? (
+                            {orders.length === 0 ? (
                                 <TableRow>
                                     <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
                                         No se encontraron resultados con los filtros aplicados.
                                     </TableCell>
                                 </TableRow>
                             ) : (
-                                filteredOrders.map(order => {
+                                orders.map((order, index) => {
                                     const paid = getPaidAmount(order);
+                                    const isSelected = selected.has(order.id);
                                     return (
                                         <TableRow
                                             key={order.id}
-                                            className={`cursor-pointer transition-colors border-b border-slate-50 hover:bg-monchito-purple/5 ${selected.has(order.id) ? "bg-monchito-purple/10" : ""}`}
+                                            data-row-index={index}
+                                            tabIndex={10 + index}
+                                            className={`cursor-pointer transition-colors border-b border-slate-50 hover:bg-monchito-purple/5 ${isSelected ? "bg-monchito-purple/10" : ""}`}
                                             onClick={() => toggle(order.id)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === ' ' || e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    toggle(order.id);
+                                                } else if (e.key === 'ArrowDown') {
+                                                    e.preventDefault();
+                                                    const next = document.querySelector(`[data-row-index="${index + 1}"]`) as HTMLElement;
+                                                    if (next) next.focus();
+                                                } else if (e.key === 'ArrowUp') {
+                                                    e.preventDefault();
+                                                    const prev = document.querySelector(`[data-row-index="${index - 1}"]`) as HTMLElement;
+                                                    if (prev) {
+                                                        prev.focus();
+                                                    } else {
+                                                        const lastFilter = document.querySelector('[data-filter-index="3"]') as HTMLElement;
+                                                        if (lastFilter) lastFilter.focus();
+                                                    }
+                                                }
+                                            }}
                                         >
                                             <TableCell className="p-1 w-[30px] text-center">
                                                 <input
                                                     type="checkbox"
-                                                    checked={selected.has(order.id)}
+                                                    checked={isSelected}
                                                     onChange={() => toggle(order.id)}
+                                                    tabIndex={-1}
                                                     className="accent-monchito-purple h-3 w-3 cursor-pointer rounded"
                                                     onClick={(e) => e.stopPropagation()}
                                                 />
@@ -388,7 +393,7 @@ export function PendingOrdersTable({ orders, onMove, pagination, currentPage = 1
                     <div className="flex items-center gap-6">
                         <div className="flex items-center gap-2">
                             <span className="text-[10px] uppercase font-bold text-slate-500">Total Pedidos:</span>
-                            <span className="font-mono font-bold text-slate-800">${filteredOrders.reduce((sum, o) => sum + o.total, 0).toFixed(2)}</span>
+                            <span className="font-mono font-bold text-slate-800">${orders.reduce((sum, o) => sum + o.total, 0).toFixed(2)}</span>
                         </div>
                     </div>
                 </div>

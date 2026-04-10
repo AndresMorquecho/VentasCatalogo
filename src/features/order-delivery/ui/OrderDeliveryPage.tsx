@@ -23,11 +23,15 @@ import { useAuth } from "@/shared/auth"
 function SearchableClientSelect({ 
     onSelect, 
     value,
-    clients
+    clients,
+    onKeyDownNavigation,
+    navId
 }: { 
     onSelect: (clientId: string) => void, 
     value: string,
-    clients: any[]
+    clients: any[],
+    onKeyDownNavigation?: (e: React.KeyboardEvent) => void,
+    navId?: string
 }) {
     const [isOpen, setIsOpen] = useState(false)
     const [search, setSearch] = useState("")
@@ -48,8 +52,14 @@ function SearchableClientSelect({
     return (
         <div className="relative" ref={wrapperRef}>
             <div 
-                className="flex h-10 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm items-center justify-between cursor-pointer hover:border-monchito-purple/50 transition-colors"
+                className="flex h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm items-center justify-between cursor-pointer hover:border-monchito-purple/50 transition-colors focus:ring-1 focus:ring-monchito-purple outline-none"
                 onClick={() => setIsOpen(!isOpen)}
+                tabIndex={0}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter') setIsOpen(!isOpen)
+                    if (!isOpen && onKeyDownNavigation) onKeyDownNavigation(e)
+                }}
+                data-nav={navId}
             >
                 <span className={selectedClient ? "text-slate-900 font-bold" : "text-slate-400 font-medium"}>
                     {selectedClient ? selectedClient.firstName : "Seleccionar Empresaria..."}
@@ -115,11 +125,15 @@ function SearchableClientSelect({
 function SearchableBrandSelect({ 
     onSelect, 
     value,
-    brands
+    brands,
+    onKeyDownNavigation,
+    navId
 }: { 
     onSelect: (brandId: string) => void, 
     value: string,
-    brands: any[]
+    brands: any[],
+    onKeyDownNavigation?: (e: React.KeyboardEvent) => void,
+    navId?: string
 }) {
     const [isOpen, setIsOpen] = useState(false)
     const [search, setSearch] = useState("")
@@ -146,7 +160,13 @@ function SearchableBrandSelect({
         <div className="relative" ref={wrapperRef}>
             <div 
                 onClick={() => setIsOpen(!isOpen)}
-                className="bg-white border-slate-200 h-10 px-4 flex items-center justify-between cursor-pointer text-sm font-bold rounded-xl border focus:ring-2 focus:ring-monchito-purple/20 shadow-sm transition-all"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter') setIsOpen(!isOpen)
+                    if (!isOpen && onKeyDownNavigation) onKeyDownNavigation(e)
+                }}
+                data-nav={navId}
+                className="bg-white border-slate-200 h-11 px-4 flex items-center justify-between cursor-pointer text-sm font-bold rounded-xl border focus:ring-1 focus:ring-monchito-purple/50 outline-none shadow-sm transition-all"
             >
                 <span className={selectedBrand ? "text-slate-900" : "text-slate-400"}>
                     {selectedBrand ? selectedBrand.name : "Todas las marcas"}
@@ -211,6 +231,54 @@ export function OrderDeliveryPage() {
     const [showFilters, setShowFilters] = useState(false)
     const [isExporting, setIsExporting] = useState(false)
     const [dateCategoryFilter, setDateCategoryFilter] = useState<'ALL' | 'RECENT' | 'WARN' | 'CRITICAL'>('ALL')
+
+    const handleHeaderKeyDown = (e: React.KeyboardEvent, fieldName: string) => {
+        const fields = [
+            'clientId', 'brandId', 'dateRange', 'moreFilters',
+            'searchTerm', 'orderNumber', 'historyBtn', 'exportBtn', 'clearBtn'
+        ].filter(f => {
+            if (!showFilters && (f === 'searchTerm' || f === 'orderNumber')) return false;
+            return true;
+        });
+        
+        const currentIndex = fields.indexOf(fieldName);
+
+        if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+            const tagName = e.currentTarget.tagName;
+            const isInput = tagName === 'INPUT' || tagName === 'TEXTAREA';
+            const isControl = tagName === 'SELECT' || tagName === 'DIV' || tagName === 'BUTTON';
+            
+            let selectionAtBoundary = false;
+            if (isInput) {
+                const input = e.currentTarget as HTMLInputElement;
+                try {
+                    if (input.selectionStart !== null) {
+                        if (e.key === 'ArrowRight') selectionAtBoundary = input.selectionStart === input.value.length;
+                        else selectionAtBoundary = input.selectionStart === 0;
+                    } else {
+                        selectionAtBoundary = true;
+                    }
+                } catch(err) {
+                    selectionAtBoundary = true;
+                }
+            } else if (isControl) {
+                selectionAtBoundary = true;
+            }
+
+            if (selectionAtBoundary) {
+                const direction = e.key === 'ArrowRight' ? 1 : -1;
+                const nextIndex = currentIndex + direction;
+                if (nextIndex >= 0 && nextIndex < fields.length) {
+                    e.preventDefault();
+                    const target = document.querySelector(`[data-nav="${fields[nextIndex]}"]`) as HTMLElement;
+                    if (target) {
+                        target.focus();
+                        if (target instanceof HTMLInputElement) target.select();
+                    }
+                }
+            }
+        }
+    };
 
     // Convert DateRange to strings for API
     const startDate = dateRange?.from ? dateRange.from.toISOString().split('T')[0] : ""
@@ -410,13 +478,15 @@ export function OrderDeliveryPage() {
                                 Por Ingresar
                             </Button>
                         )}
-                        <Button variant="outline" onClick={() => navigate('/orders/delivery/history')} className="w-full sm:w-auto gap-2 rounded-xl h-10 border-slate-200">
+                        <Button variant="outline" onClick={() => navigate('/orders/delivery/history')} data-nav="historyBtn" onKeyDown={e => handleHeaderKeyDown(e, 'historyBtn')} className="w-full sm:w-auto gap-2 rounded-xl h-10 border-slate-200">
                             <History className="h-4 w-4" />
                             Historial
                         </Button>
                         <Button 
                             variant="outline"
                             onClick={handleExport}
+                            data-nav="exportBtn"
+                            onKeyDown={e => handleHeaderKeyDown(e, 'exportBtn')}
                             disabled={isExporting}
                             className="w-full sm:w-auto bg-white hover:bg-emerald-50 hover:text-emerald-700 border-slate-200 gap-2 h-10 rounded-xl px-4"
                         >
@@ -427,7 +497,15 @@ export function OrderDeliveryPage() {
                             )}
                             Exportar Excel
                         </Button>
-                        <Button variant="outline" onClick={clearFilters} title="Limpiar todos los filtros" className="w-full sm:w-10 h-10 p-0 rounded-xl border-slate-200 text-slate-400 hover:text-orange-500 flex items-center justify-center gap-2">
+                        <Button 
+                            variant="outline" 
+                            onClick={clearFilters} 
+                            data-nav="clearBtn" 
+                            tabIndex={10}
+                            onKeyDown={e => handleHeaderKeyDown(e, 'clearBtn')} 
+                            title="Limpiar todos los filtros" 
+                            className="w-full sm:w-10 h-10 p-0 rounded-xl border-slate-200 text-slate-400 hover:text-orange-500 flex items-center justify-center gap-2"
+                        >
                             <RotateCcw className="h-4 w-4" />
                             <span className="sm:hidden font-bold">Limpiar Filtros</span>
                         </Button>
@@ -436,74 +514,93 @@ export function OrderDeliveryPage() {
             />
 
             {/* Premium Filter Panel */}
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xl shadow-slate-200/50">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-x-8 gap-y-6">
-                    {/* Cliente Selector - 3 cols */}
-                    <div className="lg:col-span-3 space-y-2">
-                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1">Empresaria</label>
-                        <SearchableClientSelect onSelect={setClientId} value={clientId} clients={dynamicClients} />
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xl shadow-slate-200/30">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-x-3 gap-y-4 items-end">
+                    {/* Cliente Selector */}
+                    <div className="lg:col-span-3 space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Empresaria</label>
+                        <SearchableClientSelect 
+                            onSelect={setClientId} 
+                            value={clientId} 
+                            clients={dynamicClients} 
+                            navId="clientId" 
+                            onKeyDownNavigation={e => handleHeaderKeyDown(e, 'clientId')} 
+                        />
                     </div>
 
-                    {/* Catálogo - 3 cols */}
-                    <div className="lg:col-span-3 space-y-2">
-                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1">Catálogo / Marca</label>
+                    {/* Catálogo */}
+                    <div className="lg:col-span-3 space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Catálogo / Marca</label>
                         <SearchableBrandSelect 
                             brands={dynamicBrands} 
                             value={brandId} 
                             onSelect={setBrandId} 
+                            navId="brandId"
+                            onKeyDownNavigation={e => handleHeaderKeyDown(e, 'brandId')}
                         />
                     </div>
 
-                    {/* Periodo - 4 cols */}
-                    <div className="lg:col-span-4 space-y-2">
-                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1">Rango de Recepción</label>
-                        <DateRangePicker
-                            value={dateRange}
-                            onChange={setDateRange}
-                            showLabel={false}
-                            placeholder="Seleccionar periodo"
-                            className="h-10"
-                        />
+                    {/* Periodo */}
+                    <div className="lg:col-span-4 space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Rango de Recepción</label>
+                        <div data-nav="dateRange" onKeyDown={e => handleHeaderKeyDown(e, 'dateRange')} tabIndex={0} className="outline-none">
+                            <DateRangePicker
+                                value={dateRange}
+                                onChange={setDateRange}
+                                showLabel={false}
+                                placeholder="Seleccionar periodo"
+                                buttonClassName="h-10 rounded-xl border-slate-200"
+                            />
+                        </div>
                     </div>
 
                     {/* Mas filtros toggle */}
-                    <div className="lg:col-span-2 flex items-end">
+                    <div className="lg:col-span-2">
                         <Button 
                             variant="ghost" 
-                            className={`h-10 w-full rounded-xl border ${showFilters ? 'bg-monchito-purple/5 border-monchito-purple/20 text-monchito-purple' : 'border-slate-100 text-slate-500'}`}
+                            data-nav="moreFilters"
+                            tabIndex={0}
+                            onKeyDown={e => handleHeaderKeyDown(e, 'moreFilters')}
+                            className={`h-10 w-full rounded-xl border shadow-sm font-bold text-xs uppercase tracking-wider ${showFilters ? 'bg-monchito-purple/5 border-monchito-purple/20 text-monchito-purple' : 'border-slate-100 text-slate-500'}`}
                             onClick={() => setShowFilters(!showFilters)}
                         >
-                            <Filter className="h-4 w-4 mr-2" />
-                            {showFilters ? 'Menos' : 'Más'}
+                            <Filter className="h-3.5 w-3.5 mr-2" />
+                            {showFilters ? 'Menos' : 'Filtros'}
                         </Button>
                     </div>
+                </div>
 
-                    {showFilters && (
-                        <>
-                            <div className="lg:col-span-4 space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                                <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1">Búsqueda General</label>
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                                    <Input
-                                        placeholder="Cualquier texto..."
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="pl-10 bg-white border-slate-200 h-10 text-sm font-medium rounded-xl shadow-sm"
-                                    />
-                                </div>
-                            </div>
-                            <div className="lg:col-span-4 space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                                <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1">Número de Orden</label>
+                {showFilters && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5 pt-5 border-t border-slate-50 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Búsqueda General</label>
+                            <div className="relative group">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-monchito-purple" />
                                 <Input
-                                    placeholder="Ej: ORD-123..."
-                                    value={orderNumber}
-                                    onChange={(e) => setOrderNumber(e.target.value)}
-                                    className="bg-white border-slate-200 h-10 text-sm font-bold rounded-xl shadow-sm"
+                                    placeholder="Cualquier texto..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    onKeyDown={e => handleHeaderKeyDown(e, 'searchTerm')}
+                                    data-nav="searchTerm"
+                                    tabIndex={0}
+                                    className="pl-10 bg-white border-slate-200 h-10 text-sm font-medium rounded-xl shadow-sm focus:ring-monchito-purple/10 transition-all"
                                 />
                             </div>
-                        </>
-                    )}
-                </div>
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Número de Orden</label>
+                            <Input
+                                placeholder="Ej: ORD-123..."
+                                value={orderNumber}
+                                onChange={(e) => setOrderNumber(e.target.value)}
+                                onKeyDown={e => handleHeaderKeyDown(e, 'orderNumber')}
+                                data-nav="orderNumber"
+                                tabIndex={0}
+                                className="bg-white border-slate-200 h-10 text-sm font-bold rounded-xl shadow-sm focus:ring-monchito-purple/10 transition-all text-monchito-purple"
+                            />
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Batch Info Bar - Always visible, disabled when empty */}

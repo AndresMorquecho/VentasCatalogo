@@ -28,18 +28,31 @@ export const useReceptionBatch = () => {
         packingNumber: ''
     });
 
+    const [pendingFilters, setPendingFilters] = useState({
+        search: '',
+        receiptNumber: '',
+        orderNumber: '',
+        brandId: '',
+        type: '',
+        startDate: '',
+        endDate: ''
+    });
+
     // Queries
     // Query for PENDING orders with auto-refresh (real-time feel)
     const { data: pendingResponse, isLoading: isLoadingOrders } = useQuery({
-        queryKey: ['orders-pending-reception', pendingPage, pendingLimit],
+        queryKey: ['orders-pending-reception', pendingPage, pendingLimit, pendingFilters],
         queryFn: async () => {
             return await orderApi.getAll({ 
                 status: 'POR_RECIBIR,EN_TRANSITO',
                 page: pendingPage,
-                limit: pendingLimit
+                limit: pendingLimit,
+                ...pendingFilters
             });
         },
-        refetchInterval: 10000, // Sync every 10 seconds
+        staleTime: 0,
+        refetchInterval: 8000, 
+        refetchOnWindowFocus: true,
     });
 
     const allOrders = pendingResponse?.data || [];
@@ -52,6 +65,9 @@ export const useReceptionBatch = () => {
             limit: historyLimit,
             ...historyFilters
         }),
+        staleTime: 0,
+        refetchInterval: 15000, 
+        refetchOnWindowFocus: true,
     });
 
     const batches = batchesResponse?.data || [];
@@ -298,6 +314,8 @@ export const useReceptionBatch = () => {
         // Pending Pagination
         pendingPage,
         setPendingPage,
-        pendingPagination
+        pendingPagination,
+        pendingFilters,
+        setPendingFilters
     };
 };

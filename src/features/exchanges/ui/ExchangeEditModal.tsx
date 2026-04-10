@@ -13,6 +13,15 @@ import { Lock } from "lucide-react"
 import { logAction } from "@/shared/lib/auditService"
 import { useAuth } from "@/shared/auth"
 
+const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('es-CO', {
+        style: 'currency',
+        currency: 'COP',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    }).format(amount);
+};
+
 interface ExchangeEditModalProps {
     order: any
     open: boolean
@@ -171,131 +180,161 @@ export function ExchangeEditModal({ order, open, onOpenChange, onSuccess, bankAc
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-6xl rounded-3xl overflow-hidden p-6 gap-6">
-                <DialogHeader>
-                    <DialogTitle className="text-xl font-black text-slate-800 uppercase tracking-tight">Editar Cambio</DialogTitle>
-                </DialogHeader>
+            <DialogContent className="max-w-4xl w-[95vw] sm:w-full rounded-3xl p-0 gap-0 overflow-hidden bg-white">
+                <div className="bg-monchito-purple/5 p-6 border-b border-monchito-purple/10">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-black text-monchito-purple uppercase tracking-tight">Editar Item de Cambio</DialogTitle>
+                    </DialogHeader>
+                </div>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    {/* Horizontal scroll container for the table */}
-                    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm custom-scrollbar">
-                        <table className="w-full text-[11px] border-collapse min-w-[1100px]">
-                            <thead className="bg-slate-50 text-slate-500 border-b uppercase font-black tracking-widest">
-                                <tr>
-                                    <th className="px-3 py-3 border-r text-left">Catálogo</th>
-                                    <th className="px-3 py-3 border-r text-left w-[180px]">N° Cambio</th>
-                                    <th className="px-3 py-3 border-r text-right w-[110px]">Valor</th>
-                                    <th className="px-3 py-3 border-r text-right w-[110px]">Abono</th>
-                                    <th className="px-3 py-3 border-r text-right w-[90px]">Saldo</th>
+                <form onSubmit={handleSubmit} className="flex flex-col max-h-[85vh]">
+                    <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
+                        {/* SECTION 1: DETALLES BASICOS */}
+                        <div className="space-y-4">
+                            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Información General</h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div className="space-y-1.5">
+                                    <Label className="text-[11px] font-bold text-slate-600">Catálogo</Label>
+                                    <div className="h-11 px-4 bg-slate-50 border border-slate-100 rounded-xl flex items-center font-bold text-slate-500 uppercase text-xs">
+                                        {order.brandName || "---"}
+                                    </div>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-[11px] font-bold text-slate-600">N° Cambio (Consecutivo)</Label>
+                                    <Input 
+                                        value={formData.orderNumber} 
+                                        disabled
+                                        className="h-11 bg-slate-50 text-xs font-mono border-slate-100 rounded-xl" 
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-[11px] font-bold text-slate-600">N° Cambio (Manual / Guía)</Label>
+                                    <Input 
+                                        value={formData.sourceOrderNumber} 
+                                        onChange={(e) => setFormData({ ...formData, sourceOrderNumber: e.target.value.toUpperCase() })} 
+                                        className="h-11 text-xs font-mono border-slate-200 rounded-xl focus:ring-monchito-purple/20" 
+                                        placeholder="Ingrese N°..."
+                                    />
+                                </div>
+                            </div>
+                        </div>
 
-                                    <th className="px-3 py-3 border-r text-center w-[60px]">Cant.</th>
-                                    <th className="px-3 py-3 border-r text-left">DESCRIPCIÓN DE CAMBIO</th>
-                                    <th className="px-3 py-3 border-r text-left">CAMBIO POR</th>
-                                    <th className="px-3 py-3 text-center w-[140px]">Posible Entrega</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr className="bg-white hover:bg-slate-50/50 transition-colors">
-                                    <td className="px-3 py-4 border-r font-bold text-slate-600 uppercase">{order.brandName || "---"}</td>
-                                    <td className="px-3 py-4 border-r">
+                        {/* SECTION 2: VALORES Y FECHAS */}
+                        <div className="space-y-4">
+                             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Finanzas y Logística</h3>
+                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <div className="space-y-1.5">
+                                    <Label className="text-[11px] font-bold text-slate-600">Valor del Cambio ($)</Label>
+                                    <div className="relative">
+                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
                                         <Input 
-                                            value={formData.sourceOrderNumber} 
-                                            onChange={(e) => setFormData({ ...formData, sourceOrderNumber: e.target.value })} 
-                                            className="h-9 text-[11px] font-mono border-slate-200" 
-                                            placeholder="N° Manual"
+                                            type="number"
+                                            value={formData.total} 
+                                            onChange={(e) => setFormData({ ...formData, total: Number(e.target.value) })} 
+                                            className="h-11 pl-8 text-xs font-black text-slate-800 border-slate-200 rounded-xl focus:ring-monchito-purple/20" 
                                         />
-                                    </td>
-                                    <td className="px-3 py-4 border-r text-right">
-                                        <div className="flex justify-end items-center gap-1">
-                                            <span className="text-slate-400">$</span>
-                                            <input 
-                                                type="number" 
-                                                className="h-8 w-20 text-right font-black border-none outline-none bg-transparent" 
-                                                value={formData.total} 
-                                                onChange={(e) => setFormData({ ...formData, total: Number(e.target.value) })} 
-                                            />
-                                        </div>
-                                    </td>
-                                    <td className="px-3 py-4 border-r text-right bg-emerald-50/10">
-                                        <div className="flex justify-end items-center gap-1">
-                                            <span className="text-emerald-600">$</span>
-                                            <input 
-                                                type="number" 
-                                                className="h-8 w-20 text-right text-emerald-600 font-black border-none outline-none bg-transparent" 
-                                                value={formData.deposit} 
-                                                onChange={(e) => setFormData({ ...formData, deposit: Number(e.target.value) })} 
-                                            />
-                                        </div>
-                                    </td>
-                                    <td className="px-3 py-4 border-r text-right">
-                                        <span className={`font-black ${saldo > 0 ? 'text-red-500' : 'text-slate-400'}`}>${saldo.toFixed(2)}</span>
-                                    </td>
+                                    </div>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-[11px] font-bold text-slate-600">Abono Inicial ($)</Label>
+                                    <div className="relative">
+                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-600 font-bold">$</span>
+                                        <Input 
+                                            type="number"
+                                            value={formData.deposit} 
+                                            onChange={(e) => setFormData({ ...formData, deposit: Number(e.target.value) })} 
+                                            className="h-11 pl-8 text-xs font-black text-emerald-700 border-slate-200 bg-emerald-50/20 rounded-xl focus:ring-emerald-500/20" 
+                                        />
+                                    </div>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-[11px] font-bold text-slate-600">Fecha de Entrega</Label>
+                                    <Input 
+                                        type="date" 
+                                        value={formData.possibleDeliveryDate} 
+                                        onChange={(e) => setFormData({ ...formData, possibleDeliveryDate: e.target.value })} 
+                                        className="h-11 text-xs border-slate-200 rounded-xl focus:ring-monchito-purple/20" 
+                                    />
+                                </div>
+                             </div>
+                             <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center text-xs">
+                                <span className="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Saldo Pendiente:</span>
+                                <span className={`font-black text-lg ${saldo > 0 ? 'text-red-500' : 'text-slate-900'}`}>{formatCurrency(saldo)}</span>
+                             </div>
+                        </div>
 
-                                    <td className="px-3 py-4 border-r text-center text-slate-500 font-black">{formData.sourceQuantity}</td>
-                                    <td className="px-3 py-4 border-r">
-                                        <Input 
-                                            value={formData.sourceDescription} 
-                                            onChange={(e) => setFormData({ ...formData, sourceDescription: e.target.value })} 
-                                            className="h-9 text-[11px] border-slate-200" 
-                                            placeholder="Detalles del origen"
-                                        />
-                                    </td>
-                                    <td className="px-3 py-4 border-r">
-                                        <Input 
-                                            value={formData.description} 
-                                            onChange={(e) => setFormData({ ...formData, description: e.target.value })} 
-                                            className="h-9 text-[11px] border-slate-200" 
-                                            placeholder="Detalles del destino"
-                                        />
-                                    </td>
-                                    <td className="px-3 py-4">
-                                        <Input 
-                                            type="date" 
-                                            value={formData.possibleDeliveryDate} 
-                                            onChange={(e) => setFormData({ ...formData, possibleDeliveryDate: e.target.value })} 
-                                            className="h-9 text-[11px] border-slate-200" 
-                                        />
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
+                        {/* SECTION 3: DESCRIPCIONES */}
+                        <div className="space-y-4">
+                             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Descripciones del Cambio</h3>
+                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                    <Label className="text-[11px] font-bold text-slate-600">LO QUE ENTREGA (CANT: {formData.sourceQuantity})</Label>
+                                    <textarea 
+                                        value={formData.sourceDescription} 
+                                        onChange={(e) => setFormData({ ...formData, sourceDescription: e.target.value })} 
+                                        className="w-full h-20 p-4 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-monchito-purple/10 outline-none resize-none"
+                                        placeholder="Describa la prenda que se va..."
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-[11px] font-bold text-slate-600">LO QUE RECIBE</Label>
+                                    <textarea 
+                                        value={formData.description} 
+                                        onChange={(e) => setFormData({ ...formData, description: e.target.value })} 
+                                        className="w-full h-20 p-4 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-monchito-purple/10 outline-none resize-none text-monchito-purple font-medium"
+                                        placeholder="Describa la prenda que viene..."
+                                    />
+                                </div>
+                             </div>
+                        </div>
+
+                        {/* SECTION 4: PAGO */}
+                        <div className="space-y-4 pt-2">
+                             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Información de Pago</h3>
+                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                    <Label className="text-[11px] font-bold text-slate-600 flex items-center gap-2">
+                                        Método de Pago {hasExistingDeposit && <Lock className="h-3 w-3" />}
+                                    </Label>
+                                    <select 
+                                        disabled={hasExistingDeposit} 
+                                        className="w-full h-11 rounded-xl border border-slate-200 text-xs px-4 shadow-sm appearance-none focus:ring-2 focus:ring-monchito-purple/20 transition-all disabled:bg-slate-50 font-medium" 
+                                        value={formData.paymentMethod} 
+                                        onChange={e => setFormData({...formData, paymentMethod: e.target.value, bankAccountId: e.target.value === 'EFECTIVO' ? (bankAccounts.find(a => a.type === 'CASH')?.id || '') : ''})}
+                                    >
+                                        <option value="EFECTIVO">EFECTIVO (CASH)</option>
+                                        <option value="BILLETERA_VIRTUAL">BILLETERA VIRTUAL</option>
+                                    </select>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <Label className="text-[11px] font-bold text-slate-600 flex items-center gap-2">
+                                        Cuenta Bancaria {hasExistingDeposit && <Lock className="h-3 w-3" />}
+                                    </Label>
+                                    <select 
+                                        disabled={hasExistingDeposit || formData.paymentMethod === 'BILLETERA_VIRTUAL'} 
+                                        className="w-full h-11 rounded-xl border border-slate-200 text-xs px-4 shadow-sm appearance-none focus:ring-2 focus:ring-monchito-purple/20 transition-all disabled:bg-slate-50 font-medium" 
+                                        value={formData.bankAccountId} 
+                                        onChange={e => setFormData({...formData, bankAccountId: e.target.value})}
+                                    >
+                                        <option value="">Seleccione cuenta...</option>
+                                        {filteredBankAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                                    </select>
+                                </div>
+                             </div>
+                             {formData.paymentMethod === 'BILLETERA_VIRTUAL' && (
+                                <div className="bg-blue-50 p-3 rounded-xl border border-blue-100 text-[10px] font-bold text-blue-700">
+                                    * El abono se descontará del saldo disponible en la billetera virtual de la empresaria.
+                                </div>
+                             )}
+                        </div>
                     </div>
 
-                    <div className="flex flex-col md:flex-row gap-6 bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
-                        <div className="flex-1 space-y-2">
-                             <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                Método de Pago {hasExistingDeposit && <Lock className="h-3 w-3" />}
-                             </Label>
-                             <select 
-                                disabled={hasExistingDeposit} 
-                                className="w-full h-11 rounded-xl border border-slate-200 text-xs px-4 shadow-sm appearance-none focus:ring-2 focus:ring-slate-900 transition-all disabled:bg-slate-50" 
-                                value={formData.paymentMethod} 
-                                onChange={e => setFormData({...formData, paymentMethod: e.target.value, bankAccountId: e.target.value === 'EFECTIVO' ? (bankAccounts.find(a => a.type === 'CASH')?.id || '') : ''})}
-                            >
-                                <option value="EFECTIVO">EFECTIVO (CASH)</option>
-                                <option value="BILLETERA_VIRTUAL">BILLETERA VIRTUAL</option>
-                            </select>
-                        </div>
-
-                        <div className="flex-1 space-y-2">
-                             <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                Cuenta Bancaria {hasExistingDeposit && <Lock className="h-3 w-3" />}
-                             </Label>
-                             <select 
-                                disabled={hasExistingDeposit || formData.paymentMethod === 'BILLETERA_VIRTUAL'} 
-                                className="w-full h-11 rounded-xl border border-slate-200 text-xs px-4 shadow-sm appearance-none focus:ring-2 focus:ring-slate-900 transition-all disabled:bg-slate-50" 
-                                value={formData.bankAccountId} 
-                                onChange={e => setFormData({...formData, bankAccountId: e.target.value})}
-                            >
-                                <option value="">Seleccione cuenta...</option>
-                                {filteredBankAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                            </select>
-                        </div>
-
-                        <div className="flex items-end gap-2 pt-2 md:pt-0">
-                            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="rounded-xl px-6 h-11 font-bold text-slate-500">Cancelar</Button>
-                            <AsyncButton type="submit" isLoading={updateOrder.isPending} className="bg-slate-900 hover:bg-black text-white rounded-xl px-12 h-11 font-black uppercase tracking-widest text-xs">Guardar Cambios</AsyncButton>
-                        </div>
+                    <div className="p-6 bg-slate-50 border-t flex flex-col sm:flex-row gap-3">
+                        <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="rounded-xl px-8 h-12 font-bold text-slate-500 hover:bg-slate-200 flex-1 sm:flex-none">Cancelar</Button>
+                        <AsyncButton type="submit" isLoading={updateOrder.isPending} className="bg-monchito-purple hover:bg-monchito-purple/90 text-white rounded-xl px-12 h-12 font-black uppercase tracking-widest text-xs shadow-lg shadow-monchito-purple/20 transition-all active:scale-95 flex-1">
+                            Guardar Cambios del Item
+                        </AsyncButton>
                     </div>
                 </form>
             </DialogContent>

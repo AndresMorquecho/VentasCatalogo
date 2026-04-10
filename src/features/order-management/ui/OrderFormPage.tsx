@@ -899,69 +899,92 @@ export function OrderFormPage() {
 
     const handleHeaderKeyDown = (e: React.KeyboardEvent, fieldName: string) => {
         const fields = [
-            'receiptNumber', 'createdAt', 'clientId',
+            'receiptNumber', 'clientId',
             'salesChannel', 'type', 'orderNumber', 'quantity', 
-            'brandId', 'total', 'possibleDeliveryDate', 'addButton'
+            'brandId', 'total', 'possibleDeliveryDate', 'addButton',
+            'notes', 'saveButton', 'printButton'
         ];
         const currentIndex = fields.indexOf(fieldName);
 
         if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
-            const isInput = e.currentTarget.tagName === 'INPUT';
-            const isSelect = e.currentTarget.tagName === 'SELECT';
+            const tagName = e.currentTarget.tagName;
+            const isInput = tagName === 'INPUT' || tagName === 'TEXTAREA';
+            const isSelect = tagName === 'SELECT' || tagName === 'DIV'; // DIV para SearchableSelect
             
-            let selectionAtBoundary = true;
+            let selectionAtBoundary = false;
             if (isInput) {
                 const input = e.currentTarget as HTMLInputElement;
                 try {
-                    // Try to get selection, if supported by the input type
                     if (input.selectionStart !== null) {
                         if (e.key === 'ArrowRight') {
                             selectionAtBoundary = input.selectionStart === input.value.length;
                         } else {
                             selectionAtBoundary = input.selectionStart === 0;
                         }
-                    } else if (input.type === 'date' || input.type === 'number') {
-                        // For date/number where we can't reliably get cursor position, 
-                        // we don't jump with arrows to avoid breaking internal navigation 
-                        // (like moving between day/month/year). Only TAB should jump here
-                        // unless the field is empty.
-                        selectionAtBoundary = false; 
+                    } else {
+                        // Para tipos sin selección (date), permitimos salto directo si no es texto
+                        selectionAtBoundary = true;
                     }
                 } catch(err) {
-                    selectionAtBoundary = false;
+                    selectionAtBoundary = true;
                 }
             } else if (isSelect) {
-                // Selects don't have internal cursor, so they always jump
                 selectionAtBoundary = true;
             }
 
             if (selectionAtBoundary) {
                 const direction = e.key === 'ArrowRight' ? 1 : -1;
                 const nextIndex = currentIndex + direction;
+                
                 if (nextIndex >= 0 && nextIndex < fields.length) {
+                    if (fieldName === 'addButton' && direction === 1) {
+                        const firstTableInput = document.querySelector(`[data-row-index="0"][data-field-name="total"]`) as HTMLElement;
+                        if (firstTableInput) {
+                            e.preventDefault();
+                            firstTableInput.focus();
+                            return;
+                        }
+                    }
+
                     e.preventDefault();
                     const target = document.querySelector(`[data-nav="${fields[nextIndex]}"]`) as HTMLElement;
                     if (target) {
                         target.focus();
-                        if (target instanceof HTMLInputElement && target.type !== 'number' && target.type !== 'date') {
-                            target.select();
+                        if (target instanceof HTMLInputElement && target.type !== 'date') {
+                            try { target.select(); } catch(e) {}
                         }
                     }
                 }
             }
         }
 
-        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        if (e.key === 'ArrowDown') {
             const jumps: Record<string, string> = {
                 'receiptNumber': 'salesChannel',
-                'createdAt': 'orderNumber',
                 'clientId': 'brandId',
+                'orderNumber': 'total',
+            };
+            
+            const targetName = jumps[fieldName];
+            if (targetName) {
+                e.preventDefault();
+                const target = document.querySelector(`[data-nav="${targetName}"]`) as HTMLElement;
+                if (target) target.focus();
+            } else {
+                // Try jump to table
+                const firstTableInput = document.querySelector(`[data-row-index="0"][data-field-name="total"]`) as HTMLElement;
+                if (firstTableInput) {
+                    e.preventDefault();
+                    firstTableInput.focus();
+                }
+            }
+        }
+
+        if (e.key === 'ArrowUp') {
+            const jumps: Record<string, string> = {
                 'salesChannel': 'receiptNumber',
-                'orderNumber': 'createdAt',
                 'brandId': 'clientId',
-                'quantity': 'receiptNumber',
-                'total': 'createdAt',
-                'possibleDeliveryDate': 'clientId'
+                'total': 'orderNumber',
             };
             
             const targetName = jumps[fieldName];
@@ -973,52 +996,99 @@ export function OrderFormPage() {
         }
     };
 
-    const handleTableKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, rowIndex: number, fieldName: string) => {
-        const input = e.currentTarget;
+    const handleTableKeyDown = (e: React.KeyboardEvent, rowIndex: number, fieldName: string) => {
+        const input = e.currentTarget as HTMLInputElement;
+        const fields = ['total', 'deposit', 'possibleDeliveryDate'];
         let selectionAtBoundary = false;
         
         try {
             if (input.selectionStart !== null) {
                 if (e.key === 'ArrowRight') selectionAtBoundary = input.selectionStart === input.value.length;
                 else if (e.key === 'ArrowLeft') selectionAtBoundary = input.selectionStart === 0;
-            } else if (input.type === 'number') {
-                // For number inputs, jump only if empty or if we want to force it.
-                // But the user wants traversal, so we can't jump if we don't know position.
-                selectionAtBoundary = false;
+            } else {
+                // Para tipos que no soportan selección (date), saltar siempre
+                selectionAtBoundary = true;
             }
-        } catch(e) {}
+        } catch(e) {
+            selectionAtBoundary = true;
+        }
 
-        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        if (e.key === 'ArrowDown') {
             e.preventDefault();
-            const direction = e.key === 'ArrowDown' ? 1 : -1;
+            const direction = 1;
             const targetRowIndex = rowIndex + direction;
-            if (targetRowIndex >= 0 && targetRowIndex < formik.values.brandItems.length) {
+            if (targetRowIndex < formik.values.brandItems.length) {
                 const targetInput = document.querySelector(`[data-row-index="${targetRowIndex}"][data-field-name="${fieldName}"]`) as HTMLInputElement;
                 if (targetInput) {
                     targetInput.focus();
-                    if (targetInput.type !== 'number') targetInput.select();
+                    if (targetInput.type !== 'number' && targetInput.type !== 'date') targetInput.select();
                 }
+            } else {
+                // Saltar a las notas
+                const notes = document.querySelector(`[data-nav="notes"]`) as HTMLElement;
+                if (notes) notes.focus();
+            }
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            const direction = -1;
+            const targetRowIndex = rowIndex + direction;
+            if (targetRowIndex >= 0) {
+                const targetInput = document.querySelector(`[data-row-index="${targetRowIndex}"][data-field-name="${fieldName}"]`) as HTMLInputElement;
+                if (targetInput) {
+                    targetInput.focus();
+                    if (targetInput.type !== 'number' && targetInput.type !== 'date') targetInput.select();
+                }
+            } else {
+                // Saltar de vuelta a la barra de entrada
+                const barTarget = document.querySelector(`[data-nav="${fieldName === 'possibleDeliveryDate' ? 'possibleDeliveryDate' : (fieldName === 'total' ? 'total' : 'brandId')}"]`) as HTMLElement;
+                if (barTarget) barTarget.focus();
             }
         } else if (e.key === 'ArrowLeft' && selectionAtBoundary) {
-            const fields = ['orderNumber', 'total', 'deposit'];
             const currentIndex = fields.indexOf(fieldName);
             if (currentIndex > 0) {
                 const targetInput = document.querySelector(`[data-row-index="${rowIndex}"][data-field-name="${fields[currentIndex - 1]}"]`) as HTMLInputElement;
                 if (targetInput) {
                     e.preventDefault();
                     targetInput.focus();
-                    if (targetInput.type !== 'number') targetInput.select();
+                    if (targetInput.type !== 'number' && targetInput.type !== 'date') targetInput.select();
+                }
+            } else if (rowIndex > 0) {
+                // Saltar al final de la fila anterior
+                const prevRowLastInput = document.querySelector(`[data-row-index="${rowIndex - 1}"][data-field-name="${fields[fields.length - 1]}"]`) as HTMLInputElement;
+                if (prevRowLastInput) {
+                    e.preventDefault();
+                    prevRowLastInput.focus();
+                }
+            } else {
+                // Saltar de vuelta al addButton del header
+                const addButton = document.querySelector(`[data-nav="addButton"]`) as HTMLElement;
+                if (addButton) {
+                    e.preventDefault();
+                    addButton.focus();
                 }
             }
         } else if (e.key === 'ArrowRight' && selectionAtBoundary) {
-            const fields = ['orderNumber', 'total', 'deposit'];
             const currentIndex = fields.indexOf(fieldName);
             if (currentIndex < fields.length - 1) {
                 const targetInput = document.querySelector(`[data-row-index="${rowIndex}"][data-field-name="${fields[currentIndex + 1]}"]`) as HTMLInputElement;
                 if (targetInput) {
                     e.preventDefault();
                     targetInput.focus();
-                    if (targetInput.type !== 'number') targetInput.select();
+                    if (targetInput.type !== 'number' && targetInput.type !== 'date') targetInput.select();
+                }
+            } else if (rowIndex < formik.values.brandItems.length - 1) {
+                // Saltar al inicio de la siguiente fila
+                const nextRowFirstInput = document.querySelector(`[data-row-index="${rowIndex + 1}"][data-field-name="${fields[0]}"]`) as HTMLInputElement;
+                if (nextRowFirstInput) {
+                    e.preventDefault();
+                    nextRowFirstInput.focus();
+                }
+            } else {
+                // Saltar a las notas
+                const notes = document.querySelector(`[data-nav="notes"]`) as HTMLElement;
+                if (notes) {
+                    e.preventDefault();
+                    notes.focus();
                 }
             }
         }
@@ -1542,10 +1612,14 @@ export function OrderFormPage() {
                     <div className="w-full sm:w-[60px] space-y-1 shrink-0">
                         <Label className="text-xs font-bold uppercase text-slate-500">Cant:</Label>
                         <Input
-                            type="number"
+                            type="text"
+                            inputMode="numeric"
                             className="h-8 w-full text-xs px-2 hide-spinner"
                             value={currentItem.quantity === 0 ? '' : currentItem.quantity}
-                            onChange={(e) => setCurrentItem({ ...currentItem, quantity: e.target.value === '' ? 0 : Number(e.target.value) })}
+                            onChange={(e) => {
+                                const val = e.target.value.replace(/[^0-9]/g, '');
+                                setCurrentItem({ ...currentItem, quantity: val === '' ? 0 : Number(val) });
+                            }}
                             onKeyDown={e => handleHeaderKeyDown(e, 'quantity')}
                             data-nav="quantity"
                         />
@@ -1567,13 +1641,16 @@ export function OrderFormPage() {
                     <div className="w-full sm:w-[80px] space-y-1 shrink-0">
                         <Label className="text-xs font-bold uppercase text-slate-500">Valor:</Label>
                         <Input
-                            type="number"
+                            type="text"
+                            inputMode="decimal"
                             className="h-8 w-full font-bold text-xs px-2 hide-spinner"
                             value={currentItem.total === 0 ? '' : currentItem.total}
-                            onChange={(e) => setCurrentItem({ ...currentItem, total: e.target.value === '' ? 0 : Number(e.target.value) })}
+                            onChange={(e) => {
+                                const val = e.target.value.replace(/[^0-9.]/g, '');
+                                setCurrentItem({ ...currentItem, total: val === '' ? 0 : Number(val) });
+                            }}
                             onKeyDown={e => handleHeaderKeyDown(e, 'total')}
                             data-nav="total"
-                            step="0.01"
                         />
                     </div>
                     <div className="w-full sm:w-[155px] space-y-1 shrink-0">
@@ -1670,23 +1747,19 @@ export function OrderFormPage() {
                                                         <div className="flex justify-end items-center gap-1">
                                                             <span className="text-slate-400 text-xs">$</span>
                                                             <input
-                                                                type="number"
-                                                                step="0.01"
+                                                                type="text"
+                                                                inputMode="decimal"
                                                                 className="h-7 w-16 text-right text-xs font-bold border border-slate-200 rounded-lg px-1 focus:ring-1 focus:ring-monchito-purple outline-none hide-spinner"
                                                                 value={item.total === 0 ? '' : item.total}
                                                                 onChange={(e) => {
+                                                                    const val = e.target.value.replace(/[^0-9.]/g, '');
                                                                     const newItems = [...formik.values.brandItems]
-                                                                    const val = e.target.value === '' ? 0 : Number(e.target.value)
-                                                                    newItems[idx] = { ...newItems[idx], total: val }
-                                                                    
-                                                                    // Ensure deposit doesn't exceed new total
-                                                                    if (Number(newItems[idx].deposit || 0) > val) {
-                                                                        newItems[idx].deposit = val;
-                                                                    }
-                                                                    
+                                                                    const numVal = val === '' ? 0 : Number(val)
+                                                                    newItems[idx] = { ...newItems[idx], total: numVal }
+                                                                    if (Number(newItems[idx].deposit || 0) > numVal) newItems[idx].deposit = numVal;
                                                                     formik.setFieldValue('brandItems', newItems)
                                                                 }}
-                                                                onKeyDown={(e) => handleTableKeyDown(e as any, idx, 'total')}
+                                                                onKeyDown={(e) => handleTableKeyDown(e, idx, 'total')}
                                                                 data-row-index={idx}
                                                                 data-field-name="total"
                                                             />
@@ -1701,22 +1774,20 @@ export function OrderFormPage() {
                                                         <div className="flex justify-end items-center gap-1">
                                                             <span className="text-emerald-500 text-xs">$</span>
                                                             <input
-                                                                type="number"
-                                                                step="0.01"
-                                                                min="0"
-                                                                max={item.total}
+                                                                type="text"
+                                                                inputMode="decimal"
                                                                 placeholder="0.00"
                                                                 className="h-7 w-16 text-right text-xs font-bold border border-slate-200 rounded-lg px-1 focus:ring-1 focus:ring-emerald-500 outline-none text-emerald-600 hide-spinner"
                                                                 value={item.deposit === 0 ? '' : item.deposit}
                                                                 onChange={(e) => {
+                                                                    const val = e.target.value.replace(/[^0-9.]/g, '');
+                                                                    const numVal = val === '' ? 0 : Number(val);
                                                                     const newItems = [...formik.values.brandItems];
-                                                                    const rawValue = e.target.value === '' ? 0 : Number(e.target.value);
-                                                                    // Prevent entering a deposit greater than the total value
-                                                                    const value = Math.min(rawValue, Number(newItems[idx].total || 0));
-                                                                    newItems[idx] = { ...newItems[idx], deposit: value };
+                                                                    const finalVal = Math.min(numVal, Number(newItems[idx].total || 0));
+                                                                    newItems[idx] = { ...newItems[idx], deposit: finalVal };
                                                                     formik.setFieldValue('brandItems', newItems);
                                                                 }}
-                                                                onKeyDown={(e) => handleTableKeyDown(e as any, idx, 'deposit')}
+                                                                onKeyDown={(e) => handleTableKeyDown(e, idx, 'deposit')}
                                                                 data-row-index={idx}
                                                                 data-field-name="deposit"
                                                             />
@@ -1736,13 +1807,16 @@ export function OrderFormPage() {
                                                     {!isEditing ? (
                                                         <input
                                                             type="date"
-                                                            className="h-7 w-full text-xs border border-slate-200 rounded-lg px-2 pr-8 font-medium"
+                                                            className="h-7 w-full text-xs border border-slate-200 rounded-lg px-2 pr-8 font-medium focus:ring-1 focus:ring-monchito-purple outline-none"
                                                             value={item.possibleDeliveryDate}
                                                             onChange={(e) => {
                                                                 const newItems = [...formik.values.brandItems]
                                                                 newItems[idx] = { ...newItems[idx], possibleDeliveryDate: e.target.value }
                                                                 formik.setFieldValue('brandItems', newItems)
                                                             }}
+                                                            onKeyDown={(e) => handleTableKeyDown(e, idx, 'possibleDeliveryDate')}
+                                                            data-row-index={idx}
+                                                            data-field-name="possibleDeliveryDate"
                                                         />
                                                     ) : (
                                                         <span className="text-xs font-medium text-slate-600">{new Date(item.possibleDeliveryDate).toLocaleDateString()}</span>
@@ -1919,6 +1993,8 @@ export function OrderFormPage() {
                                 {...formik.getFieldProps('notes')}
                                 className="w-full h-12 p-2 pr-10 text-xs rounded-lg border border-slate-200 focus:ring-1 focus:ring-monchito-purple outline-none resize-none transition-all"
                                 placeholder="Notas adicionales sobre el pedido..."
+                                data-nav="notes"
+                                onKeyDown={e => handleHeaderKeyDown(e, 'notes')}
                             />
                             {isEditing && (
                                 <button
@@ -1936,6 +2012,8 @@ export function OrderFormPage() {
                             <AsyncButton
                                 type="button"
                                 onClick={handleMainSave}
+                                onKeyDown={e => handleHeaderKeyDown(e, 'saveButton')}
+                                data-nav="saveButton"
                                 className="shrink-0 bg-monchito-purple hover:bg-monchito-purple/90 font-bold px-8 h-12"
                                 isLoading={isSubmitting}
                             >
@@ -1946,6 +2024,8 @@ export function OrderFormPage() {
                             <AsyncButton
                                 type="button"
                                 onClick={handlePrintReceipt}
+                                onKeyDown={e => handleHeaderKeyDown(e, 'printButton')}
+                                data-nav="printButton"
                                 className="shrink-0 bg-monchito-purple hover:bg-monchito-purple/90 font-bold px-8 h-12"
                                 isLoading={isSubmitting}
                             >

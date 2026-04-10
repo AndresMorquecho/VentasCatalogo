@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { 
-  Plus, Search, RefreshCw, Trash2, Send, CheckCircle2, Replace, History as HistoryIcon, Truck
+  Plus, Search, RefreshCw, Trash2, Send, CheckCircle2, Replace, History as HistoryIcon, Truck,
+  ArrowRight
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/shared/ui/button';
@@ -229,36 +230,36 @@ export function ExchangesPage() {
                     />
                   </div>
                   
-                  <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-                    <DateRangePicker 
-                      value={dateRange}
-                      onChange={setDateRange}
-                      buttonClassName="h-10 border-slate-100 bg-slate-50/50 min-w-[200px]"
-                      showLabel={false}
-                    />
-                    
-                    <div className="flex gap-2 w-full sm:w-auto">
-                      <Button 
-                        variant="ghost" 
-                        onClick={clearFilters}
-                        className="flex-1 sm:flex-none h-10 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400"
-                      >
-                        <RefreshCw className="h-3.5 w-3.5 mr-2" /> Limpiar
-                      </Button>
+                    <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+                      <DateRangePicker 
+                        value={dateRange}
+                        onChange={setDateRange}
+                        buttonClassName="h-10 border-slate-100 bg-slate-50/50 w-full sm:min-w-[200px] rounded-xl"
+                        showLabel={false}
+                      />
                       
-                      <Button 
-                        onClick={() => {
-                          const selected = orders.filter((o: any) => selectedIds.has(o.id));
-                          setStagedOrders(prev => [...prev, ...selected]);
-                          setSelectedIds(new Set());
-                        }}
-                        disabled={selectedIds.size === 0}
-                        className="flex-1 sm:flex-none h-10 rounded-xl bg-monchito-purple hover:bg-monchito-purple/90 text-white text-[10px] font-black uppercase tracking-widest px-6 shadow-lg shadow-monchito-purple/20"
-                      >
-                        Preparar Seleccionados ({selectedIds.size})
-                      </Button>
+                      <div className="flex gap-2 w-full sm:w-auto">
+                        <Button 
+                          variant="ghost" 
+                          onClick={clearFilters}
+                          className="flex-1 sm:flex-none h-10 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:bg-slate-50"
+                        >
+                          <RefreshCw className="h-3.5 w-3.5 mr-2" /> Limpiar
+                        </Button>
+                        
+                        <Button 
+                          onClick={() => {
+                            const selected = orders.filter((o: any) => selectedIds.has(o.id));
+                            setStagedOrders(prev => [...prev, ...selected]);
+                            setSelectedIds(new Set());
+                          }}
+                          disabled={selectedIds.size === 0}
+                          className="flex-1 sm:flex-none h-10 rounded-xl bg-monchito-purple hover:bg-monchito-purple/90 text-white text-[10px] font-black uppercase tracking-widest px-6 shadow-lg shadow-monchito-purple/20 transition-all active:scale-95 whitespace-nowrap"
+                        >
+                           Continuar ({selectedIds.size}) <ArrowRight className="ml-2 h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </div>
-                  </div>
                 </div>
               </CardContent>
            </Card>

@@ -13,6 +13,7 @@ export interface OrderQueryParams {
     receiptNumber?: string;
     sourceOrderNumber?: string;
     trackingGuide?: string;
+    orderNumber?: string;
     onlyParents?: boolean;
     startDate?: string;
     endDate?: string;

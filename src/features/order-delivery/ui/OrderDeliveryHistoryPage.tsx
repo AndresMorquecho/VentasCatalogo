@@ -197,11 +197,11 @@ export function OrderDeliveryHistoryPage() {
                 }
             />
 
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap gap-6 items-end">
-                <div className="flex-1 min-w-[280px]">
-                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1 mb-2 block">Buscar Pedido / Cliente</label>
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm grid grid-cols-1 sm:grid-cols-2 gap-8 items-end">
+                <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1 mb-1.5 block">Buscar Pedido / Cliente</label>
                     <div className="relative">
-                        <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                        <Search className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
                         <Input
                             placeholder="Nombre, recibo o número de orden..."
                             className="pl-10 h-11 bg-slate-50 border-slate-200 rounded-xl"
@@ -210,13 +210,14 @@ export function OrderDeliveryHistoryPage() {
                         />
                     </div>
                 </div>
-                <div className="w-full sm:w-auto min-w-[280px]">
+                <div className="space-y-2">
                     <DateRangePicker
                         value={dateRange}
                         onChange={setDateRange}
                         label="Rango de Entrega"
                         placeholder="Seleccionar periodo"
-                        className="h-11"
+                        buttonClassName="h-11 border-slate-200 bg-slate-50/50 hover:bg-slate-50"
+                        labelClassName="text-slate-500"
                     />
                 </div>
             </div>
@@ -280,7 +281,7 @@ export function OrderDeliveryHistoryPage() {
                                                     {batch.orders?.[0]?.clientName || 'S/N'}
                                                 </div>
                                                 <div className="text-[10px] text-slate-400 font-black tracking-widest">
-                                                    {batch.orders?.[0]?.clientIdentification || 'S/ID'}
+                                                    {batch.orders?.[0]?.client?.identificationNumber || batch.orders?.[0]?.clientIdentification || batch.orders?.[0]?.clientIdentificationNumber || 'S/ID'}
                                                 </div>
                                             </div>
                                         </TableCell>

@@ -560,45 +560,45 @@ export function NewExchangePage() {
         <CardContent className="p-4">
           <div className="flex flex-col gap-6">
             {/* ROW 1: ORIGEN */}
-            <div className="grid grid-cols-12 gap-4">
-              <div className="col-span-3 flex flex-col gap-1.5">
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
+              <div className="col-span-1 sm:col-span-3 flex flex-col gap-1.5">
                 <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Catálogo</Label>
                 <SearchableSelect options={brandOptions} value={currentItem.brandId} onChange={(val: any) => { const b = brands.find(x => x.id === val); setCurrentItem({ ...currentItem, brandId: val, brandName: b?.name || "" }) }} placeholder="Seleccionar Marca..." className="text-[11px] font-medium h-9 w-full" />
               </div>
-              <div className="col-span-2 flex flex-col gap-1.5">
+              <div className="col-span-1 sm:col-span-2 flex flex-col gap-1.5">
                 <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">N° Cambio</Label>
                 <Input value={currentItem.sourceOrderNumber} onChange={e => setCurrentItem({ ...currentItem, sourceOrderNumber: e.target.value })} className="h-9 rounded-lg text-[11px] font-medium px-4 border-slate-200" placeholder="N°..." />
               </div>
-              <div className="col-span-1 flex flex-col gap-1.5">
+              <div className="col-span-1 sm:col-span-1 flex flex-col gap-1.5">
                 <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">Cant. E.</Label>
                 <Input type="number" value={currentItem.sourceQuantity} onChange={e => setCurrentItem({ ...currentItem, sourceQuantity: Number(e.target.value) })} className="h-9 rounded-lg text-center text-[11px] font-medium border-slate-200" />
               </div>
-              <div className="col-span-6 flex flex-col gap-1.5">
+              <div className="col-span-1 sm:col-span-6 flex flex-col gap-1.5">
                 <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">DESCRIPCIÓN DE CAMBIO</Label>
                 <Input value={currentItem.sourceDescription} onChange={e => setCurrentItem({ ...currentItem, sourceDescription: e.target.value })} className="h-9 rounded-lg text-[11px] font-medium px-4 border-slate-200" placeholder="¿Qué entrega?" />
               </div>
             </div>
 
             {/* ROW 2: DESTINO */}
-            <div className="grid grid-cols-12 gap-4">
-              <div className="col-span-1 flex flex-col gap-1.5">
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
+              <div className="col-span-1 sm:col-span-1 flex flex-col gap-1.5">
                 <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">Cant. R.</Label>
                 <Input type="number" value={currentItem.quantity} onChange={e => setCurrentItem({ ...currentItem, quantity: Number(e.target.value) })} className="h-9 rounded-lg text-center text-[11px] font-medium border-slate-200" />
               </div>
-              <div className="col-span-6 flex flex-col gap-1.5">
+              <div className="col-span-1 sm:col-span-5 flex flex-col gap-1.5">
                 <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">CAMBIO POR</Label>
                 <Input value={currentItem.description} onChange={e => setCurrentItem({ ...currentItem, description: e.target.value })} className="h-9 rounded-lg text-[11px] font-medium px-4 border-slate-200" placeholder="¿Qué recibe?" />
               </div>
-              <div className="col-span-1 flex flex-col gap-1.5">
+              <div className="col-span-1 sm:col-span-1 flex flex-col gap-1.5">
                 <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-right pr-2">Valor</Label>
                 <Input type="number" value={currentItem.total} onChange={e => setCurrentItem({ ...currentItem, total: Number(e.target.value) })} className="h-9 rounded-lg text-right text-[11px] font-medium text-emerald-600 px-4 border-slate-200" placeholder="0" />
               </div>
-              <div className="col-span-2 flex flex-col gap-1.5">
+              <div className="col-span-1 sm:col-span-2 flex flex-col gap-1.5">
                 <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">Entrega</Label>
                 <Input type="date" value={currentItem.possibleDeliveryDate} onChange={e => setCurrentItem({ ...currentItem, possibleDeliveryDate: e.target.value })} className="h-9 rounded-lg text-[11px] font-medium px-2 border-slate-200" />
               </div>
-              <div className="col-span-2 flex flex-col gap-1.5 justify-end">
-                <AsyncButton onClick={handleAddItem} isLoading={isSubmitting} className="h-9 w-full bg-monchito-purple hover:bg-monchito-purple/90 rounded-lg shadow-sm font-black text-[10px] uppercase tracking-widest"><Plus className="h-4 w-4 mr-1" /> Agregar</AsyncButton>
+              <div className="col-span-1 sm:col-span-3 flex flex-col gap-1.5 justify-end mt-2 sm:mt-0">
+                <AsyncButton onClick={handleAddItem} isLoading={isSubmitting} className="h-10 w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-lg shadow-emerald-600/20 font-black text-[11px] uppercase tracking-widest transition-all active:scale-95"><Plus className="h-4 w-4 mr-2" /> AGREGAR A LA LISTA</AsyncButton>
               </div>
             </div>
           </div>
@@ -609,42 +609,42 @@ export function NewExchangePage() {
               <table className="w-full border-collapse table-auto min-w-max">
                 <thead className="bg-monchito-purple/[0.03] border-b border-monchito-purple/5">
                   <tr className="whitespace-nowrap">
-                    <th className="px-4 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center w-[50px] bg-slate-50 sticky left-0 z-30">#</th>
-                    <th className={`px-4 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left min-w-[150px] transition-all bg-slate-50 ${pinnedColumns.has('empresaria') ? 'sticky left-[50px] z-30 ring-r-2 ring-monchito-purple/5' : ''}`}>
-                      <div className="flex items-center gap-2">Empresaria <button onClick={() => togglePin('empresaria')}>{pinnedColumns.has('empresaria') ? <Pin className="h-3 w-3 fill-monchito-purple" /> : <PinOff className="h-3 w-3 opacity-30" />}</button></div>
+                    <th className="px-4 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center w-[50px] bg-slate-50 lg:sticky left-0 z-10">#</th>
+                    <th className={`px-4 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left min-w-[150px] transition-all bg-slate-50 ${pinnedColumns.has('empresaria') ? 'lg:sticky left-[50px] z-10 ring-r-2 ring-monchito-purple/5' : ''}`}>
+                      <div className="flex items-center gap-2">Empresaria <button onClick={() => togglePin('empresaria')} className="hidden lg:block">{pinnedColumns.has('empresaria') ? <Pin className="h-3 w-3 fill-monchito-purple" /> : <PinOff className="h-3 w-3 opacity-30" />}</button></div>
                     </th>
-                    <th className={`px-4 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left min-w-[120px] bg-slate-50 transition-all ${pinnedColumns.has('brandName') ? 'sticky left-[200px] z-30 ring-r-2 ring-monchito-purple/5' : ''}`}>
-                      <div className="flex items-center gap-2">Catálogo <button onClick={() => togglePin('brandName')}>{pinnedColumns.has('brandName') ? <Pin className="h-3 w-3 fill-monchito-purple" /> : <PinOff className="h-3 w-3 opacity-30" />}</button></div>
+                    <th className={`px-4 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left min-w-[120px] bg-slate-50 transition-all ${pinnedColumns.has('brandName') ? 'lg:sticky left-[200px] z-10 ring-r-2 ring-monchito-purple/5' : ''}`}>
+                      <div className="flex items-center gap-2">Catálogo <button onClick={() => togglePin('brandName')} className="hidden lg:block">{pinnedColumns.has('brandName') ? <Pin className="h-3 w-3 fill-monchito-purple" /> : <PinOff className="h-3 w-3 opacity-30" />}</button></div>
                     </th>
-                    <th className={`px-4 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left min-w-[120px] bg-slate-50 transition-all ${pinnedColumns.has('sourceOrderNumber') ? 'sticky left-[320px] z-30 ring-r-2 ring-monchito-purple/5' : ''}`}>
-                      <div className="flex items-center gap-2">N° Cambio <button onClick={() => togglePin('sourceOrderNumber')}>{pinnedColumns.has('sourceOrderNumber') ? <Pin className="h-3 w-3 fill-monchito-purple" /> : <PinOff className="h-3 w-3 opacity-30" />}</button></div>
+                    <th className={`px-4 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left min-w-[120px] bg-slate-50 transition-all ${pinnedColumns.has('sourceOrderNumber') ? 'lg:sticky left-[320px] z-10 ring-r-2 ring-monchito-purple/5' : ''}`}>
+                      <div className="flex items-center gap-2">N° Cambio <button onClick={() => togglePin('sourceOrderNumber')} className="hidden lg:block">{pinnedColumns.has('sourceOrderNumber') ? <Pin className="h-3 w-3 fill-monchito-purple" /> : <PinOff className="h-3 w-3 opacity-30" />}</button></div>
                     </th>
-                    <th className={`px-4 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center w-[70px] bg-slate-50 transition-all ${pinnedColumns.has('sourceQuantity') ? 'sticky left-[440px] z-30 ring-r-2 ring-monchito-purple/5' : ''}`}>
-                      <div className="flex items-center justify-center gap-2">Cant E. <button onClick={() => togglePin('sourceQuantity')}>{pinnedColumns.has('sourceQuantity') ? <Pin className="h-3 w-3 fill-monchito-purple" /> : <PinOff className="h-3 w-3 opacity-30" />}</button></div>
+                    <th className={`px-4 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center w-[70px] bg-slate-50 transition-all ${pinnedColumns.has('sourceQuantity') ? 'lg:sticky left-[440px] z-10 ring-r-2 ring-monchito-purple/5' : ''}`}>
+                      <div className="flex items-center justify-center gap-2">Cant E. <button onClick={() => togglePin('sourceQuantity')} className="hidden lg:block">{pinnedColumns.has('sourceQuantity') ? <Pin className="h-3 w-3 fill-monchito-purple" /> : <PinOff className="h-3 w-3 opacity-30" />}</button></div>
                     </th>
-                    <th className={`px-6 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left min-w-[300px] bg-slate-50 transition-all ${pinnedColumns.has('sourceDescription') ? 'sticky left-[510px] z-30 ring-r-2 ring-monchito-purple/5' : ''}`}>
-                      <div className="flex items-center gap-2">DESCRIPCIÓN DE CAMBIO <button onClick={() => togglePin('sourceDescription')}>{pinnedColumns.has('sourceDescription') ? <Pin className="h-3 w-3 fill-monchito-purple" /> : <PinOff className="h-3 w-3 opacity-30" />}</button></div>
+                    <th className={`px-6 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left min-w-[300px] bg-slate-50 transition-all ${pinnedColumns.has('sourceDescription') ? 'lg:sticky left-[510px] z-10 ring-r-2 ring-monchito-purple/5' : ''}`}>
+                      <div className="flex items-center gap-2">DESCRIPCIÓN DE CAMBIO <button onClick={() => togglePin('sourceDescription')} className="hidden lg:block">{pinnedColumns.has('sourceDescription') ? <Pin className="h-3 w-3 fill-monchito-purple" /> : <PinOff className="h-3 w-3 opacity-30" />}</button></div>
                     </th>
-                    <th className={`px-4 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center w-[70px] bg-slate-50 transition-all ${pinnedColumns.has('quantity') ? 'sticky left-[810px] z-30 ring-r-2 ring-monchito-purple/5' : ''}`}>
-                      <div className="flex items-center justify-center gap-2">Cant R. <button onClick={() => togglePin('quantity')}>{pinnedColumns.has('quantity') ? <Pin className="h-3 w-3 fill-monchito-purple" /> : <PinOff className="h-3 w-3 opacity-30" />}</button></div>
+                    <th className={`px-4 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center w-[70px] bg-slate-50 transition-all ${pinnedColumns.has('quantity') ? 'lg:sticky left-[810px] z-10 ring-r-2 ring-monchito-purple/5' : ''}`}>
+                      <div className="flex items-center justify-center gap-2">Cant R. <button onClick={() => togglePin('quantity')} className="hidden lg:block">{pinnedColumns.has('quantity') ? <Pin className="h-3 w-3 fill-monchito-purple" /> : <PinOff className="h-3 w-3 opacity-30" />}</button></div>
                     </th>
-                    <th className={`px-6 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left min-w-[300px] bg-slate-50 transition-all ${pinnedColumns.has('description') ? 'sticky left-[880px] z-30 ring-r-2 ring-monchito-purple/5' : ''}`}>
-                      <div className="flex items-center gap-2">CAMBIO POR <button onClick={() => togglePin('description')}>{pinnedColumns.has('description') ? <Pin className="h-3 w-3 fill-monchito-purple" /> : <PinOff className="h-3 w-3 opacity-30" />}</button></div>
+                    <th className={`px-6 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left min-w-[300px] bg-slate-50 transition-all ${pinnedColumns.has('description') ? 'lg:sticky left-[880px] z-10 ring-r-2 ring-monchito-purple/5' : ''}`}>
+                      <div className="flex items-center gap-2">CAMBIO POR <button onClick={() => togglePin('description')} className="hidden lg:block">{pinnedColumns.has('description') ? <Pin className="h-3 w-3 fill-monchito-purple" /> : <PinOff className="h-3 w-3 opacity-30" />}</button></div>
                     </th>
-                    <th className={`px-6 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right w-[110px] bg-slate-50 transition-all ${pinnedColumns.has('total') ? 'sticky right-[450px] z-30 ring-l-2 ring-monchito-purple/5' : ''}`}>
-                      <div className="flex items-center justify-end gap-2"><button onClick={() => togglePin('total')}>{pinnedColumns.has('total') ? <Pin className="h-3 w-3 fill-monchito-purple" /> : <PinOff className="h-3 w-3 opacity-30" />}</button> Valor</div>
+                    <th className={`px-6 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right w-[110px] bg-slate-50 transition-all ${pinnedColumns.has('total') ? 'lg:sticky right-[450px] z-10 ring-l-2 ring-monchito-purple/5' : ''}`}>
+                      <div className="flex items-center justify-end gap-2"><button onClick={() => togglePin('total')} className="hidden lg:block">{pinnedColumns.has('total') ? <Pin className="h-3 w-3 fill-monchito-purple" /> : <PinOff className="h-3 w-3 opacity-30" />}</button> Valor</div>
                     </th>
-                    <th className={`px-6 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center w-[130px] bg-slate-50 transition-all ${pinnedColumns.has('deposit') ? 'sticky right-[320px] z-30 ring-l-2 ring-monchito-purple/5' : ''}`}>
-                      <div className="flex items-center justify-center gap-2"><button onClick={() => togglePin('deposit')}>{pinnedColumns.has('deposit') ? <Pin className="h-3 w-3 fill-monchito-purple" /> : <PinOff className="h-3 w-3 opacity-30" />}</button> Abono</div>
+                    <th className={`px-6 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center w-[130px] bg-slate-50 transition-all ${pinnedColumns.has('deposit') ? 'lg:sticky right-[320px] z-10 ring-l-2 ring-monchito-purple/5' : ''}`}>
+                      <div className="flex items-center justify-center gap-2"><button onClick={() => togglePin('deposit')} className="hidden lg:block">{pinnedColumns.has('deposit') ? <Pin className="h-3 w-3 fill-monchito-purple" /> : <PinOff className="h-3 w-3 opacity-30" />}</button> Abono</div>
                     </th>
-                    <th className={`px-6 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right w-[110px] bg-slate-50 transition-all ${pinnedColumns.has('saldo') ? 'sticky right-[210px] z-30 ring-l-2 ring-monchito-purple/5' : ''}`}>
-                      <div className="flex items-center justify-end gap-2"><button onClick={() => togglePin('saldo')}>{pinnedColumns.has('saldo') ? <Pin className="h-3 w-3 fill-monchito-purple" /> : <PinOff className="h-3 w-3 opacity-30" />}</button> Saldo</div>
+                    <th className={`px-6 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right w-[110px] bg-slate-50 transition-all ${pinnedColumns.has('saldo') ? 'lg:sticky right-[210px] z-10 ring-l-2 ring-monchito-purple/5' : ''}`}>
+                      <div className="flex items-center justify-end gap-2"><button onClick={() => togglePin('saldo')} className="hidden lg:block">{pinnedColumns.has('saldo') ? <Pin className="h-3 w-3 fill-monchito-purple" /> : <PinOff className="h-3 w-3 opacity-30" />}</button> Saldo</div>
                     </th>
-                    <th className={`px-6 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center w-[110px] bg-slate-50 transition-all ${pinnedColumns.has('possibleDeliveryDate') ? 'sticky right-[100px] z-30 ring-l-2 ring-monchito-purple/5' : ''}`}>
-                      <div className="flex items-center justify-center gap-2"><button onClick={() => togglePin('possibleDeliveryDate')}>{pinnedColumns.has('possibleDeliveryDate') ? <Pin className="h-3 w-3 fill-monchito-purple" /> : <PinOff className="h-3 w-3 opacity-30" />}</button> Entrega</div>
+                    <th className={`px-6 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center w-[110px] bg-slate-50 transition-all ${pinnedColumns.has('possibleDeliveryDate') ? 'lg:sticky right-[100px] z-10 ring-l-2 ring-monchito-purple/5' : ''}`}>
+                      <div className="flex items-center justify-center gap-2"><button onClick={() => togglePin('possibleDeliveryDate')} className="hidden lg:block">{pinnedColumns.has('possibleDeliveryDate') ? <Pin className="h-3 w-3 fill-monchito-purple" /> : <PinOff className="h-3 w-3 opacity-30" />}</button> Entrega</div>
                     </th>
-                    <th className={`px-6 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center w-[100px] bg-slate-50 transition-all ${pinnedColumns.has('action') ? 'sticky right-0 z-30 ring-l-2 ring-monchito-purple/5' : ''}`}>
-                      <div className="flex items-center justify-center gap-2"><button onClick={() => togglePin('action')}>{pinnedColumns.has('action') ? <Pin className="h-3 w-3 fill-monchito-purple" /> : <PinOff className="h-3 w-3 opacity-30" />}</button> Acción</div>
+                    <th className={`px-6 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center w-[100px] bg-slate-50 transition-all ${pinnedColumns.has('action') ? 'lg:sticky right-0 z-10 ring-l-2 ring-monchito-purple/5' : ''}`}>
+                      <div className="flex items-center justify-center gap-2"><button onClick={() => togglePin('action')} className="hidden lg:block">{pinnedColumns.has('action') ? <Pin className="h-3 w-3 fill-monchito-purple" /> : <PinOff className="h-3 w-3 opacity-30" />}</button> Acción</div>
                     </th>
                   </tr>
                 </thead>
@@ -661,29 +661,29 @@ export function NewExchangePage() {
                   ) : (
                     formik.values.brandItems.map((item, idx) => (
                       <tr key={item.id || item.tempId || idx} className="hover:bg-monchito-purple/[0.02] transition-all duration-200 group h-14 whitespace-nowrap">
-                        <td className="px-4 py-4 text-center text-[10px] font-black text-slate-300 bg-white sticky left-0 z-20 shadow-[1px_0_0_0_rgba(107,33,168,0.05)]">{idx + 1}</td>
-                        <td className={`px-4 py-4 text-[11px] font-black text-slate-900 bg-white transition-all ${pinnedColumns.has('empresaria') ? 'sticky left-[50px] z-20 shadow-[1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`}>
+                        <td className="px-4 py-4 text-center text-[10px] font-black text-slate-300 bg-white lg:sticky left-0 z-20 shadow-[1px_0_0_0_rgba(107,33,168,0.05)]">{idx + 1}</td>
+                        <td className={`px-4 py-4 text-[11px] font-black text-slate-900 bg-white transition-all ${pinnedColumns.has('empresaria') ? 'lg:sticky left-[50px] z-20 shadow-[1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`}>
                           {clients.find(c => c.id === (item.clientId || formik.values.clientId))?.firstName || "---"}
                         </td>
-                        <td className={`px-4 py-4 text-[11px] font-black text-slate-900 bg-white transition-all ${pinnedColumns.has('brandName') ? 'sticky left-[200px] z-20 shadow-[1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`}>
+                        <td className={`px-4 py-4 text-[11px] font-black text-slate-900 bg-white transition-all ${pinnedColumns.has('brandName') ? 'lg:sticky left-[200px] z-20 shadow-[1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`}>
                           {item.brandName || "Sin Marca"}
                         </td>
-                        <td className={`px-4 py-4 text-[11px] font-black text-monchito-purple uppercase tracking-tight bg-white transition-all ${pinnedColumns.has('sourceOrderNumber') ? 'sticky left-[320px] z-20 shadow-[1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`}>
+                        <td className={`px-4 py-4 text-[11px] font-black text-monchito-purple uppercase tracking-tight bg-white transition-all ${pinnedColumns.has('sourceOrderNumber') ? 'lg:sticky left-[320px] z-20 shadow-[1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`}>
                           {item.sourceOrderNumber || "---"}
                         </td>
-                        <td className={`px-4 py-4 text-center text-[11px] font-medium text-slate-500 bg-white transition-all ${pinnedColumns.has('sourceQuantity') ? 'sticky left-[440px] z-20 shadow-[1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`}>
+                        <td className={`px-4 py-4 text-center text-[11px] font-medium text-slate-500 bg-white transition-all ${pinnedColumns.has('sourceQuantity') ? 'lg:sticky left-[440px] z-20 shadow-[1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`}>
                           {item.sourceQuantity}
                         </td>
-                        <td className={`px-6 py-4 text-slate-600 text-[11px] font-medium max-w-[400px] overflow-hidden text-ellipsis bg-white transition-all ${pinnedColumns.has('sourceDescription') ? 'sticky left-[510px] z-20 shadow-[1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`} title={item.sourceDescription || ""}>
+                        <td className={`px-6 py-4 text-slate-600 text-[11px] font-medium max-w-[400px] overflow-hidden text-ellipsis bg-white transition-all ${pinnedColumns.has('sourceDescription') ? 'lg:sticky left-[510px] z-20 shadow-[1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`} title={item.sourceDescription || ""}>
                           {item.sourceDescription || "---"}
                         </td>
-                        <td className={`px-4 py-4 text-center text-[11px] font-medium text-monchito-purple bg-white transition-all ${pinnedColumns.has('quantity') ? 'sticky left-[810px] z-20 shadow-[1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`}>
+                        <td className={`px-4 py-4 text-center text-[11px] font-medium text-monchito-purple bg-white transition-all ${pinnedColumns.has('quantity') ? 'lg:sticky left-[810px] z-20 shadow-[1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`}>
                           {item.quantity}
                         </td>
-                        <td className={`px-6 py-4 text-slate-600 text-[11px] font-medium max-w-[400px] overflow-hidden text-ellipsis bg-white transition-all ${pinnedColumns.has('description') ? 'sticky left-[880px] z-20 shadow-[1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`} title={item.description || ""}>
+                        <td className={`px-6 py-4 text-slate-600 text-[11px] font-medium max-w-[400px] overflow-hidden text-ellipsis bg-white transition-all ${pinnedColumns.has('description') ? 'lg:sticky left-[880px] z-20 shadow-[1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`} title={item.description || ""}>
                           {item.description || "---"}
                         </td>
-                        <td className={`px-6 py-4 text-right bg-white transition-all ${pinnedColumns.has('total') ? 'sticky right-[450px] z-20 shadow-[-1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`}>
+                        <td className={`px-6 py-4 text-right bg-white transition-all ${pinnedColumns.has('total') ? 'lg:sticky right-[450px] z-20 shadow-[-1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`}>
                           {(!isEditing || !item.status || Number(item.deposit || 0) === 0) ? (
                             <div className="flex justify-end items-center gap-1">
                                 <span className="text-emerald-400 text-[10px] font-bold">$</span>
@@ -703,7 +703,7 @@ export function NewExchangePage() {
                             <span className="text-[11px] font-black text-emerald-600">{formatCurrency(item.total)}</span>
                           )}
                         </td>
-                        <td className={`px-6 py-4 text-center bg-white transition-all ${pinnedColumns.has('deposit') ? 'sticky right-[320px] z-20 shadow-[-1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`}>
+                        <td className={`px-6 py-4 text-center bg-white transition-all ${pinnedColumns.has('deposit') ? 'lg:sticky right-[320px] z-20 shadow-[-1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`}>
                           {(!isEditing || !item.status || Number(item.deposit || 0) === 0) ? (
                             <div className="flex justify-center items-center gap-1">
                                 <span className="text-emerald-600 text-[10px] font-bold">$</span>
@@ -727,13 +727,13 @@ export function NewExchangePage() {
                             </span>
                           )}
                         </td>
-                        <td className={`px-6 py-4 text-right text-[11px] font-black text-slate-900 bg-white transition-all ${pinnedColumns.has('saldo') ? 'sticky right-[210px] z-20 shadow-[-1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`}>
+                        <td className={`px-6 py-4 text-right text-[11px] font-black text-slate-900 bg-white transition-all ${pinnedColumns.has('saldo') ? 'lg:sticky right-[210px] z-20 shadow-[-1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`}>
                           {formatCurrency(Number(item.total) - Number(item.deposit || 0))}
                         </td>
-                        <td className={`px-6 py-4 text-center text-slate-400 text-[11px] font-medium bg-white transition-all ${pinnedColumns.has('possibleDeliveryDate') ? 'sticky right-[100px] z-20 shadow-[-1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`}>
+                        <td className={`px-6 py-4 text-center text-slate-400 text-[11px] font-medium bg-white transition-all ${pinnedColumns.has('possibleDeliveryDate') ? 'lg:sticky right-[100px] z-20 shadow-[-1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`}>
                           {item.possibleDeliveryDate}
                         </td>
-                        <td className={`px-6 py-4 flex justify-center gap-1 opacity-100 lg:opacity-40 lg:group-hover:opacity-100 transition-opacity bg-white transition-all ${pinnedColumns.has('action') ? 'sticky right-0 z-20 shadow-[-1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`}>
+                        <td className={`px-6 py-4 flex justify-center gap-1 opacity-100 lg:opacity-40 lg:group-hover:opacity-100 transition-opacity bg-white transition-all ${pinnedColumns.has('action') ? 'lg:sticky right-0 z-20 shadow-[-1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`}>
                           <Button variant="ghost" size="icon" onClick={() => handleOpenRowEdit(item)} className="h-8 w-8 text-slate-400 hover:text-monchito-purple hover:bg-monchito-purple/5 transition-colors">
                             <Pencil className="h-4 w-4" />
                           </Button>

@@ -139,18 +139,22 @@ export function SelectedOrdersTable({
                                         <TableCell className="p-1 w-[30px] text-center py-4">
                                             <CheckCircle className="h-3.5 w-3.5 text-emerald-500 mx-auto" />
                                         </TableCell>
-                                        <TableCell className="py-4 px-2 font-mono text-xs font-medium">{order.type === 'CAMBIO' ? order.orderNumber : `#${order.receiptNumber}`}</TableCell>
-                                        <TableCell className="py-4 px-2 text-xs font-bold">{order.clientName}</TableCell>
-                                        <TableCell className="py-4 px-2 text-xs font-medium">{order.type === 'CAMBIO' ? (order.sourceOrderNumber || '---') : (order.orderNumber || '---')}</TableCell>
-                                        <TableCell className="py-4 px-2 text-[10px]">
-                                            <span className={`px-2 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-tighter shadow-sm ${
+                                        <TableCell className="py-4 px-2 font-mono text-xs font-bold text-slate-800">
+                                            {order.receiptNumber ? `#${order.receiptNumber}` : (order.orderNumber || '---')}
+                                        </TableCell>
+                                        <TableCell className="py-4 px-2 text-xs font-bold text-slate-700">{order.clientName}</TableCell>
+                                        <TableCell className="py-4 px-2 text-xs font-black text-monchito-purple">
+                                            {order.type === 'CAMBIO' ? (order.sourceOrderNumber || '---') : (order.orderNumber || order.receiptNumber || '---')}
+                                        </TableCell>
+                                        <TableCell className="py-4 px-2">
+                                            <span className={`px-2.5 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest shadow-sm ${
                                                 order.type === 'CAMBIO' ? 'bg-orange-100 text-orange-700 border-orange-200' :
                                                 order.type === 'REPROGRAMACION' ? 'bg-amber-100 text-amber-700 border-amber-200' :
                                                 order.type === 'PREVENTA' ? 'bg-purple-100 text-purple-700 border-purple-200' :
                                                 order.type === 'CATALOGO' ? 'bg-indigo-100 text-indigo-700 border-indigo-200' :
                                                 'bg-blue-100 text-blue-700 border-blue-200'
                                             }`}>
-                                                {order.type}
+                                                {order.type || 'NORMAL'}
                                             </span>
                                         </TableCell>
                                         <TableCell className="py-4 px-2 text-xs font-medium">{order.brandName}</TableCell>

@@ -21,6 +21,15 @@ interface OrderEditModalProps {
     bankAccounts: any[]
 }
 
+const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('es-CO', {
+        style: 'currency',
+        currency: 'COP',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    }).format(amount);
+};
+
 export function OrderEditModal({ order, open, onOpenChange, onSuccess, lastClosureDate, bankAccounts }: OrderEditModalProps) {
     const { notifySuccess, notifyError, notifyLoading, dismiss } = useNotifications()
     const updateOrder = useUpdateOrder()
@@ -167,6 +176,7 @@ export function OrderEditModal({ order, open, onOpenChange, onSuccess, lastClosu
                 orderNumber: payload.orderNumber,
                 payments: order.payments,
             })
+            onOpenChange(false)
         } catch (error: any) {
             dismiss()
             console.error('Error updating order:', error)
@@ -178,180 +188,165 @@ export function OrderEditModal({ order, open, onOpenChange, onSuccess, lastClosu
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-4xl">
-                <DialogHeader>
-                    <DialogTitle className="text-lg font-bold text-slate-800">Editar Pedido</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleSubmit}>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-xs border-collapse">
-                            <thead className="bg-slate-100 text-slate-600 border-b uppercase font-bold text-xs">
-                                <tr>
-                                    <th className="px-3 py-2 border-r text-left">Catálogo</th>
-                                    <th className="px-3 py-2 border-r text-left">N° Pedido</th>
-                                    <th className="px-3 py-2 border-r text-right">Valor Pedido</th>
-                                    <th className="px-3 py-2 border-r text-right">Abono</th>
-                                    <th className="px-3 py-2 border-r text-right">Saldo</th>
-                                    <th className="px-3 py-2 text-left">Posible Entrega</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr className="hover:bg-indigo-50/20 transition-colors">
-                                    <td className="px-3 py-2 border-r">
+            <DialogContent className="max-w-2xl w-[95vw] sm:w-full rounded-3xl p-0 gap-0 overflow-hidden bg-white shadow-2xl border-none">
+                <div className="bg-slate-900 p-6 text-white">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-black uppercase tracking-tight">Editar Pedido de Venta</DialogTitle>
+                    </DialogHeader>
+                </div>
+
+                <form onSubmit={handleSubmit} className="flex flex-col max-h-[85vh]">
+                    <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+                         {/* INFO SECTION */}
+                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                                <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest pl-1">Catálogo</Label>
+                                <div className="h-11 px-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center font-black text-slate-600 uppercase text-xs">
+                                    {order.brand?.name || order.brandName || "---"}
+                                </div>
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest pl-1">Número de Pedido</Label>
+                                <Input
+                                    value={formData.orderNumber}
+                                    onChange={(e) => setFormData({ ...formData, orderNumber: e.target.value })}
+                                    placeholder="N° de guía o manual"
+                                    className="h-11 text-sm font-mono border-slate-200 rounded-xl focus:ring-monchito-purple/20"
+                                />
+                            </div>
+                         </div>
+
+                         {/* FINANCE SECTION */}
+                         <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                    <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest pl-1">Valor Total del Pedido</Label>
+                                    <div className="relative">
+                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
                                         <Input
-                                            value={order.brand?.name || order.brandName}
-                                            disabled
-                                            className="h-8 text-xs bg-slate-50 border-none"
-                                        />
-                                    </td>
-                                    <td className="px-3 py-2 border-r">
-                                        <Input
-                                            value={formData.orderNumber}
-                                            onChange={(e) => setFormData({ ...formData, orderNumber: e.target.value })}
-                                            placeholder="Ej: 12345"
-                                            className="h-8 text-xs font-mono"
-                                        />
-                                    </td>
-                                    <td className="px-3 py-2 border-r text-right">
-                                        <div className="flex justify-end items-center gap-1">
-                                            <span className="text-slate-400 text-xs">$</span>
-                                            <input
-                                                type="number"
-                                                step="0.01"
-                                                className="h-7 w-20 text-right font-bold border-none focus:ring-0 outline-none text-xs bg-transparent hide-spinner"
-                                                value={formData.total}
-                                                onChange={(e) => setFormData({ ...formData, total: Number(e.target.value) })}
-                                                required
-                                            />
-                                        </div>
-                                    </td>
-                                    <td className="px-3 py-2 border-r text-right">
-                                        <div className="flex justify-end items-center gap-1">
-                                            <span className="text-green-600 text-xs">$</span>
-                                            <input
-                                                type="number"
-                                                step="0.01"
-                                                min="0"
-                                                max={formData.total}
-                                                className="h-7 w-20 text-right text-green-600 font-bold rounded border-green-100 focus:ring-1 focus:ring-green-500 outline-none text-xs bg-green-50/30 hide-spinner"
-                                                value={formData.deposit}
-                                                onChange={(e) => setFormData({ ...formData, deposit: Number(e.target.value) })}
-                                                required
-                                            />
-                                        </div>
-                                    </td>
-                                    <td className="px-3 py-2 border-r text-right">
-                                        <span className={`font-bold text-xs ${saldo > 0 ? 'text-red-600' : 'text-slate-600'}`}>
-                                            ${saldo.toFixed(2)}
-                                        </span>
-                                    </td>
-                                    <td className="px-3 py-2">
-                                        <Input
-                                            type="date"
-                                            value={formData.possibleDeliveryDate}
-                                            onChange={(e) => setFormData({ ...formData, possibleDeliveryDate: e.target.value })}
+                                            type="number"
+                                            step="0.01"
+                                            className="h-11 pl-8 text-sm font-black text-slate-900 border-slate-200 rounded-xl focus:ring-monchito-purple/20"
+                                            value={formData.total}
+                                            onChange={(e) => setFormData({ ...formData, total: Number(e.target.value) })}
                                             required
-                                            className="h-8 text-xs pr-8"
                                         />
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+                                    </div>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest pl-1">Abono Registrado</Label>
+                                    <div className="relative">
+                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-600 font-bold">$</span>
+                                        <Input
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            max={formData.total}
+                                            className="h-11 pl-8 text-sm font-black text-emerald-700 border-slate-200 bg-white rounded-xl focus:ring-emerald-500/20"
+                                            value={formData.deposit}
+                                            onChange={(e) => setFormData({ ...formData, deposit: Number(e.target.value) })}
+                                            required
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <Separator className="bg-slate-200" />
+                            
+                            <div className="flex justify-between items-center">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Saldo Pendiente:</span>
+                                <span className={`text-xl font-black ${saldo > 0 ? 'text-red-500' : 'text-slate-900'}`}>{formatCurrency(saldo)}</span>
+                            </div>
+                         </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                        <div className="space-y-1.5">
-                            <Label className="text-xs font-bold text-slate-600 flex items-center gap-1.5">
-                                Método de Pago:
-                                {hasExistingDeposit && <Lock className="h-3 w-3 text-slate-400" />}
-                                {formData.paymentMethod === 'BILLETERA_VIRTUAL' && !hasExistingDeposit && (
-                                    <span className="ml-1 text-emerald-600 font-medium">(Saldo: ${walletBalance.toFixed(2)})</span>
+                         {/* LOGISTICS SECTION */}
+                         <div className="space-y-1.5">
+                            <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest pl-1">Fecha de Entrega Estimada</Label>
+                            <Input
+                                type="date"
+                                value={formData.possibleDeliveryDate}
+                                onChange={(e) => setFormData({ ...formData, possibleDeliveryDate: e.target.value })}
+                                required
+                                className="h-11 text-sm border-slate-200 rounded-xl focus:ring-monchito-purple/20"
+                            />
+                         </div>
+
+                         {/* PAYMENT METHOD SECTION */}
+                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                             <div className="space-y-1.5">
+                                <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest pl-1 flex items-center gap-2">
+                                    Método de Pago {hasExistingDeposit && <Lock className="h-3 w-3" />}
+                                </Label>
+                                {hasExistingDeposit ? (
+                                    <div className="h-11 px-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs font-bold text-slate-400">
+                                        <span>{originalMethod === 'BILLETERA_VIRTUAL' ? 'BILLETERA VIRTUAL' : originalMethod}</span>
+                                        <Lock className="h-3 w-3" />
+                                    </div>
+                                ) : (
+                                    <select
+                                        className="w-full h-11 rounded-xl border border-slate-200 text-sm px-4 focus:ring-2 focus:ring-monchito-purple/10 outline-none appearance-none bg-white font-medium"
+                                        value={formData.paymentMethod}
+                                        onChange={(e) => {
+                                            const method = e.target.value
+                                            setFormData({ 
+                                                ...formData, 
+                                                paymentMethod: method,
+                                                bankAccountId: method === 'EFECTIVO' 
+                                                    ? (bankAccounts.find((a: any) => a.type === 'CASH')?.id || '') 
+                                                    : ''
+                                            })
+                                        }}
+                                    >
+                                        <option value="EFECTIVO">EFECTIVO</option>
+                                        <option value="BILLETERA_VIRTUAL">BILLETERA VIRTUAL</option>
+                                    </select>
                                 )}
-                            </Label>
-                            {hasExistingDeposit ? (
-                                // LOCKED: show as badge, cannot change
-                                <div className="w-full h-9 rounded-md border border-slate-200 bg-slate-50 text-xs px-3 flex items-center gap-2 text-slate-500 cursor-not-allowed">
-                                    <Lock className="h-3 w-3 text-slate-400" />
-                                    <span className="font-medium">{originalMethod === 'BILLETERA_VIRTUAL' ? 'BILLETERA VIRTUAL' : originalMethod}</span>
-                                    {originalMethod === 'BILLETERA_VIRTUAL' && (
-                                        <span className="ml-auto text-emerald-600 font-bold">Saldo: ${walletBalance.toFixed(2)}</span>
-                                    )}
-                                </div>
-                            ) : (
-                                // UNLOCKED: user can choose
-                                <select
-                                    className="w-full h-9 rounded-md border border-slate-200 text-xs px-3 focus:ring-1 focus:ring-monchito-purple outline-none"
-                                    value={formData.paymentMethod}
-                                    onChange={(e) => {
-                                        const method = e.target.value
-                                        setFormData({ 
-                                            ...formData, 
-                                            paymentMethod: method,
-                                            bankAccountId: method === 'EFECTIVO' 
-                                                ? (bankAccounts.find((a: any) => a.type === 'CASH')?.id || '') 
-                                                : ''
-                                        })
-                                    }}
-                                >
-                                    <option value="EFECTIVO">EFECTIVO</option>
-                                    <option value="BILLETERA_VIRTUAL">BILLETERA VIRTUAL</option>
-                                </select>
-                            )}
-                            {hasExistingDeposit && (
-                                <p className="text-[10px] text-slate-400 mt-1">
-                                    Para cambiar el método de pago, elimine este pedido y cree uno nuevo.
-                                </p>
-                            )}
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label className="text-xs font-bold text-slate-600 flex items-center gap-1.5">
-                                Cuenta Bancaria:
-                                {hasExistingDeposit && <Lock className="h-3 w-3 text-slate-400" />}
-                            </Label>
-                            {hasExistingDeposit || formData.paymentMethod === 'BILLETERA_VIRTUAL' ? (
-                                <div className="w-full h-9 rounded-md border border-slate-200 bg-slate-50 text-xs px-3 flex items-center gap-2 text-slate-400 cursor-not-allowed">
-                                    <Lock className="h-3 w-3 text-slate-400" />
-                                    <span>
-                                        {originalMethod === 'BILLETERA_VIRTUAL' 
-                                            ? 'No aplica (Billetera Virtual)' 
-                                            : bankAccounts.find(a => a.id === originalBankAccountId)?.name || 'Cuenta original'}
-                                    </span>
-                                </div>
-                            ) : (
-                                <select
-                                    className="w-full h-9 rounded-md border border-slate-200 text-xs px-3 focus:ring-1 focus:ring-monchito-purple outline-none"
-                                    value={formData.bankAccountId}
-                                    onChange={(e) => setFormData({ ...formData, bankAccountId: e.target.value })}
-                                >
-                                    <option value="">Seleccione una cuenta...</option>
-                                    {filteredBankAccounts.map((acc: any) => (
-                                        <option key={acc.id} value={acc.id}>
-                                            {acc.name} ({acc.bankName || (acc.type === 'CASH' ? 'Efectivo' : 'Banco')})
-                                        </option>
-                                    ))}
-                                </select>
-                            )}
-                        </div>
+                                {hasExistingDeposit && (
+                                    <p className="text-[9px] text-slate-400 pl-1">Bloqueado por abono registrado.</p>
+                                )}
+                             </div>
+
+                             <div className="space-y-1.5">
+                                <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest pl-1">Cuenta Bancaria</Label>
+                                {hasExistingDeposit || formData.paymentMethod === 'BILLETERA_VIRTUAL' ? (
+                                    <div className="h-11 px-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs font-bold text-slate-300">
+                                        <span>{originalMethod === 'BILLETERA_VIRTUAL' ? 'No aplica (Billetera)' : (bankAccounts.find(a => a.id === originalBankAccountId)?.name || 'Efectivo')}</span>
+                                        <Lock className="h-3 w-3" />
+                                    </div>
+                                ) : (
+                                    <select
+                                        className="w-full h-11 rounded-xl border border-slate-200 text-sm px-4 focus:ring-2 focus:ring-monchito-purple/10 outline-none appearance-none bg-white font-medium"
+                                        value={formData.bankAccountId}
+                                        onChange={(e) => setFormData({ ...formData, bankAccountId: e.target.value })}
+                                    >
+                                        <option value="">Seleccione cuenta...</option>
+                                        {filteredBankAccounts.map((acc: any) => (
+                                            <option key={acc.id} value={acc.id}>
+                                                {acc.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                )}
+                             </div>
+                         </div>
                     </div>
 
-                    <Separator className="my-4" />
-
-                    <div className="flex gap-2 justify-end">
+                    <div className="p-6 bg-slate-50 border-t flex flex-col sm:flex-row gap-3">
                         <Button
                             type="button"
-                            variant="outline"
+                            variant="ghost"
                             onClick={() => onOpenChange(false)}
                             disabled={updateOrder.isPending}
-                            className="h-8 text-xs"
+                            className="h-12 font-bold text-slate-500 rounded-xl px-8 flex-1 sm:flex-none"
                         >
                             Cancelar
                         </Button>
                         <AsyncButton
                             type="submit"
                             isLoading={updateOrder.isPending}
-                            className="bg-slate-800 h-8 text-xs"
+                            className="bg-monchito-purple hover:bg-monchito-purple/90 text-white h-12 rounded-xl font-black uppercase tracking-widest text-xs px-12 shadow-lg shadow-monchito-purple/20 transition-all active:scale-95 flex-1"
                         >
-                            Guardar Cambios
+                            Guardar Cambios del Pedido
                         </AsyncButton>
                     </div>
                 </form>
