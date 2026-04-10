@@ -88,7 +88,7 @@ export const usersApi = {
     update: async (id: string, data: Partial<Omit<UserFormData, 'password'>>, actorId: string, actorName: string): Promise<AppUser> => {
         const payload: any = { ...data };
         if (data.roleId) {
-            payload.role = data.roleId.replace('role-', '').toUpperCase();
+            payload.role = data.roleId;
             delete payload.roleId;
         }
         if (data.active !== undefined) {

@@ -69,8 +69,8 @@ export function OrderList({ triggerCreate, onTriggerHandled, externalFilters }: 
         onlyParents: true
     })
 
-    const orders = response ? (Array.isArray(response) ? response : (response.data || [])) : []
-    const pagination = response && !Array.isArray(response) ? response.pagination : undefined
+    const orders = response?.data || []
+    const pagination = response?.pagination;
 
     const deleteOrder = useDeleteOrder()
     const { notifySuccess, notifyError, notifyLoading, dismiss } = useNotifications()
@@ -92,11 +92,11 @@ export function OrderList({ triggerCreate, onTriggerHandled, externalFilters }: 
 
     // Local filtering for quick results while typing < 3 chars or as a second layer
     const filteredOrders = useMemo(() => {
-        const parentsOnly = orders.filter(o => !o.parentOrderId)
+        const parentsOnly = (orders as Order[]).filter((o: Order) => !o.parentOrderId)
 
         if (debouncedSearch.length > 0 && debouncedSearch.length < 3) {
             const query = debouncedSearch.toLowerCase()
-            return parentsOnly.filter(o =>
+            return parentsOnly.filter((o: Order) =>
                 o.clientName.toLowerCase().includes(query) ||
                 o.receiptNumber.toLowerCase().includes(query) ||
                 (o.orderNumber && o.orderNumber.toLowerCase().includes(query)) ||

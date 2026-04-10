@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/ui/di
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { AsyncButton } from "@/shared/ui/async-button";
-import { X, Plus, AlertTriangle, Wallet, RefreshCw } from "lucide-react";
+import { AlertTriangle, Wallet, RefreshCw } from "lucide-react";
 import { useBankAccountList } from "@/features/bank-accounts/api/hooks";
 import { useClientCredit } from "@/features/wallet/model/hooks";
 import { formatCurrency } from "@/entities/order/model/financialCalculator";
@@ -49,7 +49,6 @@ interface Props {
     onSubmit: (data: PaymentModalData) => Promise<void>;
     paymentContext: PaymentContext;
     expectedAmount: number;
-    allowMultiplePayments?: boolean;
     initialAmount?: number; // Monto precargado desde la página previa
     orderItems?: OrderItem[]; // Lista de pedidos para mostrar información
     lockAmount?: boolean; // Cuando true: total fijo, pero métodos de pago son editables y deben sumar al total
@@ -63,9 +62,7 @@ export function PaymentModal({
     onSubmit,
     paymentContext,
     expectedAmount,
-    allowMultiplePayments = false,
     initialAmount,
-    orderItems,
     lockAmount = false,
     forceExactAmount = false,
     saveWithZeroPermission
@@ -100,7 +97,7 @@ export function PaymentModal({
             {
                 id: '1',
                 method: defaultMethod,
-                amount: 0, // Siempre empezar en 0, no usar initialAmount por defecto
+                amount: 0, 
                 bankAccountId: defaultMethod === 'EFECTIVO' ? (cashAccount?.id || '') : '',
                 transactionReference: '',
                 notes: ''
@@ -110,11 +107,6 @@ export function PaymentModal({
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const { user } = useAuth();
-
-    // Debug logging para verificar datos de billetera
-    console.log('PaymentModal - Client ID:', paymentContext?.clientId);
-    console.log('PaymentModal - Credit data:', creditData);
-    console.log('PaymentModal - Total credit calculated:', totalCredit);
 
     // Sincronizar el monto cuando abre el modal o initialAmount cambia
     useEffect(() => {
@@ -138,32 +130,10 @@ export function PaymentModal({
 
     // Calculate totals
     const totalAmount = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
-    // En modo split: remaining puede ser negativo (overpaid) o positivo (underpaid)
     const remaining = lockAmount
         ? expectedAmount - totalAmount
         : Math.max(0, expectedAmount - totalAmount);
     const splitIsBalanced = lockAmount ? Math.abs(totalAmount - expectedAmount) <= 0.01 : true;
-
-    const addPayment = () => {
-        const newId = (payments.length + 1).toString();
-        const cashAccount = bankAccounts.find(a => a.type === 'CASH');
-        const firstMethod = enabledMethods[0];
-        const defaultMethod: PaymentMethod = (firstMethod?.key ?? 'EFECTIVO') as PaymentMethod;
-        setPayments(prev => [...prev, {
-            id: newId,
-            method: defaultMethod,
-            amount: 0,
-            bankAccountId: defaultMethod === 'EFECTIVO' ? (cashAccount?.id || '') : '',
-            transactionReference: '',
-            notes: ''
-        }]);
-    };
-
-    const removePayment = (id: string) => {
-        if (payments.length > 1) {
-            setPayments(prev => prev.filter(p => p.id !== id));
-        }
-    };
 
     const updatePayment = (id: string, updates: Partial<PaymentEntry>) => {
         setValidationError(null);
@@ -197,17 +167,10 @@ export function PaymentModal({
         setValidationError(null);
 
         // Validaciones básicas - PERMITIR ABONOS DE 0
-        const validPayments = payments.filter(p => p.amount >= 0); // Cambio: >= 0 en lugar de > 0
+        const validPayments = payments.filter(p => p.amount >= 0);
         
         if (validPayments.length === 0) {
-            setValidationError("Debe agregar al menos un método de pago.");
-            return;
-        }
-
-        // Validar que no haya más de un pago con BILLETERA_VIRTUAL
-        const walletPayments = validPayments.filter(p => p.method === 'BILLETERA_VIRTUAL' && p.amount > 0);
-        if (walletPayments.length > 1) {
-            setValidationError('Solo se permite un método de pago con Billetera Virtual.');
+            setValidationError("Debe ingresar un método de pago válido.");
             return;
         }
 
@@ -215,12 +178,12 @@ export function PaymentModal({
         for (const payment of validPayments) {
             if (payment.amount > 0) { // Solo validar si hay monto
                 if (paymentMethodConfigService.getMethod(payment.method)?.requiresBankAccount && !payment.bankAccountId) {
-                    setValidationError(`Debe seleccionar una cuenta bancaria para el pago ${payment.method}.`);
+                    setValidationError(`Debe seleccionar una cuenta bancaria para el pago.`);
                     return;
                 }
                 
                 if (paymentMethodConfigService.getMethod(payment.method)?.requiresReference && !payment.transactionReference?.trim()) {
-                    setValidationError(`Debe ingresar una referencia para el pago ${payment.method}.`);
+                    setValidationError(`Debe ingresar una referencia para el pago.`);
                     return;
                 }
 
@@ -240,36 +203,23 @@ export function PaymentModal({
 
         // MODO SPLIT (lockAmount=true): La suma de métodos DEBE ser exactamente igual al total
         if (lockAmount && expectedAmount > 0) {
-            const activePayments = validPayments.filter(p => p.amount > 0);
             if (Math.abs(totalAmount - expectedAmount) > 0.01) {
                 setValidationError(
-                    `La suma de los métodos de pago (${formatCurrency(totalAmount)}) debe ser exactamente igual al total (${formatCurrency(expectedAmount)}). ` +
-                    `Diferencia: ${formatCurrency(Math.abs(expectedAmount - totalAmount))}`
+                    `El monto ingresado (${formatCurrency(totalAmount)}) debe ser exactamente igual al total (${formatCurrency(expectedAmount)}). `
                 );
-                return;
-            }
-            if (activePayments.length === 0) {
-                setValidationError("Debe ingresar al menos un método de pago con monto mayor a 0.");
                 return;
             }
         }
 
         // PERMITIR ABONOS PARCIALES - Validar que el total no exceda el saldo pendiente
-        // Si expectedAmount es 0, no validar límite superior (caso de catálogos con precio libre)
         if (!lockAmount && expectedAmount > 0 && totalAmount > expectedAmount) {
-            setValidationError(`El monto total de ${formatCurrency(totalAmount)} excede el saldo pendiente de ${formatCurrency(expectedAmount)}.`);
-            return;
-        }
-
-        // Validar que no sea negativo (ya está cubierto por el filter >= 0)
-        if (totalAmount < 0) {
-            setValidationError("El monto total no puede ser negativo.");
+            setValidationError(`El monto de ${formatCurrency(totalAmount)} excede el saldo pendiente de ${formatCurrency(expectedAmount)}.`);
             return;
         }
 
         // REGLA FASE 3: Forzar monto exacto si se solicita (Ej. para entregas)
         if (forceExactAmount && Math.abs(totalAmount - expectedAmount) > 0.01) {
-            setValidationError(`Se requiere cancelar el valor exacto del saldo pendiente: ${formatCurrency(expectedAmount)}. Monto actual: ${formatCurrency(totalAmount)}`);
+            setValidationError(`Se requiere cancelar el valor exacto del saldo pendiente: ${formatCurrency(expectedAmount)}.`);
             return;
         }
 
@@ -312,7 +262,6 @@ export function PaymentModal({
                     </DialogTitle>
                 </DialogHeader>
 
-                {/* Validation Error Banner - Moved inside Resumen */}
                 {view === 'payment' && configError && (
                     <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2 text-sm font-medium mx-1">
                         <AlertTriangle className="h-4 w-4 shrink-0 text-red-500" />
@@ -320,7 +269,6 @@ export function PaymentModal({
                     </div>
                 )}
 
-                {/* Recharge view */}
                 {view === 'recharge' && paymentContext?.clientId && (
                     <div className="flex-1 overflow-y-auto px-1">
                         <WalletRechargeQuick
@@ -333,7 +281,6 @@ export function PaymentModal({
                     </div>
                 )}
 
-                {/* Payment view */}
                 {view === 'payment' && (
                 <div className="flex-1 overflow-y-auto">
                     <div className="grid grid-cols-2 gap-3 mb-3">
@@ -393,15 +340,6 @@ export function PaymentModal({
                                     </span>
                                 </div>
                                 
-                                {/* Live Error Messages */}
-                                {(lockAmount || forceExactAmount) && Math.abs(totalAmount - expectedAmount) >= 0.01 && (
-                                    <p className="text-[10px] text-red-500 italic flex items-center gap-1 mt-1 bg-red-50/50 rounded p-1">
-                                        <AlertTriangle className="h-3 w-3" />
-                                        {remaining > 0 ? `Falta distribuir ${formatCurrency(remaining)}` : `Excede por ${formatCurrency(Math.abs(remaining))}`}
-                                    </p>
-                                )}
-
-                                {/* Submited Validation Error (if any) */}
                                 {validationError && (
                                     <div className="mt-1 text-red-600 text-[10px] italic leading-tight">
                                         * {validationError}
@@ -411,14 +349,6 @@ export function PaymentModal({
                         </div>
                     </div>
 
-                    {/* Leyenda minimalista cuando el monto está bloqueado */}
-                    {lockAmount && orderItems && orderItems.length > 1 && (
-                        <p className="text-xs text-slate-500 italic font-bold text-center">
-                            Distribuya el total entre los métodos de pago — la distribución por pedido ya está definida
-                        </p>
-                    )}
-
-                    {/* Quick wallet recharge button — only shown when wallet is enabled (Requirement 8.5) */}
                     {walletEnabled && paymentContext?.clientId && (
                         <div className="flex gap-2 mb-2 items-stretch">
                             <button
@@ -436,7 +366,6 @@ export function PaymentModal({
                                 size="sm"
                                 onClick={() => {
                                     qc.invalidateQueries({ queryKey: ["client-credit"] });
-                                    // Also invalidate transactions and info for good measure
                                     qc.invalidateQueries({ queryKey: ["client-credits"] });
                                 }}
                                 title="Actualizar saldo de billetera"
@@ -451,44 +380,15 @@ export function PaymentModal({
                     <div className="space-y-2">
                         <div className="flex items-center justify-between">
                             <h3 className="text-monchito-purple text-xs font-black uppercase tracking-widest">
-                                Métodos de Pago
+                                Método de Pago
                             </h3>
-                            {allowMultiplePayments && (
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={addPayment}
-                                    className="text-monchito-purple border-monchito-purple hover:bg-monchito-purple/5 h-7 px-2 text-xs"
-                                >
-                                    <Plus className="h-3 w-3 mr-1" />
-                                    Agregar
-                                </Button>
-                            )}
                         </div>
 
-                        <div className={`space-y-2 ${payments.length > 2 ? 'max-h-64 overflow-y-auto pr-2' : ''}`}>
-                            {payments.map((payment, index) => (
-                                <div key={payment.id} className="border border-slate-200 rounded-lg p-2 space-y-2">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm font-medium text-slate-700">
-                                            Pago {index + 1}
-                                        </span>
-                                        {payments.length > 1 && (
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => removePayment(payment.id)}
-                                                className="text-red-500 hover:bg-red-50 h-6 w-6 p-0"
-                                            >
-                                                <X className="h-3 w-3" />
-                                            </Button>
-                                        )}
-                                    </div>
-
+                        <div className="space-y-2">
+                            {payments.map((payment) => (
+                                <div key={payment.id} className="border border-slate-200 rounded-lg p-3 space-y-3">
                                     <div className="flex flex-wrap gap-3 items-end">
-                                        {/* Método — only enabled methods are shown (Requirement 8.2) */}
+                                        {/* Método */}
                                         <div className="flex-1 min-w-[140px] space-y-1">
                                             <label className="text-[10px] font-black uppercase tracking-widest text-monchito-purple/60 px-1">Método</label>
                                             <select
@@ -499,26 +399,17 @@ export function PaymentModal({
                                                 })}
                                                 className="w-full h-9 px-3 rounded-xl border border-monchito-purple/20 bg-white text-xs focus:ring-2 focus:ring-monchito-purple/20 outline-none transition-all cursor-pointer"
                                             >
-                                                {enabledMethods.map((methodConfig) => {
-                                                    const isWalletAlreadyAdded =
-                                                        methodConfig.isWallet &&
-                                                        payment.method !== methodConfig.key &&
-                                                        payments.some(
-                                                            (p) => p.id !== payment.id && p.method === methodConfig.key
-                                                        );
-                                                    return (
-                                                        <option
-                                                            key={methodConfig.key}
-                                                            value={methodConfig.key}
-                                                            disabled={isWalletAlreadyAdded}
-                                                            className="font-medium"
-                                                        >
-                                                            {methodConfig.key === 'BILLETERA_VIRTUAL'
-                                                                ? `${methodConfig.label} (${formatCurrency(totalCredit)})${isWalletAlreadyAdded ? ' — ya agregada' : ''}`
-                                                                : methodConfig.label}
-                                                        </option>
-                                                    );
-                                                })}
+                                                {enabledMethods.map((methodConfig) => (
+                                                    <option
+                                                        key={methodConfig.key}
+                                                        value={methodConfig.key}
+                                                        className="font-medium"
+                                                    >
+                                                        {methodConfig.key === 'BILLETERA_VIRTUAL'
+                                                            ? `${methodConfig.label} (${formatCurrency(totalCredit)})`
+                                                            : methodConfig.label}
+                                                    </option>
+                                                ))}
                                             </select>
                                         </div>
 
@@ -556,7 +447,7 @@ export function PaymentModal({
                                             </div>
                                         </div>
 
-                                        {/* Cuenta Bancaria — shown based on method config */}
+                                        {/* Cuenta Bancaria */}
                                         {paymentMethodConfigService.getMethod(payment.method)?.requiresBankAccount && (
                                             <div className="flex-1 min-w-[180px] space-y-1">
                                                 <label className="text-[10px] font-black uppercase tracking-widest text-monchito-purple/60 px-1">Cuenta de Destino</label>
@@ -576,7 +467,7 @@ export function PaymentModal({
                                             </div>
                                         )}
 
-                                        {/* Referencia — shown based on method config */}
+                                        {/* Referencia */}
                                         {paymentMethodConfigService.getMethod(payment.method)?.requiresReference && (
                                             <div className="w-[150px] space-y-1 shrink-0">
                                                 <label className="text-[10px] font-black uppercase tracking-widest text-monchito-purple/60 px-1">Referencia</label>
@@ -590,7 +481,7 @@ export function PaymentModal({
                                             </div>
                                         )}
 
-                                        {/* Observaciones - Flexible */}
+                                        {/* Observaciones */}
                                         <div className="flex-[2] min-w-[200px] space-y-1">
                                             <label className="text-[10px] font-black uppercase tracking-widest text-monchito-purple/60 px-1">Notas / Observaciones</label>
                                             <Input
@@ -615,7 +506,7 @@ export function PaymentModal({
                 </div>
                 )}
 
-                {/* Footer — solo en vista de pago */}
+                {/* Footer */}
                 {view === 'payment' && (
                 <div className="flex justify-between items-center pt-2 border-t mt-2">
                     <Button

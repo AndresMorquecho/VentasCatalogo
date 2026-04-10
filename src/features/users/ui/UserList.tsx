@@ -13,6 +13,7 @@ import { Skeleton } from '@/shared/ui/skeleton';
 import { useAuth } from '@/shared/auth';
 import { useNotifications } from '@/shared/lib/notifications';
 import { useDebounce } from '@/shared/lib/hooks';
+import { logAction } from '@/shared/lib/auditService';
 
 const EMPTY_FORM: UserFormData = { username: '', password: '', roleId: '', active: true };
 
@@ -35,7 +36,7 @@ export function UserList() {
     });
 
     const { roles } = useRoles();
-    const { hasPermission } = useAuth();
+    const { hasPermission, user } = useAuth();
     const { notifySuccess, notifyError } = useNotifications();
     const [mode, setMode] = useState<ModalMode>(null);
     const [target, setTarget] = useState<AppUser | null>(null);
@@ -83,6 +84,17 @@ export function UserList() {
             if (mode === 'create') await createUser(form);
             else if (mode === 'edit' && target) await updateUser({ id: target.id, data: { username: form.username, roleId: form.roleId, active: form.active } });
             closeModal();
+            
+            if (user) {
+                logAction({
+                    userId: user.id,
+                    userName: user.username,
+                    action: mode === 'create' ? 'CREATE_USER' : 'UPDATE_USER',
+                    module: 'users',
+                    detail: `${mode === 'create' ? 'Creó' : 'Actualizó'} usuario: ${mode === 'create' ? form.username : target?.username}`,
+                });
+            }
+
             notifySuccess(`Usuario "${mode === 'create' ? form.username : target?.username}" guardado correctamente`);
         } catch (e) {
             setError(e instanceof Error ? e.message : 'Error al guardar');
@@ -96,6 +108,17 @@ export function UserList() {
         try {
             if (target) {
                 await changePassword({ userId: target.id, newPassword: newPw });
+                
+                if (user) {
+                    logAction({
+                        userId: user.id,
+                        userName: user.username,
+                        action: 'CHANGE_PASSWORD',
+                        module: 'users',
+                        detail: `Cambió contraseña del usuario: ${target.username}`,
+                    });
+                }
+
                 notifySuccess(`Contraseña de "${target.username}" cambiada exitosamente`);
             }
             closeModal();
@@ -113,6 +136,17 @@ export function UserList() {
         try {
             if (target) {
                 await deactivateUser(target.id);
+
+                if (user) {
+                    logAction({
+                        userId: user.id,
+                        userName: user.username,
+                        action: target.active ? 'DEACTIVATE_USER' : 'REACTIVATE_USER',
+                        module: 'users',
+                        detail: `${target.active ? 'Desactivó' : 'Reactivó'} usuario: ${target.username}`,
+                    });
+                }
+
                 notifySuccess(`Estado de usuario "${target.username}" actualizado`);
             }
             closeModal();
@@ -131,6 +165,17 @@ export function UserList() {
             if (target) {
                 const name = target.username;
                 await deleteUser(target.id);
+
+                if (user) {
+                    logAction({
+                        userId: user.id,
+                        userName: user.username,
+                        action: 'DELETE_USER',
+                        module: 'users',
+                        detail: `Eliminó permanentemente al usuario: ${name}`,
+                    });
+                }
+
                 notifySuccess(`Usuario "${name}" eliminado permanentemente.`);
             }
             closeModal();

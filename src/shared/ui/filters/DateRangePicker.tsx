@@ -57,7 +57,7 @@ export function DateRangePicker({
   return (
     <div className={`relative ${containerClassName}`}>
       {showLabel && (
-        <Label className={`text-xs font-medium mb-1.5 block text-slate-700 ${labelClassName}`}>
+        <Label className={`text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1 mb-1.5 block ${labelClassName || ''}`}>
           {label}
         </Label>
       )}

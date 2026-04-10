@@ -370,7 +370,7 @@ export function NewExchangePage() {
 
     setIsSubmitting(true);
     try {
-      const activePayments = paymentData.payments.filter(p => p.amount > 0);
+      const activePayments = paymentData.payments.filter(p => p.amount >= 0);
       const totalAmount = activePayments.reduce((sum, p) => sum + p.amount, 0);
       
       const payload = {
@@ -574,7 +574,7 @@ export function NewExchangePage() {
                 <Input type="number" value={currentItem.sourceQuantity} onChange={e => setCurrentItem({ ...currentItem, sourceQuantity: Number(e.target.value) })} className="h-9 rounded-lg text-center text-[11px] font-medium border-slate-200" />
               </div>
               <div className="col-span-6 flex flex-col gap-1.5">
-                <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Descripción Envío</Label>
+                <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">DESCRIPCIÓN DE CAMBIO</Label>
                 <Input value={currentItem.sourceDescription} onChange={e => setCurrentItem({ ...currentItem, sourceDescription: e.target.value })} className="h-9 rounded-lg text-[11px] font-medium px-4 border-slate-200" placeholder="¿Qué entrega?" />
               </div>
             </div>
@@ -586,7 +586,7 @@ export function NewExchangePage() {
                 <Input type="number" value={currentItem.quantity} onChange={e => setCurrentItem({ ...currentItem, quantity: Number(e.target.value) })} className="h-9 rounded-lg text-center text-[11px] font-medium border-slate-200" />
               </div>
               <div className="col-span-6 flex flex-col gap-1.5">
-                <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Descripción Recibe</Label>
+                <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">CAMBIO POR</Label>
                 <Input value={currentItem.description} onChange={e => setCurrentItem({ ...currentItem, description: e.target.value })} className="h-9 rounded-lg text-[11px] font-medium px-4 border-slate-200" placeholder="¿Qué recibe?" />
               </div>
               <div className="col-span-1 flex flex-col gap-1.5">
@@ -623,13 +623,13 @@ export function NewExchangePage() {
                       <div className="flex items-center justify-center gap-2">Cant E. <button onClick={() => togglePin('sourceQuantity')}>{pinnedColumns.has('sourceQuantity') ? <Pin className="h-3 w-3 fill-monchito-purple" /> : <PinOff className="h-3 w-3 opacity-30" />}</button></div>
                     </th>
                     <th className={`px-6 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left min-w-[300px] bg-slate-50 transition-all ${pinnedColumns.has('sourceDescription') ? 'sticky left-[510px] z-30 ring-r-2 ring-monchito-purple/5' : ''}`}>
-                      <div className="flex items-center gap-2">Descripción Envío <button onClick={() => togglePin('sourceDescription')}>{pinnedColumns.has('sourceDescription') ? <Pin className="h-3 w-3 fill-monchito-purple" /> : <PinOff className="h-3 w-3 opacity-30" />}</button></div>
+                      <div className="flex items-center gap-2">DESCRIPCIÓN DE CAMBIO <button onClick={() => togglePin('sourceDescription')}>{pinnedColumns.has('sourceDescription') ? <Pin className="h-3 w-3 fill-monchito-purple" /> : <PinOff className="h-3 w-3 opacity-30" />}</button></div>
                     </th>
                     <th className={`px-4 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center w-[70px] bg-slate-50 transition-all ${pinnedColumns.has('quantity') ? 'sticky left-[810px] z-30 ring-r-2 ring-monchito-purple/5' : ''}`}>
                       <div className="flex items-center justify-center gap-2">Cant R. <button onClick={() => togglePin('quantity')}>{pinnedColumns.has('quantity') ? <Pin className="h-3 w-3 fill-monchito-purple" /> : <PinOff className="h-3 w-3 opacity-30" />}</button></div>
                     </th>
                     <th className={`px-6 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left min-w-[300px] bg-slate-50 transition-all ${pinnedColumns.has('description') ? 'sticky left-[880px] z-30 ring-r-2 ring-monchito-purple/5' : ''}`}>
-                      <div className="flex items-center gap-2">Descripción Recibe <button onClick={() => togglePin('description')}>{pinnedColumns.has('description') ? <Pin className="h-3 w-3 fill-monchito-purple" /> : <PinOff className="h-3 w-3 opacity-30" />}</button></div>
+                      <div className="flex items-center gap-2">CAMBIO POR <button onClick={() => togglePin('description')}>{pinnedColumns.has('description') ? <Pin className="h-3 w-3 fill-monchito-purple" /> : <PinOff className="h-3 w-3 opacity-30" />}</button></div>
                     </th>
                     <th className={`px-6 py-4 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right w-[110px] bg-slate-50 transition-all ${pinnedColumns.has('total') ? 'sticky right-[450px] z-30 ring-l-2 ring-monchito-purple/5' : ''}`}>
                       <div className="flex items-center justify-end gap-2"><button onClick={() => togglePin('total')}>{pinnedColumns.has('total') ? <Pin className="h-3 w-3 fill-monchito-purple" /> : <PinOff className="h-3 w-3 opacity-30" />}</button> Valor</div>
@@ -775,7 +775,7 @@ export function NewExchangePage() {
       </ConfirmDialog>
 
       {/* Payment modal for global creation flow */}
-      <PaymentModal open={paymentModalOpen} onOpenChange={setPaymentModalOpen} onSubmit={handlePaymentSubmit} paymentContext={{ type: "PEDIDO", clientId: formik.values.clientId, clientName: clients.find(c => c.id === formik.values.clientId)?.firstName || "Cliente", referenceNumber: formik.values.receiptNumber, description: "Cambio" }} expectedAmount={totalAbonos} initialAmount={totalAbonos} allowMultiplePayments={true} lockAmount={false} forceExactAmount={true} />
+      <PaymentModal open={paymentModalOpen} onOpenChange={setPaymentModalOpen} onSubmit={handlePaymentSubmit} paymentContext={{ type: "PEDIDO", clientId: formik.values.clientId, clientName: clients.find(c => c.id === formik.values.clientId)?.firstName || "Cliente", referenceNumber: formik.values.receiptNumber, description: "Cambio" }} expectedAmount={totalAbonos} initialAmount={totalAbonos} lockAmount={false} forceExactAmount={true} />
 
 
 

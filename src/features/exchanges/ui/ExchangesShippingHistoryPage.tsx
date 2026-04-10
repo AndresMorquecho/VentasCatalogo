@@ -35,13 +35,30 @@ import {
 } from "@/shared/ui/table"
 import { OrderStatusBadge } from "@/features/order-management/ui/OrderStatusBadge"
 import { Pagination } from "@/shared/ui/pagination"
+import { BrandFilter } from "@/shared/ui/filters/BrandFilter"
+import { DateRangePicker } from "@/shared/ui/filters/DateRangePicker"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/select"
+import { useBrandList } from "@/features/brands"
+import { Label } from "@/shared/ui/label"
+import { Input } from "@/shared/ui/input"
+import { X, Filter } from "lucide-react"
+import type { DateRange } from "react-day-picker"
 
 export function ExchangesShippingHistoryPage() {
     const navigate = useNavigate()
     const { user } = useAuth()
     const [page, setPage] = useState(1);
     const [searchTerm, setSearchTerm] = useState("");
+    const [guideFilter, setGuideFilter] = useState("");
+    const [receiptFilter, setReceiptFilter] = useState("");
+    const [manualFilter, setManualFilter] = useState("");
+    const [brandFilter, setBrandFilter] = useState<string | undefined>();
+    const [statusFilter, setStatusFilter] = useState<string | undefined>();
+    const [dateRange, setDateRange] = useState<DateRange | undefined>();
     const limit = 15;
+
+    const { data: brandsResponse } = useBrandList({ limit: 100 });
+    const brands = brandsResponse?.data || [];
 
     const { 
         closePreview, 
@@ -56,14 +73,20 @@ export function ExchangesShippingHistoryPage() {
     const [pdfFileName, setPdfFileName] = useState("guia-cambio.pdf");
 
     const { data: response, isLoading } = useQuery({
-        queryKey: ['exchanges-shipping-history', page, searchTerm],
+        queryKey: ['exchanges-shipping-history', page, searchTerm, guideFilter, receiptFilter, manualFilter, brandFilter, statusFilter, dateRange],
         queryFn: async () => {
             const res = await orderApi.getAll({
                 type: 'CAMBIO',
-                status: 'POR_RECIBIR,EN_TRANSITO,RECIBIDO_EN_BODEGA,ENTREGADO',
+                status: statusFilter || 'POR_RECIBIR,EN_TRANSITO,RECIBIDO_EN_BODEGA,ENTREGADO',
                 page,
                 limit, 
                 search: searchTerm,
+                trackingGuide: guideFilter,
+                receiptNumber: receiptFilter,
+                sourceOrderNumber: manualFilter,
+                brandId: brandFilter,
+                startDate: dateRange?.from?.toISOString(),
+                endDate: dateRange?.to?.toISOString(),
                 sortBy: 'updatedAt',
                 order: 'desc'
             })
@@ -113,19 +136,121 @@ export function ExchangesShippingHistoryPage() {
 
             <div className="flex flex-col gap-6 flex-1 min-h-0">
                 {/* Filters */}
-                <Card className="border border-slate-200 shadow-sm rounded-2xl overflow-hidden bg-white">
-                    <CardContent className="p-4">
-                        <div className="relative group">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-monchito-purple transition-colors" />
-                            <input 
-                                placeholder="Buscar por guía, empresaria o N° de cambio..." 
-                                className="pl-11 h-12 bg-slate-50/50 border-transparent rounded-xl focus:ring-monchito-purple/20 transition-all font-medium text-sm w-full outline-none focus:bg-white border focus:border-monchito-purple/20"
-                                value={searchTerm}
-                                onChange={(e) => {
-                                    setSearchTerm(e.target.value)
-                                    setPage(1)
-                                }}
-                            />
+                <Card className="border border-slate-200 shadow-sm rounded-2xl bg-white z-20 relative">
+                    <CardContent className="p-5">
+                        <div className="flex flex-col gap-5">
+                            <div className="flex items-center gap-2 pb-1 border-b border-slate-100 mb-1">
+                                <Filter className="h-4 w-4 text-monchito-purple" />
+                                <h3 className="text-[11px] font-black text-slate-700 uppercase tracking-widest">Filtros de búsqueda</h3>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-9 gap-3 items-end">
+                                {/* N° Guía */}
+                                <div className="flex flex-col gap-1.5 min-w-[120px]">
+                                    <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1 mb-0 block">N° Guía</Label>
+                                    <Input 
+                                        placeholder="Guía..." 
+                                        className="h-9 text-xs border-slate-200 rounded-lg"
+                                        value={guideFilter}
+                                        onChange={(e) => { setGuideFilter(e.target.value); setPage(1); }}
+                                    />
+                                </div>
+
+                                {/* Search Empresaria */}
+                                <div className="flex flex-col gap-1.5 min-w-[140px]">
+                                    <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1 mb-0 block">Empresaria</Label>
+                                    <div className="relative group">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-monchito-purple" />
+                                        <Input 
+                                            placeholder="Nombre..." 
+                                            className="h-9 pl-9 text-xs border-slate-200 rounded-lg"
+                                            value={searchTerm}
+                                            onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* N° Recibo */}
+                                <div className="flex flex-col gap-1.5 min-w-[120px]">
+                                    <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1 mb-0 block">N° Recibo</Label>
+                                    <Input 
+                                        placeholder="CAM..." 
+                                        className="h-9 text-xs border-slate-200 rounded-lg"
+                                        value={receiptFilter}
+                                        onChange={(e) => { setReceiptFilter(e.target.value); setPage(1); }}
+                                    />
+                                </div>
+
+                                {/* N° Cambio Manual */}
+                                <div className="flex flex-col gap-1.5 min-w-[120px]">
+                                    <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1 mb-0 block">N° Cambio M.</Label>
+                                    <Input 
+                                        placeholder="Manual..." 
+                                        className="h-9 text-xs border-slate-200 rounded-lg"
+                                        value={manualFilter}
+                                        onChange={(e) => { setManualFilter(e.target.value); setPage(1); }}
+                                    />
+                                </div>
+
+                                {/* Catalogo */}
+                                <BrandFilter 
+                                    brands={brands}
+                                    value={brandFilter}
+                                    onChange={(val) => { setBrandFilter(val); setPage(1); }}
+                                    label="Catálogo"
+                                    showLabel={true}
+                                    className="flex flex-col gap-1.5 min-w-[140px]"
+                                    buttonClassName="h-9 text-xs"
+                                />
+
+                                {/* Estado */}
+                                <div className="flex flex-col gap-1.5 min-w-[130px]">
+                                    <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1 mb-0 block">Estado</Label>
+                                    <Select value={statusFilter || "ALL"} onValueChange={(val) => { setStatusFilter(val === "ALL" ? undefined : val); setPage(1); }}>
+                                        <SelectTrigger className="h-9 text-xs border-slate-200 rounded-lg">
+                                            <SelectValue placeholder="Estado envío" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="ALL">Todos los estados</SelectItem>
+                                            <SelectItem value="POR_ENVIAR">Por Enviar</SelectItem>
+                                            <SelectItem value="POR_RECIBIR">Por Recibir</SelectItem>
+                                            <SelectItem value="RECIBIDO_EN_BODEGA">Recibido en Bodega</SelectItem>
+                                            <SelectItem value="ENTREGADO">Entregado</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                {/* Fecha */}
+                                <DateRangePicker 
+                                    value={dateRange}
+                                    onChange={(range) => { setDateRange(range); setPage(1); }}
+                                    label="Rango de Fechas"
+                                    showLabel={true}
+                                    className="flex flex-col gap-1.5 col-span-1 md:col-span-2 xl:min-w-[200px]"
+                                    buttonClassName="h-9 text-xs"
+                                />
+
+                                {/* Limpiar Filtros */}
+                                <div className="flex flex-col gap-1.5">
+                                    <div className="h-[15px]" /> {/* Spacer to match labels height */}
+                                    <Button 
+                                        variant="ghost" 
+                                        className="h-9 w-full text-[10px] font-black text-slate-500 uppercase tracking-widest hover:bg-slate-100 rounded-lg border border-dashed border-slate-200"
+                                        onClick={() => {
+                                            setSearchTerm("");
+                                            setGuideFilter("");
+                                            setReceiptFilter("");
+                                            setManualFilter("");
+                                            setBrandFilter(undefined);
+                                            setStatusFilter(undefined);
+                                            setDateRange(undefined);
+                                            setPage(1);
+                                        }}
+                                    >
+                                        <X className="mr-2 h-3.5 w-3.5" /> Limpiar
+                                    </Button>
+                                </div>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>

@@ -218,7 +218,7 @@ export function DeliveryTab() {
         brand_id: brandId,
         campaign,
         quantity: Number(quantity),
-        type: 'GRATIS',
+        type: type,
         notes: notes || undefined
       });
 
@@ -457,7 +457,21 @@ export function DeliveryTab() {
             <Button variant="outline" onClick={() => setShowWarning(false)}>
               Cancelar
             </Button>
-            <Button onClick={createDelivery} disabled={createMutation.isPending}>
+            <Button 
+              onClick={() => {
+                setShowWarning(false);
+                if (type === 'CON_COSTO') {
+                  if (totalPrice <= 0) {
+                    showToast('El precio total debe ser mayor a 0 para entregas con costo', 'error');
+                    return;
+                  }
+                  setShowPaymentModal(true);
+                } else {
+                  createDelivery();
+                }
+              }} 
+              disabled={createMutation.isPending}
+            >
               {createMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -485,7 +499,6 @@ export function DeliveryTab() {
             description: `Venta de catálogo ${selectedBrand.name} - ${campaign} (Total: $${totalPrice.toFixed(2)})`
           }}
           expectedAmount={totalPrice}
-          allowMultiplePayments={false}
           initialAmount={totalPrice}
           lockAmount={false}
         />

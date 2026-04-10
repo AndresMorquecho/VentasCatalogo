@@ -236,7 +236,6 @@ export function OrderFormPage() {
                 .reduce((sum, p) => sum + p.amount, 0);
 
             const activePayments = paymentData.payments.filter(p => p.amount > 0);
-            const isSplitPayment = activePayments.length > 1;
 
             let createdOrders: any = null;
             let success = false;
@@ -259,20 +258,18 @@ export function OrderFormPage() {
                     deposit: totalAmount,
                     credit_to_use: walletCreditUsed,
                     notes: activePayments[0]?.notes || formik.values.notes,
-                    ...(isSplitPayment && {
-                        payment_data: {
-                            payments: activePayments.map(p => ({
-                                method: p.method,
-                                amount: p.amount,
-                                bankAccountId: p.bankAccountId,
-                                transactionDate: new Date().toISOString().split('T')[0],
-                                transactionReference: p.transactionReference,
-                                notes: p.notes
-                            })),
-                            walletCreditUsed,
-                            totalAmount
-                        }
-                    }),
+                    payment_data: {
+                        payments: activePayments.map(p => ({
+                            method: p.method,
+                            amount: p.amount,
+                            bankAccountId: p.bankAccountId,
+                            transactionDate: new Date().toISOString().split('T')[0],
+                            transactionReference: p.transactionReference,
+                            notes: p.notes
+                        })),
+                        walletCreditUsed,
+                        totalAmount
+                    },
                     orders: currentBrandItems.map((item: BrandItem) => {
                         const unitPrice = item.quantity > 0 ? item.total / item.quantity : 0;
                         return {
@@ -1997,14 +1994,7 @@ export function OrderFormPage() {
                     description: "Pago inicial de recibo"
                 }}
                 expectedAmount={totalRowDeposit}
-                allowMultiplePayments={false}
                 initialAmount={totalRowDeposit}
-                orderItems={formik.values.brandItems.map((item: BrandItem, idx: number) => ({
-                    id: item.tempId || `item-${idx}`,
-                    brandName: item.brandName,
-                    total: Number(item.total),
-                    currentDeposit: Number(item.deposit || 0)
-                }))}
                 lockAmount={totalRowDeposit > 0}
                 forceExactAmount={true}
                 saveWithZeroPermission="orders.save_with_zero_deposit"

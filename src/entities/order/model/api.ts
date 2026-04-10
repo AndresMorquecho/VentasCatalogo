@@ -10,6 +10,9 @@ export interface OrderQueryParams {
     clientId?: string;
     brandId?: string;
     search?: string;
+    receiptNumber?: string;
+    sourceOrderNumber?: string;
+    trackingGuide?: string;
     onlyParents?: boolean;
     startDate?: string;
     endDate?: string;

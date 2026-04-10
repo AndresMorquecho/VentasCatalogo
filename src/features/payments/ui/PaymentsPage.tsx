@@ -419,7 +419,6 @@ export function PaymentsPage() {
                         description: "Abono a pedido"
                     }}
                     expectedAmount={Math.max(0, (selectedOrder.realInvoiceTotal || selectedOrder.total) - getPaidAmount(selectedOrder))}
-                    allowMultiplePayments={false}
                 />
             )}
 

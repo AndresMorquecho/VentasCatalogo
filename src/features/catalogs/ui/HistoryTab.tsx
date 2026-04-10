@@ -12,7 +12,7 @@ import { startOfDay, endOfDay } from 'date-fns';
 
 export function HistoryTab() {
   const [page, setPage] = useState(1);
-  const limit = 20;
+  const limit = 15;
   
   // Filtros
   const [selectedBrandId, setSelectedBrandId] = useState<string | undefined>();
@@ -140,6 +140,9 @@ export function HistoryTab() {
                       Campaña
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      Cantidad
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
                       Fecha Entrega
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
@@ -171,6 +174,9 @@ export function HistoryTab() {
                         </td>
                         <td className="px-4 py-3 text-sm text-slate-700">
                           {delivery.campaign}
+                        </td>
+                        <td className="px-4 py-3 text-sm font-medium text-slate-700">
+                          {delivery.quantity}
                         </td>
                         <td className="px-4 py-3 text-sm text-slate-600">
                           {new Date(delivery.deliveredAt).toLocaleDateString('es-ES', {

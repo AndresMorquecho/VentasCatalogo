@@ -177,8 +177,8 @@ export const ExchangeShipmentDocument: React.FC<ExchangeShipmentProps> = ({
                         <Text style={styles.infoValue}>{client?.identificationNumber || '—'}</Text>
                     </View>
                     <View style={styles.clientInfoRow}>
-                        <Text style={styles.infoLabel}>Nombre:</Text>
-                        <Text style={styles.infoValue}>{(orders[0]?.clientName || client?.firstName || '').toUpperCase()}</Text>
+                        <Text style={styles.infoLabel}>Cátalogo:</Text>
+                        <Text style={styles.infoValue}>{(orders[0]?.brandName || '').toUpperCase()}</Text>
                     </View>
                     <View style={styles.clientInfoRow}>
                         <Text style={styles.infoLabel}>Fecha de Envío:</Text>
@@ -189,7 +189,7 @@ export const ExchangeShipmentDocument: React.FC<ExchangeShipmentProps> = ({
                 {/* TABLE */}
                 <View style={styles.table}>
                     <View style={styles.tableHeader}>
-                        <Text style={[styles.tableHeaderCell, styles.colBrand]}>Cátalogo</Text>
+                        <Text style={[styles.tableHeaderCell, styles.colBrand]}>Empresaria</Text>
                         <Text style={[styles.tableHeaderCell, styles.colManual]}>N° de cambio</Text>
                         <Text style={[styles.tableHeaderCell, styles.colQty]}>cant</Text>
                         <Text style={[styles.tableHeaderCell, styles.colDescV]}>descripcion (se va)</Text>
@@ -206,7 +206,7 @@ export const ExchangeShipmentDocument: React.FC<ExchangeShipmentProps> = ({
                         const pending = Number(o.total) - paid;
                         return (
                             <View key={idx} style={styles.tableRow}>
-                                <Text style={[styles.tableCell, styles.colBrand]}>{o.brandName?.toUpperCase()}</Text>
+                                <Text style={[styles.tableCell, styles.colBrand]}>{(o.clientName || client?.firstName || '').toUpperCase()}</Text>
                                 <Text style={[styles.tableCell, styles.colManual]}>{o.sourceOrderNumber || '—'}</Text>
                                 <Text style={[styles.tableCell, styles.colQty]}>{o.sourceQuantity || 1}</Text>
                                 <Text style={[styles.tableCell, styles.colDescV]}>{o.sourceDescription || 'N/A'}</Text>
@@ -242,14 +242,8 @@ export const ExchangeShipmentDocument: React.FC<ExchangeShipmentProps> = ({
                 <View style={styles.signatureSection}>
                     <View style={styles.signatureBlock}>
                         <View style={styles.signatureLine} />
-                        <Text style={styles.signatureText}>Despachado Por</Text>
+                        <Text style={styles.signatureText}>Enviado Por</Text>
                         <Text style={[styles.signatureText, { fontWeight: 'bold' }]}>{user?.username || 'admin'}</Text>
-                    </View>
-                    <View style={styles.signatureBlock}>
-                        <View style={styles.signatureLine} />
-                        <Text style={styles.signatureText}>Recibido Por (Empresaria)</Text>
-                        <Text style={[styles.signatureText, { fontWeight: 'bold' }]}>{orders[0]?.clientName?.toUpperCase()}</Text>
-                        <Text style={styles.signatureText}>{client?.identificationNumber || ''}</Text>
                     </View>
                 </View>
             </Page>

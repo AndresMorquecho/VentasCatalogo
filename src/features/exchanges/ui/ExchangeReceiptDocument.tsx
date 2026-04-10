@@ -191,8 +191,8 @@ export const ExchangeReceiptDocument: React.FC<ExchangeReceiptProps> = ({
                         <Text style={[styles.tableHeaderCell, styles.colBrand]}>Cátalogo</Text>
                         <Text style={[styles.tableHeaderCell, styles.colManual]}>N° de cambio</Text>
                         <Text style={[styles.tableHeaderCell, styles.colQty]}>cant</Text>
-                        <Text style={[styles.tableHeaderCell, styles.colDescV]}>descripcion (se va)</Text>
-                        <Text style={[styles.tableHeaderCell, styles.colDescC]}>descripcion (viene)</Text>
+                        <Text style={[styles.tableHeaderCell, styles.colDescV]}>DESCRIPCIÓN DE CAMBIO</Text>
+                        <Text style={[styles.tableHeaderCell, styles.colDescC]}>CAMBIO POR</Text>
                         <Text style={[styles.tableHeaderCell, styles.colQtyR]}>cant</Text>
                         <Text style={[styles.tableHeaderCell, styles.colVal]}>valor</Text>
                         <Text style={[styles.tableHeaderCell, styles.colAbo]}>abono</Text>
@@ -241,12 +241,12 @@ export const ExchangeReceiptDocument: React.FC<ExchangeReceiptProps> = ({
                 <View style={styles.signatureSection}>
                     <View style={styles.signatureBlock}>
                         <View style={styles.signatureLine} />
-                        <Text style={styles.signatureText}>Entregado Por</Text>
+                        <Text style={styles.signatureText}>Recibido por</Text>
                         <Text style={[styles.signatureText, { fontWeight: 'bold' }]}>{user?.username || 'admin'}</Text>
                     </View>
                     <View style={styles.signatureBlock}>
                         <View style={styles.signatureLine} />
-                        <Text style={styles.signatureText}>Recibido Conforme (Empresaria)</Text>
+                        <Text style={styles.signatureText}>Nombre de la consultora</Text>
                         <Text style={[styles.signatureText, { fontWeight: 'bold' }]}>{orders[0]?.clientName?.toUpperCase()}</Text>
                         <Text style={styles.signatureText}>{client?.identificationNumber}</Text>
                     </View>

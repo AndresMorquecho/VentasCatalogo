@@ -16,7 +16,9 @@ interface BrandFilterProps {
   label?: string;
   placeholder?: string;
   className?: string;
+  buttonClassName?: string;
   showLabel?: boolean;
+  labelClassName?: string;
 }
 
 export function BrandFilter({
@@ -26,7 +28,9 @@ export function BrandFilter({
   label = 'Marca',
   placeholder = 'Todas las marcas',
   className = '',
+  buttonClassName = '',
   showLabel = true,
+  labelClassName = '',
 }: BrandFilterProps) {
   const [brandSearch, setBrandSearch] = useState('');
 
@@ -46,7 +50,7 @@ export function BrandFilter({
   return (
     <div className={className}>
       {showLabel && (
-        <Label className="text-xs font-medium mb-1.5 block text-slate-700">
+        <Label className={`text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1 mb-1.5 block ${labelClassName || ''}`}>
           {label}
         </Label>
       )}
@@ -57,7 +61,7 @@ export function BrandFilter({
           setBrandSearch('');
         }}
       >
-        <SelectTrigger className="h-9 text-sm rounded-lg border-slate-200 focus:ring-2 focus:ring-monchito-purple/20">
+        <SelectTrigger className={`h-9 text-sm rounded-lg border-slate-200 focus:ring-2 focus:ring-monchito-purple/20 ${buttonClassName}`}>
           <SelectValue placeholder={selectedBrandName} />
         </SelectTrigger>
         <SelectContent>

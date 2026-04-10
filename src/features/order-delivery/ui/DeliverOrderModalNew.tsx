@@ -166,10 +166,7 @@ export function DeliverOrderModalNew({
                 fullCreditDistributions: JSON.stringify(creditDistributions, null, 2)
             })
 
-            // Formatear método de pago para el PDF
-            const paymentMethodString = data.payments.length > 1
-                ? data.payments.map(p => `${p.method === 'BILLETERA_VIRTUAL' ? 'Billetera' : p.method}: $${p.amount.toFixed(2)}`).join(' | ')
-                : (data.payments[0]?.method || 'EFECTIVO');
+            const paymentMethodString = data.payments[0]?.method || "EFECTIVO";
 
             // UNIFICACIÓN: Siempre usamos batchDeliver para asegurar que se cree un 
             // DeliveryBatch y aparezca en el historial con su número correlativo.
@@ -274,7 +271,6 @@ export function DeliverOrderModalNew({
                     onSubmit={handlePaymentSubmit}
                     paymentContext={paymentContext}
                     expectedAmount={totalAmountToCharge}
-                    allowMultiplePayments={true}
                     initialAmount={totalAmountToCharge}
                     forceExactAmount={true}
                 />

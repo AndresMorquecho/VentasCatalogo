@@ -10,6 +10,8 @@ import { Label } from "@/shared/ui/label"
 import { Button } from "@/shared/ui/button"
 import { AsyncButton } from "@/shared/ui/async-button"
 import { Lock } from "lucide-react"
+import { logAction } from "@/shared/lib/auditService"
+import { useAuth } from "@/shared/auth"
 
 interface ExchangeEditModalProps {
     order: any
@@ -23,6 +25,7 @@ export function ExchangeEditModal({ order, open, onOpenChange, onSuccess, bankAc
     const { notifySuccess, notifyError, notifyLoading, dismiss } = useNotifications()
     const updateOrder = useUpdateOrder()
     const queryClient = useQueryClient()
+    const { user } = useAuth()
 
     // Determine if this order already has a deposit recorded
     // Prefer the explicit .deposit property if available (source of truth from parent)
@@ -135,6 +138,19 @@ export function ExchangeEditModal({ order, open, onOpenChange, onSuccess, bankAc
                 queryClient.invalidateQueries({ queryKey: ['orders'] })
                 queryClient.invalidateQueries({ queryKey: ['receiptOrders', order.receiptNumber] })
                 dismiss()
+
+                if (user) {
+                    logAction({
+                        userId: user.id,
+                        userName: user.username,
+                        action: 'UPDATE_EXCHANGE',
+                        module: 'exchanges',
+                        detail: `Actualizó datos del cambio ${order.receiptNumber}. Total: $${formData.total}. Abono: $${formData.deposit}`,
+                        severity: 'INFO',
+                        success: true
+                    })
+                }
+
                 notifySuccess('Cambio actualizado correctamente.')
             } else {
                 notifySuccess('Ítem actualizado localmente.')
@@ -173,8 +189,8 @@ export function ExchangeEditModal({ order, open, onOpenChange, onSuccess, bankAc
                                     <th className="px-3 py-3 border-r text-right w-[90px]">Saldo</th>
 
                                     <th className="px-3 py-3 border-r text-center w-[60px]">Cant.</th>
-                                    <th className="px-3 py-3 border-r text-left">Descrip. Origen</th>
-                                    <th className="px-3 py-3 border-r text-left">Descrip. Destino</th>
+                                    <th className="px-3 py-3 border-r text-left">DESCRIPCIÓN DE CAMBIO</th>
+                                    <th className="px-3 py-3 border-r text-left">CAMBIO POR</th>
                                     <th className="px-3 py-3 text-center w-[140px]">Posible Entrega</th>
                                 </tr>
                             </thead>
@@ -216,8 +232,22 @@ export function ExchangeEditModal({ order, open, onOpenChange, onSuccess, bankAc
                                     </td>
 
                                     <td className="px-3 py-4 border-r text-center text-slate-500 font-black">{formData.sourceQuantity}</td>
-                                    <td className="px-3 py-4 border-r text-slate-400 italic truncate max-w-[120px]" title={formData.sourceDescription}>{formData.sourceDescription || "---"}</td>
-                                    <td className="px-3 py-4 border-r text-slate-400 italic truncate max-w-[120px]" title={formData.description}>{formData.description || "---"}</td>
+                                    <td className="px-3 py-4 border-r">
+                                        <Input 
+                                            value={formData.sourceDescription} 
+                                            onChange={(e) => setFormData({ ...formData, sourceDescription: e.target.value })} 
+                                            className="h-9 text-[11px] border-slate-200" 
+                                            placeholder="Detalles del origen"
+                                        />
+                                    </td>
+                                    <td className="px-3 py-4 border-r">
+                                        <Input 
+                                            value={formData.description} 
+                                            onChange={(e) => setFormData({ ...formData, description: e.target.value })} 
+                                            className="h-9 text-[11px] border-slate-200" 
+                                            placeholder="Detalles del destino"
+                                        />
+                                    </td>
                                     <td className="px-3 py-4">
                                         <Input 
                                             type="date" 

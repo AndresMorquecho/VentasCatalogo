@@ -10,6 +10,8 @@ import { calculateCreditFromPayment, formatCurrency, calculatePendingBalance } f
 import type { Order } from "@/entities/order/model/types";
 import { useNotifications } from "@/shared/lib/notifications";
 import { useClientCredits } from "@/features/transactions/model/hooks";
+import { logAction } from "@/shared/lib/auditService";
+import { useAuth } from "@/shared/auth";
 
 interface Props {
     order: Order;
@@ -31,6 +33,7 @@ export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
     const [notes, setNotes] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { notifySuccess, notifyError } = useNotifications();
+    const { user } = useAuth();
 
     const totalCredit = credits.reduce((sum, c) => sum + Number(c.amount || 0), 0);
 
@@ -111,6 +114,19 @@ export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
             };
 
             await registerPayment.mutateAsync(payload);
+            
+            if (user) {
+                logAction({
+                    userId: user.id,
+                    userName: user.username,
+                    action: 'CREATE_PAYMENT',
+                    module: 'payments',
+                    detail: `Registró abono de $${(amount + creditToUse).toFixed(2)} para pedido ${order.receiptNumber}`,
+                    severity: 'INFO',
+                    success: true
+                });
+            }
+
             notifySuccess(`Abono de $${(amount + creditToUse).toFixed(2)} registrado correctamente`);
             setAmount(0);
             setCreditToUse(0);

@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { locksApi } from '../api/locksApi';
-import { useNotifications } from '@/shared/lib/notifications';
 
 interface UseLockingProps {
     resourceId: string | undefined;
@@ -12,7 +11,6 @@ export function useLocking({ resourceId, resourceType, enabled = true }: UseLock
     const [isLockedByOther, setIsLockedByOther] = useState(false);
     const [lockingUser, setLockingUser] = useState<string | null>(null);
     const [isLockingLoading, setIsLockingLoading] = useState(false);
-    const { notifyError } = useNotifications();
     const heartbeatInterval = useRef<any>(null);
     const hasReleased = useRef(false);
 

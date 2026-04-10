@@ -11,10 +11,10 @@ const KEYS = {
 }
 
 export function useOrderList(params?: OrderQueryParams, options?: any) {
-    return useQuery({
+    return useQuery<PaginatedResponse<Order>>({
         queryKey: KEYS.list(params),
         queryFn: () => orderApi.getAll(params),
-        placeholderData: (previousData: PaginatedResponse<Order> | undefined) => previousData,
+        placeholderData: (previousData) => previousData,
         ...options
     })
 }
