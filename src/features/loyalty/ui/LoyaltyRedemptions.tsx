@@ -135,12 +135,12 @@ export function LoyaltyRedemptions() {
                                         <TableCell className="px-6 py-5">
                                             <div className="flex items-center gap-3">
                                                 <div className="h-10 w-10 rounded-full bg-slate-900 flex items-center justify-center text-white font-bold border border-slate-800">
-                                                    {r.clientName.charAt(0)}
+                                                    {(r.clientName || 'C').charAt(0).toUpperCase()}
                                                 </div>
                                                 <div>
-                                                    <p className="text-sm font-bold text-slate-900 leading-none mb-1">{r.clientName}</p>
+                                                    <p className="text-sm font-bold text-slate-900 leading-none mb-1">{r.clientName || 'Cliente sin nombre'}</p>
                                                     <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1">
-                                                        <User className="h-3 w-3" /> {r.clientId.slice(0, 8)}...
+                                                        <User className="h-3 w-3" /> {(r.clientId || 'N/A').slice(0, 8)}...
                                                     </p>
                                                 </div>
                                             </div>
