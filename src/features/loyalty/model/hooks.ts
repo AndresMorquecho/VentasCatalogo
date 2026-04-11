@@ -92,7 +92,7 @@ export const useLoyaltyPrizes = () => {
 };
 
 // ─── Redemptions ──────────────────────────────────────────────────────────────
-export const useLoyaltyRedemptions = (params?: { page?: number; limit?: number }) => {
+export const useLoyaltyRedemptions = (params?: { page?: number; limit?: number; search?: string; brandId?: string; startDate?: string; endDate?: string }) => {
     const qc = useQueryClient();
     const actor = useActor();
     const key = ['loyalty-redemptions', params];

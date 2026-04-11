@@ -8,10 +8,26 @@ export const loyaltyRulesApi = {
         return res || [];
     },
     create: async (data: LoyaltyRuleFormData): Promise<LoyaltyRule> => {
-        return httpClient.post<LoyaltyRule>('/loyalty/rules', data);
+        const payload = {
+            ...data,
+            target_value: data.targetValue,
+            reset_days: data.resetDays,
+            is_active: data.isActive,
+            prize_id: data.prizeId,
+            brand_ids: data.brandIds
+        };
+        return httpClient.post<LoyaltyRule>('/loyalty/rules', payload);
     },
     update: async (id: string, data: Partial<LoyaltyRuleFormData>): Promise<LoyaltyRule> => {
-        return httpClient.put<LoyaltyRule>(`/loyalty/rules/${id}`, data);
+        const payload = {
+            ...data,
+            target_value: data.targetValue,
+            reset_days: data.resetDays,
+            is_active: data.isActive,
+            prize_id: data.prizeId,
+            brand_ids: data.brandIds
+        };
+        return httpClient.put<LoyaltyRule>(`/loyalty/rules/${id}`, payload);
     },
     remove: async (id: string): Promise<void> => {
         return httpClient.delete(`/loyalty/rules/${id}`);
@@ -24,10 +40,20 @@ export const loyaltyPrizesApi = {
         return res || [];
     },
     create: async (data: LoyaltyPrizeFormData): Promise<LoyaltyPrize> => {
-        return httpClient.post<LoyaltyPrize>('/loyalty/prizes', data);
+        const payload = {
+            ...data,
+            points_required: data.pointsRequired,
+            is_active: data.isActive
+        };
+        return httpClient.post<LoyaltyPrize>('/loyalty/prizes', payload);
     },
     update: async (id: string, data: Partial<LoyaltyPrizeFormData>): Promise<LoyaltyPrize> => {
-        return httpClient.put<LoyaltyPrize>(`/loyalty/prizes/${id}`, data);
+        const payload = {
+            ...data,
+            points_required: data.pointsRequired,
+            is_active: data.isActive
+        };
+        return httpClient.put<LoyaltyPrize>(`/loyalty/prizes/${id}`, payload);
     },
     remove: async (id: string): Promise<void> => {
         return httpClient.delete(`/loyalty/prizes/${id}`);
@@ -45,12 +71,19 @@ export const loyaltyBalancesApi = {
 };
 
 export const loyaltyRedemptionsApi = {
-    getAll: async (params?: { page?: number; limit?: number }): Promise<PaginatedResponse<LoyaltyRedemption>> => {
-        const query = params ? `?page=${params.page}&limit=${params.limit}` : '';
-        return httpClient.get<PaginatedResponse<LoyaltyRedemption>>(`/loyalty/redemptions${query}`);
+    getAll: async (params?: { page?: number; limit?: number; search?: string; brandId?: string; startDate?: string; endDate?: string }): Promise<PaginatedResponse<LoyaltyRedemption>> => {
+        const query = new URLSearchParams();
+        if (params?.page) query.append('page', params.page.toString());
+        if (params?.limit) query.append('limit', params.limit.toString());
+        if (params?.search) query.append('search', params.search);
+        if (params?.brandId) query.append('brandId', params.brandId);
+        if (params?.startDate) query.append('startDate', params.startDate);
+        if (params?.endDate) query.append('endDate', params.endDate);
+        
+        return httpClient.get<PaginatedResponse<LoyaltyRedemption>>(`/loyalty/redemptions?${query.toString()}`);
     },
     redeem: async (data: { clientId: string, ruleId: string }): Promise<LoyaltyRedemption> => {
-        return httpClient.post<LoyaltyRedemption>('/loyalty/redeem', data);
+        return httpClient.post<LoyaltyRedemption>('/loyalty/redeem', { client_id: data.clientId, rule_id: data.ruleId });
     },
     getHistory: async (clientId: string, params?: { page?: number; limit?: number }): Promise<PaginatedResponse<any>> => {
         const query = params ? `?page=${params.page}&limit=${params.limit}` : '';

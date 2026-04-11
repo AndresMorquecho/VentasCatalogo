@@ -1,11 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLoyaltyRedemptions } from '../model/hooks';
 import type { RedemptionStatus } from '../model/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
 import { Badge } from '@/shared/ui/badge';
 import { Skeleton } from '@/shared/ui/skeleton';
 import { Pagination } from '@/shared/ui/pagination';
-import { Calendar, User, Gift, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { Calendar, User, Gift, CheckCircle2, XCircle, Clock, Search } from 'lucide-react';
+import { Input } from '@/shared/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
+import { DateRangePicker } from '@/shared/ui/filters';
+import type { DateRange } from 'react-day-picker';
+import { useDebounce } from '@/shared/lib/hooks';
+import { useBrandList } from '@/features/brands/api/hooks';
 
 const STATUS_STYLES: Record<RedemptionStatus, { color: string; icon: any }> = {
     COMPLETADO: { color: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: CheckCircle2 },
@@ -15,10 +21,35 @@ const STATUS_STYLES: Record<RedemptionStatus, { color: string; icon: any }> = {
 
 export function LoyaltyRedemptions() {
     const [page, setPage] = useState(1);
-    const [limit] = useState(10);
-    const { redemptions, pagination, isLoading } = useLoyaltyRedemptions({ page, limit });
+    const [limit] = useState(15);
+    const [searchText, setSearchText] = useState('');
+    const debouncedSearch = useDebounce(searchText, 500);
+    const [dateRange, setDateRange] = useState<DateRange | undefined>();
+    const [brandId, setBrandId] = useState('ALL');
 
-    if (isLoading) {
+    const brandResponse = useBrandList();
+    const brands = brandResponse.data?.data || [];
+
+    const startDate = dateRange?.from ? dateRange.from.toISOString().split('T')[0] : '';
+    const endDate = dateRange?.to ? dateRange.to.toISOString().split('T')[0] : '';
+
+    // Reset page on filter changes
+    useEffect(() => {
+        setPage(1);
+    }, [debouncedSearch, startDate, endDate, brandId]);
+
+    const filters = {
+        page,
+        limit,
+        search: debouncedSearch,
+        startDate,
+        endDate,
+        brandId
+    };
+
+    const { redemptions, pagination, isLoading } = useLoyaltyRedemptions(filters);
+
+    if (isLoading && !redemptions.length) {
         return (
             <div className="space-y-4">
                 {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-20 w-full rounded-2xl" />)}
@@ -35,6 +66,46 @@ export function LoyaltyRedemptions() {
                 </div>
                 <div className="h-12 w-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center">
                     <Calendar className="h-6 w-6 text-indigo-500" />
+                </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 items-end bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+                <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1 block mb-1">Buscar Cliente</label>
+                    <div className="relative">
+                        <Search className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
+                        <Input
+                            placeholder="Nombre d cliente..."
+                            className="pl-10 h-11 bg-slate-50 border-slate-200 rounded-xl"
+                            value={searchText}
+                            onChange={(e) => setSearchText(e.target.value)}
+                        />
+                    </div>
+                </div>
+                
+                <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1 block mb-1">Marca (Reglas Aplicadas)</label>
+                    <Select value={brandId} onValueChange={setBrandId}>
+                        <SelectTrigger className="h-11 bg-slate-50 border-slate-200 rounded-xl">
+                            <SelectValue placeholder="Todas las marcas" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[300px]">
+                            <SelectItem value="ALL">Todas las marcas</SelectItem>
+                            {brands.map((b: any) => (
+                                <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                    <DateRangePicker
+                        value={dateRange}
+                        onChange={setDateRange}
+                        label="Rango de Fechas"
+                        placeholder="Filtrar por fecha..."
+                        buttonClassName="h-11 border-slate-200 bg-slate-50 hover:bg-slate-100 w-full"
+                        labelClassName="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1 block mb-1"
+                    />
                 </div>
             </div>
 
@@ -85,7 +156,7 @@ export function LoyaltyRedemptions() {
                                         </TableCell>
                                         <TableCell className="px-6 py-5 text-center">
                                             <Badge variant="secondary" className="bg-amber-50 text-amber-700 border-amber-100 rounded-lg text-xs font-bold px-2 py-0.5">
-                                                {r.pointsUsed} pts
+                                                {r.ruleType === 'POR_MONTO' ? `$${Number(r.pointsUsed).toFixed(2)}` : `${r.pointsUsed} pedidos`}
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="px-6 py-5">

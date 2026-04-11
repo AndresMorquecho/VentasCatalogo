@@ -54,6 +54,7 @@ export type LoyaltyRedemption = {
     clientId: string;
     clientName: string;
     ruleId: string | null;
+    ruleType?: RuleType;
     prizeId: string;
     prizeName: string;
     pointsUsed: number | null;
