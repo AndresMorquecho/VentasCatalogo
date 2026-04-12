@@ -1,9 +1,11 @@
+import { useState, useEffect } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table"
 import { Input } from "@/shared/ui/input"
 import type { Order } from "@/entities/order/model/types"
 import type { CreditDistribution } from "@/entities/financial-record/model/types"
 import { X, CheckCircle, ArrowRight } from "lucide-react"
 import { getPaidAmount } from "@/entities/order/model/model"
+import { parseLocaleDecimalInput, formatDecimalForInvoiceInput } from "@/shared/lib/parseLocaleDecimalInput"
 
 export interface SelectedOrderState {
     order: Order
@@ -29,6 +31,21 @@ export function SelectedOrdersTable({
     onUpdateInvoiceNumber,
     onUpdateDocumentType,
 }: Props) {
+    const [invoiceDraft, setInvoiceDraft] = useState<Record<string, string>>({})
+    const [invoiceFocusId, setInvoiceFocusId] = useState<string | null>(null)
+
+    const orderIdsKey = orders.map((o) => o.order.id).join("|")
+    useEffect(() => {
+        const ids = new Set(orders.map((o) => o.order.id))
+        setInvoiceDraft((d) => {
+            const next = { ...d }
+            for (const k of Object.keys(next)) {
+                if (!ids.has(k)) delete next[k]
+            }
+            return next
+        })
+    }, [orderIdsKey])
+
     const totalEstimate = orders.reduce((sum, o) => sum + Number(o.order.total || 0), 0)
     const totalInvoice = orders.reduce((sum, o) => sum + Number(o.finalTotal || 0), 0)
 
@@ -199,15 +216,41 @@ export function SelectedOrdersTable({
                                             <Input
                                                 type="text"
                                                 inputMode="decimal"
-                                                value={finalTotal}
+                                                autoComplete="off"
+                                                value={
+                                                    invoiceFocusId === order.id
+                                                        ? (invoiceDraft[order.id] ?? "")
+                                                        : finalTotal === 0
+                                                          ? ""
+                                                          : formatDecimalForInvoiceInput(finalTotal)
+                                                }
+                                                onFocus={() => {
+                                                    setInvoiceFocusId(order.id)
+                                                    setInvoiceDraft((d) => ({
+                                                        ...d,
+                                                        [order.id]:
+                                                            d[order.id] ??
+                                                            (finalTotal === 0 ? "" : formatDecimalForInvoiceInput(finalTotal)),
+                                                    }))
+                                                }}
+                                                onBlur={() => {
+                                                    setInvoiceFocusId(null)
+                                                    const raw = invoiceDraft[order.id] ?? ""
+                                                    onUpdateInvoiceTotal(order.id, parseLocaleDecimalInput(raw))
+                                                    setInvoiceDraft((d) => {
+                                                        const { [order.id]: _, ...rest } = d
+                                                        return rest
+                                                    })
+                                                }}
                                                 onChange={(e) => {
-                                                    const val = e.target.value.replace(/[^0-9.]/g, '');
-                                                    onUpdateInvoiceTotal(order.id, Number(val));
+                                                    const v = e.target.value.replace(/[^\d.,]/g, "")
+                                                    setInvoiceDraft((d) => ({ ...d, [order.id]: v }))
+                                                    onUpdateInvoiceTotal(order.id, parseLocaleDecimalInput(v))
                                                 }}
                                                 onKeyDown={(e) => handleTableKeyDown(e, orders.indexOf(orderState), 'finalTotal')}
                                                 data-row-index={orders.indexOf(orderState)}
                                                 data-field-name="finalTotal"
-                                                className={`h-7 text-xs px-2 text-right font-mono bg-white border-monchito-purple/20 focus:ring-monchito-purple/20 font-bold w-24 hide-spinner ${mismatch ? 'text-amber-700 bg-amber-50' : 'text-monchito-purple'}`}
+                                                className={`h-7 text-xs px-2 text-right font-mono bg-white border-monchito-purple/20 focus:ring-monchito-purple/20 font-bold w-28 hide-spinner ${mismatch ? 'text-amber-700 bg-amber-50' : 'text-monchito-purple'}`}
                                             />
                                         </TableCell>
                                         <TableCell className="py-4 px-2">

@@ -10,6 +10,7 @@ import {
 } from "@/shared/ui/dialog"
 import { AsyncButton } from "@/shared/ui/async-button"
 import { Input } from "@/shared/ui/input"
+import { DecimalTextField } from "@/shared/ui/DecimalTextField"
 import { Label } from "@/shared/ui/label"
 import {
     Select,
@@ -34,9 +35,9 @@ interface ReceiveOrderModalProps {
 }
 
 export function ReceiveOrderModal({ order, open, onOpenChange }: ReceiveOrderModalProps) {
-    const [invoiceTotal, setInvoiceTotal] = useState<string>('')
+    const [invoiceTotal, setInvoiceTotal] = useState(0)
     const [invoiceNumber, setInvoiceNumber] = useState<string>('')
-    const [abonoRecepcion, setAbonoRecepcion] = useState<string>('')
+    const [abonoRecepcion, setAbonoRecepcion] = useState(0)
     const [bankAccountId, setBankAccountId] = useState<string>('')
     const [paymentMethod, setPaymentMethod] = useState<string>('EFECTIVO')
     const [reprogrammedItems, setReprogrammedItems] = useState<Record<string, boolean>>({})
@@ -56,9 +57,9 @@ export function ReceiveOrderModal({ order, open, onOpenChange }: ReceiveOrderMod
     // Reset form when order changes
     useEffect(() => {
         if (order) {
-            setInvoiceTotal(order.total.toString())
+            setInvoiceTotal(Number(order.total) || 0)
             setInvoiceNumber('')
-            setAbonoRecepcion('')
+            setAbonoRecepcion(0)
             setBankAccountId('')
             setPaymentMethod('EFECTIVO')
             setReprogrammedItems({})
@@ -68,17 +69,16 @@ export function ReceiveOrderModal({ order, open, onOpenChange }: ReceiveOrderMod
     if (!order) return null
 
     const handleSubmit = async () => {
-        if (!invoiceTotal || !invoiceNumber) {
+        if (!invoiceNumber) {
             notifyError({ message: 'El total de factura y el número de factura son obligatorios para el Packing.' })
             return
         }
-        const total = parseFloat(invoiceTotal)
-        if (isNaN(total) || total <= 0) return
+        const total = invoiceTotal
+        if (!Number.isFinite(total) || total <= 0) return
 
         let finalBankAccountId = bankAccountId
 
-        // Validate abono if provided
-        const abono = abonoRecepcion ? parseFloat(abonoRecepcion) : 0
+        const abono = abonoRecepcion > 0 ? abonoRecepcion : 0
         if (abono > 0) {
             if (!paymentMethod) {
                 notifyError({ message: 'Debe seleccionar un método de pago' })
@@ -157,14 +157,12 @@ export function ReceiveOrderModal({ order, open, onOpenChange }: ReceiveOrderMod
                 <div className="grid gap-4 py-4">
                     <div className="grid gap-2">
                         <Label htmlFor="invoice-total">Valor Real de Factura ($)</Label>
-                        <Input
+                        <DecimalTextField
                             id="invoice-total"
-                            type="number"
                             value={invoiceTotal}
-                            onChange={(e) => setInvoiceTotal(e.target.value)}
+                            onValueChange={setInvoiceTotal}
                             placeholder="0.00"
-                            step="0.01"
-                            className={`font-bold text-lg hide-spinner ${parseFloat(invoiceTotal) !== order.total ? 'bg-orange-50 border-orange-300 text-orange-900' : 'bg-green-50 border-green-300 text-green-900'}`}
+                            className={`font-bold text-lg hide-spinner ${invoiceTotal !== Number(order.total) ? 'bg-orange-50 border-orange-300 text-orange-900' : 'bg-green-50 border-green-300 text-green-900'}`}
                         />
                         <p className="text-xs text-muted-foreground">
                             Valor estimado original: {formatCurrency(order.total)}
@@ -222,18 +220,16 @@ export function ReceiveOrderModal({ order, open, onOpenChange }: ReceiveOrderMod
                         <div className="grid gap-3">
                             <div className="grid gap-2">
                                 <Label htmlFor="abono-recepcion" className="text-xs">Monto del Abono ($)</Label>
-                                <Input
+                                <DecimalTextField
                                     id="abono-recepcion"
-                                    type="number"
                                     value={abonoRecepcion}
-                                    onChange={(e) => setAbonoRecepcion(e.target.value)}
+                                    onValueChange={setAbonoRecepcion}
                                     placeholder="0.00"
-                                    step="0.01"
                                     className="hide-spinner"
                                 />
                             </div>
 
-                            {abonoRecepcion && parseFloat(abonoRecepcion) > 0 && (
+                            {abonoRecepcion > 0 && (
                                 <>
                                     <div className="grid gap-2">
                                         <Label htmlFor="payment-method" className="text-xs">Método de Pago</Label>

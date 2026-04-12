@@ -1,5 +1,6 @@
 
 import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
+import { formatPdfCurrency } from '@/shared/lib/formatPdfCurrency';
 import type { Order } from '@/entities/order/model/types';
 import type { Client } from '@/entities/client/model/types';
 
@@ -296,9 +297,9 @@ export const PaymentReceiptDocument = ({ order, payments, userName, client }: Pr
                                     <View style={[styles.tableCol, styles.colRef]}><Text style={styles.tableCell}>-</Text></View>
                                     <View style={[styles.tableCol, styles.colUser]}><Text style={styles.tableCell}>Sistema</Text></View>
                                     <View style={[styles.tableCol, styles.colObs]}><Text style={[styles.tableCell, { fontWeight: 'bold' }]}>Deuda Inicial</Text></View>
-                                    <View style={[styles.tableCol, styles.colMonto]}><Text style={styles.tableCell}>{currentSaldo.toFixed(2)}</Text></View>
+                                    <View style={[styles.tableCol, styles.colMonto]}><Text style={styles.tableCell}>{formatPdfCurrency(currentSaldo)}</Text></View>
                                     <View style={[styles.tableCol, styles.colAbono]}><Text style={styles.tableCell}>-</Text></View>
-                                    <View style={[styles.tableCol, styles.colSaldo]}><Text style={[styles.tableCell, { fontWeight: 'bold' }]}>{currentSaldo.toFixed(2)}</Text></View>
+                                    <View style={[styles.tableCol, styles.colSaldo]}><Text style={[styles.tableCell, { fontWeight: 'bold' }]}>{formatPdfCurrency(currentSaldo)}</Text></View>
                                 </View>
                             )
                         })()}
@@ -321,8 +322,8 @@ export const PaymentReceiptDocument = ({ order, payments, userName, client }: Pr
                                         <View style={[styles.tableCol, styles.colUser]}><Text style={styles.tableCell}>{p.user || '-'}</Text></View>
                                         <View style={[styles.tableCol, styles.colObs]}><Text style={styles.tableCell}>{p.notes?.replace(' (fila 1)', '') || '-'}</Text></View>
                                         <View style={[styles.tableCol, styles.colMonto]}><Text style={styles.tableCell}>-</Text></View>
-                                        <View style={[styles.tableCol, styles.colAbono]}><Text style={styles.tableCell}>{p.amount.toFixed(2)}</Text></View>
-                                        <View style={[styles.tableCol, styles.colSaldo]}><Text style={[styles.tableCell, { fontWeight: 'bold' }]}>{currentSaldo.toFixed(2)}</Text></View>
+                                        <View style={[styles.tableCol, styles.colAbono]}><Text style={styles.tableCell}>{formatPdfCurrency(p.amount)}</Text></View>
+                                        <View style={[styles.tableCol, styles.colSaldo]}><Text style={[styles.tableCell, { fontWeight: 'bold' }]}>{formatPdfCurrency(currentSaldo)}</Text></View>
                                     </View>
                                 );
                             });
@@ -333,15 +334,15 @@ export const PaymentReceiptDocument = ({ order, payments, userName, client }: Pr
                     <View style={styles.summarySection}>
                         <View style={styles.summaryRow}>
                             <Text style={styles.summaryLabel}>Total Deuda:</Text>
-                            <Text style={styles.summaryValue}>{totalEstimate.toFixed(2)}</Text>
+                            <Text style={styles.summaryValue}>{formatPdfCurrency(totalEstimate)}</Text>
                         </View>
                         <View style={styles.summaryRow}>
                             <Text style={styles.summaryLabel}>Total Abonado:</Text>
-                            <Text style={styles.summaryValue}>{totalPaid.toFixed(2)}</Text>
+                            <Text style={styles.summaryValue}>{formatPdfCurrency(totalPaid)}</Text>
                         </View>
                         <View style={styles.balanceRow}>
                             <Text style={styles.summaryLabel}>Saldo Pendiente:</Text>
-                            <Text style={[styles.summaryValue, { fontWeight: 'bold' }]}>{finalBalance.toFixed(2)}</Text>
+                            <Text style={[styles.summaryValue, { fontWeight: 'bold' }]}>{formatPdfCurrency(finalBalance)}</Text>
                         </View>
                     </View>
                 </View>

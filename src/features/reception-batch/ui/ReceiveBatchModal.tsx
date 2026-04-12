@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
+import { sanitizeDecimalInput } from '@/shared/lib/decimalInput';
 import { Badge } from '@/shared/ui/badge';
 import { useReceiveExchangeBatch } from '@/features/exchanges/model/useExchanges';
 import { useBankAccountList } from '@/features/bank-accounts/api/hooks';
@@ -127,12 +128,13 @@ export function ReceiveBatchModal({ batch, open, onClose, onSuccess }: Props) {
                         Nuevo valor de factura
                       </label>
                       <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
+                        type="text"
+                        inputMode="decimal"
                         placeholder="0.00"
                         value={s.newInvoiceValue}
-                        onChange={(e) => setState(item.id, { newInvoiceValue: e.target.value })}
+                        onChange={(e) =>
+                          setState(item.id, { newInvoiceValue: sanitizeDecimalInput(e.target.value) })
+                        }
                         className="h-8 text-sm"
                       />
                     </div>

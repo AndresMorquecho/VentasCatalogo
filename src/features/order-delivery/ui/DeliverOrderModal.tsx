@@ -7,6 +7,7 @@ import {
 } from "@/shared/ui/dialog"
 import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
+import { DecimalTextField } from "@/shared/ui/DecimalTextField"
 import { Truck, Plus, Trash2, Wallet, ReceiptText, AlertCircle } from "lucide-react"
 import type { Order } from "@/entities/order/model/types"
 import { orderApi } from "@/entities/order/model/api"
@@ -373,11 +374,10 @@ export function DeliverOrderModal({ order, orders = [], open, onOpenChange, onSu
                                                     <span className="text-[10px] font-bold text-slate-400 uppercase ml-1">Monto</span>
                                                     <div className="relative">
                                                         <span className="absolute left-4 top-3 text-slate-400 text-xs font-black">$</span>
-                                                        <Input 
-                                                            type="number"
+                                                        <DecimalTextField
                                                             value={line.amount}
-                                                            onChange={(e) => updatePaymentLine(line.id, { amount: parseFloat(e.target.value) || 0 })}
-                                                            className="pl-8 h-11 rounded-2xl border-slate-200 font-black text-monchito-purple text-base focus:ring-2 focus:ring-monchito-purple/20 shadow-inner"
+                                                            onValueChange={(n) => updatePaymentLine(line.id, { amount: n })}
+                                                            className="pl-8 h-11 rounded-2xl border-slate-200 font-black text-monchito-purple text-base focus-visible:ring-2 focus-visible:ring-monchito-purple/20 shadow-inner"
                                                         />
                                                     </div>
                                                 </div>

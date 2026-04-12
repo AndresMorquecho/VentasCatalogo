@@ -1,5 +1,6 @@
 import React from 'react';
 import { Page, Text, View, Document, StyleSheet, Image } from '@react-pdf/renderer';
+import { formatPdfCurrency } from '@/shared/lib/formatPdfCurrency';
 import type { Order } from '@/entities/order/model/types';
 import type { User } from '@/entities/user/model/types';
 import type { Client } from '@/entities/client/model/types';
@@ -96,15 +97,14 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     
-    // Column Widths
+    // Column Widths (sin columna Empresaria: el cliente va en el encabezado)
     colNo: { width: '22%' },
-    colEmp: { width: '13%' },
-    colType: { width: '9%' },
-    colCat: { width: '13%' },
-    colVal: { width: '8%', textAlign: 'center' },
-    colAbo: { width: '8%', textAlign: 'center' },
-    colSal: { width: '8%', textAlign: 'center' },
-    colDate: { width: '19%', borderRight: 0 },
+    colType: { width: '14%' },
+    colCat: { width: '18%' },
+    colVal: { width: '10%', textAlign: 'center' },
+    colAbo: { width: '10%', textAlign: 'center' },
+    colSal: { width: '10%', textAlign: 'center' },
+    colDate: { width: '16%', borderRight: 0 },
 
     // Financial Summary Row
     financialRow: {
@@ -322,7 +322,6 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({
                 <View style={styles.table}>
                     <View style={styles.tableHeader}>
                         <Text style={[styles.tableHeaderCell, styles.colNo]}>No pedido</Text>
-                        <Text style={[styles.tableHeaderCell, styles.colEmp]}>Empresaria</Text>
                         <Text style={[styles.tableHeaderCell, styles.colType]}>Tipo pedido</Text>
                         <Text style={[styles.tableHeaderCell, styles.colCat]}>Catálogo</Text>
                         <Text style={[styles.tableHeaderCell, styles.colVal]}>Valor pedido</Text>
@@ -338,12 +337,11 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({
                         return (
                             <View key={idx} style={styles.tableRow}>
                                 <Text style={[styles.tableCell, styles.colNo]}>{o.orderNumber || idx + 1}</Text>
-                                <Text style={[styles.tableCell, styles.colEmp]}>{o.clientName?.substring(0, 15) || 'S/N'}</Text>
                                 <Text style={[styles.tableCell, styles.colType]}>{o.type}</Text>
                                 <Text style={[styles.tableCell, styles.colCat]}>{o.brandName}</Text>
-                                <Text style={[styles.tableCell, styles.colVal]}>{Number(o.total).toFixed(2)}</Text>
-                                <Text style={[styles.tableCell, styles.colAbo]}>{paid.toFixed(2)}</Text>
-                                <Text style={[styles.tableCell, styles.colSal]}>{pending.toFixed(2)}</Text>
+                                <Text style={[styles.tableCell, styles.colVal]}>{formatPdfCurrency(o.total)}</Text>
+                                <Text style={[styles.tableCell, styles.colAbo]}>{formatPdfCurrency(paid)}</Text>
+                                <Text style={[styles.tableCell, styles.colSal]}>{formatPdfCurrency(pending)}</Text>
                                 <Text style={[styles.tableCell, styles.colDate]}>
                                     {o.possibleDeliveryDate ? new Date(o.possibleDeliveryDate).toLocaleDateString('es-EC') : 'N/A'}
                                 </Text>
@@ -353,15 +351,15 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({
                     
                     {/* FINANCIAL SUMMARY ROW */}
                     <View style={{ flexDirection: 'row', fontSize: 10, fontWeight: 'bold', backgroundColor: '#fcfcfc', borderBottom: '1pt solid black' }}>
-                        <View style={[styles.tableCell, { width: '57%', textAlign: 'left', paddingLeft: 6, alignItems: 'flex-start', borderRight: '1pt solid black' }]}>
+                        <View style={[styles.tableCell, { width: '54%', textAlign: 'left', paddingLeft: 6, alignItems: 'flex-start', borderRight: '1pt solid black' }]}>
                              <Text>Forma de pago: {friendlyPayment}</Text>
                              {(order.paymentMethod === 'TRANSFERENCIA' || order.paymentMethod === 'DEPOSITO') && bank && (
                                 <Text style={{ fontSize: 8, marginTop: 1 }}>Banco: {bank.name} - {bank.accountNumber || ''}</Text>
                              )}
                         </View>
-                        <Text style={[styles.tableCell, styles.colVal, { borderRight: '1pt solid black' }]}>{totalVal.toFixed(2)}</Text>
-                        <Text style={[styles.tableCell, styles.colAbo, { borderRight: '1pt solid black' }]}>{totalAbo.toFixed(2)}</Text>
-                        <Text style={[styles.tableCell, styles.colSal, { borderRight: '1pt solid black' }]}>{totalSal.toFixed(2)}</Text>
+                        <Text style={[styles.tableCell, styles.colVal, { borderRight: '1pt solid black' }]}>{formatPdfCurrency(totalVal)}</Text>
+                        <Text style={[styles.tableCell, styles.colAbo, { borderRight: '1pt solid black' }]}>{formatPdfCurrency(totalAbo)}</Text>
+                        <Text style={[styles.tableCell, styles.colSal, { borderRight: '1pt solid black' }]}>{formatPdfCurrency(totalSal)}</Text>
                         <Text style={[styles.tableCell, styles.colDate]} />
                     </View>
                 </View>
@@ -373,7 +371,7 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({
                             <Text style={{ fontSize: 10, fontWeight: 'bold', borderBottom: '0.5pt solid #eee', paddingBottom: 2, marginBottom: 3 }}>Desglose de Pago:</Text>
                             {paymentBreakdown.map((pb, idx) => (
                                 <Text key={idx} style={{ fontSize: 10, marginLeft: 5, marginBottom: 2 }}>
-                                    • Abono {paymentLabels[pb.method] || pb.method}: <Text style={{ fontWeight: 'bold' }}>${pb.amount.toFixed(2)}</Text>
+                                    • Abono {paymentLabels[pb.method] || pb.method}: <Text style={{ fontWeight: 'bold' }}>{formatPdfCurrency(pb.amount)}</Text>
                                 </Text>
                             ))}
                         </View>

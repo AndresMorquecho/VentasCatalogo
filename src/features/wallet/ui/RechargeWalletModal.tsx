@@ -9,6 +9,7 @@ import {
 } from "@/shared/ui/dialog";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
+import { DecimalTextField } from "@/shared/ui/DecimalTextField";
 import { Label } from "@/shared/ui/label";
 import {
     Select,
@@ -196,12 +197,12 @@ export function RechargeWalletModal({ open, onOpenChange }: RechargeWalletModalP
                                         <Label className="text-[10px] font-black uppercase text-slate-500 flex items-center gap-2 mb-1.5 opacity-70">
                                             <Banknote className="h-3 w-3" /> Monto ($)
                                         </Label>
-                                        <Input
-                                            type="number"
-                                            step="0.01"
+                                        <DecimalTextField
                                             placeholder="0.00"
                                             className="h-10 sm:h-11 border-slate-200 font-black text-lg sm:text-xl text-primary bg-primary/5 border-primary/20"
-                                            {...formik.getFieldProps("amount")}
+                                            value={Number(formik.values.amount) || 0}
+                                            onValueChange={(n) => formik.setFieldValue("amount", n)}
+                                            onBlur={() => formik.setFieldTouched("amount", true)}
                                         />
                                         {formik.touched.amount && formik.errors.amount && (
                                             <p className="text-[10px] font-bold text-red-500 uppercase">{formik.errors.amount as string}</p>

@@ -87,6 +87,17 @@ export const orderApi = {
     generateOrderNumber: async (): Promise<{ orderNumber: string }> => {
         return httpClient.get<{ orderNumber: string }>('/orders/generate-order-number');
     },
+    /** Siguiente CAM-AAAA-NNN (solo secuencia de cambios) */
+    generateExchangeReceiptNumber: async (): Promise<{ orderNumber: string }> => {
+        return httpClient.get<{ orderNumber: string }>('/orders/generate-exchange-receipt-number');
+    },
+    /** Asigna siguiente Guia-AAAA-NNN (PDF guía de envío de cambios). POST incrementa contador. */
+    allocateExchangeShippingGuideSerial: async (): Promise<{ guideSequential: string }> => {
+        return httpClient.post<{ guideSequential: string }>(
+            '/orders/allocate-exchange-shipping-guide-serial',
+            {}
+        );
+    },
     generatePackingNumber: async (): Promise<{ packingNumber: string }> => {
         return httpClient.get<{ packingNumber: string }>(`/orders/generate-packing-number?t=${Date.now()}`);
     },

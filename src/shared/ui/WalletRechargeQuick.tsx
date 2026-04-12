@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Wallet, ArrowLeft, Loader2, Clock } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
+import { DecimalTextField } from "@/shared/ui/DecimalTextField";
 import { useBankAccountList } from "@/features/bank-accounts/api/hooks";
 import { walletApi } from "@/features/wallet/api/walletApi";
 import { useNotifications } from "@/shared/lib/notifications";
@@ -17,7 +18,7 @@ type QuickMethod = 'TRANSFERENCIA' | 'DEPOSITO' | 'CHEQUE';
 
 export function WalletRechargeQuick({ clientId, onBack, onRechargeSuccess }: Props) {
     const [method, setMethod] = useState<QuickMethod>('TRANSFERENCIA');
-    const [amount, setAmount] = useState<string>('');
+    const [amount, setAmount] = useState(0);
     const [bankAccountId, setBankAccountId] = useState<string>('');
     const [reference, setReference] = useState<string>('');
     const [controlValidation, setControlValidation] = useState<string>('');
@@ -35,7 +36,7 @@ export function WalletRechargeQuick({ clientId, onBack, onRechargeSuccess }: Pro
     const mutation = useMutation({
         mutationFn: () => walletApi.instantRecharge({
             clientId,
-            amount: parseFloat(amount),
+            amount,
             paymentMethod: method,
             bankAccountId,
             reference: reference.trim() || undefined,
@@ -57,8 +58,7 @@ export function WalletRechargeQuick({ clientId, onBack, onRechargeSuccess }: Pro
 
     const handleSubmit = () => {
         setError(null);
-        const parsedAmount = parseFloat(amount);
-        if (!parsedAmount || parsedAmount <= 0) {
+        if (!amount || amount <= 0) {
             setError('El monto debe ser mayor a 0');
             return;
         }
@@ -153,12 +153,9 @@ export function WalletRechargeQuick({ clientId, onBack, onRechargeSuccess }: Pro
 
                 <div className="space-y-1">
                     <label className="text-xs font-medium text-slate-600">Monto</label>
-                    <Input
-                        type="number"
-                        step="0.01"
-                        min="0.01"
+                    <DecimalTextField
                         value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
+                        onValueChange={setAmount}
                         placeholder="0.00"
                         className="h-8 text-xs font-mono"
                     />

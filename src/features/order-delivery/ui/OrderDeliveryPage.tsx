@@ -452,6 +452,14 @@ export function OrderDeliveryPage() {
         return result;
     }, [selectedOrdersMap])
 
+    /** Para PDF de distribución: pedidos en página + seleccionados (otras páginas) */
+    const deliveryPdfContextOrders = useMemo(() => {
+        const byId = new Map<string, Order>()
+        for (const o of orders) byId.set(o.id, o)
+        for (const o of selectedOrders) byId.set(o.id, o)
+        return Array.from(byId.values())
+    }, [orders, selectedOrders])
+
     const pendingDistributionCount = useMemo(() => {
         return selectedOrders.filter(o => {
             const initialPaid = getPaidAmount(o)
@@ -717,6 +725,7 @@ export function OrderDeliveryPage() {
             <DeliverOrderModalNew
                 order={isBatchMode ? null : selectedOrder}
                 orders={isBatchMode ? selectedOrders : []}
+                contextOrders={deliveryPdfContextOrders}
                 creditDistributions={creditDistributions}
                 open={isDeliverModalOpen}
                 onOpenChange={(open) => {

@@ -3,7 +3,6 @@ import { Page, Text, View, Document, StyleSheet, Image } from '@react-pdf/render
 import type { Order } from '@/entities/order/model/types';
 import type { User } from '@/entities/user/model/types';
 import type { Client } from '@/entities/client/model/types';
-import { getPaidAmount } from '@/entities/order/model/model';
 
 const styles = StyleSheet.create({
     page: {
@@ -11,12 +10,11 @@ const styles = StyleSheet.create({
         fontFamily: 'Helvetica',
         backgroundColor: '#FFFFFF',
     },
-    // Header
     headerRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         marginBottom: 10,
-        alignItems: 'center',
+        alignItems: 'flex-start',
     },
     logo: {
         width: 250,
@@ -30,12 +28,20 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: 'bold',
     },
-    headerNumber: {
+    /** N° de guía que escribe el usuario (destacado) */
+    headerMainGuide: {
         fontSize: 22,
         fontWeight: 'bold',
-        marginTop: 4,
+        marginTop: 6,
+        textAlign: 'right',
     },
-    // Client Info
+    /** Secuencial interno Guia-AAAA-NNN (pequeño) */
+    guideSeqSmall: {
+        fontSize: 9,
+        fontWeight: 'bold',
+        marginTop: 4,
+        color: '#555',
+    },
     clientInfoSection: {
         marginBottom: 10,
     },
@@ -51,7 +57,6 @@ const styles = StyleSheet.create({
     infoValue: {
         fontWeight: 'normal',
     },
-    // Table (Box Style)
     table: {
         marginTop: 10,
         borderStyle: 'solid',
@@ -94,27 +99,18 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         display: 'flex',
     },
-    // Column Widths (Matches ExchangeReceiptDocument)
-    colBrand: { width: '10%' },
-    colManual: { width: '10%' },
-    colQty: { width: '5%' },
-    colDescV: { width: '18%' },
-    colDescC: { width: '18%' },
-    colQtyR: { width: '5%' },
-    colVal: { width: '9%' },
-    colAbo: { width: '8%' },
-    colSal: { width: '8%' },
-    colEnt: { width: '9%', borderRightWidth: 0 },
-
-    // Summary Line
+    colBrand: { width: '22%' },
+    colManual: { width: '14%' },
+    colQty: { width: '8%' },
+    colDescV: { width: '28%' },
+    colDescC: { width: '23%' },
+    colQtyR: { width: '5%', borderRightWidth: 0 },
     summaryLine: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         marginTop: 12,
         fontSize: 11,
         paddingHorizontal: 10,
     },
-    // Signatures
     signatureSection: {
         flexDirection: 'row',
         justifyContent: 'space-around',
@@ -134,43 +130,45 @@ const styles = StyleSheet.create({
         fontSize: 9,
         color: '#000',
         textAlign: 'center',
-    }
+    },
 });
 
 interface ExchangeShipmentProps {
     orders: Order[];
     user?: User;
     client?: Client;
+    /** N° guía transporte / paquetería (texto que ingresa el usuario) */
     trackingGuide: string;
+    /** Secuencial interno PDF: Guia-AAAA-NNN */
+    guideSequential?: string;
     formattedDate: string;
     notes?: string;
 }
 
-export const ExchangeShipmentDocument: React.FC<ExchangeShipmentProps> = ({ 
-    orders, 
-    user, 
-    client, 
+export const ExchangeShipmentDocument: React.FC<ExchangeShipmentProps> = ({
+    orders,
+    user,
+    client,
     trackingGuide,
+    guideSequential,
     formattedDate,
-    notes
+    notes,
 }) => {
-    const totalAbo = orders.reduce((sum, o) => sum + Number(getPaidAmount(o)), 0);
-    const totalValue = orders.reduce((sum, o) => sum + Number(o.total), 0);
     const logoUrl = '/images/BannerHeader.jpg';
+    const displayGuide = trackingGuide?.trim() || '—';
 
     return (
         <Document>
             <Page size="A4" orientation="landscape" style={styles.page}>
-                {/* HEADER */}
                 <View style={styles.headerRow}>
                     <Image style={styles.logo} src={logoUrl} />
                     <View style={styles.headerRight}>
                         <Text style={styles.headerTitle}>GUÍA DE ENVÍO</Text>
-                        <Text style={styles.headerNumber}>{trackingGuide}</Text>
+                        {guideSequential ? <Text style={styles.guideSeqSmall}>{guideSequential}</Text> : null}
+                        <Text style={styles.headerMainGuide}>N° de guía: {displayGuide}</Text>
                     </View>
                 </View>
 
-                {/* CLIENT INFO */}
                 <View style={styles.clientInfoSection}>
                     <View style={styles.clientInfoRow}>
                         <Text style={styles.infoLabel}>Cedula:</Text>
@@ -186,7 +184,6 @@ export const ExchangeShipmentDocument: React.FC<ExchangeShipmentProps> = ({
                     </View>
                 </View>
 
-                {/* TABLE */}
                 <View style={styles.table}>
                     <View style={styles.tableHeader}>
                         <Text style={[styles.tableHeaderCell, styles.colBrand]}>Empresaria</Text>
@@ -195,50 +192,35 @@ export const ExchangeShipmentDocument: React.FC<ExchangeShipmentProps> = ({
                         <Text style={[styles.tableHeaderCell, styles.colDescV]}>descripcion (se va)</Text>
                         <Text style={[styles.tableHeaderCell, styles.colDescC]}>descripcion (viene)</Text>
                         <Text style={[styles.tableHeaderCell, styles.colQtyR]}>cant</Text>
-                        <Text style={[styles.tableHeaderCell, styles.colVal]}>valor</Text>
-                        <Text style={[styles.tableHeaderCell, styles.colAbo]}>abono</Text>
-                        <Text style={[styles.tableHeaderCell, styles.colSal]}>saldo</Text>
-                        <Text style={[styles.tableHeaderCell, styles.colEnt]}>P. Entrega</Text>
                     </View>
 
-                    {orders.map((o, idx) => {
-                        const paid = getPaidAmount(o);
-                        const pending = Number(o.total) - paid;
-                        return (
-                            <View key={idx} style={styles.tableRow}>
-                                <Text style={[styles.tableCell, styles.colBrand]}>{(o.clientName || client?.firstName || '').toUpperCase()}</Text>
-                                <Text style={[styles.tableCell, styles.colManual]}>{o.sourceOrderNumber || '—'}</Text>
-                                <Text style={[styles.tableCell, styles.colQty]}>{o.sourceQuantity || 1}</Text>
-                                <Text style={[styles.tableCell, styles.colDescV]}>{o.sourceDescription || 'N/A'}</Text>
-                                <Text style={[styles.tableCell, styles.colDescC]}>{o.description || 'N/A'}</Text>
-                                <Text style={[styles.tableCell, styles.colQtyR]}>{o.items?.[0]?.quantity || 1}</Text>
-                                <Text style={[styles.tableCell, styles.colVal]}>{Number(o.total).toFixed(0)}</Text>
-                                <Text style={[styles.tableCell, styles.colAbo]}>{paid.toFixed(0)}</Text>
-                                <Text style={[styles.tableCell, styles.colSal]}>{pending.toFixed(0)}</Text>
-                                <Text style={[styles.tableCell, styles.colEnt]}>
-                                    {o.possibleDeliveryDate ? new Date(o.possibleDeliveryDate).toLocaleDateString('es-EC') : 'N/A'}
-                                </Text>
-                            </View>
-                        );
-                    })}
+                    {orders.map((o, idx) => (
+                        <View key={idx} style={styles.tableRow}>
+                            <Text style={[styles.tableCell, styles.colBrand]}>
+                                {(o.clientName || client?.firstName || '').toUpperCase()}
+                            </Text>
+                            <Text style={[styles.tableCell, styles.colManual]}>{o.sourceOrderNumber || '—'}</Text>
+                            <Text style={[styles.tableCell, styles.colQty]}>{o.sourceQuantity || 1}</Text>
+                            <Text style={[styles.tableCell, styles.colDescV]}>{o.sourceDescription || 'N/A'}</Text>
+                            <Text style={[styles.tableCell, styles.colDescC]}>{o.description || 'N/A'}</Text>
+                            <Text style={[styles.tableCell, styles.colQtyR]}>{o.items?.[0]?.quantity || 1}</Text>
+                        </View>
+                    ))}
                 </View>
 
-                {/* SUMMARY LINE */}
                 <View style={styles.summaryLine}>
                     <Text style={{ fontWeight: 'bold' }}>TOTAL ITEMS EN GUÍA: {orders.length}</Text>
-                    <Text style={{ fontWeight: 'bold' }}>VALOR TOTAL: ${totalValue.toFixed(2)}</Text>
-                    <Text style={{ fontSize: 13, fontWeight: 'bold' }}>TOTAL ABONADO: ${totalAbo.toFixed(2)}</Text>
                 </View>
 
-                {/* ADDITIONAL NOTES */}
-                {notes && (
+                {notes ? (
                     <View style={{ marginTop: 15, paddingHorizontal: 10 }}>
-                        <Text style={{ fontSize: 10, fontWeight: 'bold', marginBottom: 2 }}>Notas adicionales del envío:</Text>
+                        <Text style={{ fontSize: 10, fontWeight: 'bold', marginBottom: 2 }}>
+                            Notas adicionales del envío:
+                        </Text>
                         <Text style={{ fontSize: 9, color: '#333' }}>{notes}</Text>
                     </View>
-                )}
+                ) : null}
 
-                {/* SIGNATURES */}
                 <View style={styles.signatureSection}>
                     <View style={styles.signatureBlock}>
                         <View style={styles.signatureLine} />

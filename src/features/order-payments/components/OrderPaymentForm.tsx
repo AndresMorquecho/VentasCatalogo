@@ -4,7 +4,7 @@ import { useBankAccountList } from "@/features/bank-accounts/api/hooks"
 import { calculateMaxEditPaymentAmount, calculatePendingBalance, formatCurrency } from "@/entities/order/model/financialCalculator"
 import { useAddOrderPayment, useEditOrderPayment } from "../model.ts"
 import { Button } from "@/shared/ui/button"
-import { Input } from "@/shared/ui/input"
+import { DecimalTextField } from "@/shared/ui/DecimalTextField"
 import { Label } from "@/shared/ui/label"
 import type { Order, OrderPayment } from "@/entities/order/model/types"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/shared/ui/dialog"
@@ -130,15 +130,15 @@ export function OrderPaymentForm({ order, payment, open, onOpenChange }: OrderPa
                             <div className="flex gap-2">
                                 <div className="relative flex-1">
                                     <span className="absolute left-2 top-1.5 text-xs text-emerald-600">$</span>
-                                    <Input
-                                        type="number"
+                                    <DecimalTextField
                                         className="pl-5 h-8 bg-white border-emerald-200"
                                         placeholder="Monto a usar"
-                                        {...formik.getFieldProps('creditToUse')}
-                                        onChange={(e) => {
-                                            const val = Math.min(Number(e.target.value), totalCredit, maxAmount - Number(formik.values.amount));
+                                        value={Number(formik.values.creditToUse) || 0}
+                                        onValueChange={(n) => {
+                                            const val = Math.min(n, totalCredit, maxAmount - Number(formik.values.amount));
                                             formik.setFieldValue('creditToUse', val > 0 ? val : 0);
                                         }}
+                                        onBlur={() => formik.setFieldTouched('creditToUse', true)}
                                     />
                                 </div>
                                 {Number(formik.values.creditToUse) > 0 ? (
@@ -172,11 +172,11 @@ export function OrderPaymentForm({ order, payment, open, onOpenChange }: OrderPa
 
                     <div className="space-y-2">
                         <Label htmlFor="amount">Monto en Efectivo/Banco ($)</Label>
-                        <Input
+                        <DecimalTextField
                             id="amount"
-                            type="number"
-                            step="0.01"
-                            {...formik.getFieldProps('amount')}
+                            value={Number(formik.values.amount) || 0}
+                            onValueChange={(n) => formik.setFieldValue('amount', n)}
+                            onBlur={() => formik.setFieldTouched('amount', true)}
                         />
                         {formik.touched.amount && formik.errors.amount && (
                             <p className="text-red-500 text-xs">{formik.errors.amount}</p>

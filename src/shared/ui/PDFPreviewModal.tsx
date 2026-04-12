@@ -3,6 +3,7 @@ import { Button } from "@/shared/ui/button";
 import { Download, Printer, Loader2 } from "lucide-react";
 import { PDFViewer } from '@react-pdf/renderer';
 import { useState, useEffect } from "react";
+import { printReactPdfDocument } from "@/shared/lib/printReactPdf";
 
 interface PDFPreviewModalProps {
     open: boolean;
@@ -11,6 +12,7 @@ interface PDFPreviewModalProps {
     pdfDocument: React.ReactElement;
     fileName: string;
     onDownload?: () => void;
+    /** Impresión del PDF vía blob/iframe (printReactPdfDocument). Si no se pasa, el modal usa ese mismo flujo por defecto. */
     onPrint?: () => void;
 }
 
@@ -41,12 +43,15 @@ export function PDFPreviewModal({
         }
     };
 
-    const handlePrint = () => {
+    const handlePrint = async () => {
         if (onPrint) {
             onPrint();
-        } else {
-            // Default print behavior - open in new window and print
-            window.print();
+            return;
+        }
+        try {
+            await printReactPdfDocument(pdfDocument);
+        } catch {
+            /* noop */
         }
     };
 

@@ -16,10 +16,12 @@ import { useAuth } from '@/shared/auth';
 import { usersApi } from '@/shared/auth/authApi';
 import { useQuery } from '@tanstack/react-query';
 import { Pagination } from '@/shared/ui/pagination';
+import { DecimalTextField } from '@/shared/ui/DecimalTextField';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { useScrollIndicator } from '../hooks/useScrollIndicator';
 import { PDFPreviewModal } from "@/shared/ui/PDFPreviewModal";
 import { CashClosureDetailedPDF } from './CashClosureDetailedPDF';
+import { printReactPdfDocument } from '@/shared/lib/printReactPdf';
 
 const fmt = (n: number) => `$${n.toFixed(2)}`;
 
@@ -281,7 +283,7 @@ export function CashClosurePage() {
                                     </label>
                                     <div className="relative">
                                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg font-bold text-slate-400">$</span>
-                                        <Input type="number" step="0.01" value={actualAmount === 0 ? '' : actualAmount} onChange={(e) => setActualAmount(Number(e.target.value))} className="text-lg font-bold h-9 pl-8 border-2 focus-visible:ring-primary border-slate-100 bg-white shadow-inner text-slate-900" placeholder="0.00" />
+                                        <DecimalTextField value={actualAmount} onValueChange={setActualAmount} className="text-lg font-bold h-9 pl-8 border-2 focus-visible:ring-primary border-slate-100 bg-white shadow-inner text-slate-900" placeholder="0.00" />
                                     </div>
 
                                     {previewData && !previewData.isAlreadyClosed && (
@@ -527,6 +529,14 @@ export function CashClosurePage() {
                     pdfDocument={<CashClosureDetailedPDF report={previewReportData} />}
                     onDownload={() => {
                         generateCashClosurePDF(previewReportData, previewFileName);
+                    }}
+                    onPrint={() => {
+                        void printReactPdfDocument(
+                            <CashClosureDetailedPDF report={previewReportData} />
+                        ).catch((err) => {
+                            console.error(err);
+                            notifyError({ message: 'Error al imprimir el PDF del cierre de caja' });
+                        });
                     }}
                 />
             )}

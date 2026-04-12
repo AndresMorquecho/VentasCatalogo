@@ -1,4 +1,5 @@
 import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
+import { formatPdfCurrency } from '@/shared/lib/formatPdfCurrency';
 import type { Order } from '@/entities/order/model/types';
 import type { Client } from '@/entities/client/model/types';
 import {
@@ -252,10 +253,10 @@ export const DeliveryReceiptDocument = ({ order, orders, client, paymentInfo, de
                                 <View style={[styles.col, { width: '10%' }]}><Text style={styles.cellText}>{o.type || 'NORMAL'}</Text></View>
                                 <View style={[styles.col, { width: '10%' }]}><Text style={styles.cellText}>{o.invoiceNumber ? 'FACTURA' : 'PEND.'}</Text></View>
                                 <View style={[styles.col, { width: '10%' }]}><Text style={styles.cellText}>{o.invoiceNumber || 'S/N'}</Text></View>
-                                <View style={[styles.col, { width: '9%' }]}><Text style={styles.cellText}>{Number(o.total || 0).toFixed(2)}</Text></View>
-                                <View style={[styles.col, { width: '9%' }]}><Text style={styles.cellText}>{Number(realInvTotal).toFixed(2)}</Text></View>
-                                <View style={[styles.col, { width: '9%' }]}><Text style={styles.cellText}>{Number(paidAmount).toFixed(2)}</Text></View>
-                                <View style={[styles.col, { width: '9%', borderRightWidth: 0 }]}><Text style={styles.cellText}>{Number(pendingTotal).toFixed(2)}</Text></View>
+                                <View style={[styles.col, { width: '9%' }]}><Text style={styles.cellText}>{formatPdfCurrency(o.total || 0)}</Text></View>
+                                <View style={[styles.col, { width: '9%' }]}><Text style={styles.cellText}>{formatPdfCurrency(realInvTotal)}</Text></View>
+                                <View style={[styles.col, { width: '9%' }]}><Text style={styles.cellText}>{formatPdfCurrency(paidAmount)}</Text></View>
+                                <View style={[styles.col, { width: '9%', borderRightWidth: 0 }]}><Text style={styles.cellText}>{formatPdfCurrency(pendingTotal)}</Text></View>
                             </View>
                         );
                     })}
@@ -265,7 +266,7 @@ export const DeliveryReceiptDocument = ({ order, orders, client, paymentInfo, de
                 <View style={styles.footerRow}>
                     <Text style={styles.footerLabel}>Pedidos entregados: <Text style={styles.bold}>{displayOrders.length}</Text></Text>
                     <Text style={styles.footerLabel}>forma de pago: <Text style={styles.bold}>{paymentInfo?.method || 'N/A'}</Text></Text>
-                    <Text style={styles.footerMain}>VALOR CANCELADO: {Number(paymentInfo?.amountPaidNow || 0).toFixed(2)}</Text>
+                    <Text style={styles.footerMain}>VALOR CANCELADO: {formatPdfCurrency(paymentInfo?.amountPaidNow || 0)}</Text>
                 </View>
 
                 {/* Signatures */}

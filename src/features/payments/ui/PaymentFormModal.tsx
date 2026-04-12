@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { AsyncButton } from "@/shared/ui/async-button";
 import { Input } from "@/shared/ui/input";
+import { DecimalTextField } from "@/shared/ui/DecimalTextField";
 import { Button } from "@/shared/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/ui/dialog";
 import { useBankAccountList } from "@/features/bank-accounts/api/hooks";
@@ -89,12 +90,6 @@ export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
             return;
         }
 
-        // Solo validar que no exceda el saldo pendiente (permitir abonos parciales)
-        if (totalToPay > (pendingBalance + 0.01)) {
-            notifyError({ message: `El abono ($${totalToPay.toFixed(2)}) no puede superar el saldo pendiente ($${pendingBalance.toFixed(2)}).` });
-            return;
-        }
-
         if (amount > 0 && !bankAccountId) {
             notifyError({ message: "Debes seleccionar una cuenta para el abono manual." });
             return;
@@ -159,13 +154,12 @@ export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
                             <div className="flex gap-2">
                                 <div className="relative flex-1">
                                     <span className="absolute left-2 top-1.5 text-xs text-emerald-600">$</span>
-                                    <Input
-                                        type="number"
+                                    <DecimalTextField
                                         className="pl-5 h-8 bg-white border-emerald-200"
                                         placeholder="Monto a usar"
-                                        value={creditToUse || ''}
-                                        onChange={(e) => {
-                                            const val = Math.min(Number(e.target.value), totalCredit, Math.max(0, pendingBalance - amount));
+                                        value={creditToUse}
+                                        onValueChange={(n) => {
+                                            const val = Math.min(n, totalCredit, Math.max(0, pendingBalance - amount));
                                             setCreditToUse(val > 0 ? val : 0);
                                         }}
                                     />
@@ -203,12 +197,9 @@ export function PaymentFormModal({ order, isOpen, onClose, onSuccess }: Props) {
                         {/* Amount Input */}
                         <div className="space-y-1">
                             <label className="text-sm font-medium">Monto a abonar</label>
-                            <Input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={amount || ''}
-                                onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
+                            <DecimalTextField
+                                value={amount}
+                                onValueChange={setAmount}
                                 className="font-mono font-bold text-lg"
                             />
                         </div>

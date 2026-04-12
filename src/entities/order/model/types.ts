@@ -60,6 +60,8 @@ export interface Order {
     // Nuevos campos FASE 3
     parentOrderId?: string;
     trackingGuide?: string;
+    /** Secuencial PDF guía envío cambios (Guia-AAAA-NNN), asignado al registrar la guía */
+    exchangeShippingGuideSeq?: string;
     changeStatus?: 'OFICINA' | 'EMPRESA' | 'RECIBIDO';
 
     parentOrder?: Order;
@@ -91,6 +93,13 @@ export interface Order {
     // Batch Relations
     receptionBatchId?: string;
     exchangeBatchItems?: any[];
+
+    /** Encabezado de recibo (p. ej. N° registro envío en cambios) */
+    receipt?: {
+        shippingRegistryNumber?: string;
+        notes?: string;
+        [key: string]: unknown;
+    };
 }
 
 export interface OrderPayload {
@@ -117,6 +126,7 @@ export interface OrderPayload {
     // Nuevos campos FASE 3
     parentOrderId?: string | null;
     trackingGuide?: string;
+    exchangeShippingGuideSeq?: string;
     changeStatus?: 'OFICINA' | 'EMPRESA' | 'RECIBIDO';
     orderNumber?: string;
 

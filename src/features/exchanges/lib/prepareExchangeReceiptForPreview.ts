@@ -5,10 +5,23 @@ import type { User } from '@/entities/user/model/types';
 import { clientApi } from '@/shared/api/clientApi';
 import { systemSettingsApi } from '@/features/system-settings/api/systemSettingsApi';
 
+function resolveCamConsecutive(orders: Order[], legacy?: string): string | undefined {
+    const fromOrderNum = orders
+        .map((o) => o.orderNumber)
+        .find((n) => n && /^CAM-/i.test(String(n).trim()));
+    if (fromOrderNum) return String(fromOrderNum).trim();
+    const fromReceipt = orders
+        .map((o) => o.receiptNumber)
+        .find((n) => n && /^CAM-/i.test(String(n).trim()));
+    if (fromReceipt) return String(fromReceipt).trim();
+    if (legacy && /^CAM-/i.test(String(legacy).trim())) return String(legacy).trim();
+    return undefined;
+}
+
 /**
  * Prepara el documento PDF de recibo de cambio para preview
  */
-export async function prepareExchangeReceiptForPreview(orders: Order[], user?: User, receiptNumber?: string, notes?: string) {
+export async function prepareExchangeReceiptForPreview(orders: Order[], user?: User, _legacyReceiptArg?: string, notes?: string) {
     try {
         if (orders.length === 0) throw new Error('No orders provided');
         
@@ -47,22 +60,39 @@ export async function prepareExchangeReceiptForPreview(orders: Order[], user?: U
             hour12: false
         }).replace(',', '');
 
-        const displayConsecutive = firstOrder.orderNumber || receiptNumber || firstOrder.receiptNumber || 'REC-CAMBIO';
-        
-        // Create the React element
-        const element = createElement(ExchangeReceiptDocument, { 
-            orders, 
-            user, 
-            client, 
-            receiptNumber: displayConsecutive,
+        const exchangeConsecutive = resolveCamConsecutive(orders, _legacyReceiptArg);
+
+        const rawRef =
+            firstOrder.receiptNumber || (firstOrder as any)?.receipt?.receiptNumber || '';
+        const salesRef =
+            rawRef && !/^CAM-/i.test(String(rawRef).trim()) ? String(rawRef).trim() : '';
+
+        const element = createElement(ExchangeReceiptDocument, {
+            orders,
+            user,
+            client,
+            exchangeConsecutive,
+            salesReceiptReference: salesRef || undefined,
             formattedDate,
-            notes: notes || firstOrder.notes || ''
+            notes: notes || firstOrder.notes || '',
         } as any);
-        
+
+        const fileSlug = (
+            exchangeConsecutive ||
+            salesRef ||
+            firstOrder.id ||
+            'cambio'
+        )
+            .toString()
+            .replace(/\s+/g, '_');
         return {
             document: element,
-            fileName: `recibo-cambio-${displayConsecutive}.pdf`,
-            title: `Recibo de Cambio - ${displayConsecutive}`
+            fileName: `recibo-cambio-${fileSlug}.pdf`,
+            title: exchangeConsecutive
+                ? `Recibo de Cambio · ${exchangeConsecutive}`
+                : salesRef
+                  ? `Recibo de Cambio · ${salesRef}`
+                  : 'Recibo de Cambio',
         };
     } catch (error) {
         console.error('Error preparando recibo de cambio PDF:', error);

@@ -1,4 +1,5 @@
 import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
+import { formatPdfCurrency } from '@/shared/lib/formatPdfCurrency';
 import type { CashClosureDetailedReport, SummaryTableRecord } from '@/entities/cash-closure/model/detailed-types';
 
 // Constants for styles based on the provided image
@@ -154,9 +155,6 @@ const s = StyleSheet.create({
     }
 });
 
-const fmt = (n: number) => (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtCurrency = (n: number) => (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
 const fmtDateOnly = (d: string | Date | undefined) => {
     if (!d) return "---";
     const dateObj = typeof d === 'string' ? new Date(d) : d;
@@ -237,7 +235,7 @@ export function CashClosureDetailedPDF({ report }: Props) {
                                 <View style={[s.cellView, { width: W.recibo }]}><Text style={s.cellText}>{row.code || '-'}</Text></View>
                                 <View style={[s.cellView, { width: W.emp }]}><Text style={s.cellText}>{(row.client || '-').toUpperCase()}</Text></View>
                                 <View style={[s.cellView, { width: W.val }]}>
-                                    <Text style={s.cellText}>{fmt(row.amount)}</Text>
+                                    <Text style={s.cellText}>{formatPdfCurrency(row.amount)}</Text>
                                 </View>
                             </View>
                         ))
@@ -247,7 +245,7 @@ export function CashClosureDetailedPDF({ report }: Props) {
                 {/* Table Footer */}
                 <View style={s.tableFooter}>
                     <Text style={s.tableFooterText}>N° de Movimientos: {data.length}</Text>
-                    <Text style={s.tableFooterText}>Total Acum: {fmt(totalBalance)}</Text>
+                    <Text style={s.tableFooterText}>Total Acum: {formatPdfCurrency(totalBalance)}</Text>
                 </View>
 
                 {/* Section Divider */}
@@ -302,12 +300,12 @@ export function CashClosureDetailedPDF({ report }: Props) {
                             {cashAccounts.map((acc, i) => (
                                 <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2 }}>
                                     <Text style={{ fontSize: 8 }}>{acc.name}</Text>
-                                    <Text style={{ fontSize: 8 }}>{fmtCurrency(acc.balance)}</Text>
+                                    <Text style={{ fontSize: 8 }}>{formatPdfCurrency(acc.balance)}</Text>
                                 </View>
                             ))}
                             <View style={{ borderTopWidth: 1, marginTop: 5, paddingTop: 3, flexDirection: 'row', justifyContent: 'space-between' }}>
                                 <Text style={s.infoBold}>Total Efectivo:</Text>
-                                <Text style={s.infoBold}>{fmtCurrency(totalCash)}</Text>
+                                <Text style={s.infoBold}>{formatPdfCurrency(totalCash)}</Text>
                             </View>
                         </View>
 
@@ -317,12 +315,12 @@ export function CashClosureDetailedPDF({ report }: Props) {
                             {bankAccounts.map((acc, i) => (
                                 <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2 }}>
                                     <Text style={{ fontSize: 8 }}>{acc.name}</Text>
-                                    <Text style={{ fontSize: 8 }}>{fmtCurrency(acc.balance)}</Text>
+                                    <Text style={{ fontSize: 8 }}>{formatPdfCurrency(acc.balance)}</Text>
                                 </View>
                             ))}
                             <View style={{ borderTopWidth: 1, marginTop: 5, paddingTop: 3, flexDirection: 'row', justifyContent: 'space-between' }}>
                                 <Text style={s.infoBold}>Total Bancos:</Text>
-                                <Text style={s.infoBold}>{fmtCurrency(totalBanks)}</Text>
+                                <Text style={s.infoBold}>{formatPdfCurrency(totalBanks)}</Text>
                             </View>
                         </View>
                     </View>
@@ -334,14 +332,14 @@ export function CashClosureDetailedPDF({ report }: Props) {
                     
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
                         <Text style={{ fontSize: 9 }}>Saldo Esperado en Sistema (Efectivo + Bancos):</Text>
-                        <Text style={[s.infoBold, { fontSize: 9 }]}>{fmtCurrency(totalCash + totalBanks)}</Text>
+                        <Text style={[s.infoBold, { fontSize: 9 }]}>{formatPdfCurrency(totalCash + totalBanks)}</Text>
                     </View>
 
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
                         <Text style={{ fontSize: 9 }}>Total Reportado por Usuario (Contado + Bancos):</Text>
                         <View style={{ flexDirection: 'row', gap: 2 }}>
-                            <Text style={[s.infoBold, { fontSize: 9 }]}>{fmtCurrency((actualAmount || 0) + totalBanks)}</Text>
-                            <Text style={{ fontSize: 8, color: '#666' }}>({fmtCurrency(actualAmount)} contado + {fmtCurrency(totalBanks)} bancos)</Text>
+                            <Text style={[s.infoBold, { fontSize: 9 }]}>{formatPdfCurrency((actualAmount || 0) + totalBanks)}</Text>
+                            <Text style={{ fontSize: 8, color: '#666' }}>({formatPdfCurrency(actualAmount)} contado + {formatPdfCurrency(totalBanks)} bancos)</Text>
                         </View>
                     </View>
 
@@ -354,7 +352,7 @@ export function CashClosureDetailedPDF({ report }: Props) {
                             fontFamily: 'Helvetica-Bold',
                             color: Math.abs(((actualAmount || 0) + totalBanks) - (totalCash + totalBanks)) > 0.01 ? COLORS.red : COLORS.green 
                         }}>
-                            {fmtCurrency(((actualAmount || 0) + totalBanks) - (totalCash + totalBanks))}
+                            {formatPdfCurrency(((actualAmount || 0) + totalBanks) - (totalCash + totalBanks))}
                         </Text>
                     </View>
 

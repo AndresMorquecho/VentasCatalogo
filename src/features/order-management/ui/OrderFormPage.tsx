@@ -38,6 +38,7 @@ import { PaymentModal, type PaymentModalData } from "@/shared/ui/PaymentModal"
 import { usePDFPreview } from "@/shared/hooks/usePDFPreview"
 import { PDFPreviewModal } from "@/shared/ui/PDFPreviewModal"
 import { SearchableSelect } from "@/shared/ui/SearchableSelect"
+import { DecimalTextField } from "@/shared/ui/DecimalTextField"
 import { OrderEditModal } from "./OrderEditModal"
 import { systemSettingsApi } from "@/features/system-settings/api/systemSettingsApi"
 
@@ -1640,15 +1641,10 @@ export function OrderFormPage() {
                     </div>
                     <div className="w-full sm:w-[80px] space-y-1 shrink-0">
                         <Label className="text-xs font-bold uppercase text-slate-500">Valor:</Label>
-                        <Input
-                            type="text"
-                            inputMode="decimal"
+                        <DecimalTextField
                             className="h-8 w-full font-bold text-xs px-2 hide-spinner"
-                            value={currentItem.total === 0 ? '' : currentItem.total}
-                            onChange={(e) => {
-                                const val = e.target.value.replace(/[^0-9.]/g, '');
-                                setCurrentItem({ ...currentItem, total: val === '' ? 0 : Number(val) });
-                            }}
+                            value={currentItem.total}
+                            onValueChange={(n) => setCurrentItem({ ...currentItem, total: n })}
                             onKeyDown={e => handleHeaderKeyDown(e, 'total')}
                             data-nav="total"
                         />
@@ -1705,6 +1701,7 @@ export function OrderFormPage() {
                                     formik.values.brandItems.map((item: BrandItem, idx: number) => {
                                         const distributedAbono = Number(item.deposit || 0);
                                         const rowSaldo = Number(item.total) - distributedAbono;
+                                        const saldoFavor = rowSaldo < -0.01;
 
                                         return (
                                             <tr 
@@ -1746,17 +1743,12 @@ export function OrderFormPage() {
                                                     {!isEditing ? (
                                                         <div className="flex justify-end items-center gap-1">
                                                             <span className="text-slate-400 text-xs">$</span>
-                                                            <input
-                                                                type="text"
-                                                                inputMode="decimal"
-                                                                className="h-7 w-16 text-right text-xs font-bold border border-slate-200 rounded-lg px-1 focus:ring-1 focus:ring-monchito-purple outline-none hide-spinner"
-                                                                value={item.total === 0 ? '' : item.total}
-                                                                onChange={(e) => {
-                                                                    const val = e.target.value.replace(/[^0-9.]/g, '');
+                                                            <DecimalTextField
+                                                                className="h-7 w-20 text-right text-xs font-bold border border-slate-200 rounded-lg px-1 focus-visible:ring-1 focus-visible:ring-monchito-purple outline-none hide-spinner shadow-none"
+                                                                value={Number(item.total) || 0}
+                                                                onValueChange={(numVal) => {
                                                                     const newItems = [...formik.values.brandItems]
-                                                                    const numVal = val === '' ? 0 : Number(val)
                                                                     newItems[idx] = { ...newItems[idx], total: numVal }
-                                                                    if (Number(newItems[idx].deposit || 0) > numVal) newItems[idx].deposit = numVal;
                                                                     formik.setFieldValue('brandItems', newItems)
                                                                 }}
                                                                 onKeyDown={(e) => handleTableKeyDown(e, idx, 'total')}
@@ -1773,18 +1765,13 @@ export function OrderFormPage() {
                                                     {!isEditing ? (
                                                         <div className="flex justify-end items-center gap-1">
                                                             <span className="text-emerald-500 text-xs">$</span>
-                                                            <input
-                                                                type="text"
-                                                                inputMode="decimal"
+                                                            <DecimalTextField
                                                                 placeholder="0.00"
-                                                                className="h-7 w-16 text-right text-xs font-bold border border-slate-200 rounded-lg px-1 focus:ring-1 focus:ring-emerald-500 outline-none text-emerald-600 hide-spinner"
-                                                                value={item.deposit === 0 ? '' : item.deposit}
-                                                                onChange={(e) => {
-                                                                    const val = e.target.value.replace(/[^0-9.]/g, '');
-                                                                    const numVal = val === '' ? 0 : Number(val);
+                                                                className="h-7 w-20 text-right text-xs font-bold border border-slate-200 rounded-lg px-1 focus-visible:ring-1 focus-visible:ring-emerald-500 outline-none text-emerald-600 hide-spinner shadow-none"
+                                                                value={Number(item.deposit) || 0}
+                                                                onValueChange={(numVal) => {
                                                                     const newItems = [...formik.values.brandItems];
-                                                                    const finalVal = Math.min(numVal, Number(newItems[idx].total || 0));
-                                                                    newItems[idx] = { ...newItems[idx], deposit: finalVal };
+                                                                    newItems[idx] = { ...newItems[idx], deposit: numVal };
                                                                     formik.setFieldValue('brandItems', newItems);
                                                                 }}
                                                                 onKeyDown={(e) => handleTableKeyDown(e, idx, 'deposit')}
@@ -1798,8 +1785,8 @@ export function OrderFormPage() {
                                                 </td>
 
                                                 <td className="px-2 py-2 border-r border-slate-50 text-right">
-                                                    <span className={`text-xs font-bold ${rowSaldo > 0 ? 'text-red-500' : 'text-slate-400'}`}>
-                                                        ${rowSaldo.toFixed(2)}
+                                                    <span className={`text-xs font-bold ${rowSaldo > 0.01 ? 'text-red-500' : saldoFavor ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                                        {saldoFavor ? `-$${Math.abs(rowSaldo).toFixed(2)} (a favor)` : `$${rowSaldo.toFixed(2)}`}
                                                     </span>
                                                 </td>
 
@@ -1874,6 +1861,7 @@ export function OrderFormPage() {
                             formik.values.brandItems.map((item: any, idx: number) => {
                                 const distributedAbono = Number(item.deposit || 0);
                                 const rowSaldo = Number(item.total) - distributedAbono;
+                                const saldoFavorCard = rowSaldo < -0.01;
 
                                 return (
                                     <div key={item.id || item.tempId || idx} className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden p-5 space-y-4">
@@ -1922,14 +1910,13 @@ export function OrderFormPage() {
                                                 <Label className="text-[9px] font-black uppercase text-slate-400 tracking-widest pl-1">Valor Pedido</Label>
                                                 <div className="relative">
                                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">$</span>
-                                                    <Input
-                                                        type="number"
+                                                    <DecimalTextField
                                                         className="h-10 pl-6 text-sm font-black rounded-xl border-slate-100 bg-slate-50/50"
-                                                        value={item.total}
+                                                        value={Number(item.total) || 0}
                                                         disabled={isEditing}
-                                                        onChange={(e) => {
+                                                        onValueChange={(n) => {
                                                             const newItems = [...formik.values.brandItems]
-                                                            newItems[idx] = { ...newItems[idx], total: Number(e.target.value) }
+                                                            newItems[idx] = { ...newItems[idx], total: n }
                                                             formik.setFieldValue('brandItems', newItems)
                                                         }}
                                                     />
@@ -1939,14 +1926,13 @@ export function OrderFormPage() {
                                                 <Label className="text-[9px] font-black uppercase text-slate-400 tracking-widest pl-1">Abono</Label>
                                                 <div className="relative">
                                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-500 font-bold text-xs">$</span>
-                                                    <Input
-                                                        type="number"
+                                                    <DecimalTextField
                                                         className="h-10 pl-6 text-sm font-black rounded-xl border-emerald-100 bg-emerald-50/30 text-emerald-700"
-                                                        value={item.deposit}
+                                                        value={Number(item.deposit) || 0}
                                                         disabled={isEditing}
-                                                        onChange={(e) => {
+                                                        onValueChange={(n) => {
                                                             const newItems = [...formik.values.brandItems]
-                                                            newItems[idx] = { ...newItems[idx], deposit: Number(e.target.value) }
+                                                            newItems[idx] = { ...newItems[idx], deposit: n }
                                                             formik.setFieldValue('brandItems', newItems)
                                                         }}
                                                     />
@@ -1955,9 +1941,11 @@ export function OrderFormPage() {
                                         </div>
 
                                         <div className="flex justify-between items-center bg-slate-50 p-3 rounded-2xl border border-slate-100">
-                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Saldo Pendiente</span>
-                                            <span className={`text-sm font-black ${rowSaldo > 0 ? 'text-red-600' : 'text-slate-400'}`}>
-                                                ${rowSaldo.toFixed(2)}
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                                {saldoFavorCard ? 'Saldo a favor' : 'Saldo Pendiente'}
+                                            </span>
+                                            <span className={`text-sm font-black ${rowSaldo > 0.01 ? 'text-red-600' : saldoFavorCard ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                                {saldoFavorCard ? `$${Math.abs(rowSaldo).toFixed(2)}` : `$${rowSaldo.toFixed(2)}`}
                                             </span>
                                         </div>
 

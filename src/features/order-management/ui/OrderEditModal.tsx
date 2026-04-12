@@ -6,6 +6,7 @@ import { useClientCredits } from "@/features/transactions/model/hooks"
 import { getPaidAmount } from "@/entities/order/model/model"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/ui/dialog"
 import { Input } from "@/shared/ui/input"
+import { DecimalTextField } from "@/shared/ui/DecimalTextField"
 import { Label } from "@/shared/ui/label"
 import { Separator } from "@/shared/ui/separator"
 import { Button } from "@/shared/ui/button"
@@ -116,13 +117,8 @@ export function OrderEditModal({ order, open, onOpenChange, onSuccess, lastClosu
 
         // 3. Business rules for locked method
         if (hasExistingDeposit) {
-            // Only allow reducing or keeping the same deposit — not increasing beyond original for safety
             if (formData.deposit < 0) {
                 notifyError(null, 'El abono no puede ser negativo.')
-                return
-            }
-            if (formData.deposit > formData.total) {
-                notifyError(null, 'El abono no puede ser mayor al valor del pedido.')
                 return
             }
         } else {
@@ -223,12 +219,10 @@ export function OrderEditModal({ order, open, onOpenChange, onSuccess, lastClosu
                                     <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest pl-1">Valor Total del Pedido</Label>
                                     <div className="relative">
                                         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
-                                        <Input
-                                            type="number"
-                                            step="0.01"
-                                            className="h-11 pl-8 text-sm font-black text-slate-900 border-slate-200 rounded-xl focus:ring-monchito-purple/20"
-                                            value={formData.total}
-                                            onChange={(e) => setFormData({ ...formData, total: Number(e.target.value) })}
+                                        <DecimalTextField
+                                            className="h-11 pl-8 text-sm font-black text-slate-900 border-slate-200 rounded-xl focus-visible:ring-monchito-purple/20"
+                                            value={Number(formData.total) || 0}
+                                            onValueChange={(n) => setFormData({ ...formData, total: n })}
                                             required
                                         />
                                     </div>
@@ -237,14 +231,12 @@ export function OrderEditModal({ order, open, onOpenChange, onSuccess, lastClosu
                                     <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest pl-1">Abono Registrado</Label>
                                     <div className="relative">
                                         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-600 font-bold">$</span>
-                                        <Input
-                                            type="number"
-                                            step="0.01"
-                                            min="0"
-                                            max={formData.total}
-                                            className="h-11 pl-8 text-sm font-black text-emerald-700 border-slate-200 bg-white rounded-xl focus:ring-emerald-500/20"
-                                            value={formData.deposit}
-                                            onChange={(e) => setFormData({ ...formData, deposit: Number(e.target.value) })}
+                                        <DecimalTextField
+                                            className="h-11 pl-8 text-sm font-black text-emerald-700 border-slate-200 bg-white rounded-xl focus-visible:ring-emerald-500/20"
+                                            value={Number(formData.deposit) || 0}
+                                            onValueChange={(n) =>
+                                                setFormData({ ...formData, deposit: Math.max(0, Math.min(n, Number(formData.total) || 0)) })
+                                            }
                                             required
                                         />
                                     </div>

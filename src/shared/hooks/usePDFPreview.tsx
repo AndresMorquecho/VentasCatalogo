@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { pdf } from '@react-pdf/renderer';
+import { printReactPdfDocument } from '@/shared/lib/printReactPdf';
 
 interface UsePDFPreviewOptions {
     fileName: string;
@@ -61,18 +62,7 @@ export function usePDFPreview(options?: UsePDFPreviewOptions) {
         if (!pdfDocument) return;
 
         try {
-            const blob = await pdf(pdfDocument as any).toBlob();
-            const url = URL.createObjectURL(blob);
-            
-            // Open in new window for printing
-            const printWindow = window.open(url, '_blank');
-            if (printWindow) {
-                printWindow.onload = () => {
-                    printWindow.print();
-                };
-            }
-            
-            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            await printReactPdfDocument(pdfDocument);
         } catch (error) {
             console.error('Error printing PDF:', error);
             if (onError) {

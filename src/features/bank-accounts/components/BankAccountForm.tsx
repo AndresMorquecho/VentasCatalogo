@@ -8,6 +8,7 @@ import {
     DialogFooter
 } from "@/shared/ui/dialog"
 import { Input } from "@/shared/ui/input"
+import { DecimalTextField } from "@/shared/ui/DecimalTextField"
 import { Button } from "@/shared/ui/button"
 import { Label } from "@/shared/ui/label"
 import { Switch } from "@/shared/ui/switch"
@@ -121,11 +122,11 @@ export function BankAccountForm({ account, open, onOpenChange }: BankAccountForm
 
                     <div className="space-y-2">
                         <Label htmlFor="currentBalance">Saldo Actual ($)</Label>
-                        <Input
+                        <DecimalTextField
                             id="currentBalance"
-                            type="number"
-                            step="0.01"
-                            {...formik.getFieldProps('currentBalance')}
+                            value={Number(formik.values.currentBalance) || 0}
+                            onValueChange={(n) => formik.setFieldValue('currentBalance', n)}
+                            onBlur={() => formik.setFieldTouched('currentBalance', true)}
                         />
                         {formik.touched.currentBalance && formik.errors.currentBalance && (
                             <p className="text-red-500 text-xs">{formik.errors.currentBalance}</p>

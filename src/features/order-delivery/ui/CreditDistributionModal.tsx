@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { cn } from "@/shared/lib/utils"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/ui/dialog"
 import { Button } from "@/shared/ui/button"
-import { Input } from "@/shared/ui/input"
+import { DecimalTextField } from "@/shared/ui/DecimalTextField"
 import { Checkbox } from "@/shared/ui/checkbox"
 import { Label } from "@/shared/ui/label"
 import { Receipt, Building2, Wallet as WalletIcon } from "lucide-react"
@@ -239,14 +239,10 @@ export function CreditDistributionModal({
                                 {isSelected ? (
                                   <>
                                     <span className="text-slate-600 text-sm font-medium">$</span>
-                                    <Input
-                                      type="number"
+                                    <DecimalTextField
                                       value={distribution.amount}
-                                      onChange={(e) => handleAmountChange(order.id, Number(e.target.value))}
+                                      onValueChange={(n) => handleAmountChange(order.id, n)}
                                       className="h-8 text-sm border-monchito-purple/20 px-2 w-24"
-                                      min={0}
-                                      max={Math.min(order.pendingAmount, remaining + distribution.amount)}
-                                      step={0.01}
                                     />
                                   </>
                                 ) : (

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Edit2, Trash2, Briefcase, Calendar, Target } from 'lucide-react';
+import { Plus, Edit2, Trash2, Briefcase, Calendar, Target, Pause, Play, Loader2 } from 'lucide-react';
 import { useLoyaltyRules, useLoyaltyPrizes } from '../model/hooks';
 import type { LoyaltyRule, LoyaltyRuleFormData, RuleType } from '../model/types';
 import { Button } from '@/shared/ui/button';
@@ -50,6 +50,7 @@ export function LoyaltyRules() {
     const [deleteTarget, setDeleteTarget] = useState<LoyaltyRule | null>(null);
     const [editTarget, setEditTarget] = useState<LoyaltyRule | null>(null);
     const [form, setForm] = useState<LoyaltyRuleFormData>(EMPTY_FORM);
+    const [togglingRuleId, setTogglingRuleId] = useState<string | null>(null);
 
     const openCreate = () => {
         if (!hasPermission('loyalty.create_rule')) {
@@ -115,6 +116,25 @@ export function LoyaltyRules() {
         }));
     };
 
+    const handleToggleStatus = async (rule: LoyaltyRule) => {
+        if (!hasPermission('loyalty.edit_rule')) {
+            notifyError({ message: "No tienes permiso para editar reglas" });
+            return;
+        }
+        try {
+            setTogglingRuleId(rule.id);
+            await updateRule({ 
+                id: rule.id, 
+                data: { isActive: !rule.isActive } 
+            });
+            notifySuccess(`La regla "${rule.name}" fue ${!rule.isActive ? 'activada' : 'pausada'} correctamente.`);
+        } catch (error) {
+            notifyError(error, "Error al cambiar estado de la regla");
+        } finally {
+            setTogglingRuleId(null);
+        }
+    };
+
     if (isLoading) return <div className="space-y-4">{[1, 2, 3].map(i => <Skeleton key={i} className="h-24 w-full rounded-xl" />)}</div>;
 
     return (
@@ -138,7 +158,23 @@ export function LoyaltyRules() {
                                 <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{rule.description || 'Sin descripción'}</p>
                             </div>
                             <div className="flex gap-2">
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:bg-blue-50" onClick={() => openEdit(rule)}>
+                                <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className={`h-8 w-8 transition-colors ${rule.isActive ? 'text-amber-500 hover:bg-amber-50' : 'text-emerald-500 hover:bg-emerald-50'}`} 
+                                    onClick={() => handleToggleStatus(rule)}
+                                    title={rule.isActive ? "Pausar regla" : "Activar regla"}
+                                    disabled={togglingRuleId === rule.id}
+                                >
+                                    {togglingRuleId === rule.id ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : rule.isActive ? (
+                                        <Pause className="h-4 w-4" />
+                                    ) : (
+                                        <Play className="h-4 w-4" />
+                                    )}
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:bg-blue-50" onClick={() => openEdit(rule)} title="Editar regla">
                                     <Edit2 className="h-4 w-4" />
                                 </Button>
                                 <Button 

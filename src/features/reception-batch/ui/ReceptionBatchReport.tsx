@@ -1,5 +1,6 @@
 import React from 'react';
 import { Page, Text, View, Document, StyleSheet, Image } from '@react-pdf/renderer';
+import { formatPdfCurrency } from '@/shared/lib/formatPdfCurrency';
 import type { Order } from '@/entities/order/model/types';
 import { getPaidAmount, getPendingAmount, getEffectiveTotal } from '@/entities/order/model/model';
 
@@ -147,7 +148,7 @@ export const ReceptionBatchReport: React.FC<Props> = ({ orders, packingNumber, p
                     </View>
                     <View style={styles.metaRow}>
                         <Text style={styles.metaLabel}>VALOR PACKING:</Text>
-                        <Text style={styles.metaValue}>{Number(packingTotal).toFixed(2)}</Text>
+                        <Text style={styles.metaValue}>{formatPdfCurrency(packingTotal)}</Text>
                     </View>
                 </View>
 
@@ -173,13 +174,13 @@ export const ReceptionBatchReport: React.FC<Props> = ({ orders, packingNumber, p
                             <Text style={[styles.tableCell, styles.colDocType]}>{o.documentType || 'FACTURA'}</Text>
                             <Text style={[styles.tableCell, styles.colInvNo]}>{o.invoiceNumber || '-'}</Text>
                             <Text style={[styles.tableCell, styles.colAbono]}>
-                                {getPaidAmount(o).toFixed(2)}
+                                {formatPdfCurrency(getPaidAmount(o))}
                             </Text>
                             <Text style={[styles.tableCell, styles.colTotal]}>
-                                {getEffectiveTotal(o).toFixed(2)}
+                                {formatPdfCurrency(getEffectiveTotal(o))}
                             </Text>
                             <Text style={[styles.tableCell, styles.colSaldo, styles.tableCellLast]}>
-                                {getPendingAmount(o).toFixed(2)}
+                                {formatPdfCurrency(getPendingAmount(o))}
                             </Text>
                         </View>
                     ))}
@@ -190,10 +191,10 @@ export const ReceptionBatchReport: React.FC<Props> = ({ orders, packingNumber, p
                        <Text style={{ fontSize: 9, color: '#64748b' }}>Cantidad de pedidos: {orders.length}</Text>
                     </View>
                     <View style={{ flexDirection: 'column', alignItems: 'flex-end', backgroundColor: '#f8fafc', padding: 10, borderRadius: 5, border: '1pt solid #e2e8f0' }}>
-                        <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#0f172a' }}>TOTAL VALOR FACTURAS: ${totalInvoices.toFixed(2)}</Text>
-                        <Text style={{ fontSize: 10, marginTop: 4, color: '#059669', fontWeight: 'bold' }}>TOTAL ABONOS RECIBIDOS: ${totalAbonos.toFixed(2)}</Text>
+                        <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#0f172a' }}>TOTAL VALOR FACTURAS: {formatPdfCurrency(totalInvoices)}</Text>
+                        <Text style={{ fontSize: 10, marginTop: 4, color: '#059669', fontWeight: 'bold' }}>TOTAL ABONOS RECIBIDOS: {formatPdfCurrency(totalAbonos)}</Text>
                         <View style={{ height: 1, backgroundColor: '#cbd5e1', width: 150, marginVertical: 4 }} />
-                        <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#b45309' }}>SALDO PENDIENTE TOTAL: ${totalPending.toFixed(2)}</Text>
+                        <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#b45309' }}>SALDO PENDIENTE TOTAL: {formatPdfCurrency(totalPending)}</Text>
                     </View>
                 </View>
             </Page>

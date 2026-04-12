@@ -107,19 +107,28 @@ export function ExchangesPage() {
 
     setIsUpdatingStatus(true);
     try {
-      // 1. Update orders in backend
+      const { guideSequential } = await orderApi.allocateExchangeShippingGuideSerial();
+
       for (const o of stagedOrders) {
-        await orderApi.update(o.id, { 
-          status: 'POR_RECIBIR', 
-          trackingGuide: shipmentData.trackingGuide 
+        await orderApi.update(o.id, {
+          status: 'POR_RECIBIR',
+          trackingGuide: shipmentData.trackingGuide,
+          exchangeShippingGuideSeq: guideSequential,
         } as any);
       }
 
-      // 2. Prepare PDF data
+      const pdfOrders = stagedOrders.map((o) => ({
+        ...o,
+        trackingGuide: shipmentData.trackingGuide,
+        exchangeShippingGuideSeq: guideSequential,
+      }));
+
       const { document, fileName, title } = await prepareExchangeShipmentReceiptForPreview(
-        stagedOrders,
+        pdfOrders,
         user as any,
-        shipmentData.trackingGuide
+        shipmentData.trackingGuide,
+        undefined,
+        guideSequential
       );
 
       // 3. Open Preview

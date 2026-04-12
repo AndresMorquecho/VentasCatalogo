@@ -6,6 +6,7 @@ import { useClientCredits } from "@/features/transactions/model/hooks"
 import { getPaidAmount } from "@/entities/order/model/model"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/ui/dialog"
 import { Input } from "@/shared/ui/input"
+import { DecimalTextField } from "@/shared/ui/DecimalTextField"
 import { Label } from "@/shared/ui/label"
 import { Button } from "@/shared/ui/button"
 import { AsyncButton } from "@/shared/ui/async-button"
@@ -97,7 +98,6 @@ export function ExchangeEditModal({ order, open, onOpenChange, onSuccess, bankAc
         // 1. Validations
         if (hasExistingDeposit) {
             if (formData.deposit < 0) return notifyError(null, 'El abono no puede ser negativo.')
-            if (formData.deposit > formData.total) return notifyError(null, 'El abono no puede ser mayor al valor.')
         } else {
             if (formData.paymentMethod === 'BILLETERA_VIRTUAL' && formData.deposit > walletBalance) {
                 return notifyError(null, `Saldo insuficiente. Disponible: $${walletBalance.toFixed(2)}`)
@@ -227,11 +227,10 @@ export function ExchangeEditModal({ order, open, onOpenChange, onSuccess, bankAc
                                     <Label className="text-[11px] font-bold text-slate-600">Valor del Cambio ($)</Label>
                                     <div className="relative">
                                         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
-                                        <Input 
-                                            type="number"
-                                            value={formData.total} 
-                                            onChange={(e) => setFormData({ ...formData, total: Number(e.target.value) })} 
-                                            className="h-11 pl-8 text-xs font-black text-slate-800 border-slate-200 rounded-xl focus:ring-monchito-purple/20" 
+                                        <DecimalTextField
+                                            value={Number(formData.total) || 0}
+                                            onValueChange={(n) => setFormData({ ...formData, total: n })}
+                                            className="h-11 pl-8 text-xs font-black text-slate-800 border-slate-200 rounded-xl focus-visible:ring-monchito-purple/20"
                                         />
                                     </div>
                                 </div>
@@ -239,11 +238,10 @@ export function ExchangeEditModal({ order, open, onOpenChange, onSuccess, bankAc
                                     <Label className="text-[11px] font-bold text-slate-600">Abono Inicial ($)</Label>
                                     <div className="relative">
                                         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-600 font-bold">$</span>
-                                        <Input 
-                                            type="number"
-                                            value={formData.deposit} 
-                                            onChange={(e) => setFormData({ ...formData, deposit: Number(e.target.value) })} 
-                                            className="h-11 pl-8 text-xs font-black text-emerald-700 border-slate-200 bg-emerald-50/20 rounded-xl focus:ring-emerald-500/20" 
+                                        <DecimalTextField
+                                            value={Number(formData.deposit) || 0}
+                                            onValueChange={(n) => setFormData({ ...formData, deposit: n })}
+                                            className="h-11 pl-8 text-xs font-black text-emerald-700 border-slate-200 bg-emerald-50/20 rounded-xl focus-visible:ring-emerald-500/20"
                                         />
                                     </div>
                                 </div>

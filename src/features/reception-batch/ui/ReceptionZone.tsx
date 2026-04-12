@@ -1,5 +1,6 @@
 import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
+import { DecimalTextField } from "@/shared/ui/DecimalTextField"
 import { Label } from "@/shared/ui/label"
 import { SelectedOrdersTable } from "./SelectedOrdersTable"
 import { ArrowDown, CheckCircle } from "lucide-react"
@@ -126,16 +127,11 @@ export function ReceptionZone({
                             </div>
                             <div className="flex flex-col gap-1">
                                 <Label className="text-[10px] text-monchito-purple font-black uppercase tracking-widest">Valor Packing ($)</Label>
-                                <Input 
-                                    type="text"
-                                    inputMode="decimal"
-                                    placeholder="0.00" 
+                                <DecimalTextField
+                                    placeholder="0.00"
                                     value={packingTotal}
-                                    onChange={(e) => {
-                                        const val = e.target.value.replace(/[^0-9.]/g, '');
-                                        setPackingTotal(Number(val));
-                                    }}
-                                    className="h-8 text-xs w-28 bg-white border-monchito-purple/20 focus:ring-monchito-purple/20 font-mono font-bold text-monchito-purple hide-spinner"
+                                    onValueChange={setPackingTotal}
+                                    className="h-8 text-xs w-28 bg-white border-monchito-purple/20 focus-visible:ring-monchito-purple/20 font-mono font-bold text-monchito-purple hide-spinner shadow-none"
                                     data-nav-group="batch-header"
                                     data-nav-index={1}
                                     onKeyDown={(e) => handleMainKeyDown(e, 'batch-header', 1)}

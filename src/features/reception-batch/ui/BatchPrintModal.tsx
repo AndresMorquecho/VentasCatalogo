@@ -272,7 +272,7 @@ export function BatchPrintModal({ isOpen, onClose, orders, batchDetails }: Props
                     onOpenChange={setPreviewOpen}
                     title={previewContent.title}
                     fileName={previewContent.fileName}
-                    pdfDocument={previewContent.document}
+                    pdfDocument={previewContent.document!}
                     onDownload={() => downloadPdf(previewContent.document!, previewContent.fileName)}
                 />
             )}

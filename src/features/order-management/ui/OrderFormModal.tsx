@@ -10,6 +10,7 @@ import {
     DialogFooter
 } from "@/shared/ui/dialog"
 import { Input } from "@/shared/ui/input"
+import { DecimalTextField } from "@/shared/ui/DecimalTextField"
 import { Button } from "@/shared/ui/button"
 import { AsyncButton } from "@/shared/ui/async-button"
 import { Label } from "@/shared/ui/label"
@@ -560,13 +561,10 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                                         <Label>Valor Pedido</Label>
                                         <div className="relative">
                                             <span className="absolute left-2 top-2.5 text-muted-foreground">$</span>
-                                            <Input
-                                                type="number"
-                                                value={item.total}
-                                                onChange={(e) => formik.setFieldValue(`brandItems.${index}.total`, Number(e.target.value))}
+                                            <DecimalTextField
+                                                value={Number(item.total) || 0}
+                                                onValueChange={(n) => formik.setFieldValue(`brandItems.${index}.total`, n)}
                                                 className="pl-6"
-                                                min="0"
-                                                step="0.01"
                                             />
                                         </div>
                                     </div>
@@ -609,7 +607,13 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                                 </div>
                                 <div className="relative">
                                     <span className="absolute left-2 top-2.5 text-muted-foreground">$</span>
-                                    <Input type="number" id="deposit" {...formik.getFieldProps('deposit')} className="pl-6" min="0" step="0.01" />
+                                    <DecimalTextField
+                                        id="deposit"
+                                        className="pl-6"
+                                        value={Number(formik.values.deposit) || 0}
+                                        onValueChange={(n) => formik.setFieldValue('deposit', n)}
+                                        onBlur={() => formik.setFieldTouched('deposit', true)}
+                                    />
                                 </div>
                                 {formik.touched.deposit && formik.errors.deposit && (
                                     <p className="text-red-500 text-xs">{formik.errors.deposit}</p>
@@ -622,15 +626,15 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
                                     <div className="flex gap-2">
                                         <div className="relative flex-1">
                                             <span className="absolute left-2 top-1.5 text-xs text-emerald-600">$</span>
-                                            <Input
-                                                type="number"
-                                                className="pl-5 h-8 bg-white border-emerald-200 focus:ring-emerald-500"
+                                            <DecimalTextField
+                                                className="pl-5 h-8 bg-white border-emerald-200 focus-visible:ring-emerald-500"
                                                 placeholder="Monto a usar"
-                                                {...formik.getFieldProps('creditToUse')}
-                                                onChange={(e) => {
-                                                    const val = Math.min(Number(e.target.value), totalCredit, totalOrderValue - Number(formik.values.deposit));
+                                                value={Number(formik.values.creditToUse) || 0}
+                                                onValueChange={(n) => {
+                                                    const val = Math.min(n, totalCredit, totalOrderValue - Number(formik.values.deposit));
                                                     formik.setFieldValue('creditToUse', val > 0 ? val : 0);
                                                 }}
+                                                onBlur={() => formik.setFieldTouched('creditToUse', true)}
                                             />
                                         </div>
                                         {Number(formik.values.creditToUse) > 0 ? (

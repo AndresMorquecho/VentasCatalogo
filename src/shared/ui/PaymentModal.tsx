@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/ui/dialog";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
+import { DecimalTextField } from "@/shared/ui/DecimalTextField";
 import { AsyncButton } from "@/shared/ui/async-button";
 import { AlertTriangle, Wallet, RefreshCw } from "lucide-react";
 import { useBankAccountList } from "@/features/bank-accounts/api/hooks";
@@ -418,21 +419,16 @@ export function PaymentModal({
                                             <label className="text-[10px] font-black uppercase tracking-widest text-monchito-purple/60 px-1">Monto</label>
                                             <div className="relative group">
                                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-monchito-purple/40 font-bold">$</span>
-                                                <Input
-                                                    type="number"
-                                                    step="0.01"
-                                                    min="0"
-                                                    max={expectedAmount > 0 ? expectedAmount : undefined}
-                                                    value={payment.amount === 0 ? '' : payment.amount}
-                                                    onChange={(e) => {
-                                                        const rawValue = e.target.value;
-                                                        const value = rawValue === '' ? 0 : parseFloat(rawValue) || 0;
-                                                        const limitedValue = (!lockAmount && expectedAmount > 0)
-                                                            ? Math.min(value, expectedAmount)
-                                                            : value;
+                                                <DecimalTextField
+                                                    value={payment.amount}
+                                                    onValueChange={(value) => {
+                                                        const limitedValue =
+                                                            !lockAmount && expectedAmount > 0
+                                                                ? Math.min(value, expectedAmount)
+                                                                : value;
                                                         updatePayment(payment.id, { amount: limitedValue });
                                                     }}
-                                                    className="h-9 pl-6 pr-12 text-xs text-monchito-purple border-monchito-purple/20 rounded-xl bg-white focus:ring-2 focus:ring-monchito-purple/20 hide-spinner"
+                                                    className="h-9 pl-6 pr-12 text-xs text-monchito-purple border-monchito-purple/20 rounded-xl bg-white focus-visible:ring-2 focus-visible:ring-monchito-purple/20 hide-spinner shadow-none"
                                                     placeholder="0.00"
                                                 />
                                                 {expectedAmount > 0 && (

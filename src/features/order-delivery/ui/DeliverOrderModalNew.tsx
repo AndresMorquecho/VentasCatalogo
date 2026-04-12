@@ -1,4 +1,4 @@
-import { useRef, useState, useMemo, useEffect } from "react"
+import { useRef, useState, useMemo, useEffect, type ReactElement } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import type { Order } from "@/entities/order/model/types"
 import type { CreditDistribution } from "@/entities/financial-record/model/types"
@@ -9,13 +9,21 @@ import { useAuth } from "@/shared/auth/AuthProvider"
 import { useNotifications } from "@/shared/lib/notifications"
 import { logAction } from "@/shared/lib/auditService"
 import { useClientCredit } from "@/features/wallet/model/hooks"
+import { clientCreditApi } from "@/shared/api/clientCreditApi"
 import { prepareBatchDeliveryReceiptForPreview } from "../lib/generateDeliveryReceiptWithPreview"
+import {
+    buildOrdersByIdForDistributionPdf,
+    prepareCreditDistributionSummaryForPreview,
+} from "../lib/prepareCreditDistributionSummaryForPreview"
 import { usePDFPreview } from "@/shared/hooks/usePDFPreview"
 import { PDFPreviewModal } from "@/shared/ui/PDFPreviewModal"
+import { DeliveryDocumentsChoiceModal } from "./DeliveryDocumentsChoiceModal"
 
 interface DeliverOrderModalProps {
     order: Order | null;
     orders?: Order[];
+    /** Pedidos visibles en la lista (misma página) para resolver recibo/marca en destinos de distribución */
+    contextOrders?: Order[];
     creditDistributions?: Record<string, CreditDistribution>;
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -26,6 +34,7 @@ interface DeliverOrderModalProps {
 export function DeliverOrderModalNew({ 
     order, 
     orders = [], 
+    contextOrders = [],
     creditDistributions = {},
     open, 
     onOpenChange, 
@@ -56,6 +65,14 @@ export function DeliverOrderModalNew({
             console.error('PDF Error:', error)
         }
     })
+
+    const [docsChoice, setDocsChoice] = useState<{
+        delivery: { document: ReactElement; fileName: string; title: string }
+        distribution: { document: ReactElement; fileName: string; title: string } | null
+    } | null>(null)
+    /** Selector de comprobante: se mantiene `docsChoice` al elegir uno para poder abrir el otro después. */
+    const [documentPickerOpen, setDocumentPickerOpen] = useState(false)
+    const skipPickerDismissClearRef = useRef(false)
 
     // Calculate totals safely including distributions
     const totalAmountToCharge = useMemo(() => {
@@ -107,8 +124,10 @@ export function DeliverOrderModalNew({
         if (!open) setDeliveryNumber('')
     }, [open])
 
-    // Keep component mounted if we are showing a PDF even if the orders are cleared
-    if (!firstOrder && !pdfPreview.pdfDocument) return null
+    const keepMountedForDocuments =
+        !!docsChoice || !!pdfPreview.pdfDocument
+
+    if (!firstOrder && !keepMountedForDocuments) return null
 
     const handlePaymentSubmit = async (data: PaymentModalData) => {
         if (!firstOrder) return;
@@ -147,6 +166,12 @@ export function DeliverOrderModalNew({
         }
         
         isProcessingRef.current = true
+
+        const ordersByIdSnapshot = buildOrdersByIdForDistributionPdf(
+            activeOrders,
+            creditDistributions,
+            contextOrders
+        )
 
         try {
             // Convert PaymentModal format to API format
@@ -189,26 +214,72 @@ export function DeliverOrderModalNew({
                 })
             )
 
-            // PDF Preview para el lote o pedido único
+            const distForPdf = distributionsList.filter(
+                (d) =>
+                    targetOrderIds.includes(d.sourceOrderId) &&
+                    (d.distributions?.length ?? 0) > 0
+            )
+
+            let clientWalletTotalAfter: number | null = null
+            if (distForPdf.length > 0 && firstOrder.clientId) {
+                try {
+                    const credits = await clientCreditApi.getAvailableByClient(firstOrder.clientId)
+                    clientWalletTotalAfter = credits.reduce(
+                        (s, c) => s + Number(c.remainingAmount ?? 0),
+                        0
+                    )
+                } catch (e) {
+                    console.warn('[DeliverOrderModalNew] No se pudo leer billetera para PDF distribución', e)
+                }
+            }
+
+            let distributionPrepared: {
+                document: ReactElement
+                fileName: string
+                title: string
+            } | null = null
+            if (distForPdf.length > 0) {
+                try {
+                    distributionPrepared = prepareCreditDistributionSummaryForPreview({
+                        distributions: distForPdf,
+                        ordersById: ordersByIdSnapshot,
+                        deliveryNumber: realDeliveryNumber,
+                        clientName: firstOrder.clientName,
+                        username: user?.username,
+                        clientWalletTotalAfter,
+                    })
+                } catch (distPdfErr) {
+                    console.error('Error preparando PDF distribución', distPdfErr)
+                    notifyError({
+                        message:
+                            'Entrega registrada, pero no se pudo generar el resumen de distribución de saldo',
+                    })
+                }
+            }
+
             try {
-                const { document, fileName, title } = await prepareBatchDeliveryReceiptForPreview(
-                    updatedOrders, 
+                const deliveryPrepared = await prepareBatchDeliveryReceiptForPreview(
+                    updatedOrders,
                     {
                         amountPaidNow: totalPaid,
                         method: paymentMethodString,
                         user: user?.username || 'Administrador',
                         currentCreditAmount: currentCreditAmount,
-                        hasCurrentCredit: currentCreditAmount > 0
+                        hasCurrentCredit: currentCreditAmount > 0,
                     },
                     realDeliveryNumber
                 )
-                
-                setPdfTitle(title)
-                setPdfFileName(fileName)
-                pdfPreview.openPreview(document)
+
+                setDocsChoice({
+                    delivery: deliveryPrepared,
+                    distribution: distributionPrepared,
+                })
+                setDocumentPickerOpen(true)
             } catch (pdfError) {
-                console.error("Error preparando PDF Batch", pdfError)
-                notifyError({ message: 'Entrega registrada pero hubo un error al generar el comprobante' })
+                console.error('Error preparando PDF Batch', pdfError)
+                notifyError({
+                    message: 'Entrega registrada pero hubo un error al generar el comprobante',
+                })
             }
 
             notifySuccess(isBatch 
@@ -262,6 +333,53 @@ export function DeliverOrderModalNew({
         }
     }
 
+    const openPreparedPreview = (p: { document: ReactElement; fileName: string; title: string }) => {
+        setPdfTitle(p.title)
+        setPdfFileName(p.fileName)
+        pdfPreview.openPreview(p.document)
+    }
+
+    const handlePickDelivery = () => {
+        if (!docsChoice) return
+        skipPickerDismissClearRef.current = true
+        setDocumentPickerOpen(false)
+        openPreparedPreview(docsChoice.delivery)
+    }
+
+    const handlePickDistribution = () => {
+        if (!docsChoice?.distribution) return
+        skipPickerDismissClearRef.current = true
+        setDocumentPickerOpen(false)
+        openPreparedPreview(docsChoice.distribution)
+    }
+
+    const handleDocumentPickerOpenChange = (v: boolean) => {
+        if (v) {
+            setDocumentPickerOpen(true)
+            return
+        }
+        setDocumentPickerOpen(false)
+        if (skipPickerDismissClearRef.current) {
+            skipPickerDismissClearRef.current = false
+            return
+        }
+        if (!pdfPreview.isOpen) {
+            setDocsChoice(null)
+        }
+    }
+
+    const handlePdfPreviewOpenChange = (nextOpen: boolean) => {
+        if (!nextOpen) {
+            const canOfferOtherDoc = !!docsChoice?.distribution
+            pdfPreview.closePreview()
+            if (canOfferOtherDoc) {
+                setDocumentPickerOpen(true)
+            } else {
+                setDocsChoice(null)
+            }
+        }
+    }
+
     return (
         <>
             {firstOrder && paymentContext && (
@@ -276,10 +394,21 @@ export function DeliverOrderModalNew({
                 />
             )}
 
+            {docsChoice && (
+                <DeliveryDocumentsChoiceModal
+                    open={documentPickerOpen}
+                    onOpenChange={handleDocumentPickerOpenChange}
+                    delivery={docsChoice.delivery}
+                    distribution={docsChoice.distribution}
+                    onPickDelivery={handlePickDelivery}
+                    onPickDistribution={handlePickDistribution}
+                />
+            )}
+
             {pdfPreview.pdfDocument && (
                 <PDFPreviewModal
                     open={pdfPreview.isOpen}
-                    onOpenChange={pdfPreview.closePreview}
+                    onOpenChange={handlePdfPreviewOpenChange}
                     title={pdfTitle}
                     pdfDocument={pdfPreview.pdfDocument}
                     fileName={pdfFileName}

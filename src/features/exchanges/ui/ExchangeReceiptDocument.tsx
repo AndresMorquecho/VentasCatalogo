@@ -1,5 +1,6 @@
 import React from 'react';
 import { Page, Text, View, Document, StyleSheet, Image } from '@react-pdf/renderer';
+import { formatPdfCurrency } from '@/shared/lib/formatPdfCurrency';
 import type { Order } from '@/entities/order/model/types';
 import type { User } from '@/entities/user/model/types';
 import type { Client } from '@/entities/client/model/types';
@@ -11,7 +12,6 @@ const styles = StyleSheet.create({
         fontFamily: 'Helvetica',
         backgroundColor: '#FFFFFF',
     },
-    // Header
     headerRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -35,7 +35,19 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         marginTop: 4,
     },
-    // Client Info
+    registryLine: {
+        fontSize: 10,
+        fontWeight: 'bold',
+        marginTop: 6,
+        color: '#333',
+    },
+    consecutiveLabel: {
+        fontSize: 9,
+        fontWeight: 'bold',
+        marginTop: 2,
+        color: '#555',
+        textTransform: 'uppercase',
+    },
     clientInfoSection: {
         marginBottom: 10,
     },
@@ -51,7 +63,6 @@ const styles = StyleSheet.create({
     infoValue: {
         fontWeight: 'normal',
     },
-    // Table (Box Style)
     table: {
         marginTop: 10,
         borderStyle: 'solid',
@@ -94,27 +105,25 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         display: 'flex',
     },
-    // Column Widths (Landscape - 10 col)
     colBrand: { width: '10%' },
-    colManual: { width: '10%' },
+    colManual: { width: '9%' },
     colQty: { width: '5%' },
-    colDescV: { width: '18%' },
-    colDescC: { width: '18%' },
+    colDescV: { width: '22%' },
+    colDescC: { width: '20%' },
     colQtyR: { width: '5%' },
-    colVal: { width: '9%' },
-    colAbo: { width: '8%' },
-    colSal: { width: '8%' },
-    colEnt: { width: '9%', borderRightWidth: 0 },
-
-    // Summary Line
+    colVal: { width: '8%' },
+    colAbo: { width: '7%' },
+    colSal: { width: '7%' },
+    colEnt: { width: '7%', borderRightWidth: 0 },
     summaryLine: {
         flexDirection: 'row',
+        flexWrap: 'wrap',
         justifyContent: 'space-between',
+        gap: 8,
         marginTop: 12,
         fontSize: 11,
         paddingHorizontal: 10,
     },
-    // Signatures
     signatureSection: {
         flexDirection: 'row',
         justifyContent: 'space-around',
@@ -141,35 +150,59 @@ interface ExchangeReceiptProps {
     orders: Order[];
     user?: User;
     client?: Client;
-    receiptNumber: string;
+    /** Consecutivo del cambio (CAM-AAAA-NNNN), mismo que en operación */
+    exchangeConsecutive?: string;
+    /** Referencia de recibo de venta (ej. PED), si aplica y no es CAM */
+    salesReceiptReference?: string;
     formattedDate: string;
     notes?: string;
 }
 
-export const ExchangeReceiptDocument: React.FC<ExchangeReceiptProps> = ({ 
-    orders, 
-    user, 
-    client, 
-    receiptNumber,
+export const ExchangeReceiptDocument: React.FC<ExchangeReceiptProps> = ({
+    orders,
+    user,
+    client,
+    exchangeConsecutive: exchangeConsecutiveProp,
+    salesReceiptReference,
     formattedDate,
-    notes
+    notes,
 }) => {
     const totalAbo = orders.reduce((sum, o) => sum + Number(getPaidAmount(o)), 0);
+    const totalValor = orders.reduce(
+        (sum, o) => sum + Number(o.realInvoiceTotal ?? o.total ?? 0),
+        0
+    );
     const logoUrl = '/images/BannerHeader.jpg';
+
+    const exchangeConsecutive =
+        exchangeConsecutiveProp ||
+        orders
+            .map((o) => o.orderNumber)
+            .find((n) => n && /^CAM-/i.test(String(n).trim())) ||
+        orders
+            .map((o) => o.receiptNumber)
+            .find((n) => n && /^CAM-/i.test(String(n).trim())) ||
+        undefined;
 
     return (
         <Document>
             <Page size="A4" orientation="landscape" style={styles.page}>
-                {/* HEADER */}
                 <View style={styles.headerRow}>
                     <Image style={styles.logo} src={logoUrl} />
                     <View style={styles.headerRight}>
-                        <Text style={styles.headerTitle}>NO. DE CAMBIO</Text>
-                        <Text style={styles.headerNumber}>{receiptNumber}</Text>
+                        <Text style={styles.headerTitle}>RECIBO DE CAMBIO</Text>
+                        {exchangeConsecutive ? (
+                            <>
+                                <Text style={styles.consecutiveLabel}>N° consecutivo cambio</Text>
+                                <Text style={styles.headerNumber}>{exchangeConsecutive}</Text>
+                            </>
+                        ) : null}
+                        {salesReceiptReference ? (
+                            <Text style={styles.registryLine}>Ref. recibo venta: {salesReceiptReference}</Text>
+                        ) : null}
                     </View>
                 </View>
 
-                {/* CLIENT INFO */}
                 <View style={styles.clientInfoSection}>
                     <View style={styles.clientInfoRow}>
                         <Text style={styles.infoLabel}>Cedula:</Text>
@@ -185,7 +218,6 @@ export const ExchangeReceiptDocument: React.FC<ExchangeReceiptProps> = ({
                     </View>
                 </View>
 
-                {/* TABLE */}
                 <View style={styles.table}>
                     <View style={styles.tableHeader}>
                         <Text style={[styles.tableHeaderCell, styles.colBrand]}>Cátalogo</Text>
@@ -194,15 +226,16 @@ export const ExchangeReceiptDocument: React.FC<ExchangeReceiptProps> = ({
                         <Text style={[styles.tableHeaderCell, styles.colDescV]}>DESCRIPCIÓN DE CAMBIO</Text>
                         <Text style={[styles.tableHeaderCell, styles.colDescC]}>CAMBIO POR</Text>
                         <Text style={[styles.tableHeaderCell, styles.colQtyR]}>cant</Text>
-                        <Text style={[styles.tableHeaderCell, styles.colVal]}>valor</Text>
-                        <Text style={[styles.tableHeaderCell, styles.colAbo]}>abono</Text>
-                        <Text style={[styles.tableHeaderCell, styles.colSal]}>saldo</Text>
-                        <Text style={[styles.tableHeaderCell, styles.colEnt]}>P. Entrega</Text>
+                        <Text style={[styles.tableHeaderCell, styles.colVal]}>Valor</Text>
+                        <Text style={[styles.tableHeaderCell, styles.colAbo]}>Abono</Text>
+                        <Text style={[styles.tableHeaderCell, styles.colSal]}>Saldo</Text>
+                        <Text style={[styles.tableHeaderCell, styles.colEnt]}>P. entrega</Text>
                     </View>
 
                     {orders.map((o, idx) => {
                         const paid = getPaidAmount(o);
-                        const pending = Number(o.total) - paid;
+                        const totalVal = Number(o.realInvoiceTotal ?? o.total ?? 0);
+                        const pending = Math.max(0, totalVal - paid);
                         return (
                             <View key={idx} style={styles.tableRow}>
                                 <Text style={[styles.tableCell, styles.colBrand]}>{o.brandName?.toUpperCase()}</Text>
@@ -211,33 +244,37 @@ export const ExchangeReceiptDocument: React.FC<ExchangeReceiptProps> = ({
                                 <Text style={[styles.tableCell, styles.colDescV]}>{o.sourceDescription || 'N/A'}</Text>
                                 <Text style={[styles.tableCell, styles.colDescC]}>{o.description || 'N/A'}</Text>
                                 <Text style={[styles.tableCell, styles.colQtyR]}>{o.items?.[0]?.quantity || 1}</Text>
-                                <Text style={[styles.tableCell, styles.colVal]}>{Number(o.total).toFixed(0)}</Text>
-                                <Text style={[styles.tableCell, styles.colAbo]}>{paid.toFixed(0)}</Text>
-                                <Text style={[styles.tableCell, styles.colSal]}>{pending.toFixed(0)}</Text>
+                                <Text style={[styles.tableCell, styles.colVal]}>{formatPdfCurrency(totalVal)}</Text>
+                                <Text style={[styles.tableCell, styles.colAbo]}>{formatPdfCurrency(paid)}</Text>
+                                <Text style={[styles.tableCell, styles.colSal]}>{formatPdfCurrency(pending)}</Text>
                                 <Text style={[styles.tableCell, styles.colEnt]}>
-                                    {o.possibleDeliveryDate ? new Date(o.possibleDeliveryDate).toLocaleDateString('es-EC') : 'N/A'}
+                                    {o.possibleDeliveryDate
+                                        ? new Date(o.possibleDeliveryDate).toLocaleDateString('es-EC')
+                                        : 'N/A'}
                                 </Text>
                             </View>
                         );
                     })}
                 </View>
 
-                {/* SUMMARY LINE */}
                 <View style={styles.summaryLine}>
                     <Text style={{ fontWeight: 'bold' }}>N° DE CAMBIOS: {orders.length}</Text>
                     <Text style={{ fontWeight: 'bold' }}>Forma de pago: {orders[0]?.paymentMethod || 'EFECTIVO'}</Text>
-                    <Text style={{ fontSize: 13, fontWeight: 'bold' }}>VALOR CANCELADO: {totalAbo.toFixed(2)}</Text>
+                    <Text style={{ fontSize: 10, fontWeight: 'bold' }}>
+                        Total valor: {formatPdfCurrency(totalValor)}
+                    </Text>
+                    <Text style={{ fontSize: 13, fontWeight: 'bold' }}>
+                        Total abonado: {formatPdfCurrency(totalAbo)}
+                    </Text>
                 </View>
 
-                {/* ADDITIONAL NOTES */}
                 {notes && (
                     <View style={{ marginTop: 15, paddingHorizontal: 10 }}>
-                        <Text style={{ fontSize: 10, fontWeight: 'bold', marginBottom: 2 }}>Notas adicionales de la guía:</Text>
+                        <Text style={{ fontSize: 10, fontWeight: 'bold', marginBottom: 2 }}>Notas adicionales:</Text>
                         <Text style={{ fontSize: 9, color: '#333' }}>{notes}</Text>
                     </View>
                 )}
 
-                {/* SIGNATURES */}
                 <View style={styles.signatureSection}>
                     <View style={styles.signatureBlock}>
                         <View style={styles.signatureLine} />

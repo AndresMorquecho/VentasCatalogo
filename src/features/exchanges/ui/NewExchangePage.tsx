@@ -6,6 +6,7 @@ import * as Yup from "yup"
 import { ArrowLeft, Plus, RefreshCw, Printer, FileText, PackageOpen, Pencil, Save, Trash2, Pin, PinOff } from "lucide-react"
 
 import { Input } from "@/shared/ui/input"
+import { DecimalTextField } from "@/shared/ui/DecimalTextField"
 import { Button } from "@/shared/ui/button"
 import { AsyncButton } from "@/shared/ui/async-button"
 import { Label } from "@/shared/ui/label"
@@ -191,15 +192,12 @@ export function NewExchangePage() {
 
   const generateNextOrderNumber = async () => {
     try {
-      // Clear before fetching to avoid stale UI
       formik.setFieldValue("orderNumber", "");
-      
-      const { orderNumber } = await orderApi.generateOrderNumber();
-      const formatted = orderNumber.replace('PD-', 'CAM-');
-      
-      console.log("New automatic consecutive generated:", formatted);
-      formik.setFieldValue("orderNumber", formatted);
-    } catch (e) { console.error(e); }
+      const { orderNumber } = await orderApi.generateExchangeReceiptNumber();
+      formik.setFieldValue("orderNumber", orderNumber);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   useEffect(() => { if (!isEditing) generateNextOrderNumber(); }, [isEditing]);
@@ -506,18 +504,10 @@ export function NewExchangePage() {
           </CardHeader>
           <CardContent className="p-3 grid grid-cols-1 md:grid-cols-12 gap-4 items-center flex-1">
             <div className="md:col-span-3 space-y-1">
-              <Label className="text-xs font-bold text-slate-600">N° Consecutivo (CAM):</Label>
-              {isEditing ? (
-                <div className="h-8 w-full px-3 border border-slate-200 bg-slate-100 text-slate-500 rounded-lg text-[11px] font-black tracking-tight flex items-center cursor-not-allowed select-none">
-                  {formik.values.orderNumber || '—'}
-                </div>
-              ) : (
-                <Input 
-                  value={formik.values.orderNumber} 
-                  onChange={e => formik.setFieldValue("orderNumber", e.target.value.toUpperCase())}
-                  className="h-8 w-full px-3 border-slate-200 bg-monchito-purple/5 text-monchito-purple rounded-lg text-[11px] font-black tracking-tight focus:ring-1 focus:ring-monchito-purple" 
-                />
-              )}
+              <Label className="text-xs font-bold text-slate-600">N° Consecutivo (CAM = N° reg. envío):</Label>
+              <div className="h-8 w-full px-3 border border-slate-200 bg-slate-100 text-slate-600 rounded-lg text-[11px] font-black tracking-tight flex items-center cursor-not-allowed select-none">
+                {formik.values.orderNumber || '—'}
+              </div>
             </div>
             <div className="md:col-span-3 space-y-1">
               <Label className="text-xs font-bold text-slate-600">Fecha:</Label>
@@ -591,7 +581,7 @@ export function NewExchangePage() {
               </div>
               <div className="col-span-1 sm:col-span-1 flex flex-col gap-1.5">
                 <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-right pr-2">Valor</Label>
-                <Input type="number" value={currentItem.total} onChange={e => setCurrentItem({ ...currentItem, total: Number(e.target.value) })} className="h-9 rounded-lg text-right text-[11px] font-medium text-emerald-600 px-4 border-slate-200" placeholder="0" />
+                <DecimalTextField value={Number(currentItem.total) || 0} onValueChange={(n) => setCurrentItem({ ...currentItem, total: n })} className="h-9 rounded-lg text-right text-[11px] font-medium text-emerald-600 px-4 border-slate-200" placeholder="0" />
               </div>
               <div className="col-span-1 sm:col-span-2 flex flex-col gap-1.5">
                 <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">Entrega</Label>
@@ -687,13 +677,11 @@ export function NewExchangePage() {
                           {(!isEditing || !item.status || Number(item.deposit || 0) === 0) ? (
                             <div className="flex justify-end items-center gap-1">
                                 <span className="text-emerald-400 text-[10px] font-bold">$</span>
-                                <input 
-                                  type="number" 
-                                  className="w-16 h-7 text-right rounded-lg border border-monchito-purple/10 bg-transparent text-[11px] font-black text-emerald-600 outline-none focus:ring-1 focus:ring-monchito-purple/30 hide-spinner"
-                                  value={item.total === 0 ? '' : item.total}
-                                  onChange={(e) => {
+                                <DecimalTextField
+                                  className="w-20 h-7 text-right rounded-lg border border-monchito-purple/10 bg-transparent text-[11px] font-black text-emerald-600 outline-none focus-visible:ring-1 focus-visible:ring-monchito-purple/30 hide-spinner shadow-none"
+                                  value={Number(item.total) || 0}
+                                  onValueChange={(val) => {
                                     const newItems = [...formik.values.brandItems];
-                                    const val = e.target.value === '' ? 0 : Number(e.target.value);
                                     newItems[idx] = { ...newItems[idx], total: val };
                                     formik.setFieldValue("brandItems", newItems);
                                   }}
@@ -707,14 +695,12 @@ export function NewExchangePage() {
                           {(!isEditing || !item.status || Number(item.deposit || 0) === 0) ? (
                             <div className="flex justify-center items-center gap-1">
                                 <span className="text-emerald-600 text-[10px] font-bold">$</span>
-                                <input 
-                                  type="number" 
-                                  className="w-16 h-7 text-center rounded-lg border border-monchito-purple/10 bg-monchito-purple/5 text-[11px] font-black text-emerald-700 outline-none focus:ring-1 focus:ring-monchito-purple/30 hide-spinner"
-                                  value={item.deposit === 0 ? '' : item.deposit}
-                                  onChange={(e) => {
+                                <DecimalTextField
+                                  className="w-20 h-7 text-center rounded-lg border border-monchito-purple/10 bg-monchito-purple/5 text-[11px] font-black text-emerald-700 outline-none focus-visible:ring-1 focus-visible:ring-monchito-purple/30 hide-spinner shadow-none"
+                                  value={Number(item.deposit) || 0}
+                                  onValueChange={(rawVal) => {
                                     const newItems = [...formik.values.brandItems];
-                                    const rawVal = e.target.value === '' ? 0 : Number(e.target.value);
-                                    newItems[idx] = { ...newItems[idx], deposit: Math.min(rawVal, Number(item.total)) };
+                                    newItems[idx] = { ...newItems[idx], deposit: rawVal };
                                     formik.setFieldValue("brandItems", newItems);
                                   }}
                                 />
@@ -760,7 +746,7 @@ export function NewExchangePage() {
           </div>
           <div className="flex gap-2 w-full md:w-auto">
             {!isEditing ? (
-              <AsyncButton onClick={() => handleMainSave('POR_ENVIAR')} className="h-12 px-8 bg-monchito-purple font-black shadow-lg shadow-monchito-purple/20 rounded-xl" isLoading={isSubmitting}><PackageOpen className="mr-2 h-5 w-5" /> Guardar Recolección</AsyncButton>
+              <AsyncButton onClick={() => handleMainSave('POR_ENVIAR')} className="h-12 px-8 bg-monchito-purple font-black shadow-lg shadow-monchito-purple/20 rounded-xl" isLoading={isSubmitting}><PackageOpen className="mr-2 h-5 w-5" /> Guardar cambios</AsyncButton>
             ) : (
               <>
                 <Button variant="outline" className="h-12 px-6 font-black rounded-xl border-slate-900" onClick={handlePrint}><Printer className="mr-2 h-5 w-5" /> Imprimir</Button>
