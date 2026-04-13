@@ -16,22 +16,25 @@ const styles = StyleSheet.create({
     /** Una sola malla: 3 columnas, filas según contenido — sin reservar “mitad de hoja” */
     labelsGrid: {
         width: '100%',
+        height: '100%',
         flexDirection: 'row',
         flexWrap: 'wrap',
         alignContent: 'flex-start',
     },
     labelCell: {
-        width: '33.33%',
-        paddingHorizontal: 3,
-        paddingBottom: 6,
-        paddingTop: 2,
+        width: '50%',
+        height: '16.66%', // 6 filas (100% / 6)
+        paddingHorizontal: 4,
+        paddingVertical: 3,
     },
     labelContent: {
         width: '100%',
-        borderWidth: 0.5,
+        height: '100%', // Que ocupe todo el espacio de la celda
+        borderWidth: 0.75,
         borderColor: '#000',
-        padding: 4,
+        padding: 8,
         flexDirection: 'column',
+        justifyContent: 'space-between',
     },
     headerMainRow: {
         flexDirection: 'row',
@@ -51,16 +54,16 @@ const styles = StyleSheet.create({
         minWidth: 0,
     },
     clientName: {
-        fontSize: 6.5,
+        fontSize: 8.5, // Aumentado
         fontWeight: 'bold',
         textTransform: 'uppercase',
-        marginBottom: 3,
+        marginBottom: 4,
     },
     clientInfoSub: {
-        fontSize: 5,
+        fontSize: 6, // Aumentado
         fontStyle: 'italic',
         color: '#333',
-        lineHeight: 1.35,
+        lineHeight: 1.4,
     },
     brandCol: {
         width: '30%',
@@ -68,11 +71,11 @@ const styles = StyleSheet.create({
         alignItems: 'flex-end',
     },
     brandNameHeader: {
-        fontSize: 7,
+        fontSize: 9, // Aumentado
         fontWeight: 'bold',
         textTransform: 'uppercase',
         textAlign: 'right',
-        marginBottom: 3,
+        marginBottom: 4,
     },
     prendasRow: {
         flexDirection: 'row',
@@ -91,10 +94,10 @@ const styles = StyleSheet.create({
         borderColor: '#000',
     },
     receiptNumberLine: {
-        fontSize: 5.5,
+        fontSize: 7, // Aumentado
         fontWeight: 'bold',
-        marginTop: 2,
-        marginBottom: 5,
+        marginTop: 4,
+        marginBottom: 6,
         textTransform: 'uppercase',
     },
     table: {
@@ -108,9 +111,9 @@ const styles = StyleSheet.create({
         borderBottomColor: '#000',
     },
     tableHeaderCell: {
-        fontSize: 4.5,
+        fontSize: 5.5, // Aumentado
         fontWeight: 'bold',
-        paddingVertical: 2,
+        paddingVertical: 3,
         paddingHorizontal: 2,
         textAlign: 'center',
         borderRightWidth: 0.5,
@@ -118,7 +121,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#e8e8e8',
     },
     tableDataCell: {
-        fontSize: 4.5,
+        fontSize: 5.5, // Aumentado
         paddingVertical: 2,
         paddingHorizontal: 2,
         textAlign: 'center',
@@ -141,7 +144,7 @@ const styles = StyleSheet.create({
         maxWidth: '32%',
     },
     footerValue: {
-        fontSize: 4,
+        fontSize: 3.8,
         fontWeight: 'bold',
         color: '#000',
     },
