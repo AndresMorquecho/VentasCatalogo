@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
 import { exportInventoryToExcel } from '@/shared/lib/exportExcel';
+import { inventoryApi } from '@/shared/api/inventoryApi';
+import { calculateDaysInWarehouse } from '../lib/calculateDaysInWarehouse';
 
 export function InventoryPage() {
     const [page, setPage] = useState(1);
@@ -121,10 +123,89 @@ export function InventoryPage() {
     }, [movements, deliveredFilter, receivedFilter]);
 
     const handleExport = async () => {
-        if (groupedRows.length === 0) return;
         setIsExporting(true);
         try {
-            await exportInventoryToExcel(groupedRows, `Inventario_${new Date().toISOString().split('T')[0]}.xlsx`);
+            const response = await inventoryApi.getAll({
+                limit: 10000,
+                type: apiType,
+                brandId: brandFilter,
+                search: debouncedSearch,
+                startDate,
+                endDate,
+                receiptNumber,
+                orderNumber
+            });
+
+            const rawMovements = Array.isArray(response) ? response : (response?.data || []);
+            
+            // Map and group logic (Parity with useInventory and groupedRows)
+            const mapped = rawMovements.map((move: any) => {
+                const order = move.order || {};
+                const client = move.client || {};
+                const payments = order.payments || [];
+                const abono = payments.reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+                const total = Number(order.realInvoiceTotal || order.total || 0);
+                const saldo = Math.max(0, total - abono);
+
+                return {
+                    ...move,
+                    totalQuantity: move.totalQuantity,
+                    receiptNumber: order.receiptNumber || "N/A",
+                    orderNumber: order.orderNumber || order.receiptNumber || "-",
+                    emissionDate: order.createdAt,
+                    createdByName: order.createdByName || "-",
+                    brandName: order.brand?.name || move.brand?.name || "Unknown Brand",
+                    orderType: order.type || "PEDIDO",
+                    clientName: `${client.firstName} ${client.lastName || ''}`.trim() || order.clientName || "Unknown Client",
+                    clientPhone1: client.phone1 || "-",
+                    clientPhone2: client.phone2 || "-",
+                    orderTotal: Number(order.total || 0),
+                    invoiceTotal: total,
+                    abono,
+                    saldo,
+                    invoiceNumber: order.invoiceNumber || "-",
+                    possibleDeliveryDate: order.possibleDeliveryDate,
+                    deliveryDate: order.deliveryDate,
+                    daysInWarehouse: calculateDaysInWarehouse(move.createdAt, move.type === 'DELIVERED' ? move.createdAt : undefined),
+                    status: move.type,
+                    deliveryReceipt: order.packingNumber || "-", 
+                };
+            });
+
+            // Grouping logic (Parity with groupedRows)
+            const orderMap = new Map<string, any>();
+            [...mapped].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()).forEach(m => {
+                if (!m.orderId) return;
+                if (!orderMap.has(m.orderId)) {
+                    orderMap.set(m.orderId, { ...m });
+                } else {
+                    const existing = orderMap.get(m.orderId);
+                    existing.status = m.status;
+                    if (m.type === 'ENTRY') existing.entryDate = m.createdAt;
+                    if (m.type === 'DELIVERED') existing.deliveryDate = m.createdAt || m.deliveryDate;
+                    if (m.type === 'RETURNED') existing.returnDate = m.createdAt;
+                }
+            });
+
+            let filtered = Array.from(orderMap.values());
+            if (deliveredFilter !== 'ALL') {
+                const isDelivered = deliveredFilter === 'SI';
+                filtered = filtered.filter(r => (r.status === 'DELIVERED') === isDelivered);
+            }
+            if (receivedFilter !== 'ALL') {
+                const isReceived = receivedFilter === 'SI';
+                filtered = filtered.filter(r => (r.status === 'ENTRY' || r.status === 'DELIVERED') === isReceived);
+            }
+
+            const exportedData = filtered.sort((a, b) => {
+                const aDate = new Date(a.deliveryDate || a.returnDate || a.createdAt).getTime();
+                const bDate = new Date(b.deliveryDate || b.returnDate || b.createdAt).getTime();
+                return bDate - aDate;
+            });
+
+            await exportInventoryToExcel(exportedData, `Inventario_${new Date().toISOString().split('T')[0]}.xlsx`);
+        } catch (error) {
+            console.error('Export error:', error);
         } finally {
             setIsExporting(false);
         }

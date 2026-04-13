@@ -37,7 +37,6 @@ interface Props {
     page: number
     onPageChange: (page: number) => void
     filters: {
-        search: string;
         startDate: string;
         endDate: string;
         brandId: string;
@@ -59,7 +58,6 @@ export function ReceptionHistory({
 }: Props) {
     const [isProcessing, setIsProcessing] = useState<string | null>(null)
     const [expandedBatch, setExpandedBatch] = useState<string | null>(null)
-    const [showFilters, setShowFilters] = useState(false)
 
     // ConfirmDialog state - delete batch
     const [deleteBatchConfirmOpen, setDeleteBatchConfirmOpen] = useState(false)
@@ -103,7 +101,11 @@ export function ReceptionHistory({
             });
 
             if (allBatchesResponse && allBatchesResponse.data.length > 0) {
-                exportReceptionBatchesToExcel(allBatchesResponse.data, `Historial_Recepciones_${new Date().toISOString().split('T')[0]}.xlsx`);
+                exportReceptionBatchesToExcel(
+                    allBatchesResponse.data, 
+                    `Historial_Recepciones_${new Date().toISOString().split('T')[0]}.xlsx`,
+                    filters
+                );
                 showToast("Exportación completada", "success");
             } else {
                 showToast("No hay datos para exportar", "warning");
@@ -138,7 +140,6 @@ export function ReceptionHistory({
 
     const clearFilters = () => {
         onFilterChange({
-            search: '',
             startDate: '',
             endDate: '',
             brandId: 'ALL',
@@ -147,7 +148,7 @@ export function ReceptionHistory({
         onPageChange(1);
     };
 
-    const hasActiveFilters = filters.search || filters.startDate || filters.endDate || filters.brandId !== "ALL" || filters.packingNumber;
+    const hasActiveFilters = filters.startDate || filters.endDate || filters.brandId !== "ALL" || filters.packingNumber;
 
     return (
         <div className="space-y-4 h-full flex flex-col pt-2">
@@ -176,15 +177,7 @@ export function ReceptionHistory({
                             <RotateCcw className="h-4 w-4 mr-2" />
                             Limpiar Filtros
                         </Button>
-                        <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => setShowFilters(!showFilters)}
-                            className={`h-9 px-5 font-bold rounded-lg border-slate-200 hover:bg-slate-50 transition-all ${showFilters ? 'bg-slate-100 ring-2 ring-slate-100 border-slate-300' : 'bg-white'}`}
-                        >
-                            <Filter className="h-4 w-4 mr-2" />
-                            {showFilters ? 'Menos Filtros' : 'Más Filtros'}
-                        </Button>
+
                         <div className="h-10 w-px bg-slate-100 mx-1 hidden md:block" />
                         <Button 
                             variant="outline" 
@@ -205,25 +198,10 @@ export function ReceptionHistory({
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-x-8 gap-y-6">
-                    {/* Búsqueda Rápida - 3 cols */}
-                    <div className="lg:col-span-3 space-y-2">
-                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1">Búsqueda Rápida</label>
-                        <div className="relative group">
-                            <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
-                            <Input
-                                placeholder="Empresaria, N° Recibo..."
-                                value={filters.search}
-                                onChange={(e) => {
-                                    onFilterChange({ ...filters, search: e.target.value });
-                                    onPageChange(1);
-                                }}
-                                className="pl-10 bg-white border-slate-200 focus:ring-emerald-500/20 transition-all h-10 text-sm font-medium rounded-xl shadow-sm"
-                            />
-                        </div>
-                    </div>
 
-                    {/* Periodo de Tiempo - 4 cols */}
-                    <div className="lg:col-span-4 space-y-2">
+
+                    {/* Periodo de Tiempo - 6 cols */}
+                    <div className="lg:col-span-6 space-y-2">
                         <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1">Periodo de Tiempo</label>
                         <DateRangePicker
                             value={dateRange}
@@ -233,8 +211,8 @@ export function ReceptionHistory({
                         />
                     </div>
 
-                    {/* Identificar Packing - 2 cols */}
-                    <div className="lg:col-span-2 space-y-2">
+                    {/* Identificar Packing - 3 cols */}
+                    <div className="lg:col-span-3 space-y-2">
                         <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1">ID Packing</label>
                         <Input
                             placeholder="Ej: PK-123"

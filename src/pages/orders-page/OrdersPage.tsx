@@ -14,23 +14,33 @@ export default function OrdersPage() {
     const [triggerCreate, setTriggerCreate] = useState(false)
     const [isExporting, setIsExporting] = useState(false)
 
-    // Center filtering logic here to share with export
-    const [searchQuery, setSearchQuery] = useState('')
-    const debouncedSearch = useDebounce(searchQuery, 1000)
-    
     const [dateRange, setDateRange] = useState<DateRange | undefined>()
     const debouncedDateRange = useDebounce(dateRange, 500)
 
     const [statusFilter, setStatusFilter] = useState<OrderFilterType>('ALL')
+    
+    // Advanced Filters for synchronized Export
+    const [clientId, setClientId] = useState<string | undefined>()
+    const [brandId, setBrandId] = useState<string | undefined>()
+    const [receiptNumber, setReceiptNumber] = useState('')
+    const [orderNumber, setOrderNumber] = useState('')
+    const [typeFilter, setTypeFilter] = useState('')
+
+    const debouncedReceipt = useDebounce(receiptNumber, 500)
+    const debouncedOrderNo = useDebounce(orderNumber, 500)
 
     // Data for Full Export
     const { refetch: fetchFullData } = useOrderList({
         status: statusFilter === 'ALL' ? undefined : statusFilter,
-        search: debouncedSearch || undefined,
         startDate: debouncedDateRange?.from ? startOfDay(debouncedDateRange.from).toISOString() : undefined,
         endDate: debouncedDateRange?.to ? endOfDay(debouncedDateRange.to).toISOString() : undefined,
+        clientId,
+        brandId,
+        receiptNumber: debouncedReceipt || undefined,
+        orderNumber: debouncedOrderNo || undefined,
+        type: typeFilter === 'ALL' ? undefined : (typeFilter || undefined),
         onlyParents: true,
-        limit: 2000 // High limit for export
+        limit: 3000 // High limit for export
     })
 
     const handleExport = async () => {
@@ -45,7 +55,15 @@ export default function OrdersPage() {
                 return
             }
             
-            exportOrdersToExcel(ordersToExport, `Pedidos_${new Date().toISOString().split('T')[0]}.xlsx`)
+            exportOrdersToExcel(
+                ordersToExport, 
+                `Pedidos_${new Date().toISOString().split('T')[0]}.xlsx`,
+                { 
+                    brandId,
+                    clientId,
+                    orderNumber: debouncedOrderNo || undefined
+                }
+            )
         } catch (error) {
             console.error("Error exporting excel:", error)
         } finally {
@@ -87,14 +105,21 @@ export default function OrdersPage() {
                 triggerCreate={triggerCreate} 
                 onTriggerHandled={() => setTriggerCreate(false)}
                 externalFilters={{
-                    searchQuery,
-                    setSearchQuery,
-                    debouncedSearch,
                     dateRange,
                     setDateRange,
                     debouncedDateRange,
                     statusFilter,
-                    setStatusFilter: (f: any) => setStatusFilter(f)
+                    setStatusFilter: (f: any) => setStatusFilter(f),
+                    clientId,
+                    setClientId,
+                    brandId,
+                    setBrandId,
+                    receiptNumber,
+                    setReceiptNumber,
+                    orderNumber,
+                    setOrderNumber,
+                    typeFilter,
+                    setTypeFilter
                 }}
             />
         </div>

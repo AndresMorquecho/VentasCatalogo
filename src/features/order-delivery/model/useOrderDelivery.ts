@@ -12,6 +12,7 @@ export interface DeliveryFilters {
     limit?: number;
     status?: string;
     enabled?: boolean;
+    orderQuantity?: string;
 }
 
 export const useOrderDeliveryList = (filters?: DeliveryFilters) => {
@@ -94,6 +95,8 @@ export const useDeliveryBatches = (filters?: DeliveryFilters) => {
                 limit: filters?.limit || 25,
                 startDate: filters?.startDate,
                 endDate: filters?.endDate,
+                clientId: filters?.clientId,
+                orderQuantity: filters?.orderQuantity,
                 search: filters?.searchText || filters?.orderNumber
             });
             

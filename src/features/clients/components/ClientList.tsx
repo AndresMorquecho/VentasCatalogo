@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useClientList, useDeleteClient } from "@/features/clients/api/hooks";
+import { useClientList, useDeleteClient, useCities } from "@/features/clients/api/hooks";
 import type { Client } from "@/entities/client/model/types";
 import { ClientTable } from "./ClientTable";
 import { ClientForm } from "./ClientForm";
@@ -31,15 +31,19 @@ import {
     SelectValue,
 } from "@/shared/ui/select";
 import { Card, CardContent } from "@/shared/ui/card";
-import { Filter, X, Loader2 } from "lucide-react";
+import { X, Loader2, Users } from "lucide-react";
+import { Badge } from "@/shared/ui/badge";
 import { DateRangePicker } from "@/shared/ui/filters";
+import { SearchableSelect } from "@/shared/ui/SearchableSelect";
+import { ECUADOR_DATA } from "@/shared/constants/ecuador-locations";
 import type { DateRange } from "react-day-picker";
 
 const DATA_UPDATE_THRESHOLD_DAYS = 90;
 
-export function ClientList({ triggerCreate, onTriggerHandled }: { 
+export function ClientList({ triggerCreate, onTriggerHandled, onFiltersChange }: { 
     triggerCreate?: boolean;
     onTriggerHandled?: () => void;
+    onFiltersChange?: (filters: any) => void;
 }) {
     const [page, setPage] = useState(1);
     const [limit] = useState(25);
@@ -49,7 +53,16 @@ export function ClientList({ triggerCreate, onTriggerHandled }: {
     const [city, setCity] = useState("");
     const [dateRange, setDateRange] = useState<DateRange | undefined>();
     const [showOnlyOutdated, setShowOnlyOutdated] = useState(false);
-    const debouncedCity = useDebounce(city, 500);
+    
+    const { data: citiesData } = useCities();
+    
+    const cityOptions = (() => {
+        const ecuadorCities = Object.values(ECUADOR_DATA).flat();
+        const existingCities = citiesData || [];
+        // Combine and unique
+        const allCities = Array.from(new Set([...ecuadorCities, ...existingCities])).sort();
+        return allCities.map(c => ({ id: c, label: c }));
+    })();
 
     // Convert DateRange to ISO strings for API
     const startDate = dateRange?.from ? dateRange.from.toISOString().split('T')[0] : undefined;
@@ -60,7 +73,7 @@ export function ClientList({ triggerCreate, onTriggerHandled }: {
         limit,
         search: debouncedSearch.length >= 3 ? debouncedSearch : undefined,
         status: status === "ALL" ? undefined : status,
-        city: debouncedCity || undefined,
+        city: city || undefined,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
     });
@@ -101,7 +114,19 @@ export function ClientList({ triggerCreate, onTriggerHandled }: {
     // Reset page on filter changes
     useEffect(() => {
         setPage(1);
-    }, [debouncedSearch, status, debouncedCity, dateRange]);
+    }, [debouncedSearch, status, city, dateRange]);
+
+    // Emit filter changes to parent
+    useEffect(() => {
+        onFiltersChange?.({
+            search: debouncedSearch.length >= 3 ? debouncedSearch : undefined,
+            status: status === "ALL" ? undefined : status,
+            city: city || undefined,
+            startDate,
+            endDate,
+            showOnlyOutdated
+        });
+    }, [debouncedSearch, status, city, startDate, endDate, showOnlyOutdated, onFiltersChange]);
 
     // Handle external trigger to open create form
     useEffect(() => {
@@ -285,17 +310,17 @@ export function ClientList({ triggerCreate, onTriggerHandled }: {
                         </Select>
 
                         <div className="relative">
-                            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Filtrar por ciudad..."
+                            <SearchableSelect
+                                options={cityOptions}
                                 value={city}
-                                onChange={(e) => setCity(e.target.value)}
-                                className="pl-10 h-10 bg-white"
+                                onChange={setCity}
+                                placeholder="Filtrar por ciudad..."
+                                className="h-10 bg-white"
                             />
                             {city && (
                                 <button 
                                     onClick={() => setCity("")}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                    className="absolute right-8 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground z-10"
                                 >
                                     <X className="h-3 w-3" />
                                 </button>
@@ -312,10 +337,30 @@ export function ClientList({ triggerCreate, onTriggerHandled }: {
                     </div>
 
                     {(searchQuery || status !== "ALL" || city || dateRange) && (
-                        <div className="flex justify-end">
+                        <div className="flex justify-between items-center pt-2">
+                            <div className="flex items-center gap-2">
+                                <Badge variant="secondary" className="bg-monchito-purple/10 text-monchito-purple border-monchito-purple/20 px-3 py-1 text-[11px] font-bold h-7">
+                                    <Users className="h-3 w-3 mr-1.5" />
+                                    {pagination?.total || 0} Registros encontrados
+                                </Badge>
+                                {(searchQuery || status !== "ALL" || city || dateRange) && (
+                                    <span className="text-[10px] text-muted-foreground italic font-medium">
+                                        (Filtros activos)
+                                    </span>
+                                )}
+                            </div>
                             <Button variant="ghost" size="sm" onClick={resetFilters} className="text-[10px] h-7 uppercase font-bold tracking-wider hover:bg-red-50 hover:text-red-600">
                                 <RotateCw className="h-3 w-3 mr-1.5" /> Limpiar Filtros
                             </Button>
+                        </div>
+                    )}
+
+                    {!(searchQuery || status !== "ALL" || city || dateRange) && pagination && (
+                        <div className="flex justify-start items-center pt-2">
+                            <Badge variant="outline" className="text-slate-500 border-slate-200 px-3 py-1 text-[11px] font-bold h-7">
+                                <Users className="h-3 w-3 mr-1.5" />
+                                {pagination.total} Total de empresarias
+                            </Badge>
                         </div>
                     )}
                 </CardContent>

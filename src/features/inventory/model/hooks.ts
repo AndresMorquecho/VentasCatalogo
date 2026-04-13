@@ -38,6 +38,7 @@ export const useInventory = (params?: {
 
             return {
                 ...move,
+                totalQuantity: move.totalQuantity,
                 // BASIC INFO
                 receiptNumber: order.receiptNumber || "N/A",
                 orderNumber: order.orderNumber || order.receiptNumber || "-",

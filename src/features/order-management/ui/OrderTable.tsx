@@ -189,7 +189,6 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, lastClosur
                                                 {order.salesChannel}
                                             </span>
                                         </td>
-
                                         <td className="px-6 py-4">
                                             <span className={`text-sm tracking-tight font-bold ${order.type === 'CAMBIO' ? 'text-monchito-purple font-mono' : 'text-slate-700 font-medium'}`}>
                                                 {order.type === 'CAMBIO' && order.trackingGuide 

@@ -6,19 +6,34 @@ import { getPaidAmount, getPendingAmount, getEffectiveTotal } from '@/entities/o
  * Exports a list of orders to an Excel file.
  * Includes items within each order in a flat structure.
  */
-export function exportOrdersToExcel(orders: Order[], filename: string = 'Pedidos.xlsx') {
+export function exportOrdersToExcel(orders: Order[], filename: string = 'Pedidos.xlsx', filters?: { brandId?: string, clientId?: string, orderNumber?: string }) {
   const data: any[] = [];
 
   orders.forEach(order => {
     // Collect all orders in the receipt (parent + children)
-    const allOrders = [order, ...(order.childOrders || [])];
+    const allOrdersInReceipt = [order, ...(order.childOrders || [])];
     
-    // Receipt metrics (summarized across all orders in the receipt)
-    const receiptTotal = allOrders.reduce((sum, o) => sum + getEffectiveTotal(o), 0);
-    const receiptPaid = allOrders.reduce((sum, o) => sum + getPaidAmount(o), 0);
-    const receiptPending = allOrders.reduce((sum, o) => sum + getPendingAmount(o), 0);
+    // Receipt metrics (always summarized across all orders in the receipt to keep totals accurate)
+    const receiptTotal = allOrdersInReceipt.reduce((sum, o) => sum + getEffectiveTotal(o), 0);
+    const receiptPaid = allOrdersInReceipt.reduce((sum, o) => sum + getPaidAmount(o), 0);
+    const receiptPending = allOrdersInReceipt.reduce((sum, o) => sum + getPendingAmount(o), 0);
     
-    allOrders.forEach(o => {
+    // Filter rows for the Excel based on active filters if requested
+    const filteredOrders = allOrdersInReceipt.filter(o => {
+        let matches = true;
+        if (filters?.brandId) {
+            matches = matches && o.brandId === filters.brandId;
+        }
+        if (filters?.clientId) {
+            matches = matches && o.clientId === filters.clientId;
+        }
+        if (filters?.orderNumber) {
+            matches = matches && (o.orderNumber?.toLowerCase().includes(filters.orderNumber.toLowerCase()) || false);
+        }
+        return matches;
+    });
+
+    filteredOrders.forEach(o => {
       // If the order has items, we create a row per item
       if (o.items && o.items.length > 0) {
         o.items.forEach(item => {
@@ -26,11 +41,12 @@ export function exportOrdersToExcel(orders: Order[], filename: string = 'Pedidos
             'ID Registro': o.id.split('-')[0],
             'Fecha Registro': o.createdAt ? new Date(o.createdAt).toLocaleDateString() : '---',
             'Origen': o.salesChannel,
+            'Tipo': o.type,
             'Nro Recibo': o.receiptNumber,
             'Nro Pedido': o.orderNumber || '---',
             'Cliente': o.clientName,
             'Marca/Catálogo': o.brandName || '---',
-            'Artículo': item.productName,
+            'Artículo': item.productName || (o.type === 'CAMBIO' ? (o.sourceDescription || o.notes || 'CAMBIO') : '---'),
             'Cantidad': item.quantity,
             'Precio Unit.': item.unitPrice,
             'Subtotal Item': item.quantity * item.unitPrice,
@@ -49,11 +65,12 @@ export function exportOrdersToExcel(orders: Order[], filename: string = 'Pedidos
           'ID Registro': o.id.split('-')[0],
           'Fecha Registro': o.createdAt ? new Date(o.createdAt).toLocaleDateString() : '---',
           'Origen': o.salesChannel,
+          'Tipo': o.type,
           'Nro Recibo': o.receiptNumber,
           'Nro Pedido': o.orderNumber || '---',
           'Cliente': o.clientName,
           'Marca/Catálogo': o.brandName || '---',
-          'Artículo': '---',
+          'Artículo': o.type === 'CAMBIO' ? (o.sourceDescription || o.notes || 'CAMBIO') : (o.notes || '---'),
           'Cantidad': 0,
           'Precio Unit.': 0,
           'Subtotal Item': 0,
@@ -76,6 +93,7 @@ export function exportOrdersToExcel(orders: Order[], filename: string = 'Pedidos
     { wch: 10 }, // ID
     { wch: 15 }, // Fecha Reg
     { wch: 12 }, // Origen
+    { wch: 12 }, // Tipo (New)
     { wch: 15 }, // Nro Recibo
     { wch: 15 }, // Nro Pedido
     { wch: 30 }, // Cliente
@@ -97,6 +115,19 @@ export function exportOrdersToExcel(orders: Order[], filename: string = 'Pedidos
   if (data.length > 0) {
     const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
     worksheet['!autofilter'] = { ref: XLSX.utils.encode_range(range) };
+
+    // Apply specific number formats for money and quantities
+    for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+        // Quantities (Col 9)
+        const cell_qty = worksheet[XLSX.utils.encode_cell({ r: R, c: 9 })];
+        if (cell_qty) cell_qty.z = '0.00';
+
+        // Money Columns (Cols 10 to 14)
+        [10, 11, 12, 13, 14].forEach(colIdx => {
+            const cell = worksheet[XLSX.utils.encode_cell({ r: R, c: colIdx })];
+            if (cell) cell.z = '"$"#,##0.00';
+        });
+    }
   }
 
   const workbook = XLSX.utils.book_new();
@@ -157,6 +188,12 @@ export function exportTransactionsToExcel(cards: any[], filename: string = 'Tran
   if (data.length > 0) {
     const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
     worksheet['!autofilter'] = { ref: XLSX.utils.encode_range(range) };
+
+    // Apply Money Format (Col 6 - Monto Total)
+    for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+        const cell = worksheet[XLSX.utils.encode_cell({ r: R, c: 6 })];
+        if (cell) cell.z = '"$"#,##0.00';
+    }
   }
 
   XLSX.writeFile(workbook, filename);
@@ -165,14 +202,45 @@ export function exportTransactionsToExcel(cards: any[], filename: string = 'Tran
 /**
  * Exports reception batches (packing history) to Excel.
  */
-export function exportReceptionBatchesToExcel(batches: any[], filename: string = 'Historial_Recepciones.xlsx') {
+export function exportReceptionBatchesToExcel(batches: any[], filename: string = 'Historial_Recepciones.xlsx', filters?: any) {
   const data: any[] = [];
 
   batches.forEach(batch => {
     const batchDate = new Date(batch.receptionDate).toLocaleDateString('es-EC');
     const batchTime = new Date(batch.receptionDate).toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' });
     
-    (batch.orders || []).forEach((order: any) => {
+    // Use child-level filtering if filters are provided
+    let ordersToExport = (batch.orders || []);
+    
+    if (filters) {
+        const search = filters.search?.toLowerCase();
+        const brandId = filters.brandId;
+        const packingNumber = filters.packingNumber?.toLowerCase();
+
+        ordersToExport = ordersToExport.filter((order: any) => {
+            let matches = true;
+            
+            if (search) {
+                matches = matches && (
+                    order.clientName?.toLowerCase().includes(search) || 
+                    order.receiptNumber?.toLowerCase().includes(search) ||
+                    order.invoiceNumber?.toLowerCase().includes(search)
+                );
+            }
+            
+            if (brandId && brandId !== 'ALL') {
+                matches = matches && order.brandId === brandId;
+            }
+            
+            if (packingNumber) {
+                matches = matches && batch.packingNumber?.toLowerCase().includes(packingNumber);
+            }
+            
+            return matches;
+        });
+    }
+
+    ordersToExport.forEach((order: any) => {
       data.push({
         'Fecha Recepción': batchDate,
         'Hora': batchTime,
@@ -182,6 +250,7 @@ export function exportReceptionBatchesToExcel(batches: any[], filename: string =
         'Cliente': order.clientName,
         'Marca/Catálogo': order.brandName,
         'N° Factura': order.invoiceNumber || '---',
+        'Cantidad': (order.items || []).reduce((sum: number, item: any) => sum + (item.quantity || 0), 0),
         'Valor Estimado': Number(order.total),
         'Valor Real': Number(order.realInvoiceTotal || order.total),
         'Estado': order.status === 'RECIBIDO_EN_BODEGA' ? 'En Bodega' : order.status === 'ENTREGADO' ? 'Entregado' : order.status,
@@ -202,6 +271,7 @@ export function exportReceptionBatchesToExcel(batches: any[], filename: string =
     { wch: 30 }, // Cliente
     { wch: 20 }, // Marca
     { wch: 15 }, // N° Factura
+    { wch: 10 }, // Cantidad (New)
     { wch: 15 }, // Valor Estimado
     { wch: 15 }, // Valor Real
     { wch: 20 }, // Estado
@@ -212,6 +282,19 @@ export function exportReceptionBatchesToExcel(batches: any[], filename: string =
   if (data.length > 0) {
     const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
     worksheet['!autofilter'] = { ref: XLSX.utils.encode_range(range) };
+
+    // Apply specific number formats for money and quantities
+    for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+        // Cantidad (Col 8)
+        const cell_qty = worksheet[XLSX.utils.encode_cell({ r: R, c: 8 })];
+        if (cell_qty) cell_qty.z = '0.00';
+
+        // Money Columns (Cols 9 and 10 - Estimado/Real)
+        [9, 10].forEach(colIdx => {
+            const cell = worksheet[XLSX.utils.encode_cell({ r: R, c: colIdx })];
+            if (cell) cell.z = '"$"#,##0.00';
+        });
+    }
   }
 
   const workbook = XLSX.utils.book_new();
@@ -308,6 +391,18 @@ export function exportExchangesToExcel(exchanges: Order[], filename: string = 'H
   if (data.length > 0) {
     const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
     worksheet['!autofilter'] = { ref: XLSX.utils.encode_range(range) };
+
+    // Apply Formats
+    for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+        // Original & New Cant (Cols 5 and 8)
+        [5, 8].forEach(colIdx => {
+            const cell = worksheet[XLSX.utils.encode_cell({ r: R, c: colIdx })];
+            if (cell) cell.z = '0.00';
+        });
+        // Valor Cambio (Col 12)
+        const cell_val = worksheet[XLSX.utils.encode_cell({ r: R, c: 12 })];
+        if (cell_val) cell_val.z = '"$"#,##0.00';
+    }
   }
 
   const workbook = XLSX.utils.book_new();
@@ -328,6 +423,7 @@ export function exportInventoryToExcel(movements: any[], filename: string = 'Inv
         'N° de Pedido': m.orderNumber || '---',
         'Tipo': m.orderType || '---',
         'Catálogo': m.brandName || '---',
+        'Cantidad': Number(m.totalQuantity || 0),
         'Empresaria': m.clientName || '---',
         'Celular 1': m.clientPhone1 || '---',
         'Celular 2': m.clientPhone2 || '---',
@@ -357,6 +453,7 @@ export function exportInventoryToExcel(movements: any[], filename: string = 'Inv
         { wch: 15 }, // Pedido
         { wch: 15 }, // Tipo
         { wch: 18 }, // Catalogo
+        { wch: 10 }, // Cantidad
         { wch: 35 }, // Empresaria
         { wch: 15 }, // Celular 1
         { wch: 15 }, // Celular 2
@@ -377,8 +474,109 @@ export function exportInventoryToExcel(movements: any[], filename: string = 'Inv
     if (data.length > 0) {
         const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
         worksheet['!autofilter'] = { ref: XLSX.utils.encode_range(range) };
+
+        // Apply Formats (Col 7 - Cantidad, Cols 11, 14, 15, 16 - Money)
+        for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+            // Cantidad (Col 7)
+            const cell_qty = worksheet[XLSX.utils.encode_cell({ r: R, c: 7 })];
+            if (cell_qty) cell_qty.z = '0.00';
+
+            // Money Columns
+            [11, 14, 15, 16].forEach(colIdx => {
+                const cell = worksheet[XLSX.utils.encode_cell({ r: R, c: colIdx })];
+                if (cell) cell.z = '"$"#,##0.00';
+            });
+        }
     }
 
     XLSX.writeFile(workbook, filename);
 }
+
+/**
+ * Exports delivery batches (delivery history) to Excel.
+ */
+export function exportDeliveryBatchesToExcel(batches: any[], filename: string = 'Historial_Entregas.xlsx', filters?: { clientId?: string, orderQuantity?: string }) {
+    const data: any[] = [];
+
+    batches.forEach(batch => {
+        const deliveryDate = batch.deliveryDate ? new Date(batch.deliveryDate).toLocaleDateString('es-EC') : '---';
+        const deliveryTime = batch.deliveryDate ? new Date(batch.deliveryDate).toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' }) : '---';
+        
+        // Flatten orders within the batch with internal filtering if needed
+        let ordersToExport = (batch.orders || []);
+        
+        if (filters?.clientId) {
+            ordersToExport = ordersToExport.filter((o: any) => o.clientId === filters.clientId);
+        }
+
+        ordersToExport.forEach((order: any) => {
+            const paid = (order.payments || []).reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+            const total = Number(order.realInvoiceTotal || order.total || 0);
+            const balance = total - paid;
+
+            data.push({
+                'Fecha Entrega': deliveryDate,
+                'Hora': deliveryTime,
+                'N° Entrega': batch.deliveryNumber || '---',
+                'Entregado Por': batch.deliveredByName || 'Sistema',
+                'N° Recibo': order.receiptNumber,
+                'N° Pedido': order.orderNumber || '---',
+                'Cliente': order.clientName,
+                'Identificación': order.clientIdentification || '---',
+                'Marca/Catálogo': order.brandName || '---',
+                'Cantidad': (order.items || []).reduce((sum: number, item: any) => sum + (item.quantity || 0), 0),
+                'Valor Total': total,
+                'Abonado': paid,
+                'Saldo Pendiente': balance,
+                'Estado': order.status === 'ENTREGADO' ? 'En Entregado' : order.status,
+                'Notas': batch.notes || '---'
+            });
+        });
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Entregas');
+
+    // Set column widths
+    const wscols = [
+        { wch: 15 }, // Fecha
+        { wch: 10 }, // Hora
+        { wch: 15 }, // N° Entrega
+        { wch: 20 }, // Entregado Por
+        { wch: 15 }, // Recibo
+        { wch: 15 }, // Pedido
+        { wch: 30 }, // Cliente
+        { wch: 15 }, // Identificacion
+        { wch: 18 }, // Marca
+        { wch: 10 }, // Cantidad
+        { wch: 12 }, // Total
+        { wch: 12 }, // Abonado
+        { wch: 12 }, // Saldo
+        { wch: 15 }, // Estado
+        { wch: 20 }, // Notas
+    ];
+    worksheet['!cols'] = wscols;
+
+    if (data.length > 0) {
+        const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
+        worksheet['!autofilter'] = { ref: XLSX.utils.encode_range(range) };
+
+        // Apply Formats (Col 9 - Cantidad, Cols 10, 11, 12 - Values)
+        for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+            // Cantidad (Col 9)
+            const cell_qty = worksheet[XLSX.utils.encode_cell({ r: R, c: 9 })];
+            if (cell_qty) cell_qty.z = '0.00';
+
+            // Money Columns
+            [10, 11, 12].forEach(colIdx => {
+                const cell = worksheet[XLSX.utils.encode_cell({ r: R, c: colIdx })];
+                if (cell) cell.z = '"$"#,##0.00';
+            });
+        }
+    }
+
+    XLSX.writeFile(workbook, filename);
+}
+
 

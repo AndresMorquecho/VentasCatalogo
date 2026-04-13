@@ -1,7 +1,8 @@
 import { useState } from "react"
-import { Truck } from "lucide-react"
+import { Truck, FileDown, Loader2 } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { PageHeader } from "@/shared/ui/PageHeader"
+import { exportOrdersToExcel } from "@/shared/lib/exportExcel"
 import { useReceptionBatch } from "../model/useReceptionBatch"
 import { PendingOrdersTable } from "./PendingOrdersTable"
 import { ReceptionZone } from "./ReceptionZone"
@@ -45,7 +46,9 @@ export function ReceptionBatchPage() {
         setPendingPage,
         pendingPagination,
         pendingFilters,
-        setPendingFilters
+        setPendingFilters,
+        handleExport,
+        isExporting
     } = useReceptionBatch();
 
     // Manejo de Bloqueos por Concurrencia
@@ -91,6 +94,24 @@ export function ReceptionBatchPage() {
         deleteBatch(id);
     };
 
+    const onExport = async () => {
+        const orders = await handleExport();
+        
+        if (!orders || orders.length === 0) {
+            notifyError({ message: 'No hay datos para exportar con los filtros actuales' });
+            return;
+        }
+
+        exportOrdersToExcel(
+            orders, 
+            `Recepcion_Pendiente_${new Date().toISOString().split('T')[0]}.xlsx`,
+            { 
+                brandId: pendingFilters.brandId === 'ALL' ? undefined : (pendingFilters.brandId || undefined),
+                orderNumber: pendingFilters.orderNumber || undefined
+            }
+        );
+    };
+
 
     return (
         <div className="space-y-6">
@@ -100,13 +121,28 @@ export function ReceptionBatchPage() {
                 icon={Truck}
                 actions={
                     <div className="flex items-center gap-3">
-                        {editingBatchId && (
+                         {editingBatchId && (
                             <Button
                                 variant="outline"
                                 className="bg-white hover:bg-slate-50 border-slate-200 text-slate-700 font-bold transition-all"
                                 onClick={cancelEdit}
                             >
                                 Cancelar Edición
+                            </Button>
+                        )}
+                        {activeTab === "reception" && (
+                            <Button
+                                variant="outline"
+                                onClick={onExport}
+                                disabled={isExporting}
+                                className="bg-white hover:bg-emerald-50 hover:text-emerald-700 border-slate-200 transition-all font-bold"
+                            >
+                                {isExporting ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                    <FileDown className="mr-2 h-4 w-4 text-emerald-600" />
+                                )}
+                                <span className="hidden sm:inline">Exportar Excel</span>
                             </Button>
                         )}
                         <div className="flex gap-2">

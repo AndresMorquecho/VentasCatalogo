@@ -39,6 +39,21 @@ export function exportClientsToExcel(clients: Client[]) {
     const range = XLSX.utils.decode_range(worksheet['!ref'] || "A1");
     worksheet['!autofilter'] = { ref: XLSX.utils.encode_range(range) };
 
+    // Apply specific number formats for money and quantities
+    for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+        // Column Index 18: Total Pedidos (Number with 2 decimals)
+        const cell_qty = worksheet[XLSX.utils.encode_cell({ r: R, c: 18 })];
+        if (cell_qty) cell_qty.z = '0.00';
+
+        // Column Index 19: Total Gastado (Currency with 2 decimals)
+        const cell_spent = worksheet[XLSX.utils.encode_cell({ r: R, c: 19 })];
+        if (cell_spent) cell_spent.z = '"$"#,##0.00';
+
+        // Column Index 21: Saldo a Favor (Currency with 2 decimals)
+        const cell_credit = worksheet[XLSX.utils.encode_cell({ r: R, c: 21 })];
+        if (cell_credit) cell_credit.z = '"$"#,##0.00';
+    }
+
     // Basic Column Widths
     const wscols = [
         { wch: 15 }, // ID

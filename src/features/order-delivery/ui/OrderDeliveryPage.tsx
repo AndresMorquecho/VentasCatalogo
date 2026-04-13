@@ -8,7 +8,7 @@ import { PendingOrdersModal } from "./PendingOrdersModal"
 import type { Order } from "@/entities/order/model/types"
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
-import { Search, History, Truck, RotateCcw, Filter, ChevronDown, PackageOpen, FileDown, Loader2 } from "lucide-react"
+import { Search, History, Truck, RotateCcw, ChevronDown, PackageOpen, FileDown, Loader2 } from "lucide-react"
 import { PageHeader } from "@/shared/ui/PageHeader"
 import { orderApi } from "@/entities/order/model/api"
 import { exportOrdersToExcel } from "@/shared/lib/exportExcel"
@@ -84,7 +84,7 @@ function SearchableClientSelect({
                     <div className="max-h-[250px] overflow-auto p-1 py-1.5">
                         <div 
                             className="px-3 py-2 text-sm font-bold text-monchito-purple hover:bg-monchito-purple/5 rounded-lg cursor-pointer flex items-center gap-2"
-                            onClick={() => { onSelect(""); setIsOpen(false); }}
+                            onClick={() => { onSelect(""); setIsOpen(false); setSearch(""); }}
                         >
                             Todas las empresarias
                         </div>
@@ -226,20 +226,15 @@ export function OrderDeliveryPage() {
     const [clientId, setClientId] = useState<string>("")
     const [dateRange, setDateRange] = useState<DateRange | undefined>()
     const [orderNumber, setOrderNumber] = useState<string>("")
-    const [searchTerm, setSearchTerm] = useState<string>("")
     
-    const [showFilters, setShowFilters] = useState(false)
     const [isExporting, setIsExporting] = useState(false)
     const [dateCategoryFilter, setDateCategoryFilter] = useState<'ALL' | 'RECENT' | 'WARN' | 'CRITICAL'>('ALL')
 
     const handleHeaderKeyDown = (e: React.KeyboardEvent, fieldName: string) => {
         const fields = [
-            'clientId', 'brandId', 'dateRange', 'moreFilters',
-            'searchTerm', 'orderNumber', 'historyBtn', 'exportBtn', 'clearBtn'
-        ].filter(f => {
-            if (!showFilters && (f === 'searchTerm' || f === 'orderNumber')) return false;
-            return true;
-        });
+            'clientId', 'brandId', 'dateRange',
+            'orderNumber', 'historyBtn', 'exportBtn', 'clearBtn'
+        ];
         
         const currentIndex = fields.indexOf(fieldName);
 
@@ -284,22 +279,19 @@ export function OrderDeliveryPage() {
     const startDate = dateRange?.from ? dateRange.from.toISOString().split('T')[0] : ""
     const endDate = dateRange?.to ? dateRange.to.toISOString().split('T')[0] : ""
 
-    // Reset page on filter change
     useEffect(() => {
         setPage(1);
-    }, [brandId, clientId, startDate, endDate, orderNumber, searchTerm, dateCategoryFilter]);
+    }, [brandId, clientId, startDate, endDate, orderNumber, dateCategoryFilter]);
 
-    // Memoized filters for the hook
     const filters = useMemo((): DeliveryFilters => ({
         startDate,
         endDate,
         brandId,
         clientId,
         orderNumber,
-        searchText: searchTerm,
         page,
         limit
-    }), [startDate, endDate, brandId, clientId, orderNumber, searchTerm, page, limit])
+    }), [startDate, endDate, brandId, clientId, orderNumber, page, limit])
 
     // Query for filter data (Only ones that HAVE orders to deliver)
     const { data: filterOrdersData } = useOrderDeliveryFilterData()
@@ -388,7 +380,6 @@ export function OrderDeliveryPage() {
         setClientId("")
         setDateRange(undefined)
         setOrderNumber("")
-        setSearchTerm("")
         setDateCategoryFilter("ALL")
         setSelectedOrderIds([])
         setSelectedOrdersMap({})
@@ -429,13 +420,21 @@ export function OrderDeliveryPage() {
                 clientId: clientId || undefined,
                 startDate: startDate || undefined,
                 endDate: endDate || undefined,
-                search: searchTerm || undefined,
+                orderNumber: orderNumber || undefined,
                 page: 1,
                 limit: 1000
             })
             
             if (response && response.data.length > 0) {
-                exportOrdersToExcel(response.data, `Pedidos_Por_Entregar_${new Date().toISOString().split('T')[0]}.xlsx`)
+                exportOrdersToExcel(
+                    response.data, 
+                    `Pedidos_Por_Entregar_${new Date().toISOString().split('T')[0]}.xlsx`,
+                    { 
+                        brandId: brandId === 'ALL' ? undefined : brandId,
+                        clientId: clientId || undefined,
+                        orderNumber: orderNumber || undefined
+                    }
+                )
             } else {
                 alert("No hay pedidos para exportar con estos filtros")
             }
@@ -562,53 +561,22 @@ export function OrderDeliveryPage() {
                         </div>
                     </div>
 
-                    {/* Mas filtros toggle */}
-                    <div className="lg:col-span-2">
-                        <Button 
-                            variant="ghost" 
-                            data-nav="moreFilters"
-                            tabIndex={0}
-                            onKeyDown={e => handleHeaderKeyDown(e, 'moreFilters')}
-                            className={`h-10 w-full rounded-xl border shadow-sm font-bold text-xs uppercase tracking-wider ${showFilters ? 'bg-monchito-purple/5 border-monchito-purple/20 text-monchito-purple' : 'border-slate-100 text-slate-500'}`}
-                            onClick={() => setShowFilters(!showFilters)}
-                        >
-                            <Filter className="h-3.5 w-3.5 mr-2" />
-                            {showFilters ? 'Menos' : 'Filtros'}
-                        </Button>
-                    </div>
                 </div>
 
-                {showFilters && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5 pt-5 border-t border-slate-50 animate-in fade-in slide-in-from-top-2 duration-300">
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Búsqueda General</label>
-                            <div className="relative group">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-monchito-purple" />
-                                <Input
-                                    placeholder="Cualquier texto..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    onKeyDown={e => handleHeaderKeyDown(e, 'searchTerm')}
-                                    data-nav="searchTerm"
-                                    tabIndex={0}
-                                    className="pl-10 bg-white border-slate-200 h-10 text-sm font-medium rounded-xl shadow-sm focus:ring-monchito-purple/10 transition-all"
-                                />
-                            </div>
-                        </div>
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Número de Orden</label>
-                            <Input
-                                placeholder="Ej: ORD-123..."
-                                value={orderNumber}
-                                onChange={(e) => setOrderNumber(e.target.value)}
-                                onKeyDown={e => handleHeaderKeyDown(e, 'orderNumber')}
-                                data-nav="orderNumber"
-                                tabIndex={0}
-                                className="bg-white border-slate-200 h-10 text-sm font-bold rounded-xl shadow-sm focus:ring-monchito-purple/10 transition-all text-monchito-purple"
-                            />
-                        </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5 pt-5 border-t border-slate-50 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Número de Orden</label>
+                        <Input
+                            placeholder="Ej: ORD-123..."
+                            value={orderNumber}
+                            onChange={(e) => setOrderNumber(e.target.value)}
+                            onKeyDown={e => handleHeaderKeyDown(e, 'orderNumber')}
+                            data-nav="orderNumber"
+                            tabIndex={0}
+                            className="bg-white border-slate-200 h-10 text-sm font-bold rounded-xl shadow-sm focus:ring-monchito-purple/10 transition-all text-monchito-purple"
+                        />
                     </div>
-                )}
+                </div>
             </div>
 
             {/* Batch Info Bar - Always visible, disabled when empty */}

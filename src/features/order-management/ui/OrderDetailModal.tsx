@@ -120,12 +120,12 @@ export function OrderDetailModal({ order, open, onOpenChange }: OrderDetailModal
 
                         <div className="rounded-2xl border border-slate-200 overflow-hidden bg-white shadow-sm">
                             <div className="overflow-x-auto">
-                                <table className="w-full text-[11px] text-left border-collapse">
-                                    <thead>
+                                <table className="w-full text-[11px] text-left border-collapse">                                    <thead>
                                         <tr className="bg-slate-50/50 border-b border-slate-200 text-[9px] uppercase font-black text-slate-400 tracking-widest">
                                             <th className="px-5 py-4 w-12 text-center border-r border-slate-100">N°</th>
                                             <th className="px-5 py-4 min-w-[150px] border-r border-slate-100">Empresaria</th>
                                             <th className="px-5 py-4 border-r border-slate-100">N° Pedido</th>
+                                            <th className="px-5 py-4 border-r border-slate-100">Tipo</th>
                                             <th className="px-5 py-4 border-r border-slate-100">Catalogo</th>
                                             <th className="px-5 py-4 text-right border-r border-slate-100">Total</th>
                                             <th className="px-5 py-4 text-right border-r border-slate-100">Abono</th>
@@ -143,6 +143,17 @@ export function OrderDetailModal({ order, open, onOpenChange }: OrderDetailModal
                                                 </span>
                                             </td>
                                             <td className="px-5 py-4 font-black text-monchito-purple border-r border-purple-100/50">{order.orderNumber || 'Principal'}</td>
+                                            <td className="px-5 py-4 border-r border-purple-100/50">
+                                                <span className={`text-[9px] px-1.5 py-0.5 rounded font-black ${
+                                                    order.type === 'NORMAL' ? 'bg-emerald-100 text-emerald-700' :
+                                                    order.type === 'CAMBIO' ? 'bg-purple-100 text-purple-700' :
+                                                    order.type === 'REPROGRAMACION' ? 'bg-blue-100 text-blue-700' :
+                                                    order.type === 'PREVENTA' ? 'bg-amber-100 text-amber-700' :
+                                                    'bg-slate-100 text-slate-600'
+                                                }`}>
+                                                    {order.type}
+                                                </span>
+                                            </td>
                                             <td className="px-5 py-4 border-r border-purple-100/50 font-bold uppercase text-slate-500">{order.brandName}</td>
                                             <td className="px-5 py-4 text-right font-black text-slate-900 border-r border-purple-100/50">{formatCurrency(Number(order.total))}</td>
                                             <td className="px-5 py-4 text-right text-emerald-600 font-black border-r border-purple-100/50">{formatCurrency(getPaidAmount(order))}</td>
@@ -158,9 +169,20 @@ export function OrderDetailModal({ order, open, onOpenChange }: OrderDetailModal
                                                 <td className="px-5 py-4 border-r border-slate-100">
                                                     <span className="font-bold text-slate-700 block truncate max-w-[180px]" title={child.clientName || order.clientName}>
                                                         {child.clientName || order.clientName}
-                                                    </span>
+                                                     </span>
                                                 </td>
                                                 <td className="px-5 py-4 font-bold text-slate-600 border-r border-slate-100">{child.orderNumber || 'S/N'}</td>
+                                                <td className="px-5 py-4 border-r border-slate-100">
+                                                    <span className={`text-[9px] px-1.5 py-0.5 rounded font-black ${
+                                                        child.type === 'NORMAL' ? 'bg-emerald-100 text-emerald-700' :
+                                                        child.type === 'CAMBIO' ? 'bg-purple-100 text-purple-700' :
+                                                        child.type === 'REPROGRAMACION' ? 'bg-blue-100 text-blue-700' :
+                                                        child.type === 'PREVENTA' ? 'bg-amber-100 text-amber-700' :
+                                                        'bg-slate-100 text-slate-600'
+                                                    }`}>
+                                                        {child.type}
+                                                    </span>
+                                                </td>
                                                 <td className="px-5 py-4 border-r border-slate-100 uppercase text-slate-500 font-medium">{child.brandName}</td>
                                                 <td className="px-5 py-4 text-right font-bold text-slate-700 border-r border-slate-100">{formatCurrency(Number(child.total))}</td>
                                                 <td className="px-5 py-4 text-right text-emerald-600 font-bold border-r border-slate-100">{formatCurrency(getPaidAmount(child))}</td>

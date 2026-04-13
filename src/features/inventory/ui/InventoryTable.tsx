@@ -35,6 +35,7 @@ export interface GroupedInventoryMovement {
     status: InventoryMovementType;
     processedBy: string;
     deliveryReceipt: string;
+    totalQuantity: number;
 }
 
 interface Props {
@@ -75,6 +76,7 @@ export function InventoryTable({ movements, startIndex = 0 }: Props) {
                             <TableHead className="text-[10px] font-black uppercase tracking-tighter text-monchito-purple py-4">N° de Pedido</TableHead>
                             <TableHead className="text-[10px] font-black uppercase tracking-tighter text-slate-400 py-4">Tipo</TableHead>
                             <TableHead className="text-[10px] font-black uppercase tracking-tighter text-slate-400 py-4">Catálogo</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-tighter text-orange-500 py-4">Cant</TableHead>
                             <TableHead className="text-[10px] font-black uppercase tracking-tighter text-slate-400 py-4">Empresaria</TableHead>
                             <TableHead className="text-[10px] font-black uppercase tracking-tighter text-slate-400 py-4">Celular 1</TableHead>
                             <TableHead className="text-[10px] font-black uppercase tracking-tighter text-slate-400 py-4">Celular 2</TableHead>
@@ -104,6 +106,11 @@ export function InventoryTable({ movements, startIndex = 0 }: Props) {
                                 <TableCell className="font-black text-monchito-purple text-xs whitespace-nowrap bg-monchito-purple/5 group-hover:bg-monchito-purple/10 transition-colors">{move.orderNumber}</TableCell>
                                 <TableCell className="text-[10px] font-black text-slate-400 uppercase">{move.orderType}</TableCell>
                                 <TableCell className="text-[11px] font-black text-emerald-700 whitespace-nowrap uppercase tracking-tighter">{move.brandName}</TableCell>
+                                <TableCell className="py-4 text-center">
+                                    <span className="bg-orange-50 text-orange-600 px-2.5 py-1 rounded-lg text-[11px] font-black border border-orange-100 shadow-sm">
+                                        {Number(move.totalQuantity || 0).toFixed(2)}
+                                    </span>
+                                </TableCell>
                                 <TableCell className="text-[11px] font-black text-slate-800 whitespace-nowrap uppercase leading-tight min-w-[150px]">
                                     <div className="flex items-center gap-1.5">
                                         <UserCircle className="h-3 w-3 text-slate-300" />

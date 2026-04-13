@@ -11,8 +11,11 @@ import { useAuth } from "@/shared/auth";
 export default function ClientsPage() {
     const [isExporting, setIsExporting] = useState(false);
     const [triggerCreate, setTriggerCreate] = useState(false);
+    const [activeFilters, setActiveFilters] = useState<any>({});
     const { notifySuccess, notifyError } = useNotifications();
     const { hasPermission } = useAuth();
+
+    const DATA_UPDATE_THRESHOLD_DAYS = 90;
 
     const handleExportAll = async () => {
         if (!hasPermission('clients.view')) {
@@ -21,12 +24,33 @@ export default function ClientsPage() {
         }
         try {
             setIsExporting(true);
-            const response = await clientApi.getAll({ limit: 2000 });
-            if (response.data && response.data.length > 0) {
-                exportClientsToExcel(response.data);
-                notifySuccess(`Exportación de ${response.data.length} empresarias completada`);
+            
+            // Extract filters but use a large limit for export
+            const { showOnlyOutdated, ...apiFilters } = activeFilters;
+            
+            const response = await clientApi.getAll({ 
+                ...apiFilters,
+                limit: 5000 // Large limit for export
+            });
+
+            let dataToExport = response.data || [];
+
+            // Apply client-side "outdated" filter if active
+            if (showOnlyOutdated) {
+                const { differenceInDays } = await import("date-fns");
+                const now = new Date();
+                dataToExport = dataToExport.filter((c: any) => {
+                    const lastUpdate = c.lastDataUpdate ? new Date(c.lastDataUpdate) : null;
+                    const days = lastUpdate ? differenceInDays(now, lastUpdate) : DATA_UPDATE_THRESHOLD_DAYS + 1;
+                    return days > DATA_UPDATE_THRESHOLD_DAYS;
+                });
+            }
+
+            if (dataToExport.length > 0) {
+                exportClientsToExcel(dataToExport);
+                notifySuccess(`Exportación de ${dataToExport.length} empresarias completada`);
             } else {
-                notifyError(null, "No hay datos para exportar");
+                notifyError(null, "No hay datos para exportar con los filtros actuales");
             }
         } catch (error) {
             notifyError(error, "Error al generar el archivo Excel");
@@ -69,7 +93,11 @@ export default function ClientsPage() {
                     </div>
                 }
             />
-            <ClientList triggerCreate={triggerCreate} onTriggerHandled={() => setTriggerCreate(false)} />
+            <ClientList 
+                triggerCreate={triggerCreate} 
+                onTriggerHandled={() => setTriggerCreate(false)} 
+                onFiltersChange={setActiveFilters}
+            />
         </div>
     );
 }

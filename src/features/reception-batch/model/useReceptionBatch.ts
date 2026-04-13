@@ -13,6 +13,7 @@ export const useReceptionBatch = () => {
     const [editingBatchId, setEditingBatchId] = useState<string | null>(null);
     const [lastSavedOrders, setLastSavedOrders] = useState<Order[] | null>(null);
     const [lastSavedBatch, setLastSavedBatch] = useState<any | null>(null);
+    const [isExporting, setIsExporting] = useState(false);
 
     // Pagination for Pending Orders
     const [pendingPage, setPendingPage] = useState(1);
@@ -21,7 +22,6 @@ export const useReceptionBatch = () => {
     const [historyPage, setHistoryPage] = useState(1);
     const [historyLimit] = useState(15);
     const [historyFilters, setHistoryFilters] = useState({
-        search: '',
         startDate: '',
         endDate: '',
         brandId: 'ALL',
@@ -29,7 +29,6 @@ export const useReceptionBatch = () => {
     });
 
     const [pendingFilters, setPendingFilters] = useState({
-        search: '',
         receiptNumber: '',
         orderNumber: '',
         brandId: '',
@@ -277,6 +276,24 @@ export const useReceptionBatch = () => {
         ));
     };
 
+    const handleExport = async () => {
+        try {
+            setIsExporting(true);
+            const response = await orderApi.getAll({
+                status: 'POR_RECIBIR,EN_TRANSITO',
+                ...pendingFilters,
+                limit: 3000 // High limit for export
+            });
+            return response.data || [];
+        } catch (error) {
+            console.error("Export Error:", error);
+            showToast("Error al obtener datos para exportar", "error");
+            return [];
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
     return {
         allOrders: allOrders.filter(o => !selectedOrders.find(so => so.id === o.id)),
         selectedOrders,
@@ -304,6 +321,8 @@ export const useReceptionBatch = () => {
             setLastSavedOrders(null);
             setLastSavedBatch(null);
         },
+        handleExport,
+        isExporting,
         // Pagination & Filters
         historyPage,
         setHistoryPage,

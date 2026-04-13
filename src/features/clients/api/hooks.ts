@@ -6,7 +6,16 @@ export const CLIENT_QUERY_KEYS = {
     all: ['clients'] as const,
     list: () => [...CLIENT_QUERY_KEYS.all, 'list'] as const,
     detail: (id: string) => [...CLIENT_QUERY_KEYS.all, 'detail', id] as const,
+    cities: () => [...CLIENT_QUERY_KEYS.all, 'cities'] as const,
 };
+
+export function useCities() {
+    return useQuery({
+        queryKey: CLIENT_QUERY_KEYS.cities(),
+        queryFn: () => clientApi.getCities(),
+        staleTime: 1000 * 60 * 30, // 30 minutes
+    });
+}
 
 export function useClientList(params?: { 
     page?: number; 

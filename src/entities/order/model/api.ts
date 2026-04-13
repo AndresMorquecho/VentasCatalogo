@@ -367,6 +367,8 @@ export const orderApi = {
         limit?: number, 
         startDate?: string, 
         endDate?: string,
+        clientId?: string,
+        orderQuantity?: string,
         search?: string
     }): Promise<PaginatedResponse<any>> => {
         const queryParams = new URLSearchParams();

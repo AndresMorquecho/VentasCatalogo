@@ -32,6 +32,10 @@ export const clientApi = {
         return httpClient.get<PaginatedResponse<Client>>(`/clients?${queryParams.toString()}`);
     },
 
+    getCities: async (): Promise<string[]> => {
+        return httpClient.get<string[]>('/clients/cities');
+    },
+
     getById: async (id: string): Promise<Client | undefined> => {
         try {
             return await httpClient.get<Client>(`/clients/${id}`);

@@ -5,5 +5,6 @@ export {
     useCreateClient,
     useUpdateClient,
     useDeleteClient,
+    useCities,
     CLIENT_QUERY_KEYS,
 } from './api/hooks';

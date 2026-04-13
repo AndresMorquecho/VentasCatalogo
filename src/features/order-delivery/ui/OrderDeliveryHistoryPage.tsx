@@ -6,7 +6,7 @@ import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
 import { ArrowLeft, Search, Printer, History, FileDown, Loader2 } from "lucide-react"
 import { orderApi } from "@/entities/order/model/api"
-import { exportOrdersToExcel } from "@/shared/lib/exportExcel"
+import { exportDeliveryBatchesToExcel } from "@/shared/lib/exportExcel"
 import { useAuth } from "@/shared/auth"
 import { usePDFPreview } from "@/shared/hooks/usePDFPreview"
 import { PDFPreviewModal } from "@/shared/ui/PDFPreviewModal"
@@ -15,9 +15,9 @@ import { useNotifications } from "@/shared/lib/notifications"
 import { Pagination } from "@/shared/ui/pagination"
 import { PageHeader } from "@/shared/ui/PageHeader"
 import { useDebounce } from "@/shared/lib/hooks"
-import { DateRangePicker } from "@/shared/ui/filters"
+import { DateRangePicker, ClientSearchSelect } from "@/shared/ui/filters"
 import type { DateRange } from "react-day-picker"
-import { RotateCcw, ChevronDown } from "lucide-react"
+import { RotateCcw, ChevronDown, User } from "lucide-react"
 import { ConfirmDialog } from "@/shared/ui/confirm-dialog"
 import { cn } from "@/shared/lib/utils"
 import {
@@ -41,6 +41,7 @@ export function OrderDeliveryHistoryPage() {
     const [searchText, setSearchText] = useState("")
     const debouncedSearch = useDebounce(searchText, 500)
     const [dateRange, setDateRange] = useState<DateRange | undefined>()
+    const [clientId, setClientId] = useState<string>("")
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
 
     const toggleRow = (id: string) => {
@@ -60,15 +61,16 @@ export function OrderDeliveryHistoryPage() {
     // Reset pagination on filter change
     useEffect(() => {
         setPage(1)
-    }, [debouncedSearch, startDate, endDate])
+    }, [debouncedSearch, startDate, endDate, clientId])
 
     const filters: DeliveryFilters = useMemo(() => ({
         searchText: debouncedSearch,
         startDate,
         endDate,
+        clientId: clientId || undefined,
         page,
         limit
-    }), [debouncedSearch, startDate, endDate, page, limit])
+    }), [debouncedSearch, startDate, endDate, clientId, page, limit])
 
     const { data: response, isLoading, refetch } = useDeliveryBatches(filters)
     const batches = response?.data || []
@@ -145,20 +147,24 @@ export function OrderDeliveryHistoryPage() {
     const handleExport = async () => {
         try {
             setIsExporting(true)
-            const response = await orderApi.getAll({
-                status: 'ENTREGADO',
+            const response = await orderApi.getDeliveryBatches({
                 startDate: startDate || undefined,
                 endDate: endDate || undefined,
+                clientId: clientId || undefined,
                 search: debouncedSearch || undefined,
                 page: 1,
-                limit: 2000
+                limit: 1000
             })
             
             if (response && response.data.length > 0) {
-                exportOrdersToExcel(response.data, `Historial_Entregas_${new Date().toISOString().split('T')[0]}.xlsx`)
+                exportDeliveryBatchesToExcel(
+                    response.data, 
+                    `Historial_Entregas_${new Date().toISOString().split('T')[0]}.xlsx`,
+                    { clientId: clientId || undefined }
+                )
                 notifySuccess('Exportación completada')
             } else {
-                notifyError({ message: 'No hay datos para exportar' })
+                notifyError({ message: 'No hay datos para exportar con estos filtros' })
             }
         } catch (error) {
             console.error("Error exporting excel:", error)
@@ -197,20 +203,21 @@ export function OrderDeliveryHistoryPage() {
                 }
             />
 
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm grid grid-cols-1 sm:grid-cols-2 gap-8 items-end">
-                <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1 mb-1.5 block">Buscar Pedido / Cliente</label>
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+                <div className="space-y-2 md:col-span-1">
+                    <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1 mb-1.5 block">Buscar Pedido / Recibo</label>
                     <div className="relative">
                         <Search className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
                         <Input
-                            placeholder="Nombre, recibo o número de orden..."
+                            placeholder="Recibo o N° Orden..."
                             className="pl-10 h-11 bg-slate-50 border-slate-200 rounded-xl"
                             value={searchText}
                             onChange={(e) => setSearchText(e.target.value)}
                         />
                     </div>
                 </div>
-                <div className="space-y-2">
+                
+                <div className="space-y-2 md:col-span-1">
                     <DateRangePicker
                         value={dateRange}
                         onChange={setDateRange}
@@ -218,6 +225,18 @@ export function OrderDeliveryHistoryPage() {
                         placeholder="Seleccionar periodo"
                         buttonClassName="h-11 border-slate-200 bg-slate-50/50 hover:bg-slate-50"
                         labelClassName="text-slate-500"
+                    />
+                </div>
+
+                <div className="space-y-2 md:col-span-1">
+                    <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1 mb-1.5 block flex items-center gap-2">
+                        <User className="h-3 w-3" /> Filtrar por Cliente
+                    </label>
+                    <ClientSearchSelect
+                        value={clientId}
+                        onChange={(val) => setClientId(val || "")}
+                        placeholder="Todos los clientes"
+                        label=""
                     />
                 </div>
             </div>
@@ -278,10 +297,16 @@ export function OrderDeliveryHistoryPage() {
                                         <TableCell className="py-4 px-6 text-center text-xs">
                                             <div className="flex flex-col items-center justify-center">
                                                 <div className="font-bold text-slate-700 uppercase truncate max-w-[250px]">
-                                                    {batch.orders?.[0]?.clientName || 'S/N'}
+                                                    {clientId 
+                                                        ? (batch.orders?.find((o: any) => o.clientId === clientId)?.clientName || batch.orders?.[0]?.clientName || 'S/N')
+                                                        : (batch.orders?.[0]?.clientName || 'S/N')
+                                                    }
                                                 </div>
                                                 <div className="text-[10px] text-slate-400 font-black tracking-widest">
-                                                    {batch.orders?.[0]?.client?.identificationNumber || batch.orders?.[0]?.clientIdentification || batch.orders?.[0]?.clientIdentificationNumber || 'S/ID'}
+                                                    {clientId 
+                                                        ? (batch.orders?.find((o: any) => o.clientId === clientId)?.client?.identificationNumber || '---')
+                                                        : (batch.orders?.[0]?.client?.identificationNumber || batch.orders?.[0]?.clientIdentification || '---')
+                                                    }
                                                 </div>
                                             </div>
                                         </TableCell>

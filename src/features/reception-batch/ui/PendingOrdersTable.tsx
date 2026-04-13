@@ -3,7 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
 import type { Order } from "@/entities/order/model/types"
-import { ArrowRight, Search, Tag } from "lucide-react"
+import { ArrowRight, Tag } from "lucide-react"
 import { getPaidAmount } from "@/entities/order/model/model"
 
 import { Pagination } from "@/shared/ui/pagination"
@@ -20,7 +20,6 @@ interface Props {
     currentPage?: number;
     onPageChange?: (page: number) => void;
     filters?: {
-        search: string;
         receiptNumber: string;
         orderNumber: string;
         brandId: string;
@@ -126,7 +125,7 @@ export function PendingOrdersTable({ orders, onMove, pagination, currentPage = 1
     const areAllSelected = orders.length > 0 && orders.every(o => selected.has(o.id));
     const currentFilters = filters || { search: '', receiptNumber: '', orderNumber: '', brandId: '', type: '', startDate: '', endDate: '' };
 
-    if (orders.length === 0 && !currentFilters.search && !currentFilters.receiptNumber && !currentFilters.orderNumber) {
+    if (orders.length === 0 && !currentFilters.receiptNumber && !currentFilters.orderNumber) {
         return (
             <div className="h-full flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-200 rounded-lg bg-slate-50 text-slate-400">
                 <p>No hay pedidos pendientes de recibir.</p>
@@ -139,25 +138,10 @@ export function PendingOrdersTable({ orders, onMove, pagination, currentPage = 1
             {/* Filters Section */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm shrink-0">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-x-3 gap-y-4 items-end">
-                    {/* Search Input (Client) */}
-                    <div className="lg:col-span-3 space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Empresaria</label>
-                        <div className="relative group">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-monchito-purple transition-colors" />
-                            <Input
-                                placeholder="Nombre de empresaria..."
-                                value={currentFilters.search}
-                                onChange={(e) => handleFilterUpdate({ search: e.target.value })}
-                                onKeyDown={(e) => handleFilterKeyDown(e, 0)}
-                                data-filter-index="0"
-                                tabIndex={1}
-                                className="pl-10 bg-white border-slate-200 focus:ring-monchito-purple/20 h-10 text-sm font-medium rounded-xl shadow-sm transition-all"
-                            />
-                        </div>
-                    </div>
 
-                    {/* Receipt Filter */}
-                    <div className="lg:col-span-3 space-y-1.5">
+
+                    {/* Receipt Filter - 4 cols */}
+                    <div className="lg:col-span-4 space-y-1.5">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">N° Recibo</label>
                         <div className="relative">
                             <Input
@@ -172,8 +156,8 @@ export function PendingOrdersTable({ orders, onMove, pagination, currentPage = 1
                         </div>
                     </div>
 
-                    {/* Order Number Filter */}
-                    <div className="lg:col-span-3 space-y-1.5">
+                    {/* Order Number Filter - 4 cols */}
+                    <div className="lg:col-span-4 space-y-1.5">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">N° Pedido</label>
                         <div className="relative">
                             <Input
@@ -188,8 +172,8 @@ export function PendingOrdersTable({ orders, onMove, pagination, currentPage = 1
                         </div>
                     </div>
 
-                    {/* Brand Select */}
-                    <div className="lg:col-span-3 space-y-1.5">
+                    {/* Brand Select - 4 cols */}
+                    <div className="lg:col-span-4 space-y-1.5">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Catálogo</label>
                         <div className="relative">
                             <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
@@ -216,11 +200,10 @@ export function PendingOrdersTable({ orders, onMove, pagination, currentPage = 1
                         <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-md">
                             {pagination?.total || orders.length} Resultados
                         </span>
-                        {(currentFilters.search || currentFilters.receiptNumber || currentFilters.orderNumber || currentFilters.brandId) && (
+                        {(currentFilters.receiptNumber || currentFilters.orderNumber || currentFilters.brandId) && (
                             <button
                                 onClick={() => { 
                                     handleFilterUpdate({ 
-                                        search: '', 
                                         receiptNumber: '', 
                                         orderNumber: '', 
                                         brandId: '', 

@@ -16,20 +16,30 @@ import { useAuth } from "@/shared/auth"
 
 import { useDebounce } from "@/shared/lib/hooks"
 import { Pagination } from "@/shared/ui/pagination"
+import { Badge } from "@/shared/ui/badge";
+import { Users, RotateCw } from "lucide-react";
 import { useCashClosures } from "@/features/cash-closure/api/hooks"
 
 export function OrderList({ triggerCreate, onTriggerHandled, externalFilters }: {
     triggerCreate?: boolean;
     onTriggerHandled?: () => void;
     externalFilters?: {
-        searchQuery: string;
-        setSearchQuery: (q: string) => void;
-        debouncedSearch: string;
         dateRange: DateRange | undefined;
         setDateRange: (r: DateRange | undefined) => void;
         debouncedDateRange: DateRange | undefined;
         statusFilter: OrderFilterType;
         setStatusFilter: (s: OrderFilterType) => void;
+        // Advanced Filters
+        clientId?: string;
+        setClientId: (id: string | undefined) => void;
+        brandId?: string;
+        setBrandId: (id: string | undefined) => void;
+        receiptNumber: string;
+        setReceiptNumber: (rn: string) => void;
+        orderNumber: string;
+        setOrderNumber: (on: string) => void;
+        typeFilter: string;
+        setTypeFilter: (t: string) => void;
     }
 }) {
     const [page, setPage] = useState(1)
@@ -39,19 +49,18 @@ export function OrderList({ triggerCreate, onTriggerHandled, externalFilters }: 
     const lastClosure = closuresResponse?.data?.[0]
     const lastClosureDate = lastClosure ? new Date(lastClosure.toDate) : null
 
-    // Use external filters if provided, otherwise fallback to local state
-    const [localSearchQuery, setLocalSearchQuery] = useState('')
-    const localDebouncedSearch = useDebounce(localSearchQuery, 1000)
-    
+    // Fallback local states
     const [localDateRange, setLocalDateRange] = useState<DateRange | undefined>()
     const localDebouncedDateRange = useDebounce(localDateRange, 500)
-
     const [localStatusFilter, setLocalStatusFilter] = useState<OrderFilterType>('ALL')
 
-    const searchQuery = externalFilters ? externalFilters.searchQuery : localSearchQuery
-    const setSearchQuery = externalFilters ? externalFilters.setSearchQuery : setLocalSearchQuery
-    const debouncedSearch = externalFilters ? externalFilters.debouncedSearch : localDebouncedSearch
-    
+    const [localClientId, setLocalClientId] = useState<string | undefined>()
+    const [localBrandId, setLocalBrandId] = useState<string | undefined>()
+    const [localReceiptNumber, setLocalReceiptNumber] = useState('')
+    const [localOrderNumber, setLocalOrderNumber] = useState('')
+    const [localTypeFilter, setLocalTypeFilter] = useState('')
+
+    // Use external filters if provided, otherwise fallback to local state
     const dateRange = externalFilters ? externalFilters.dateRange : localDateRange
     const setDateRange = externalFilters ? externalFilters.setDateRange : setLocalDateRange
     const debouncedDateRange = externalFilters ? externalFilters.debouncedDateRange : localDebouncedDateRange
@@ -59,13 +68,35 @@ export function OrderList({ triggerCreate, onTriggerHandled, externalFilters }: 
     const statusFilter = externalFilters ? externalFilters.statusFilter : localStatusFilter
     const setStatusFilter = externalFilters ? externalFilters.setStatusFilter : setLocalStatusFilter
 
+    const clientId = externalFilters ? externalFilters.clientId : localClientId
+    const setClientId = externalFilters ? externalFilters.setClientId : setLocalClientId
+
+    const brandId = externalFilters ? externalFilters.brandId : localBrandId
+    const setBrandId = externalFilters ? externalFilters.setBrandId : setLocalBrandId
+
+    const receiptNumber = externalFilters ? externalFilters.receiptNumber : localReceiptNumber
+    const setReceiptNumber = externalFilters ? externalFilters.setReceiptNumber : setLocalReceiptNumber
+
+    const orderNumber = externalFilters ? externalFilters.orderNumber : localOrderNumber
+    const setOrderNumber = externalFilters ? externalFilters.setOrderNumber : setLocalOrderNumber
+
+    const typeFilter = externalFilters ? externalFilters.typeFilter : localTypeFilter
+    const setTypeFilter = externalFilters ? externalFilters.setTypeFilter : setLocalTypeFilter
+
+    const debouncedReceipt = useDebounce(receiptNumber, 500)
+    const debouncedOrderNo = useDebounce(orderNumber, 500)
+
     const { data: response, isLoading } = useOrderList({
         page,
         limit,
         status: statusFilter === 'ALL' ? undefined : statusFilter,
-        search: debouncedSearch.length >= 3 ? debouncedSearch : undefined,
         startDate: debouncedDateRange?.from ? startOfDay(debouncedDateRange.from).toISOString() : undefined,
         endDate: debouncedDateRange?.to ? endOfDay(debouncedDateRange.to).toISOString() : undefined,
+        clientId,
+        brandId,
+        receiptNumber: debouncedReceipt || undefined,
+        orderNumber: debouncedOrderNo || undefined,
+        type: typeFilter === 'ALL' ? undefined : (typeFilter || undefined),
         onlyParents: true
     })
 
@@ -80,7 +111,7 @@ export function OrderList({ triggerCreate, onTriggerHandled, externalFilters }: 
     // Reset to page 1 when filtering
     useEffect(() => {
         setPage(1)
-    }, [statusFilter, debouncedSearch, debouncedDateRange])
+    }, [statusFilter, debouncedDateRange, clientId, brandId, debouncedReceipt, debouncedOrderNo, typeFilter])
 
     // Handle external trigger to open create
     useEffect(() => {
@@ -90,25 +121,10 @@ export function OrderList({ triggerCreate, onTriggerHandled, externalFilters }: 
         }
     }, [triggerCreate])
 
-    // Local filtering for quick results while typing < 3 chars or as a second layer
+    // Local filtering is now just a pass-through of parents unless search is very short
     const filteredOrders = useMemo(() => {
-        const parentsOnly = (orders as Order[]).filter((o: Order) => !o.parentOrderId)
-
-        if (debouncedSearch.length > 0 && debouncedSearch.length < 3) {
-            const query = debouncedSearch.toLowerCase()
-            return parentsOnly.filter((o: Order) =>
-                o.clientName.toLowerCase().includes(query) ||
-                o.receiptNumber.toLowerCase().includes(query) ||
-                (o.orderNumber && o.orderNumber.toLowerCase().includes(query)) ||
-                o.brandName.toLowerCase().includes(query) ||
-                o.childOrders?.some((child: Order) =>
-                    (child.orderNumber && child.orderNumber.toLowerCase().includes(query)) ||
-                    (child.invoiceNumber && child.invoiceNumber.toLowerCase().includes(query))
-                )
-            )
-        }
-        return parentsOnly
-    }, [orders, debouncedSearch])
+        return (orders as Order[]).filter((o: Order) => !o.parentOrderId)
+    }, [orders])
 
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
     const [modalMode, setModalMode] = useState<'none' | 'detail' | 'create' | 'edit' | 'delete'>('none')
@@ -203,11 +219,50 @@ export function OrderList({ triggerCreate, onTriggerHandled, externalFilters }: 
             <OrderFilters
                 statusFilter={statusFilter}
                 onStatusChange={setStatusFilter}
-                searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
                 dateRange={dateRange}
                 onDateRangeChange={setDateRange}
+                clientId={clientId}
+                onClientChange={setClientId}
+                brandId={brandId}
+                onBrandChange={setBrandId}
+                receiptNumber={receiptNumber}
+                onReceiptNumberChange={setReceiptNumber}
+                orderNumber={orderNumber}
+                onOrderNumberChange={setOrderNumber}
+                typeFilter={typeFilter}
+                onTypeChange={setTypeFilter}
             />
+
+            <div className="flex justify-between items-center bg-slate-50/50 p-2 rounded-xl border border-slate-100 mb-2">
+                <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="bg-monchito-purple/10 text-monchito-purple border-monchito-purple/20 px-3 py-1 text-[11px] font-bold h-7">
+                        <Users className="h-3 w-3 mr-1.5" />
+                        {pagination?.total || 0} Registros encontrados
+                    </Badge>
+                    {(statusFilter !== 'ALL' || dateRange || clientId || brandId || receiptNumber || orderNumber || typeFilter) && (
+                        <span className="text-[10px] text-muted-foreground italic font-medium">
+                            (Filtros activos)
+                        </span>
+                    )}
+                </div>
+                {(statusFilter !== 'ALL' || dateRange || clientId || brandId || receiptNumber || orderNumber || typeFilter) && (
+                    <button 
+                        onClick={() => {
+                            setLocalStatusFilter('ALL');
+                            setLocalDateRange(undefined);
+                            setClientId(undefined);
+                            setBrandId(undefined);
+                            setReceiptNumber('');
+                            setOrderNumber('');
+                            setTypeFilter('');
+                            setPage(1);
+                        }}
+                        className="text-[10px] flex items-center gap-1.5 font-bold text-red-600 hover:text-red-700 uppercase tracking-wider px-2 py-1 rounded-md hover:bg-red-50 transition-colors"
+                    >
+                        <RotateCw className="h-3 w-3" /> Limpiar Filtros
+                    </button>
+                )}
+            </div>
 
             {filteredOrders.length === 0 ? (
                 <div className="text-center py-12 border rounded-lg bg-card text-muted-foreground">
