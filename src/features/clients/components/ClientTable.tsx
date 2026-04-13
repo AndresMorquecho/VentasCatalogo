@@ -59,10 +59,10 @@ export function ClientTable({ clients, isLoading, onEdit, onView, onDelete }: Cl
                             <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest h-12 text-left">
                                 Documento
                             </th>
-                            <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left">
+                            <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left whitespace-nowrap">
                                 Expedición
                             </th>
-                            <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left">
+                            <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left min-w-[280px]">
                                 Nombre
                             </th>
                             <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left">
@@ -111,22 +111,22 @@ export function ClientTable({ clients, isLoading, onEdit, onView, onDelete }: Cl
                                         !needsDataUpdate && isNew && "bg-blue-50/20 hover:bg-blue-50/40"
                                     )}
                                 >
-                                    <TableCell className="px-6 py-4">
+                                    <TableCell className="px-6 py-4 whitespace-nowrap">
                                         <div className="flex flex-col gap-0.5">
                                             <span className="font-mono text-xs font-bold text-slate-700">{client.identificationNumber}</span>
                                             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{client.identificationType.replace('_', ' ')}</span>
                                         </div>
                                     </TableCell>
-                                    <TableCell className="px-6 py-4">
+                                    <TableCell className="px-6 py-4 whitespace-nowrap">
                                         <span className="text-xs font-medium text-slate-600">
                                             {client.identificationIssuanceDate 
                                                 ? format(new Date(client.identificationIssuanceDate), "dd/MM/yyyy") 
                                                 : <span className="text-slate-400 italic">N/A</span>}
                                         </span>
                                     </TableCell>
-                                    <TableCell className="px-6 py-4">
+                                    <TableCell className="px-6 py-4 min-w-[280px]">
                                         <div className="flex flex-col gap-0.5">
-                                            <span className="text-sm font-bold text-slate-800">{client.firstName}</span>
+                                            <span className="text-sm font-bold text-slate-800 leading-tight">{client.firstName}</span>
                                             <span className="text-[10px] font-medium text-slate-400">
                                                 {client.province}, {client.city}
                                             </span>

@@ -1,10 +1,13 @@
-import { useState, useMemo, useRef, useEffect } from "react"
+import { useState, useMemo, useRef, useEffect, lazy, Suspense, memo } from "react"
 import { useNavigate } from "react-router-dom"
 import { useOrderDeliveryList, useOrderDeliveryFilterData } from "../model/useOrderDelivery"
 import type { DeliveryFilters } from "../model/useOrderDelivery"
 import { OrderDeliveryTable } from "./OrderDeliveryTable"
-import { DeliverOrderModalNew } from "./DeliverOrderModalNew"
-import { PendingOrdersModal } from "./PendingOrdersModal"
+
+// Lazy load heavy modals
+const DeliverOrderModalNew = lazy(() => import("./DeliverOrderModalNew").then(module => ({ default: module.DeliverOrderModalNew })))
+const PendingOrdersModal = lazy(() => import("./PendingOrdersModal").then(module => ({ default: module.PendingOrdersModal })))
+
 import type { Order } from "@/entities/order/model/types"
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
@@ -20,7 +23,7 @@ import { getPaidAmount } from "@/entities/order/model/model"
 import { useAuth } from "@/shared/auth"
 
 /* --- Searchable Select for Clients --- */
-function SearchableClientSelect({ 
+const SearchableClientSelect = memo(function SearchableClientSelect({ 
     onSelect, 
     value,
     clients,
@@ -119,10 +122,10 @@ function SearchableClientSelect({
             )}
         </div>
     )
-}
+})
 
 /* --- Searchable Select for Brands --- */
-function SearchableBrandSelect({ 
+const SearchableBrandSelect = memo(function SearchableBrandSelect({ 
     onSelect, 
     value,
     brands,
@@ -212,7 +215,7 @@ function SearchableBrandSelect({
             )}
         </div>
     )
-}
+})
 
 export function OrderDeliveryPage() {
     const navigate = useNavigate()
@@ -299,36 +302,35 @@ export function OrderDeliveryPage() {
     // Extract relevant clients and brands from deliverable orders
     const dynamicClients = useMemo(() => {
         if (!filterOrdersData) return []
-        const uniques: any[] = []
-        const seen = new Set()
-        filterOrdersData.forEach((o: any) => {
-            if (!seen.has(o.clientId)) {
-                uniques.push({ 
-                    id: o.clientId, 
-                    firstName: o.clientName, 
-                    identificationNumber: o.clientIdentification,
-                    city: o.clientCity 
-                })
-                seen.add(o.clientId)
+        
+        const clientMap = new Map();
+        for (const o of filterOrdersData) {
+            const order = o as any;
+            if (!clientMap.has(order.clientId)) {
+                clientMap.set(order.clientId, { 
+                    id: order.clientId, 
+                    firstName: order.clientName, 
+                    identificationNumber: order.clientIdentification,
+                    city: order.clientCity 
+                });
             }
-        })
-        return uniques.sort((a,b) => a.firstName.localeCompare(b.firstName))
+        }
+        
+        return Array.from(clientMap.values()).sort((a, b) => a.firstName.localeCompare(b.firstName));
     }, [filterOrdersData])
 
     const dynamicBrands = useMemo(() => {
         if (!filterOrdersData) return []
-        // Filter by clientId if selected
-        const baseOrders = clientId ? filterOrdersData.filter((o: any) => o.clientId === clientId) : filterOrdersData
+        const brandMap = new Map();
         
-        const uniques: any[] = []
-        const seen = new Set()
-        baseOrders.forEach((o: any) => {
-            if (!seen.has(o.brandId)) {
-                uniques.push({ id: o.brandId, name: o.brandName })
-                seen.add(o.brandId)
+        for (const o of filterOrdersData) {
+            if (clientId && o.clientId !== clientId) continue;
+            if (!brandMap.has(o.brandId)) {
+                brandMap.set(o.brandId, { id: o.brandId, name: o.brandName });
             }
-        })
-        return uniques.sort((a,b) => a.name.localeCompare(b.name))
+        }
+        
+        return Array.from(brandMap.values()).sort((a, b) => a.name.localeCompare(b.name));
     }, [filterOrdersData, clientId])
 
     const { data: response, isLoading, isError, refetch } = useOrderDeliveryList(filters)
@@ -520,6 +522,40 @@ export function OrderDeliveryPage() {
                 }
             />
 
+            <Suspense fallback={null}>
+                <DeliverOrderModalNew
+                    order={isBatchMode ? null : selectedOrder}
+                    orders={isBatchMode ? selectedOrders : []}
+                    contextOrders={deliveryPdfContextOrders}
+                    creditDistributions={creditDistributions}
+                    open={isDeliverModalOpen}
+                    onOpenChange={(open) => {
+                        setIsDeliverModalOpen(open)
+                        if (!open) {
+                            setSelectedOrder(null)
+                        }
+                    }}
+                    onSuccess={() => {
+                        refetch()
+                        setSelectedOrderIds([])
+                        setSelectedOrdersMap({})
+                        setCreditDistributions({}) // Clear distributions on success
+                    }}
+                    onClearSelection={() => {
+                        setSelectedOrderIds([])
+                        setSelectedOrdersMap({})
+                        setCreditDistributions({})
+                    }}
+                />
+
+                <PendingOrdersModal 
+                    isOpen={isPendingModalOpen}
+                    onClose={() => setIsPendingModalOpen(false)}
+                    clientId={clientId}
+                    clientName={selectedClientName}
+                />
+            </Suspense>
+
             {/* Premium Filter Panel */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xl shadow-slate-200/30">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-x-3 gap-y-4 items-end">
@@ -589,9 +625,9 @@ export function OrderDeliveryPage() {
                         <p className="text-slate-900 font-bold text-sm leading-none mb-1 truncate">
                             {selectedOrderIds.length > 0 ? `${selectedOrderIds.length} pedidos para entrega` : 'Selecciona pedidos para entregar'}
                         </p>
-                        {selectedOrders.length > 0 && (
+                        {selectedOrders.length > 0 ? (
                             <p className="text-slate-500 text-xs font-medium truncate max-w-full">{selectedOrders[0]?.clientName}</p>
-                        )}
+                        ) : null}
                     </div>
                 </div>
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
@@ -612,11 +648,11 @@ export function OrderDeliveryPage() {
                         >
                             Proceder con Entrega
                         </Button>
-                        {pendingDistributionCount > 0 && (
+                         {pendingDistributionCount > 0 ? (
                             <span className="text-[10px] text-amber-600 font-bold animate-pulse text-center sm:text-right">
                                 Hay {pendingDistributionCount} saldos por distribuir
                             </span>
-                        )}
+                        ) : null}
                     </div>
                 </div>
             </div>
@@ -675,7 +711,7 @@ export function OrderDeliveryPage() {
                             onUpdateCreditDistribution={handleUpdateCreditDistribution}
                             onSuccess={refetch}
                         />
-                         {pagination && pagination.pages > 1 && (
+                         {pagination && pagination.pages > 1 ? (
                             <div className="p-4 border-t border-slate-100">
                                 <Pagination
                                     currentPage={page}
@@ -685,42 +721,10 @@ export function OrderDeliveryPage() {
                                     itemsPerPage={limit}
                                 />
                             </div>
-                        )}
+                        ) : null}
                     </>
                 )}
             </div>
-
-            <DeliverOrderModalNew
-                order={isBatchMode ? null : selectedOrder}
-                orders={isBatchMode ? selectedOrders : []}
-                contextOrders={deliveryPdfContextOrders}
-                creditDistributions={creditDistributions}
-                open={isDeliverModalOpen}
-                onOpenChange={(open) => {
-                    setIsDeliverModalOpen(open)
-                    if (!open) {
-                        setSelectedOrder(null)
-                    }
-                }}
-                onSuccess={() => {
-                    refetch()
-                    setSelectedOrderIds([])
-                    setSelectedOrdersMap({})
-                    setCreditDistributions({}) // Clear distributions on success
-                }}
-                onClearSelection={() => {
-                    setSelectedOrderIds([])
-                    setSelectedOrdersMap({})
-                    setCreditDistributions({})
-                }}
-            />
-
-            <PendingOrdersModal 
-                isOpen={isPendingModalOpen}
-                onClose={() => setIsPendingModalOpen(false)}
-                clientId={clientId}
-                clientName={selectedClientName}
-            />
         </div>
     )
 }

@@ -389,19 +389,34 @@ export function CashClosurePage() {
                                                 </div>
 
                                                 {/* Sección 4: Ventas Catálogo */}
-                                                <div className="flex justify-between items-center p-2 bg-slate-50 rounded-lg border border-slate-100">
-                                                    <div className="flex items-center gap-2">
-                                                        <Badge className="bg-orange-500 text-[9px] h-4">VENTAS</Badge>
-                                                        <span className="text-xs font-bold text-slate-700 uppercase">Ventas Directas de Catálogo</span>
+                                                {previewData.incomeBySource?.catalogSales > 0 ? (
+                                                    <div className="flex justify-between items-center p-2 bg-slate-50 rounded-lg border border-slate-100">
+                                                        <div className="flex items-center gap-2">
+                                                            <Badge className="bg-orange-500 text-[9px] h-4">VENTAS</Badge>
+                                                            <span className="text-xs font-bold text-slate-700 uppercase">Ventas Directas de Catálogo</span>
+                                                        </div>
+                                                        <span className="text-sm font-black text-slate-900">{fmt(previewData.incomeBySource?.catalogSales || 0)}</span>
                                                     </div>
-                                                    <span className="text-sm font-black text-slate-900">{fmt(previewData.incomeBySource?.catalogSales || 0)}</span>
-                                                </div>
+                                                ) : null}
+
+                                                {/* Sección 5: Ingresos Manuales */}
+                                                {previewData.incomeBySource?.manual > 0 ? (
+                                                    <div className="flex justify-between items-center p-2 bg-slate-50 rounded-lg border border-slate-100">
+                                                        <div className="flex items-center gap-2">
+                                                            <Badge className="bg-slate-400 text-[9px] h-4">MANUAL</Badge>
+                                                            <span className="text-xs font-bold text-slate-700 uppercase">Otros Ingresos Manuales</span>
+                                                        </div>
+                                                        <span className="text-sm font-black text-slate-900">{fmt(previewData.incomeBySource?.manual || 0)}</span>
+                                                    </div>
+                                                ) : null}
                                                 
                                                 {/* Otros: Recargas y Ajustes */}
-                                                <div className="flex justify-between items-center p-2 bg-slate-50 rounded-lg border border-slate-100 opacity-60 italic">
-                                                    <span className="text-xs font-medium text-slate-500 uppercase">Resguardo (Recargas/Ajustes)</span>
-                                                    <span className="text-sm font-medium text-slate-500">{fmt((previewData.incomeBySource?.walletRecharges || 0) + (previewData.incomeBySource?.adjustments || 0))}</span>
-                                                </div>
+                                                {(previewData.incomeBySource?.walletRecharges > 0 || previewData.incomeBySource?.adjustments > 0) ? (
+                                                    <div className="flex justify-between items-center p-2 bg-slate-50 rounded-lg border border-slate-100 opacity-60 italic">
+                                                        <span className="text-xs font-medium text-slate-500 uppercase">Resguardo (Recargas/Ajustes)</span>
+                                                        <span className="text-sm font-medium text-slate-500">{fmt((previewData.incomeBySource?.walletRecharges || 0) + (previewData.incomeBySource?.adjustments || 0))}</span>
+                                                    </div>
+                                                ) : null}
                                             </div>
                                         </div>
 

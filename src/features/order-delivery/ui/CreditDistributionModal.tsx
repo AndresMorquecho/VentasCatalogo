@@ -199,62 +199,68 @@ export function CreditDistributionModal({
             <div className="border rounded-lg border-slate-200 overflow-hidden flex-1 min-h-0">
               <div className="h-full overflow-y-auto">
                 <div className="space-y-2 p-2">
-                  {availableOrders.map(order => {
-                    const distribution = distributions.find(d => d.targetOrderId === order.id)
-                    const isSelected = !!distribution
-                    const newBalance = (order.pendingAmount || 0) - (distribution?.amount || 0)
+                  {(() => {
+                    const distMap = new Map();
+                    for (const d of distributions) distMap.set(d.targetOrderId, d);
                     
-                    return (
-                      <div key={order.id} className={`border rounded-lg transition-colors ${
-                        isSelected ? 'bg-monchito-purple/5 border-monchito-purple/20' : 'bg-white border-slate-200'
-                      }`}>
-                        <div className="px-3 py-2">
-                          <div className="flex items-center gap-3">
-                            <Checkbox
-                              checked={isSelected}
-                              onCheckedChange={(checked) => handleOrderToggle(order.id, !!checked)}
-                            />
-                            <div className="flex-1 grid grid-cols-5 gap-3 items-center text-sm">
-                              <div>
-                                <p className="font-mono font-semibold text-monchito-purple text-sm">#{order.receiptNumber}</p>
-                                <p className="text-slate-500 text-xs">Pedido: #{order.orderNumber || 'N/A'}</p>
-                                <p className="text-slate-500 text-xs">{order.orderType || 'NORMAL'}</p>
-                                <p className="text-slate-500 text-xs">{order.brandName || 'Sin catálogo'}</p>
-                              </div>
-                              <div className="text-center">
-                                <p className="text-slate-500 text-xs font-medium">Total</p>
-                                <p className="font-mono font-semibold text-sm">${(order.totalAmount || 0).toFixed(2)}</p>
-                              </div>
-                              <div className="text-center">
-                                <p className="text-slate-500 text-xs font-medium">Pendiente</p>
-                                <p className="font-mono font-semibold text-amber-600 text-sm">${order.pendingAmount.toFixed(2)}</p>
-                              </div>
-                              <div className="text-center">
-                                <p className="text-slate-500 text-xs font-medium">Nuevo saldo</p>
-                                <p className={`font-mono font-semibold text-sm ${newBalance <= 0.01 ? 'text-emerald-600' : 'text-amber-600'}`}>
-                                  ${newBalance.toFixed(2)}
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-1 justify-end">
-                                {isSelected ? (
-                                  <>
-                                    <span className="text-slate-600 text-sm font-medium">$</span>
-                                    <DecimalTextField
-                                      value={distribution.amount}
-                                      onValueChange={(n) => handleAmountChange(order.id, n)}
-                                      className="h-8 text-sm border-monchito-purple/20 px-2 w-24"
-                                    />
-                                  </>
-                                ) : (
-                                  <div className="h-8 w-24"></div>
-                                )}
+                    return availableOrders.map(order => {
+                      const distribution = distMap.get(order.id)
+                      const isSelected = !!distribution
+                      const distAmount = distribution?.amount || 0;
+                      const newBalance = (order.pendingAmount || 0) - distAmount
+                      
+                      return (
+                        <div key={order.id} className={`border rounded-lg transition-colors ${
+                          isSelected ? 'bg-monchito-purple/5 border-monchito-purple/20' : 'bg-white border-slate-200'
+                        }`}>
+                          <div className="px-3 py-2">
+                            <div className="flex items-center gap-3">
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={(checked) => handleOrderToggle(order.id, !!checked)}
+                              />
+                              <div className="flex-1 grid grid-cols-5 gap-3 items-center text-sm">
+                                <div>
+                                  <p className="font-mono font-semibold text-monchito-purple text-sm">#{order.receiptNumber}</p>
+                                  <p className="text-slate-500 text-xs text-balance line-clamp-1">{order.orderNumber ? `Pedido: #${order.orderNumber}` : 'N/A'}</p>
+                                  <p className="text-slate-500 text-xs">{order.orderType || 'NORMAL'}</p>
+                                  <p className="text-slate-500 text-xs">{order.brandName || 'Sin catálogo'}</p>
+                                </div>
+                                <div className="text-center">
+                                  <p className="text-slate-500 text-xs font-medium">Total</p>
+                                  <p className="font-mono font-semibold text-sm">${(order.totalAmount || 0).toFixed(2)}</p>
+                                </div>
+                                <div className="text-center">
+                                  <p className="text-slate-500 text-xs font-medium">Pendiente</p>
+                                  <p className="font-mono font-semibold text-amber-600 text-sm">${order.pendingAmount.toFixed(2)}</p>
+                                </div>
+                                <div className="text-center">
+                                  <p className="text-slate-500 text-xs font-medium">Nuevo saldo</p>
+                                  <p className={`font-mono font-semibold text-sm ${newBalance <= 0.01 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                                    ${newBalance.toFixed(2)}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-1 justify-end">
+                                  {isSelected ? (
+                                    <>
+                                      <span className="text-slate-600 text-sm font-medium">$</span>
+                                      <DecimalTextField
+                                        value={distAmount}
+                                        onValueChange={(n) => handleAmountChange(order.id, n)}
+                                        className="h-8 text-sm border-monchito-purple/20 px-2 w-24"
+                                      />
+                                    </>
+                                  ) : (
+                                    <div className="h-8 w-24"></div>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    )
-                  })}
+                      )
+                    })
+                  })()}
                 </div>
               </div>
             </div>
@@ -271,19 +277,19 @@ export function CreditDistributionModal({
         <div className="shrink-0 space-y-3 pt-3 border-t">
           <div className="border rounded-lg p-3 space-y-2 bg-slate-50">
             <div className="grid grid-cols-2 gap-3 text-sm">
-              {totalDistributed > 0 && (
+              {totalDistributed > 0 ? (
                 <div className="flex justify-between">
                   <span className="text-slate-600">Distribuido a pedidos:</span>
                   <span className="font-mono font-bold text-emerald-600">${totalDistributed.toFixed(2)}</span>
                 </div>
-              )}
+              ) : null}
               <div className="flex justify-between">
                 <span className="text-slate-600">{totalDistributed > 0 ? 'Saldo restante:' : 'Total del saldo a favor:'}:</span>
                 <span className="font-mono font-bold text-monchito-purple">${remaining.toFixed(2)}</span>
               </div>
             </div>
             
-            {remaining > 0.01 && (
+            {remaining > 0.01 ? (
               <div className="pt-2 border-t">
                 <p className="text-sm text-slate-600 mb-2">
                   ¿Qué hacer con {totalDistributed > 0 ? `el restante ` : ``}${remaining.toFixed(2)}?
@@ -313,7 +319,7 @@ export function CreditDistributionModal({
                   </label>
                 </div>
 
-                {remainingAction === 'return' && activeAccounts.length > 0 && (
+                {remainingAction === 'return' && activeAccounts.length > 0 ? (
                   <div className="mt-3 flex items-center gap-3 animate-in fade-in slide-in-from-top-1 duration-200">
                     <Label className="text-xs font-semibold text-slate-500 whitespace-nowrap">Desde la cuenta:</Label>
                     <Select
@@ -334,7 +340,7 @@ export function CreditDistributionModal({
                               <div className="flex items-center gap-2 font-semibold text-slate-700">
                                 {acc.type === 'CASH' ? <WalletIcon className="h-3.5 w-3.5 text-emerald-600" /> : <Building2 className="h-3.5 w-3.5 text-blue-600" />}
                                 <span>{acc.name}</span>
-                                {acc.type !== 'CASH' && <span className="text-[10px] text-slate-400 font-normal">({acc.type})</span>}
+                                {acc.type !== 'CASH' ? <span className="text-[10px] text-slate-400 font-normal">({acc.type})</span> : null}
                               </div>
                               <div className="flex justify-between items-center text-[10px] pl-5 pr-1">
                                 <span className={cn(
@@ -353,9 +359,9 @@ export function CreditDistributionModal({
                       </SelectContent>
                     </Select>
                   </div>
-                )}
+                ) : null}
               </div>
-            )}
+            ) : null}
           </div>
 
           <div className="flex gap-3">

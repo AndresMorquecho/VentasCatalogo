@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, lazy, Suspense } from "react"
 import {
     Table,
     TableBody,
@@ -13,11 +13,196 @@ import type { Order } from "@/entities/order/model/types"
 import type { CreditDistribution } from "@/entities/financial-record/model/types"
 import { getPaidAmount } from "@/entities/order/model/model"
 import { Badge } from "@/shared/ui/badge"
-import { CreditActionSelectorModal } from "./CreditActionSelectorModal"
-import { CreditDistributionModal } from "./CreditDistributionModal"
-import { DismantleModal } from "./DismantleModal"
+
+const CreditActionSelectorModal = lazy(() => import("./CreditActionSelectorModal").then(module => ({ default: module.CreditActionSelectorModal })))
+const CreditDistributionModal = lazy(() => import("./CreditDistributionModal").then(module => ({ default: module.CreditDistributionModal })))
+const DismantleModal = lazy(() => import("./DismantleModal").then(module => ({ default: module.DismantleModal })))
 import { cn } from "@/shared/lib/utils"
 import { useAuth } from "@/shared/auth"
+import { memo } from "react"
+
+/* --- Memoized Order Row Component --- */
+const OrderRow = memo(function OrderRow({ 
+    order, 
+    index, 
+    isSelected, 
+    isDisabled, 
+    onToggleSelect, 
+    calculateCreditAmount, 
+    plannedIncomingCredit,
+    hasDistribution,
+    canConfirm,
+    canDismantle,
+    onOpenCreditDistribution,
+    onOpenDismantle,
+    isPinned
+}: {
+    order: Order,
+    index: number,
+    isSelected: boolean,
+    isDisabled: boolean,
+    onToggleSelect: (order: Order) => void,
+    calculateCreditAmount: (order: Order) => number,
+    plannedIncomingCredit: number,
+    hasDistribution: boolean,
+    canConfirm: boolean,
+    canDismantle: boolean,
+    onOpenCreditDistribution: (order: Order) => void,
+    onOpenDismantle: (order: Order) => void,
+    isPinned: (col: string) => boolean
+}) {
+    const initialPaid = getPaidAmount(order)
+    const alreadyPersistedCredit = (order.payments || [])
+        .reduce((sum, p) => p.method === 'CREDITO_CLIENTE' ? sum + Number(p.amount || 0) : sum, 0);
+
+    const incomingDistributiveCredit = Math.max(0, plannedIncomingCredit - alreadyPersistedCredit);
+    const totalAmount = order.realInvoiceTotal ?? order.total ?? 0
+    const saldo = Math.max(0, totalAmount - initialPaid - incomingDistributiveCredit)
+    const creditAmount = calculateCreditAmount(order)
+
+    return (
+        <TableRow
+            tabIndex={0}
+            data-row-index={index}
+            className={cn(
+                "group border-b border-monchito-purple/5 transition-all duration-200 cursor-pointer outline-none focus:bg-monchito-purple/[0.05]",
+                isSelected ? "bg-monchito-purple/[0.03]" : "hover:bg-monchito-purple/[0.02]"
+            )}
+            onClick={() => !isDisabled && onToggleSelect(order)}
+            onKeyDown={(e) => {
+                if (e.key === ' ' || e.key === 'Enter') {
+                    e.preventDefault()
+                    if (!isDisabled) onToggleSelect(order)
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault()
+                    const next = document.querySelector(`[data-row-index="${index + 1}"]`) as HTMLElement
+                    if (next) next.focus()
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault()
+                    const prev = document.querySelector(`[data-row-index="${index - 1}"]`) as HTMLElement
+                    if (prev) prev.focus()
+                }
+            }}
+        >
+            <TableCell className="px-6 py-4">
+                <input
+                    type="checkbox"
+                    checked={isSelected}
+                    disabled={isDisabled}
+                    onChange={() => onToggleSelect(order)}
+                    className="h-4 w-4 rounded border-slate-300 text-monchito-purple"
+                />
+            </TableCell>
+            <TableCell className="px-6 py-4 text-center text-xs font-bold text-slate-600 uppercase whitespace-nowrap">{order.salesChannel || '-'}</TableCell>
+            <TableCell className="px-6 py-4 text-center text-xs font-mono font-bold text-slate-700 whitespace-nowrap">{order.receiptNumber}</TableCell>
+            <TableCell className="px-6 py-4 text-center">
+                <div className="flex flex-col items-center justify-center gap-0.5 text-center">
+                    <span className="text-sm font-bold text-slate-800 leading-tight whitespace-nowrap">{order.clientName}</span>
+                    {order.clientIdentification ? (
+                        <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">{order.clientIdentification}</span>
+                    ) : null}
+                </div>
+            </TableCell>
+            <TableCell className="px-6 py-4 text-center text-xs font-mono text-slate-600 whitespace-nowrap">{order.orderNumber || '-'}</TableCell>
+            <TableCell className="px-6 py-4 text-center">
+                <Badge variant="outline" className="text-[9px] font-black tracking-widest uppercase">
+                    {order.type || 'NORMAL'}
+                </Badge>
+            </TableCell>
+            <TableCell className="px-6 py-4 text-center text-xs font-black text-monchito-purple uppercase tracking-tight whitespace-nowrap">{order.brandName}</TableCell>
+            <TableCell className="px-6 py-4 text-center text-xs font-mono font-black text-slate-800 whitespace-nowrap">{formatCurrency(order.total)}</TableCell>
+            <TableCell className="px-6 py-4 text-center text-xs font-mono font-black text-emerald-600 whitespace-nowrap">
+                <div className="flex flex-col items-center">
+                    <span>{formatCurrency(initialPaid)}</span>
+                    {incomingDistributiveCredit > 0 ? (
+                        <span className="text-[9px] text-emerald-600 flex items-center justify-center gap-1">
+                            <ArrowRight className="h-2 w-2" /> +{formatCurrency(incomingDistributiveCredit)}
+                        </span>
+                    ) : null}
+                </div>
+            </TableCell>
+            <TableCell className="px-6 py-4 text-center text-xs font-bold text-slate-500 whitespace-nowrap">{formatDate(order.possibleDeliveryDate)}</TableCell>
+            <TableCell className="px-6 py-4 text-center text-xs font-mono font-bold text-slate-600 whitespace-nowrap">{order.invoiceNumber || '-'}</TableCell>
+            <TableCell className="px-6 py-4 text-center text-xs font-mono font-black text-slate-800 whitespace-nowrap">
+                {order.realInvoiceTotal ? formatCurrency(order.realInvoiceTotal) : '-'}
+            </TableCell>
+            <TableCell className="px-6 py-4 text-center text-xs font-bold text-slate-700 whitespace-nowrap">
+                {order.receptionDate ? formatDate(order.receptionDate) : '-'}
+            </TableCell>
+            
+            <TableCell className={cn(
+                "px-6 py-4 transition-all duration-300",
+                isPinned('Saldo') && "sticky right-[320px] z-20 shadow-[-10px_0_20px_-10px_rgba(0,0,0,0.1)] border-l border-monchito-purple/5 bg-white group-hover:bg-slate-50 w-[160px] min-w-[160px] max-w-[160px]",
+                !isPinned('Saldo') && "text-center"
+            )}>
+                <div className="flex items-center justify-center gap-2">
+                    {creditAmount > 0 ? (
+                        <Badge className="bg-emerald-500/10 text-emerald-600 border-none font-black px-3 py-1 rounded-full whitespace-nowrap">
+                            +{formatCurrency(creditAmount)}
+                        </Badge>
+                    ) : (
+                        <div className="flex items-center gap-1.5 justify-center">
+                            <span className={cn("font-black whitespace-nowrap", saldo > 0.01 ? 'text-red-500' : 'text-slate-400')}>
+                                {formatCurrency(saldo)}
+                            </span>
+                            {saldo > 0.01 ? <AlertTriangle className="h-3.5 w-3.5 text-red-500 animate-pulse" /> : null}
+                        </div>
+                    )}
+                </div>
+            </TableCell>
+
+            <TableCell className={cn(
+                "px-6 py-4 transition-all duration-300",
+                isPinned('Distribución') && "sticky right-[160px] z-20 border-l border-monchito-purple/5 bg-white group-hover:bg-slate-50 w-[160px] min-w-[160px] max-w-[160px]",
+                !isPinned('Distribución') && "text-center"
+            )}>
+                {creditAmount > 0 ? (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={!canConfirm}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenCreditDistribution(order);
+                        }}
+                        className={cn(
+                            "h-8 px-4 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 shadow-sm",
+                            hasDistribution ? 'bg-monchito-purple text-white border-monchito-purple hover:bg-monchito-purple/90' : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300',
+                            !canConfirm && "opacity-50"
+                        )}
+                    >
+                        <DollarSign className="h-3 w-3 mr-1" />
+                        {hasDistribution ? 'Ver/Editar' : 'Distribuir'}
+                    </Button>
+                ) : (
+                    <span className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">Al día</span>
+                )}
+            </TableCell>
+
+            <TableCell className={cn(
+                "px-6 py-4 transition-all duration-300",
+                isPinned('Acciones') && "sticky right-0 z-20 border-l border-monchito-purple/5 bg-white group-hover:bg-slate-50 w-[160px] min-w-[160px] max-w-[160px]",
+                !isPinned('Acciones') && "text-center"
+            )}>
+                {canDismantle ? (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenDismantle(order);
+                        }}
+                        className="h-8 px-4 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 border-amber-200 text-amber-700 hover:bg-amber-500 hover:text-white hover:border-amber-500 active:scale-95 whitespace-nowrap"
+                        title="Desmantelar Pedido"
+                    >
+                        <Eraser className="h-4 w-4 mr-2" />
+                        <span>Desmantelar</span>
+                    </Button>
+                ) : null}
+            </TableCell>
+        </TableRow>
+    )
+})
 
 interface OrderDeliveryTableProps {
     orders: Order[]
@@ -157,25 +342,34 @@ export function OrderDeliveryTable({
     }, []);
 
     const getAvailableOrdersForDistribution = useCallback((sourceOrder: Order) => {
-        return orders
-            .filter(o =>
-                o.id !== sourceOrder.id &&
-                o.clientId === sourceOrder.clientId
-            )
+        const otherOrdersFromClient = orders.filter(o => 
+            o.id !== sourceOrder.id && o.clientId === sourceOrder.clientId
+        );
+
+        if (otherOrdersFromClient.length === 0) return [];
+
+        // Pre-calculate distributions for all orders in a single pass
+        const incomingDistributionsByOrder = new Map<string, number>();
+        for (const [distSourceId, dist] of Object.entries(creditDistributions)) {
+            if (distSourceId === sourceOrder.id) continue;
+            for (const d of dist.distributions) {
+                if (d.targetOrderId) {
+                    incomingDistributionsByOrder.set(
+                        d.targetOrderId, 
+                        (incomingDistributionsByOrder.get(d.targetOrderId) || 0) + d.amount
+                    );
+                }
+            }
+        }
+
+        return otherOrdersFromClient
             .map(o => {
                 const initialPaid = getPaidAmount(o);
-
-                // Already persisted CREDITO_CLIENTE payments in DB (from prior distributions)
+                
                 const alreadyPersistedCredit = (o.payments || [])
-                    .filter(p => p.method === 'CREDITO_CLIENTE')
-                    .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+                    .reduce((sum, p) => p.method === 'CREDITO_CLIENTE' ? sum + Number(p.amount || 0) : sum, 0);
 
-                // Net credit planned in this session but not yet in DB
-                const incomingFromOthers = Object.entries(creditDistributions).reduce((sum, [orderId, dist]) => {
-                    if (orderId === sourceOrder.id) return sum;
-                    const distToThisOrder = dist.distributions.find(d => d.targetOrderId === o.id);
-                    return sum + (distToThisOrder?.amount || 0);
-                }, 0);
+                const incomingFromOthers = incomingDistributionsByOrder.get(o.id) || 0;
                 const netIncomingFromOthers = Math.max(0, incomingFromOthers - alreadyPersistedCredit);
 
                 const totalAmount = Number(o.realInvoiceTotal ?? o.total ?? 0);
@@ -320,222 +514,81 @@ export function OrderDeliveryTable({
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            orders.map((order) => {
-                                const isSelected = selectedOrderIds.includes(order.id)
-                                const isDisabled = selectedClientId !== null && order.clientId !== selectedClientId
-
-                                const initialPaid = getPaidAmount(order)
-                                
-                                // Already persisted CREDITO_CLIENTE payments (from previous distributions saved to DB)
-                                const alreadyPersistedCredit = (order.payments || [])
-                                    .filter(p => p.method === 'CREDITO_CLIENTE')
-                                    .reduce((sum, p) => sum + Number(p.amount || 0), 0);
-
-                                // Only show the NET incoming credit not yet reflected in DB payments
-                                const plannedIncoming = incomingCreditsMap[order.id] || 0;
-                                const incomingDistributiveCredit = Math.max(0, plannedIncoming - alreadyPersistedCredit);
-
-                                const totalAmount = order.realInvoiceTotal ?? order.total ?? 0
-                                const saldo = Math.max(0, totalAmount - initialPaid - incomingDistributiveCredit)
-                                const creditAmount = calculateCreditAmount(order)
-                                const hasDistribution = !!creditDistributions[order.id]
-
-                                return (
-                                    <TableRow
-                                        key={order.id}
-                                        tabIndex={0}
-                                        data-row-index={orders.indexOf(order)}
-                                        className={cn(
-                                            "group border-b border-monchito-purple/5 transition-all duration-200 cursor-pointer outline-none focus:bg-monchito-purple/[0.05]",
-                                            isSelected ? "bg-monchito-purple/[0.03]" : "hover:bg-monchito-purple/[0.02]"
-                                        )}
-                                        onClick={() => !isDisabled && handleToggleSelect(order)}
-                                        onKeyDown={(e) => {
-                                            if (e.key === ' ' || e.key === 'Enter') {
-                                                e.preventDefault()
-                                                if (!isDisabled) handleToggleSelect(order)
-                                            } else if (e.key === 'ArrowDown') {
-                                                e.preventDefault()
-                                                const next = document.querySelector(`[data-row-index="${orders.indexOf(order) + 1}"]`) as HTMLElement
-                                                if (next) next.focus()
-                                            } else if (e.key === 'ArrowUp') {
-                                                e.preventDefault()
-                                                const prev = document.querySelector(`[data-row-index="${orders.indexOf(order) - 1}"]`) as HTMLElement
-                                                if (prev) prev.focus()
-                                            }
-                                        }}
-                                    >
-                                        <TableCell className="px-6 py-4">
-                                            <input
-                                                type="checkbox"
-                                                checked={isSelected}
-                                                disabled={isDisabled}
-                                                onChange={() => handleToggleSelect(order)}
-                                                className="h-4 w-4 rounded border-slate-300 text-monchito-purple"
-                                            />
-                                        </TableCell>
-                                        <TableCell className="px-6 py-4 text-center text-xs font-bold text-slate-600 uppercase whitespace-nowrap">{order.salesChannel || '-'}</TableCell>
-                                        <TableCell className="px-6 py-4 text-center text-xs font-mono font-bold text-slate-700 whitespace-nowrap">{order.receiptNumber}</TableCell>
-                                        <TableCell className="px-6 py-4 text-center">
-                                            <div className="flex flex-col items-center justify-center gap-0.5 text-center">
-                                                <span className="text-sm font-bold text-slate-800 leading-tight whitespace-nowrap">{order.clientName}</span>
-                                                {order.clientIdentification && (
-                                                    <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">{order.clientIdentification}</span>
-                                                )}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="px-6 py-4 text-center text-xs font-mono text-slate-600 whitespace-nowrap">{order.orderNumber || '-'}</TableCell>
-                                        <TableCell className="px-6 py-4 text-center">
-                                            <Badge variant="outline" className="text-[9px] font-black tracking-widest uppercase">
-                                                {order.type || 'NORMAL'}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="px-6 py-4 text-center text-xs font-black text-monchito-purple uppercase tracking-tight whitespace-nowrap">{order.brandName}</TableCell>
-                                        <TableCell className="px-6 py-4 text-center text-xs font-mono font-black text-slate-800 whitespace-nowrap">{formatCurrency(order.total)}</TableCell>
-                                        <TableCell className="px-6 py-4 text-center text-xs font-mono font-black text-emerald-600 whitespace-nowrap">
-                                            <div className="flex flex-col items-center">
-                                                <span>{formatCurrency(initialPaid)}</span>
-                                                {incomingDistributiveCredit > 0 && (
-                                                    <span className="text-[9px] text-emerald-600 flex items-center justify-center gap-1">
-                                                        <ArrowRight className="h-2 w-2" /> +{formatCurrency(incomingDistributiveCredit)}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="px-6 py-4 text-center text-xs font-bold text-slate-500 whitespace-nowrap">{formatDate(order.possibleDeliveryDate)}</TableCell>
-                                        <TableCell className="px-6 py-4 text-center text-xs font-mono font-bold text-slate-600 whitespace-nowrap">{order.invoiceNumber || '-'}</TableCell>
-                                        <TableCell className="px-6 py-4 text-center text-xs font-mono font-black text-slate-800 whitespace-nowrap">
-                                            {order.realInvoiceTotal ? formatCurrency(order.realInvoiceTotal) : '-'}
-                                        </TableCell>
-                                        <TableCell className="px-6 py-4 text-center text-xs font-bold text-slate-700 whitespace-nowrap">{formatDate(order.receptionDate!)}</TableCell>
-                                        
-                                        <TableCell className={cn(
-                                            "px-6 py-4 transition-all duration-300",
-                                            isPinned('Saldo') && "sticky right-[320px] z-20 shadow-[-10px_0_20px_-10px_rgba(0,0,0,0.1)] border-l border-monchito-purple/5 bg-white group-hover:bg-slate-50 w-[160px] min-w-[160px] max-w-[160px]",
-                                            !isPinned('Saldo') && "text-center"
-                                        )}>
-                                            <div className="flex items-center justify-center gap-2">
-                                                {creditAmount > 0 ? (
-                                                    <Badge className="bg-emerald-500/10 text-emerald-600 border-none font-black px-3 py-1 rounded-full whitespace-nowrap">
-                                                        +{formatCurrency(creditAmount)}
-                                                    </Badge>
-                                                ) : (
-                                                    <div className="flex items-center gap-1.5 justify-center">
-                                                        <span className={cn("font-black whitespace-nowrap", saldo > 0.01 ? 'text-red-500' : 'text-slate-400')}>
-                                                            {formatCurrency(saldo)}
-                                                        </span>
-                                                        {saldo > 0.01 && <AlertTriangle className="h-3.5 w-3.5 text-red-500 animate-pulse" />}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </TableCell>
-
-                                        <TableCell className={cn(
-                                            "px-6 py-4 transition-all duration-300",
-                                            isPinned('Distribución') && "sticky right-[160px] z-20 border-l border-monchito-purple/5 bg-white group-hover:bg-slate-50 w-[160px] min-w-[160px] max-w-[160px]",
-                                            !isPinned('Distribución') && "text-center"
-                                        )}>
-                                            {creditAmount > 0 ? (
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    disabled={!hasPermission('delivery.confirm')}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleOpenCreditDistribution(order);
-                                                    }}
-                                                    className={`h-8 px-4 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 shadow-sm ${hasDistribution
-                                                            ? 'bg-monchito-purple text-white border-monchito-purple hover:bg-monchito-purple/90'
-                                                            : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300'
-                                                        } ${!hasPermission('delivery.confirm') ? 'opacity-50' : ''}`}
-                                                >
-                                                    <DollarSign className="h-3 w-3 mr-1" />
-                                                    {hasDistribution ? 'Ver/Editar' : 'Distribuir'}
-                                                </Button>
-                                            ) : (
-                                                <span className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">Al día</span>
-                                            )}
-                                        </TableCell>
-
-                                        <TableCell className={cn(
-                                            "px-6 py-4 transition-all duration-300",
-                                            isPinned('Acciones') && "sticky right-0 z-20 border-l border-monchito-purple/5 bg-white group-hover:bg-slate-50 w-[160px] min-w-[160px] max-w-[160px]",
-                                            !isPinned('Acciones') && "text-center"
-                                        )}>
-                                            {hasPermission('delivery.dismantle') && (
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setDismantleModal({ isOpen: true, order });
-                                                    }}
-                                                    className="h-8 px-4 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 border-amber-200 text-amber-700 hover:bg-amber-500 hover:text-white hover:border-amber-500 active:scale-95 whitespace-nowrap"
-                                                    title="Desmantelar Pedido"
-                                                >
-                                                    <Eraser className="h-4 w-4 mr-2" />
-                                                    <span>Desmantelar</span>
-                                                </Button>
-                                            )}
-                                        </TableCell>
-                                    </TableRow>
-                                )
-                            })
+                            orders.map((order, index) => (
+                                <OrderRow 
+                                    key={order.id}
+                                    order={order}
+                                    index={index}
+                                    isSelected={selectedOrderIds.includes(order.id)}
+                                    isDisabled={selectedClientId !== null && order.clientId !== selectedClientId}
+                                    onToggleSelect={handleToggleSelect}
+                                    calculateCreditAmount={calculateCreditAmount}
+                                    plannedIncomingCredit={incomingCreditsMap[order.id] || 0}
+                                    hasDistribution={!!creditDistributions[order.id]}
+                                    canConfirm={hasPermission('delivery.confirm')}
+                                    canDismantle={hasPermission('delivery.dismantle')}
+                                    onOpenCreditDistribution={handleOpenCreditDistribution}
+                                    onOpenDismantle={(order) => setDismantleModal({ isOpen: true, order })}
+                                    isPinned={isPinned}
+                                />
+                            ))
                         )}
                     </TableBody>
                 </Table>
             </div>
 
-            {creditModalState.sourceOrder && (
-                <CreditActionSelectorModal
-                    isOpen={creditModalState.selectorOpen}
-                    onClose={() => setCreditModalState({ selectorOpen: false, distributionOpen: false, creditAmount: 0, initialRemainingAction: undefined })}
-                    sourceOrder={{
-                        id: creditModalState.sourceOrder.id,
-                        receiptNumber: creditModalState.sourceOrder.receiptNumber,
-                        orderNumber: creditModalState.sourceOrder.orderNumber || '',
-                        clientName: creditModalState.sourceOrder.clientName,
-                        orderType: (creditModalState.sourceOrder.type || 'NORMAL') as any
-                    }}
-                    creditAmount={creditModalState.creditAmount}
-                    onMoveToWallet={handleMoveToWallet}
-                    onReturnToClient={handleReturnToClient}
-                    onDistributeToOrders={handleDistributeToOrders}
-                />
-            )}
+            <Suspense fallback={null}>
+                {creditModalState.sourceOrder && (
+                    <CreditActionSelectorModal
+                        isOpen={creditModalState.selectorOpen}
+                        onClose={() => setCreditModalState({ selectorOpen: false, distributionOpen: false, creditAmount: 0, initialRemainingAction: undefined })}
+                        sourceOrder={{
+                            id: creditModalState.sourceOrder.id,
+                            receiptNumber: creditModalState.sourceOrder.receiptNumber,
+                            orderNumber: creditModalState.sourceOrder.orderNumber || '',
+                            clientName: creditModalState.sourceOrder.clientName,
+                            orderType: (creditModalState.sourceOrder.type || 'NORMAL') as any
+                        }}
+                        creditAmount={creditModalState.creditAmount}
+                        onMoveToWallet={handleMoveToWallet}
+                        onReturnToClient={handleReturnToClient}
+                        onDistributeToOrders={handleDistributeToOrders}
+                    />
+                )}
 
-            {creditModalState.sourceOrder && (
-                <CreditDistributionModal
-                    isOpen={creditModalState.distributionOpen}
-                    onClose={() => setCreditModalState({ selectorOpen: false, distributionOpen: false, creditAmount: 0, initialRemainingAction: undefined })}
-                    sourceOrder={{
-                        id: creditModalState.sourceOrder.id,
-                        receiptNumber: creditModalState.sourceOrder.receiptNumber,
-                        orderNumber: creditModalState.sourceOrder.orderNumber || '',
-                        clientId: creditModalState.sourceOrder.clientId,
-                        clientName: creditModalState.sourceOrder.clientName,
-                        orderType: creditModalState.sourceOrder.type || 'NORMAL'
-                    }}
-                    creditAmount={creditModalState.creditAmount}
-                    availableOrders={getAvailableOrdersForDistribution(creditModalState.sourceOrder)}
-                    onDistribute={handleCreditDistribution}
-                    initialDistribution={creditDistributions[creditModalState.sourceOrder.id]}
-                    initialRemainingAction={creditModalState.initialRemainingAction}
-                    onBack={handleBackToSelector}
-                />
-            )}
+                {creditModalState.sourceOrder && (
+                    <CreditDistributionModal
+                        isOpen={creditModalState.distributionOpen}
+                        onClose={() => setCreditModalState({ selectorOpen: false, distributionOpen: false, creditAmount: 0, initialRemainingAction: undefined })}
+                        sourceOrder={{
+                            id: creditModalState.sourceOrder.id,
+                            receiptNumber: creditModalState.sourceOrder.receiptNumber,
+                            orderNumber: creditModalState.sourceOrder.orderNumber || '',
+                            clientId: creditModalState.sourceOrder.clientId,
+                            clientName: creditModalState.sourceOrder.clientName,
+                            orderType: creditModalState.sourceOrder.type || 'NORMAL'
+                        }}
+                        creditAmount={creditModalState.creditAmount}
+                        availableOrders={getAvailableOrdersForDistribution(creditModalState.sourceOrder)}
+                        onDistribute={handleCreditDistribution}
+                        initialDistribution={creditDistributions[creditModalState.sourceOrder.id]}
+                        initialRemainingAction={creditModalState.initialRemainingAction}
+                        onBack={handleBackToSelector}
+                    />
+                )}
 
-            {dismantleModal.order && (
-                <DismantleModal
-                    isOpen={dismantleModal.isOpen}
-                    onClose={() => setDismantleModal({ isOpen: false, order: null })}
-                    order={dismantleModal.order}
-                    onSuccess={() => {
-                        onSuccess?.();
-                        setDismantleModal({ isOpen: false, order: null });
-                    }}
-                />
-            )}
+                {dismantleModal.order && (
+                    <DismantleModal
+                        isOpen={dismantleModal.isOpen}
+                        onClose={() => setDismantleModal({ isOpen: false, order: null })}
+                        order={dismantleModal.order}
+                        onSuccess={() => {
+                            onSuccess?.();
+                            setDismantleModal({ isOpen: false, order: null });
+                        }}
+                    />
+                )}
+            </Suspense>
         </div>
     )
 }
