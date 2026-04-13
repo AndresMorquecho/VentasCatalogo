@@ -64,33 +64,37 @@ const s = StyleSheet.create({
         backgroundColor: COLORS.white,
     },
     colHeaderView: {
-        borderRightWidth: 1,
-        borderBottomWidth: 1,
+        borderRightWidth: 0.5,
+        borderBottomWidth: 0.5,
         borderColor: COLORS.black,
         paddingVertical: 5,
         paddingHorizontal: 2,
+        backgroundColor: '#F0F0F0',
         justifyContent: 'center',
         alignItems: 'center',
     },
     colHeader: {
         fontFamily: 'Helvetica-Bold',
-        fontSize: 6.5,
+        fontSize: 5.5,
         textAlign: 'center',
+        textTransform: 'uppercase'
     },
     row: {
         flexDirection: 'row',
+        alignItems: 'stretch',
     },
     cellView: {
-        borderRightWidth: 1,
-        borderBottomWidth: 1,
+        borderRightWidth: 0.5,
+        borderBottomWidth: 0.5,
         borderColor: COLORS.black,
         paddingVertical: 5,
         paddingHorizontal: 2,
-        justifyContent: 'center',
+        justifyContent: 'flex-start', // Alineación superior para evitar desbordes
         alignItems: 'center',
     },
     cellText: {
-        fontSize: 6.5,
+        fontSize: 5.5,
+        lineHeight: 1.25,
         textAlign: 'center',
     },
     tableFooter: {
@@ -183,14 +187,14 @@ export function CashClosureDetailedPDF({ report }: Props) {
     // Optimized column widths matching the new requested layout
     const W = {
         n: '3%',
-        tipo: '7%',
-        trans: '11%',
-        ctrl: '10%',
-        obs: '17%',
-        fecha: '9%',
+        tipo: '16%',
+        trans: '8%',
+        ctrl: '8%',
+        obs: '12%',
+        fecha: '13%',
         recibo: '15%',
-        emp: '18%',
-        val: '10%'
+        emp: '17%',
+        val: '8%'
     };
 
     const renderFinancialTable = (data: SummaryTableRecord[], title: string) => {
@@ -206,15 +210,15 @@ export function CashClosureDetailedPDF({ report }: Props) {
                 <View style={s.tableContainer}>
                     {/* Header Row */}
                     <View style={s.tableHeaderRow}>
-                        <View style={[s.colHeaderView, { width: W.n }]}><Text style={s.colHeader}>N°</Text></View>
+                        <View style={[s.colHeaderView, { width: W.n, borderLeftWidth: 0.5 }]}><Text style={s.colHeader}>N°</Text></View>
                         <View style={[s.colHeaderView, { width: W.tipo }]}><Text style={s.colHeader}>Tipo</Text></View>
-                        <View style={[s.colHeaderView, { width: W.trans }]}><Text style={s.colHeader}>Transaccion / Doc</Text></View>
-                        <View style={[s.colHeaderView, { width: W.ctrl }]}><Text style={s.colHeader}>Control | Validacion</Text></View>
+                        <View style={[s.colHeaderView, { width: W.trans }]}><Text style={s.colHeader}>Transac. / Doc</Text></View>
+                        <View style={[s.colHeaderView, { width: W.ctrl }]}><Text style={s.colHeader}>Control / Valid.</Text></View>
                         <View style={[s.colHeaderView, { width: W.obs }]}><Text style={s.colHeader}>Observaciones</Text></View>
-                        <View style={[s.colHeaderView, { width: W.fecha }]}><Text style={s.colHeader}>fecha y hora</Text></View>
+                        <View style={[s.colHeaderView, { width: W.fecha }]}><Text style={s.colHeader}>Fecha y Hora</Text></View>
                         <View style={[s.colHeaderView, { width: W.recibo }]}><Text style={s.colHeader}>N° Recibo / Pedido</Text></View>
-                        <View style={[s.colHeaderView, { width: W.emp }]}><Text style={s.colHeader}>empresaria</Text></View>
-                        <View style={[s.colHeaderView, { width: W.val }]}><Text style={s.colHeader}>VALOR</Text></View>
+                        <View style={[s.colHeaderView, { width: W.emp }]}><Text style={s.colHeader}>Empresaria</Text></View>
+                        <View style={[s.colHeaderView, { width: W.val }]}><Text style={s.colHeader}>Valor</Text></View>
                     </View>
 
                     {/* Data Rows */}
@@ -223,14 +227,13 @@ export function CashClosureDetailedPDF({ report }: Props) {
                     ) : (
                         data.map((row, i) => (
                             <View key={i} style={s.row} wrap={false}>
-                                <View style={[s.cellView, { width: W.n }]}><Text style={s.cellText}>{i + 1}</Text></View>
+                                <View style={[s.cellView, { width: W.n, borderLeftWidth: 0.5 }]}><Text style={s.cellText}>{i + 1}</Text></View>
                                 <View style={[s.cellView, { width: W.tipo }]}><Text style={s.cellText}>{row.label || '-'}</Text></View>
                                 <View style={[s.cellView, { width: W.trans }]}><Text style={s.cellText}>{row.reference || '-'}</Text></View>
                                 <View style={[s.cellView, { width: W.ctrl }]}><Text style={s.cellText}>{row.identification || '-'}</Text></View>
                                 <View style={[s.cellView, { width: W.obs }]}><Text style={s.cellText}>{row.description || '-'}</Text></View>
                                 <View style={[s.cellView, { width: W.fecha }]}>
-                                    <Text style={s.cellText}>{fmtDateOnly(row.date)}</Text>
-                                    <Text style={s.cellText}>{fmtTimeOnly(row.date)}</Text>
+                                    <Text style={s.cellText}>{fmtDateOnly(row.date)} {fmtTimeOnly(row.date)}</Text>
                                 </View>
                                 <View style={[s.cellView, { width: W.recibo }]}><Text style={s.cellText}>{row.code || '-'}</Text></View>
                                 <View style={[s.cellView, { width: W.emp }]}><Text style={s.cellText}>{(row.client || '-').toUpperCase()}</Text></View>
@@ -263,7 +266,7 @@ export function CashClosureDetailedPDF({ report }: Props) {
 
     return (
         <Document title={`Cierre de Caja - ${fmtDateOnly(new Date())}`}>
-            <Page size="A4" style={s.page}>
+            <Page size="A4" orientation="landscape" style={s.page}>
                 {/* Custom Header based on image */}
                 <View style={s.headerContainer}>
                     <Image src="/images/BannerHeader.jpg" style={s.logo} />
