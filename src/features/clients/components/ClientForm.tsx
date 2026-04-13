@@ -221,9 +221,9 @@ export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
                 if (error.code === 'UNIQUE_CONSTRAINT') {
                     const field = error.details?.target?.[0];
                     if (field === 'identification_number') {
-                        msg = 'Ya existe una empresaria con este número de cédula.';
+                        msg = 'Ese número de identificación de identidad ya está registrado.';
                     } else if (field === 'email') {
-                        msg = 'Ya existe una empresaria con este correo electrónico.';
+                        msg = 'Este correo electrónico ya se encuentra registrado.';
                     }
                 }
 

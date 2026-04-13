@@ -39,6 +39,10 @@ export interface Client {
     identificationIssuanceDate?: string | null;
     blockedReason?: string | null;
     createdByName?: string;
+    referredBy?: {
+        id: string;
+        firstName: string;
+    };
 
     createdAt: string;
 

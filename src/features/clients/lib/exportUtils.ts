@@ -20,6 +20,7 @@ export function exportClientsToExcel(clients: Client[]) {
             "País": client.country,
             "Dirección": client.address,
             "Referencia": client.reference || "",
+            "Referido Por": client.referredBy?.firstName || "NINGUNO",
             "Fecha Registro": format(new Date(client.createdAt), "dd/MM/yyyy HH:mm"),
             "Último Pedido": client.lastOrderDate ? format(new Date(client.lastOrderDate), "dd/MM/yyyy") : "NINGUNO",
             "Última Marca": client.lastBrandName || "N/A",
@@ -41,16 +42,16 @@ export function exportClientsToExcel(clients: Client[]) {
 
     // Apply specific number formats for money and quantities
     for (let R = range.s.r + 1; R <= range.e.r; ++R) {
-        // Column Index 18: Total Pedidos (Number with 2 decimals)
-        const cell_qty = worksheet[XLSX.utils.encode_cell({ r: R, c: 18 })];
+        // Column Index 19: Total Pedidos (Number with 2 decimals)
+        const cell_qty = worksheet[XLSX.utils.encode_cell({ r: R, c: 19 })];
         if (cell_qty) cell_qty.z = '0.00';
 
-        // Column Index 19: Total Gastado (Currency with 2 decimals)
-        const cell_spent = worksheet[XLSX.utils.encode_cell({ r: R, c: 19 })];
+        // Column Index 20: Total Gastado (Currency with 2 decimals)
+        const cell_spent = worksheet[XLSX.utils.encode_cell({ r: R, c: 20 })];
         if (cell_spent) cell_spent.z = '"$"#,##0.00';
 
-        // Column Index 21: Saldo a Favor (Currency with 2 decimals)
-        const cell_credit = worksheet[XLSX.utils.encode_cell({ r: R, c: 21 })];
+        // Column Index 22: Saldo a Favor (Currency with 2 decimals)
+        const cell_credit = worksheet[XLSX.utils.encode_cell({ r: R, c: 22 })];
         if (cell_credit) cell_credit.z = '"$"#,##0.00';
     }
 
@@ -68,6 +69,7 @@ export function exportClientsToExcel(clients: Client[]) {
         { wch: 10 }, // Pais
         { wch: 40 }, // Dir
         { wch: 30 }, // Ref
+        { wch: 25 }, // Referido Por
         { wch: 18 }, // Registro
         { wch: 15 }, // U. Pedido
         { wch: 15 }, // U. Marca
