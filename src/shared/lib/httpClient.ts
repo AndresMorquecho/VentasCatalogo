@@ -120,7 +120,7 @@ class HttpClient {
       const response = await fetch(`${this.baseURL}${endpoint}`, config);
 
       if (response.status === 304) {
-        console.log(`[HttpClient] 304 Not Modified for ${endpoint}`);
+
       }
 
       if (response.status === 401) {
@@ -179,7 +179,7 @@ class HttpClient {
       // Handle network errors
       if (error instanceof TypeError) {
         if (retries > 0) {
-          console.warn(`Network error, retrying... (${retries} attempts left)`);
+
           await this.delay(1000);
           return this.request<T>(endpoint, options, retries - 1);
         }
@@ -188,7 +188,7 @@ class HttpClient {
 
       // Retry on server errors
       if (retries > 0 && this.isRetryable(error)) {
-        console.warn(`Server error, retrying... (${retries} attempts left)`);
+
         await this.delay(1000);
         return this.request<T>(endpoint, options, retries - 1);
       }
