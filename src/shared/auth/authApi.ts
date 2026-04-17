@@ -72,6 +72,7 @@ export const usersApi = {
     create: async (data: UserFormData, actorId: string, actorName: string): Promise<AppUser> => {
         const payload = {
             username: data.username,
+            email: data.email,
             password: data.password,
             role: data.roleId, // Send raw ID/Name selected
             isActive: data.active

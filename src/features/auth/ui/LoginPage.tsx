@@ -96,7 +96,7 @@ export function LoginPage() {
             <div className="space-y-4">
               <div className="space-y-1.5">
                 <Label htmlFor="username" className="text-[10px] text-slate-400 font-bold uppercase tracking-widest ml-1">
-                  Usuario o Email
+                  Usuario
                 </Label>
                 <div className="relative">
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300">

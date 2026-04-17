@@ -259,16 +259,19 @@ export function UserList() {
                                     </TableCell>
                                     <TableCell className="text-right">
                                         {(() => {
-                                            const isAdminUser = roleName.toUpperCase() === 'ADMIN' || roleName.toUpperCase() === 'ADMINISTRADOR' || u.username === 'admin';
+                                            const isMasterAdmin = u.username === 'admin';
+                                            const isCurrentUser = u.id === user?.id;
+                                            const isProtectedUser = isMasterAdmin || isCurrentUser;
+                                            const isAdminRole = roleName.toUpperCase() === 'ADMIN' || roleName.toUpperCase() === 'ADMINISTRADOR';
                                             
                                             return (
                                                 <div className="flex justify-end gap-2">
                                                     <Button
                                                         variant="ghost"
                                                         size="sm"
-                                                        disabled={isAdminUser}
-                                                        title={isAdminUser ? "Los administradores no pueden ser desactivados" : ""}
-                                                        className={`h-8 px-2 gap-1.5 text-xs font-bold transition-all ${u.active ? 'text-rose-500 hover:text-rose-600 hover:bg-rose-50' : 'text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50'} ${isAdminUser ? 'opacity-30 grayscale' : ''}`}
+                                                        disabled={isProtectedUser}
+                                                        title={isProtectedUser ? "No se puede desactivar este usuario" : ""}
+                                                        className={`h-8 px-2 gap-1.5 text-xs font-bold transition-all ${u.active ? 'text-rose-500 hover:text-rose-600 hover:bg-rose-50' : 'text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50'} ${isProtectedUser ? 'opacity-30 grayscale' : ''}`}
                                                         onClick={() => {
                                                             if (!hasPermission('users.edit')) {
                                                                 notifyError({ message: 'No tienes permiso para cambiar el estado' });
@@ -286,7 +289,7 @@ export function UserList() {
                                                         <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-slate-100" onClick={() => openPassword(u)} title="Cambiar contraseña">
                                                             <Key className="h-4 w-4 text-slate-500" />
                                                         </Button>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-blue-50" onClick={() => openEdit(u)} title={isAdminUser ? "Ver / Editar" : "Editar"}>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-blue-50" onClick={() => openEdit(u)} title="Editar">
                                                             <Edit2 className="h-4 w-4 text-blue-600" />
                                                         </Button>
                                                         
@@ -294,8 +297,8 @@ export function UserList() {
                                                             variant="ghost" 
                                                             size="icon" 
                                                             className="h-8 w-8 disabled:opacity-20 hover:bg-red-50" 
-                                                            disabled={isAdminUser}
-                                                            title={isAdminUser ? "No se puede eliminar un administrador" : "Eliminar definitivamente"}
+                                                            disabled={isProtectedUser}
+                                                            title={isProtectedUser ? "No se puede eliminar este usuario" : "Eliminar definitivamente"}
                                                             onClick={() => {
                                                                 if (!hasPermission('users.delete')) {
                                                                     notifyError({ message: 'No tienes permiso para eliminar usuarios' });
