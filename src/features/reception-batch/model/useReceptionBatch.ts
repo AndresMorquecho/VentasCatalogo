@@ -357,6 +357,5 @@ export const useReceptionBatch = () => {
         pendingFilters,
         setPendingFilters,
         clientOptions,
-        handleExport,
     };
 };
