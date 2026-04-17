@@ -22,18 +22,18 @@ export function Pagination({
     const endItem = Math.min(currentPage * (itemsPerPage || 0), totalItems || 0);
 
     return (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-4 px-2">
-            <div className="text-sm text-slate-500 font-medium">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-x-8 gap-y-4 py-4 px-2 w-full overflow-hidden flex-wrap">
+            <div className="text-sm text-slate-500 font-medium text-center">
                 {totalItems ? (
-                    <>
+                    <div className="flex flex-col sm:block">
                         Mostrando <span className="font-bold text-slate-700">{startItem}</span> a <span className="font-bold text-slate-700">{endItem}</span> de <span className="font-bold text-slate-700">{totalItems}</span> registros
-                    </>
+                    </div>
                 ) : (
                     <>Página {currentPage} de {totalPages}</>
                 )}
             </div>
 
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 flex-wrap justify-center">
                 <Button
                     variant="outline"
                     size="icon"
