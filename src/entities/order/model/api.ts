@@ -19,6 +19,7 @@ export interface OrderQueryParams {
     endDate?: string;
     sortBy?: string;
     order?: 'asc' | 'desc';
+    excludeIds?: string[];
 }
 
 export const orderApi = {
@@ -31,7 +32,11 @@ export const orderApi = {
         if (params) {
             Object.entries(params).forEach(([key, value]) => {
                 if (value !== undefined) {
-                    queryParams.append(key, value.toString());
+                    if (key === 'excludeIds' && Array.isArray(value)) {
+                        queryParams.append(key, value.join(','));
+                    } else {
+                        queryParams.append(key, value.toString());
+                    }
                 }
             });
         }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table"
 import { Input } from "@/shared/ui/input"
 import type { Order } from "@/entities/order/model/types"
@@ -6,6 +6,8 @@ import type { CreditDistribution } from "@/entities/financial-record/model/types
 import { X, CheckCircle, ArrowRight } from "lucide-react"
 import { getPaidAmount } from "@/entities/order/model/model"
 import { parseLocaleDecimalInput, formatDecimalForInvoiceInput } from "@/shared/lib/parseLocaleDecimalInput"
+
+import { Pagination } from "@/shared/ui/pagination"
 
 export interface SelectedOrderState {
     order: Order
@@ -33,6 +35,25 @@ export function SelectedOrdersTable({
 }: Props) {
     const [invoiceDraft, setInvoiceDraft] = useState<Record<string, string>>({})
     const [invoiceFocusId, setInvoiceFocusId] = useState<string | null>(null)
+    
+    // Local Pagination
+    const [page, setPage] = useState(1);
+    const limit = 7;
+    const totalPages = Math.ceil(orders.length / limit);
+    const paginatedOrders = orders.slice((page - 1) * limit, page * limit);
+
+    // Auto-navigate to last page when orders are added
+    const prevCount = useRef(orders.length);
+    useEffect(() => {
+        if (orders.length > prevCount.current) {
+            setPage(Math.ceil(orders.length / limit));
+        }
+        prevCount.current = orders.length;
+    }, [orders.length]);
+
+    useEffect(() => {
+        if (page > totalPages && totalPages > 0) setPage(totalPages);
+    }, [orders.length, totalPages]);
 
     const orderIdsKey = orders.map((o) => o.order.id).join("|")
     useEffect(() => {
@@ -109,15 +130,15 @@ export function SelectedOrdersTable({
 
     if (orders.length === 0) {
         return (
-            <div className="h-full flex flex-col items-center justify-center p-8 border-2 border-dashed border-emerald-200 rounded-lg bg-emerald-50 text-emerald-400">
-                <p>Selecciona pedidos para recibir...</p>
+            <div className="flex-1 flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50 text-slate-400 m-4">
+                <p className="font-bold text-sm tracking-tight opacity-50 uppercase">Selecciona pedidos para recibir...</p>
             </div>
         )
     }
 
     return (
         <div className="space-y-4 h-full flex flex-col">
-            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm flex-1 flex flex-col">
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm flex-1 flex flex-col min-h-[401px]">
                 <div className="flex-1 overflow-auto">
                     <Table className="min-w-[1200px] w-full">
                         <TableHeader>
@@ -139,7 +160,7 @@ export function SelectedOrdersTable({
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {orders.map((orderState) => {
+                            {paginatedOrders.map((orderState) => {
                                 const { order, finalTotal, finalInvoiceNumber, documentType, entryDate } = orderState;
                                 const initialPaid = getPaidAmount(order);
                                 const incomingDistributiveCredit = orders.reduce((sum, o) => {
@@ -277,14 +298,28 @@ export function SelectedOrdersTable({
                         </TableBody>
                     </Table>
                 </div>
-                <div className="bg-monchito-purple/5 border-t border-monchito-purple/10 p-3 flex justify-end gap-12 pr-16 shrink-0 overflow-x-auto">
-                    <div className="flex items-center gap-2">
-                        <span className="text-[10px] uppercase font-black text-monchito-purple tracking-widest">Total Pedidos:</span>
-                        <span className="font-mono font-bold text-amber-700">${totalEstimate.toFixed(2)}</span>
+                <div className="bg-monchito-purple/5 border-t border-monchito-purple/10 p-3 flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-12 px-6 shrink-0">
+                    <div className="flex-1 flex items-center justify-center sm:justify-start w-full">
+                        {orders.length > limit && (
+                             <Pagination 
+                                currentPage={page}
+                                totalPages={totalPages}
+                                onPageChange={setPage}
+                                totalItems={orders.length}
+                                itemsPerPage={limit}
+                             />
+                        )}
                     </div>
-                    <div className="flex items-center gap-2">
-                        <span className="text-[10px] uppercase font-black text-monchito-purple tracking-widest">Total Packing:</span>
-                        <span className="font-mono font-bold text-monchito-purple">${totalInvoice.toFixed(2)}</span>
+                    
+                    <div className="flex items-center gap-8 shrink-0">
+                        <div className="flex items-center gap-2">
+                            <span className="text-[10px] uppercase font-black text-monchito-purple tracking-widest">Total Pedidos:</span>
+                            <span className="font-mono font-bold text-amber-700">${totalEstimate.toFixed(2)}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span className="text-[10px] uppercase font-black text-monchito-purple tracking-widest">Total Packing:</span>
+                            <span className="font-mono font-bold text-monchito-purple">${totalInvoice.toFixed(2)}</span>
+                        </div>
                     </div>
                 </div>
             </div>

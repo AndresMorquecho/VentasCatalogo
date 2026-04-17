@@ -47,6 +47,7 @@ export function ReceptionBatchPage() {
         pendingPagination,
         pendingFilters,
         setPendingFilters,
+        clientOptions,
         handleExport,
         isExporting
     } = useReceptionBatch();
@@ -173,45 +174,42 @@ export function ReceptionBatchPage() {
 
             <div className="flex-1 overflow-hidden text-sm">
                 {activeTab === "reception" ? (
-                    <div className="flex flex-col gap-6 h-full overflow-hidden">
-                        {/* Panel Superior: Pedidos Pendientes - Se colapsa si no hay datos */}
-                        {allOrders.length > 0 && (
-                            <div className={selectedOrders.length > 0 ? "h-96" : "flex-1"}>
-                                <div className="mb-3">
-                                    <h3 className="text-sm font-bold text-monchito-purple flex items-center gap-2">
-                                        <span className="bg-monchito-purple/10 text-monchito-purple w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">1</span>
-                                        Pedidos Pendientes de Recepción
-                                    </h3>
-                                </div>
-                                <PendingOrdersTable 
-                                    orders={allOrders} 
-                                    onMove={addOrders} 
-                                    pagination={pendingPagination}
-                                    currentPage={pendingPage}
-                                    onPageChange={setPendingPage}
-                                    filters={pendingFilters}
-                                    onFiltersChange={setPendingFilters}
-                                />
+                    <div className="flex flex-col gap-6 h-full overflow-y-auto pr-2 custom-scrollbar">
+                        {/* Panel Superior: Pedidos Pendientes */}
+                        <div className="min-h-[700px] flex flex-col shrink-0">
+                            <div className="mb-3">
+                                <h3 className="text-sm font-bold text-monchito-purple flex items-center gap-2">
+                                    <span className="bg-monchito-purple/10 text-monchito-purple w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">1</span>
+                                    Pedidos Pendientes de Recepción
+                                </h3>
                             </div>
-                        )}
+                            <PendingOrdersTable 
+                                orders={allOrders} 
+                                onMove={addOrders} 
+                                pagination={pendingPagination}
+                                currentPage={pendingPage}
+                                onPageChange={setPendingPage}
+                                filters={pendingFilters}
+                                onFiltersChange={setPendingFilters}
+                                clientOptions={clientOptions}
+                            />
+                        </div>
 
-                        {/* Panel Inferior: Zona de Recepción Actual - Se colapsa si no hay datos */}
-                        {selectedOrders.length > 0 && (
-                            <div className={allOrders.length > 0 ? "h-96" : "flex-1"}>
-                                <ReceptionZoneIntegration
-                                    selectedOrders={selectedOrders}
-                                    removeOrder={removeOrder}
-                                    onConfirmBatch={onConfirmBatch}
-                                    isSaving={isSaving}
-                                    packingNumber={packingNumber}
-                                    packingTotal={packingTotal}
-                                    setPackingNumber={setPackingNumber}
-                                    setPackingTotal={setPackingTotal}
-                                    updateOrderItem={updateOrderItem}
-                                    editingBatchId={editingBatchId}
-                                />
-                            </div>
-                        )}
+                        {/* Panel Inferior: Zona de Recepción Actual */}
+                        <div className="min-h-[700px] flex flex-col shrink-0">
+                            <ReceptionZoneIntegration
+                                selectedOrders={selectedOrders}
+                                removeOrder={removeOrder}
+                                onConfirmBatch={onConfirmBatch}
+                                isSaving={isSaving}
+                                packingNumber={packingNumber}
+                                packingTotal={packingTotal}
+                                setPackingNumber={setPackingNumber}
+                                setPackingTotal={setPackingTotal}
+                                updateOrderItem={updateOrderItem}
+                                editingBatchId={editingBatchId}
+                            />
+                        </div>
 
                         {/* Mensaje cuando no hay datos en ninguna tabla */}
                         {allOrders.length === 0 && selectedOrders.length === 0 && (

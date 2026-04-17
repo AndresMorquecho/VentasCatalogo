@@ -33,7 +33,7 @@ const LoyaltyPage = lazy(() => import('@/features/loyalty').then(m => ({ default
 const AdminUsersPage = lazy(() => import('@/features/users').then(m => ({ default: m.AdminUsersPage })));
 const ExchangesPage = lazy(() => import('@/features/exchanges/ui/ExchangesPage').then(m => ({ default: m.ExchangesPage })));
 const NewExchangePage = lazy(() => import('@/features/exchanges/ui/NewExchangePage').then(m => ({ default: m.NewExchangePage })));
-const ExchangesReceptionPage = lazy(() => import('@/features/exchanges/ui/ExchangesReceptionPage').then(m => ({ default: m.ReceptionBatchPage })));
+const ExchangesReceptionPage = lazy(() => import('@/features/exchanges/ui/ExchangesReceptionPage').then(m => ({ default: m.ExchangesReceptionPage })));
 const ExchangesReceptionHistoryPage = lazy(() => import('@/features/exchanges/ui/ExchangesReceptionHistoryPage').then(m => ({ default: m.ExchangesReceptionHistoryPage })));
 const ExchangesDeliveryPage = lazy(() => import('@/features/exchanges/ui/ExchangesDeliveryPage').then(m => ({ default: m.OrderDeliveryPage })));
 const ExchangesShippingHistoryPage = lazy(() => import('@/features/exchanges/ui/ExchangesShippingHistoryPage').then(m => ({ default: m.ExchangesShippingHistoryPage })));

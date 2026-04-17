@@ -7,6 +7,7 @@ import { ArrowRight, Tag } from "lucide-react"
 import { getPaidAmount } from "@/entities/order/model/model"
 
 import { Pagination } from "@/shared/ui/pagination"
+import { SearchableSelect } from "@/shared/ui/SearchableSelect"
 
 interface Props {
     orders: Order[]
@@ -23,14 +24,25 @@ interface Props {
         receiptNumber: string;
         orderNumber: string;
         brandId: string;
+        clientId: string;
         type: string;
         startDate: string;
         endDate: string;
     };
     onFiltersChange?: (filters: any) => void;
+    clientOptions?: { id: string; label: string; subLabel?: string }[];
 }
 
-export function PendingOrdersTable({ orders, onMove, pagination, currentPage = 1, onPageChange, filters, onFiltersChange }: Props) {
+export function PendingOrdersTable({ 
+    orders, 
+    onMove, 
+    pagination, 
+    currentPage = 1, 
+    onPageChange, 
+    filters, 
+    onFiltersChange, 
+    clientOptions 
+}: Props) {
     const [selected, setSelected] = useState<Set<string>>(new Set())
     
     // Extract unique brands for filter dropdown
@@ -123,9 +135,17 @@ export function PendingOrdersTable({ orders, onMove, pagination, currentPage = 1
     }
 
     const areAllSelected = orders.length > 0 && orders.every(o => selected.has(o.id));
-    const currentFilters = filters || { search: '', receiptNumber: '', orderNumber: '', brandId: '', type: '', startDate: '', endDate: '' };
+    const currentFilters = filters || { 
+        receiptNumber: '', 
+        orderNumber: '', 
+        brandId: '', 
+        clientId: '', 
+        type: '', 
+        startDate: '', 
+        endDate: '' 
+    };
 
-    if (orders.length === 0 && !currentFilters.receiptNumber && !currentFilters.orderNumber) {
+    if (orders.length === 0 && !currentFilters.receiptNumber && !currentFilters.orderNumber && !currentFilters.clientId) {
         return (
             <div className="h-full flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-200 rounded-lg bg-slate-50 text-slate-400">
                 <p>No hay pedidos pendientes de recibir.</p>
@@ -136,44 +156,54 @@ export function PendingOrdersTable({ orders, onMove, pagination, currentPage = 1
     return (
         <div className="space-y-4 h-full flex flex-col pt-1">
             {/* Filters Section */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm shrink-0">
+            <div className="bg-white p-3 sm:p-5 rounded-2xl border border-slate-200 shadow-sm shrink-0">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-x-3 gap-y-4 items-end">
+                    {/* Client Filter - 5 cols */}
+                    <div className="lg:col-span-5 space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Empresaria</label>
+                        <SearchableSelect
+                            options={clientOptions || []}
+                            value={currentFilters.clientId}
+                            onChange={(val) => handleFilterUpdate({ clientId: val })}
+                            placeholder="Buscar Empresaria..."
+                            className="h-10 text-sm font-bold rounded-xl"
+                        />
+                    </div>
 
-
-                    {/* Receipt Filter - 4 cols */}
-                    <div className="lg:col-span-4 space-y-1.5">
+                    {/* Receipt Filter - 2 cols */}
+                    <div className="lg:col-span-2 space-y-1.5">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">N° Recibo</label>
                         <div className="relative">
                             <Input
-                                placeholder="Ej: 4523..."
+                                placeholder="4523..."
                                 value={currentFilters.receiptNumber}
                                 onChange={(e) => handleFilterUpdate({ receiptNumber: e.target.value })}
                                 onKeyDown={(e) => handleFilterKeyDown(e, 1)}
                                 data-filter-index="1"
                                 tabIndex={2}
-                                className="bg-white border-slate-200 focus:ring-monchito-purple/20 h-10 text-sm font-bold rounded-xl shadow-sm transition-all"
+                                className="bg-white border-slate-200 h-10 text-sm font-bold rounded-xl shadow-sm"
                             />
                         </div>
                     </div>
 
-                    {/* Order Number Filter - 4 cols */}
-                    <div className="lg:col-span-4 space-y-1.5">
+                    {/* Order Number Filter - 2 cols */}
+                    <div className="lg:col-span-2 space-y-1.5">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">N° Pedido</label>
                         <div className="relative">
                             <Input
-                                placeholder="Ej: ORD-..."
+                                placeholder="ORD-..."
                                 value={currentFilters.orderNumber}
                                 onChange={(e) => handleFilterUpdate({ orderNumber: e.target.value })}
                                 onKeyDown={(e) => handleFilterKeyDown(e, 2)}
                                 data-filter-index="2"
                                 tabIndex={3}
-                                className="bg-white border-slate-200 focus:ring-monchito-purple/20 h-10 text-sm font-bold rounded-xl shadow-sm transition-all text-monchito-purple"
+                                className="bg-white border-slate-200 h-10 text-sm font-bold rounded-xl shadow-sm text-monchito-purple"
                             />
                         </div>
                     </div>
 
-                    {/* Brand Select - 4 cols */}
-                    <div className="lg:col-span-4 space-y-1.5">
+                    {/* Brand Select - 3 cols */}
+                    <div className="lg:col-span-3 space-y-1.5">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Catálogo</label>
                         <div className="relative">
                             <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
@@ -183,7 +213,7 @@ export function PendingOrdersTable({ orders, onMove, pagination, currentPage = 1
                                 onKeyDown={(e) => handleFilterKeyDown(e, 3)}
                                 data-filter-index="3"
                                 tabIndex={4}
-                                className="w-full h-10 pl-10 pr-4 text-sm bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-monchito-purple/20 focus:outline-none appearance-none font-bold text-slate-700 shadow-sm transition-all"
+                                className="w-full h-10 pl-10 pr-4 text-sm bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-monchito-purple/20 focus:outline-none appearance-none font-bold text-slate-700 shadow-sm"
                             >
                                 <option value="">Todos los Catálogos</option>
                                 <option value="ALL">Mostrar Todo</option>
@@ -200,13 +230,14 @@ export function PendingOrdersTable({ orders, onMove, pagination, currentPage = 1
                         <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-md">
                             {pagination?.total || orders.length} Resultados
                         </span>
-                        {(currentFilters.receiptNumber || currentFilters.orderNumber || currentFilters.brandId) && (
+                        {(currentFilters.receiptNumber || currentFilters.orderNumber || currentFilters.brandId || currentFilters.clientId) && (
                             <button
                                 onClick={() => { 
                                     handleFilterUpdate({ 
                                         receiptNumber: '', 
                                         orderNumber: '', 
                                         brandId: '', 
+                                        clientId: '',
                                         type: '',
                                         startDate: '',
                                         endDate: '' 
@@ -230,21 +261,8 @@ export function PendingOrdersTable({ orders, onMove, pagination, currentPage = 1
                 </div>
             </div>
 
-            {/* Pagination for Pending Orders */}
-            {pagination && pagination.pages > 1 && (
-                <div className="bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm shrink-0">
-                    <Pagination 
-                        currentPage={currentPage}
-                        totalPages={pagination.pages}
-                        onPageChange={onPageChange || (() => {})}
-                        totalItems={pagination.total}
-                        itemsPerPage={pagination.limit}
-                    />
-                </div>
-            )}
-
             {/* Table */}
-            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm flex flex-col h-80">
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm flex-1 flex flex-col min-h-[400px]">
                 <div className="flex-1 overflow-y-auto">
                     <Table className="min-w-[1000px] w-full">
                         <TableHeader>
@@ -257,43 +275,44 @@ export function PendingOrdersTable({ orders, onMove, pagination, currentPage = 1
                                         className="accent-monchito-purple h-3 w-3 cursor-pointer rounded"
                                     />
                                 </TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Recibo</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Empresaria</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">N° de Pedido</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Tipo</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Catálogo</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Estado</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Valor Pedido</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Abono</TableHead>
-                                <TableHead className="text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center whitespace-nowrap">Fecha Posible Entrega</TableHead>
+                                <TableHead className="py-2 px-2 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Recibo</TableHead>
+                                <TableHead className="py-2 px-2 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Empresaria</TableHead>
+                                <TableHead className="py-2 px-2 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">N° de Pedido</TableHead>
+                                <TableHead className="py-2 px-2 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Tipo</TableHead>
+                                <TableHead className="py-2 px-2 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Catálogo</TableHead>
+                                <TableHead className="py-2 px-2 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Estado</TableHead>
+                                <TableHead className="py-2 px-2 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Valor Pedido</TableHead>
+                                <TableHead className="py-2 px-2 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Abono</TableHead>
+                                <TableHead className="py-2 px-2 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">Fecha Posible Entrega</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {orders.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
-                                        No se encontraron resultados con los filtros aplicados.
+                                    <TableCell colSpan={10} className="h-32 text-center text-slate-400 italic">
+                                        No se encontraron pedidos con los filtros aplicados.
                                     </TableCell>
                                 </TableRow>
                             ) : (
                                 orders.map((order, index) => {
-                                    const paid = getPaidAmount(order);
                                     const isSelected = selected.has(order.id);
+                                    const paid = getPaidAmount(order);
+                                    
                                     return (
-                                        <TableRow
-                                            key={order.id}
-                                            data-row-index={index}
-                                            tabIndex={10 + index}
-                                            className={`cursor-pointer transition-colors border-b border-slate-50 hover:bg-monchito-purple/5 ${isSelected ? "bg-monchito-purple/10" : ""}`}
+                                        <TableRow 
+                                            key={order.id} 
+                                            className={`hover:bg-slate-50 border-b border-slate-100 transition-colors cursor-pointer ${isSelected ? 'bg-monchito-purple/5' : ''}`}
                                             onClick={() => toggle(order.id)}
                                             onKeyDown={(e) => {
-                                                if (e.key === ' ' || e.key === 'Enter') {
+                                                if (e.key === 'Enter' || e.key === ' ') {
                                                     e.preventDefault();
                                                     toggle(order.id);
                                                 } else if (e.key === 'ArrowDown') {
                                                     e.preventDefault();
                                                     const next = document.querySelector(`[data-row-index="${index + 1}"]`) as HTMLElement;
-                                                    if (next) next.focus();
+                                                    if (next) {
+                                                        next.focus();
+                                                    }
                                                 } else if (e.key === 'ArrowUp') {
                                                     e.preventDefault();
                                                     const prev = document.querySelector(`[data-row-index="${index - 1}"]`) as HTMLElement;
@@ -360,8 +379,8 @@ export function PendingOrdersTable({ orders, onMove, pagination, currentPage = 1
                     </Table>
                 </div>
                 {/* Summary Footer */}
-                <div className="bg-slate-50 border-t p-2 flex items-center justify-between px-6 shrink-0 overflow-x-auto min-h-[50px]">
-                    <div className="flex-1">
+                <div className="bg-slate-50 border-t p-2 flex flex-col sm:flex-row items-center justify-between px-6 shrink-0 min-h-[50px] gap-4">
+                    <div className="flex-1 w-full flex justify-center sm:justify-start">
                         {pagination && pagination.pages > 1 && onPageChange && (
                             <Pagination
                                 currentPage={currentPage}

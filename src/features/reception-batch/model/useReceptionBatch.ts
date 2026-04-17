@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { orderApi } from '@/entities/order/model/api';
+import { clientApi } from '@/shared/api/clientApi';
 import type { Order } from '@/entities/order/model/types';
 import { useToast } from '@/shared/ui/use-toast';
 
@@ -17,7 +18,7 @@ export const useReceptionBatch = () => {
 
     // Pagination for Pending Orders
     const [pendingPage, setPendingPage] = useState(1);
-    const [pendingLimit] = useState(15);
+    const [pendingLimit] = useState(7);
 
     const [historyPage, setHistoryPage] = useState(1);
     const [historyLimit] = useState(15);
@@ -32,6 +33,7 @@ export const useReceptionBatch = () => {
         receiptNumber: '',
         orderNumber: '',
         brandId: '',
+        clientId: '',
         type: '',
         startDate: '',
         endDate: ''
@@ -40,22 +42,40 @@ export const useReceptionBatch = () => {
     // Queries
     // Query for PENDING orders with auto-refresh (real-time feel)
     const { data: pendingResponse, isLoading: isLoadingOrders } = useQuery({
-        queryKey: ['orders-pending-reception', pendingPage, pendingLimit, pendingFilters],
+        queryKey: ['orders-pending-reception', pendingPage, pendingLimit, pendingFilters, selectedOrders.map(o => o.id).join(',')],
         queryFn: async () => {
             return await orderApi.getAll({ 
                 status: 'POR_RECIBIR,EN_TRANSITO',
                 page: pendingPage,
                 limit: pendingLimit,
+                excludeIds: selectedOrders.map(o => o.id),
                 ...pendingFilters
             });
         },
         staleTime: 0,
         refetchInterval: 8000, 
         refetchOnWindowFocus: true,
+        placeholderData: (previousData) => previousData
     });
 
     const allOrders = pendingResponse?.data || [];
     const pendingPagination = pendingResponse?.pagination;
+
+    // Query for ALL clients to populate the SearchableSelect
+    const { data: clientsResponse } = useQuery({
+        queryKey: ['clients-for-reception'],
+        queryFn: async () => {
+            return await clientApi.getAll({ limit: 1000, active: true });
+        },
+        staleTime: 60000 // Clients don't change that often
+    });
+
+    const clients = clientsResponse?.data || [];
+    const clientOptions = clients.map(c => ({
+        id: c.id,
+        label: (c as any).firstName || 'Sin nombre',
+        subLabel: c.identificationNumber
+    }));
 
     const { data: batchesResponse, isLoading: isLoadingBatches } = useQuery({
         queryKey: ['reception-batches', historyPage, historyLimit, historyFilters],
@@ -295,7 +315,7 @@ export const useReceptionBatch = () => {
     };
 
     return {
-        allOrders: allOrders.filter(o => !selectedOrders.find(so => so.id === o.id)),
+        allOrders: allOrders,
         selectedOrders,
         packingNumber,
         packingTotal,
@@ -335,6 +355,8 @@ export const useReceptionBatch = () => {
         setPendingPage,
         pendingPagination,
         pendingFilters,
-        setPendingFilters
+        setPendingFilters,
+        clientOptions,
+        handleExport,
     };
 };

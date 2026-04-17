@@ -44,10 +44,12 @@ export function SearchableSelect({
 
     const [highlightedIndex, setHighlightedIndex] = useState(-1)
 
-    const filteredOptions = options.filter(option =>
-        option.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (option.subLabel && option.subLabel.toLowerCase().includes(searchTerm.toLowerCase()))
-    )
+    const filteredOptions = options.filter(option => {
+        const label = option.label || "";
+        const subLabel = option.subLabel || "";
+        return label.toLowerCase().includes(searchTerm.toLowerCase()) ||
+               subLabel.toLowerCase().includes(searchTerm.toLowerCase());
+    })
 
     // Reset highlighted index when search or open state changes
     useEffect(() => {

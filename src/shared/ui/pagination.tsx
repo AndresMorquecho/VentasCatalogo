@@ -23,10 +23,10 @@ export function Pagination({
 
     return (
         <div className="flex flex-col sm:flex-row items-center justify-center gap-x-8 gap-y-4 py-4 px-2 w-full overflow-hidden flex-wrap">
-            <div className="text-sm text-slate-500 font-medium text-center">
+            <div className="text-[11px] sm:text-sm text-slate-500 font-medium text-center whitespace-nowrap overflow-hidden text-ellipsis">
                 {totalItems ? (
-                    <div className="flex flex-col sm:block">
-                        Mostrando <span className="font-bold text-slate-700">{startItem}</span> a <span className="font-bold text-slate-700">{endItem}</span> de <span className="font-bold text-slate-700">{totalItems}</span> registros
+                    <div>
+                        Mostrando <span className="font-bold text-slate-700">{startItem}</span> a <span className="font-bold text-slate-700">{endItem}</span> de <span className="font-bold text-slate-700">{totalItems}</span>
                     </div>
                 ) : (
                     <>Página {currentPage} de {totalPages}</>

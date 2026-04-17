@@ -100,7 +100,7 @@ export function ReceptionZone({
             </div>
 
             <div className="flex-1 flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden min-h-0">
-                <div className="p-4 border-b bg-monchito-purple/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0">
+                <div className="p-3 sm:p-4 border-b bg-monchito-purple/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0">
                     <div className="flex items-center gap-2">
                         <h2 className="text-sm font-bold text-monchito-purple flex items-center gap-2">
                             <span className="bg-monchito-purple/10 text-monchito-purple w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">2</span>
@@ -158,7 +158,7 @@ export function ReceptionZone({
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-hidden h-80">
+                <div className="flex-1 overflow-hidden min-h-0">
                     <SelectedOrdersTable 
                         orders={selectedOrders.map(o => ({
                             order: o,

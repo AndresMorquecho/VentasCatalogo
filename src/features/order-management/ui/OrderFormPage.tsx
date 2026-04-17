@@ -1682,6 +1682,7 @@ export function OrderFormPage() {
                                 <tr className="bg-monchito-purple/5 border-b border-monchito-purple/10">
                                     <th className="px-2 py-3 border-r border-monchito-purple/10 text-center w-8 text-[10px] font-black text-monchito-purple uppercase tracking-widest">N°</th>
                                     <th className="px-2 py-3 border-r border-monchito-purple/10 text-[10px] font-black text-monchito-purple uppercase tracking-widest">Pedido Por</th>
+                                    <th className="px-2 py-3 border-r border-monchito-purple/10 text-[10px] font-black text-monchito-purple uppercase tracking-widest">N° de Pedido</th>
                                     <th className="px-2 py-3 border-r border-monchito-purple/10 text-[10px] font-black text-monchito-purple uppercase tracking-widest">Tipo</th>
                                     <th className="px-2 py-3 border-r border-monchito-purple/10 text-[10px] font-black text-monchito-purple uppercase tracking-widest">Catálogo</th>
                                     <th className="px-2 py-3 border-r border-monchito-purple/10 text-center text-[10px] font-black text-monchito-purple uppercase tracking-widest w-12">Cant</th>
@@ -1715,6 +1716,11 @@ export function OrderFormPage() {
                                                     <Badge variant="outline" className="text-[9px] font-black px-2 py-0.5 border-slate-200 text-slate-500 uppercase tracking-wider rounded-lg">
                                                         {item.salesChannel || "OFICINA"}
                                                     </Badge>
+                                                </td>
+
+                                                {/* N° Pedido */}
+                                                <td className="px-2 py-2 border-r border-slate-50 text-center font-mono text-[10px] font-bold text-monchito-purple">
+                                                    {item.orderNumber || "---"}
                                                 </td>
 
 
