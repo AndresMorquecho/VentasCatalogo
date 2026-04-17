@@ -2,7 +2,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import type { AuthUser } from './types';
 import type { Permission } from '@/shared/lib/permissions';
-import { usersApi } from './authApi';
+import { usersApi, authApi } from './authApi';
 import { logAction } from '@/shared/lib/auditService';
 
 // ─── Storage key ──────────────────────────────────────────────────────────────
@@ -56,6 +56,8 @@ export interface AuthContextValue {
     logout: () => void;
     hasPermission: (permission: Permission) => boolean;
     isAdmin: () => boolean;
+    forgotPassword: (email: string) => Promise<{ success: boolean; message: string }>;
+    resetPassword: (token: string, newPassword: string) => Promise<{ success: boolean; message: string }>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -116,8 +118,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return user.role.permissions.includes(permission);
     }, [user, isAdmin]);
 
+    const forgotPassword = useCallback(async (email: string) => {
+        return authApi.forgotPassword(email);
+    }, []);
+
+    const resetPassword = useCallback(async (token: string, newPassword: string) => {
+        return authApi.resetPassword(token, newPassword);
+    }, []);
+
     return (
-        <AuthContext.Provider value={{ user, isLoading, login, logout, hasPermission, isAdmin }}>
+        <AuthContext.Provider value={{ user, isLoading, login, logout, hasPermission, isAdmin, forgotPassword, resetPassword }}>
             {children}
         </AuthContext.Provider>
     );

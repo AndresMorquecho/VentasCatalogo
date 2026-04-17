@@ -17,6 +17,7 @@ export type AppRole = {
 export type AppUser = {
     id: string;
     username: string;
+    email?: string;
     passwordHash: string;   // NEVER store plain text
     roleId: string;
     active: boolean;
@@ -34,6 +35,7 @@ export type AuthUser = {
 // ─── Form DTOs ────────────────────────────────────────────────────────────────
 export type UserFormData = {
     username: string;
+    email: string;
     password: string;
     roleId: string;
     active: boolean;

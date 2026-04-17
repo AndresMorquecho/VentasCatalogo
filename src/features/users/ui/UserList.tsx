@@ -15,7 +15,7 @@ import { useNotifications } from '@/shared/lib/notifications';
 import { useDebounce } from '@/shared/lib/hooks';
 import { logAction } from '@/shared/lib/auditService';
 
-const EMPTY_FORM: UserFormData = { username: '', password: '', roleId: '', active: true };
+const EMPTY_FORM: UserFormData = { username: '', email: '', password: '', roleId: '', active: true };
 
 import { Pagination } from '@/shared/ui/pagination';
 import { useLocking } from '@/features/lock-management/hooks/useLocking';
@@ -66,7 +66,7 @@ export function UserList() {
             notifyError({ message: "No tienes permiso para editar usuarios" });
             return;
         }
-        setTarget(u); setForm({ username: u.username, password: '', roleId: u.roleId, active: u.active }); setError(''); setMode('edit');
+        setTarget(u); setForm({ username: u.username, email: u.email || '', password: '', roleId: u.roleId, active: u.active }); setError(''); setMode('edit');
     };
 
     const openPassword = (u: AppUser) => {
@@ -82,7 +82,7 @@ export function UserList() {
     const handleSave = async () => {
         try {
             if (mode === 'create') await createUser(form);
-            else if (mode === 'edit' && target) await updateUser({ id: target.id, data: { username: form.username, roleId: form.roleId, active: form.active } });
+            else if (mode === 'edit' && target) await updateUser({ id: target.id, data: { username: form.username, email: form.email, roleId: form.roleId, active: form.active } });
             closeModal();
             
             if (user) {
@@ -209,6 +209,7 @@ export function UserList() {
                     <TableHeader>
                         <TableRow className="bg-slate-50">
                             <TableHead>Usuario</TableHead>
+                            <TableHead>Contacto</TableHead>
                             <TableHead>Rol</TableHead>
                             <TableHead className="text-center">Estado</TableHead>
                             <TableHead className="text-center">Último acceso</TableHead>
@@ -235,6 +236,9 @@ export function UserList() {
                                                 <p className="text-[10px] text-slate-400 font-medium uppercase tracking-tight">ID: {u.id.substring(0, 8)}</p>
                                             </div>
                                         </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <p className="text-sm font-medium text-slate-600">{u.email || '—'}</p>
                                     </TableCell>
                                     <TableCell>
                                         <Badge variant="secondary" className="text-[10px] font-bold gap-1 bg-slate-100 text-slate-600 border-none px-2 py-0.5">
@@ -335,6 +339,10 @@ export function UserList() {
                         <div className="space-y-1">
                             <Label htmlFor="u-user">Nombre de Usuario</Label>
                             <Input id="u-user" value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} />
+                        </div>
+                        <div className="space-y-1">
+                            <Label htmlFor="u-email">Correo Electrónico</Label>
+                            <Input id="u-email" type="email" placeholder="ejemplo@correo.com" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
                         </div>
                         {mode === 'create' && (
                             <div className="space-y-1">

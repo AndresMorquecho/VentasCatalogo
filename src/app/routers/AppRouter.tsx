@@ -38,6 +38,8 @@ const ExchangesReceptionHistoryPage = lazy(() => import('@/features/exchanges/ui
 const ExchangesDeliveryPage = lazy(() => import('@/features/exchanges/ui/ExchangesDeliveryPage').then(m => ({ default: m.OrderDeliveryPage })));
 const ExchangesShippingHistoryPage = lazy(() => import('@/features/exchanges/ui/ExchangesShippingHistoryPage').then(m => ({ default: m.ExchangesShippingHistoryPage })));
 const LoginPage = lazy(() => import('@/features/auth/ui/LoginPage').then(m => ({ default: m.LoginPage })));
+const ForgotPasswordPage = lazy(() => import('@/features/auth/ui/ForgotPasswordPage').then(m => ({ default: m.ForgotPasswordPage })));
+const ResetPasswordPage = lazy(() => import('@/features/auth/ui/ResetPasswordPage').then(m => ({ default: m.ResetPasswordPage })));
 const OrderFormPage = lazy(() => import('@/features/order-management/ui/OrderFormPage').then(m => ({ default: m.OrderFormPage })));
 const SettingsPage = lazy(() => import('@/features/system-settings/ui/SettingsPage').then(m => ({ default: m.SettingsPage })));
 
@@ -159,6 +161,14 @@ const router = createBrowserRouter([
     {
         path: '/login',
         element: <LoginPage />,
+    },
+    {
+        path: '/forgot-password',
+        element: <ForgotPasswordPage />,
+    },
+    {
+        path: '/reset-password',
+        element: <ResetPasswordPage />,
     },
     {
         path: '/',

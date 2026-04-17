@@ -4,6 +4,7 @@ export type UserStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
 export interface User {
     id: string;
     username: string;
+    email?: string;
     role: string;
     isActive: boolean;
     createdAt: string;
@@ -13,7 +14,8 @@ export interface User {
 
 export interface UserPayload {
     username: string;
-    password: string;
+    email?: string;
+    password?: string;
     role: string;
     isActive: boolean;
 }

@@ -171,6 +171,15 @@ export const usersApi = {
     },
 };
 
+export const authApi = {
+    forgotPassword: async (email: string): Promise<{ success: boolean; message: string }> => {
+        return httpClient.post('/auth/forgot-password', { email });
+    },
+    resetPassword: async (token: string, newPassword: string): Promise<{ success: boolean; message: string }> => {
+        return httpClient.post('/auth/reset-password', { token, newPassword });
+    },
+};
+
 import type { PaginatedResponse } from '@/entities/order/model/types';
 
 // auditApi 

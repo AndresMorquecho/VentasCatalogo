@@ -116,9 +116,18 @@ export function LoginPage() {
               </div>
 
               <div className="space-y-1.5 relative">
-                <Label htmlFor="password" title="Contraseña" className="text-[10px] text-slate-400 font-bold uppercase tracking-widest ml-1">
-                  Contraseña
-                </Label>
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="password" title="Contraseña" className="text-[10px] text-slate-400 font-bold uppercase tracking-widest ml-1">
+                    Contraseña
+                  </Label>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/forgot-password')}
+                    className="text-[10px] text-cyan-600 font-bold uppercase tracking-widest hover:text-cyan-700 transition-colors"
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </button>
+                </div>
                 <div className="relative">
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300">
                     <LockIcon size={18} />
