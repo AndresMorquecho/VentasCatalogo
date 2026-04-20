@@ -262,7 +262,6 @@ export function UserList() {
                                             const isMasterAdmin = u.username === 'admin';
                                             const isCurrentUser = u.id === user?.id;
                                             const isProtectedUser = isMasterAdmin || isCurrentUser;
-                                            const isAdminRole = roleName.toUpperCase() === 'ADMIN' || roleName.toUpperCase() === 'ADMINISTRADOR';
                                             
                                             return (
                                                 <div className="flex justify-end gap-2">
