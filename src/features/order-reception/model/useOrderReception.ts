@@ -46,10 +46,9 @@ export const useOrderReceptionHistory = (filters?: ReceptionFilters) => {
             const page = filters?.page || 1;
             const limit = filters?.limit || 25;
 
-             // History: Recibidos en bodega o entregados
-             // We use a custom search or the backend might need to handle 'RECIBIDO_EN_BODEGA'
+             // History: Recibidos en bodega o ya entregados (ambos pasaron por recepción)
              const response = await orderApi.getAll({
-                status: 'RECIBIDO_EN_BODEGA', // This usually covers history of receptions
+                status: 'RECIBIDO_EN_BODEGA,ENTREGADO',
                 startDate: filters?.startDate,
                 endDate: filters?.endDate,
                 brandId: filters?.brandId === 'all' ? undefined : filters?.brandId,
