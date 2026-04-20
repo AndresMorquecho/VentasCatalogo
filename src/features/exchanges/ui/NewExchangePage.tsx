@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useMemo } from "react"
 import { useFormik } from "formik"
 import { useNavigate, useParams } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
@@ -151,22 +151,25 @@ export function NewExchangePage() {
   const [isRowEditModalOpen, setIsRowEditModalOpen] = useState(false);
   const [itemToEdit, setItemToEdit] = useState<any>(null);
 
+  const initialValues = useMemo(() => ({
+    clientId: "", receiptNumber: "", salesChannel: "OFICINA" as SalesChannel,
+    brandItems: [] as any[], deposit: 0, creditToUse: 0,
+    createdAt: new Date().toISOString().split('T')[0],
+    transactionDate: new Date().toISOString().split('T')[0],
+    paymentMethod: "EFECTIVO", notes: "", trackingGuide: "",
+    orderNumber: "",
+  }), []);
+
   const formik = useFormik({
-    initialValues: {
-      clientId: "", receiptNumber: "", salesChannel: "OFICINA" as SalesChannel,
-      brandItems: [] as any[], deposit: 0, creditToUse: 0,
-      createdAt: new Date().toISOString().split('T')[0],
-      transactionDate: new Date().toISOString().split('T')[0],
-      paymentMethod: "EFECTIVO", notes: "", trackingGuide: "",
-      orderNumber: "",
-    },
+    initialValues,
     validationSchema,
-    enableReinitialize: true,
+    enableReinitialize: false, // Turned off to prevent infinite loops from reference changes
     onSubmit: () => { }
   });
 
-  const totalPedidos = formik.values.brandItems.reduce((sum, item) => sum + Number(item.total || 0), 0);
-  const totalAbonos = formik.values.brandItems.reduce((sum, item) => sum + Number(item.deposit || 0), 0);
+
+  const totalPedidos = formik.values.brandItems.reduce((sum: number, item: any) => sum + Number(item.total || 0), 0);
+  const totalAbonos = formik.values.brandItems.reduce((sum: number, item: any) => sum + Number(item.deposit || 0), 0);
 
   const handleOpenRowEdit = (item: any) => { 
     // Validation: Only editable if status is POR_ENVIAR or EN_TRANSITO (not yet processed for reception)
@@ -185,7 +188,7 @@ export function NewExchangePage() {
     setIsRowEditModalOpen(true); 
   };
   const handleSaveRowEdit = (updated: any) => { 
-    const newItems = formik.values.brandItems.map(it => it.id === updated.id ? updated : it);
+    const newItems = formik.values.brandItems.map((it: any) => it.id === updated.id ? updated : it);
     formik.setFieldValue("brandItems", newItems);
     setIsRowEditModalOpen(false);
   };
@@ -269,7 +272,8 @@ export function NewExchangePage() {
               productName: currentItem.brandName || "Cambio", 
               quantity: Math.max(1, Number(currentItem.quantity) || 1), 
               unitPrice: (Number(currentItem.total) || 0) / Math.max(1, Number(currentItem.quantity) || 1)
-            }]
+            }],
+            clientName: clients.find(c => c.id === formik.values.clientId)?.firstName || ""
         };
         await orderApi.create(payload as any);
         queryClient.invalidateQueries({ queryKey: ['orders'] });
@@ -298,8 +302,14 @@ export function NewExchangePage() {
     } else {
       formik.setFieldValue("brandItems", [
         ...formik.values.brandItems, 
-        { ...currentItem, id: crypto.randomUUID(), deposit: Number(currentItem.deposit || 0) }
+        { 
+          ...currentItem, 
+          id: crypto.randomUUID(), 
+          deposit: Number(currentItem.deposit || 0),
+          clientName: clients.find(c => c.id === formik.values.clientId)?.firstName || ""
+        }
       ]);
+
       // Reset ALL item fields for the next entry
       setCurrentItem(prev => ({
         ...prev,
@@ -327,7 +337,7 @@ export function NewExchangePage() {
       setOrderToDelete(item);
       setDeleteConfirmOpen(true);
     } else {
-      formik.setFieldValue("brandItems", formik.values.brandItems.filter((_, i) => i !== idx));
+      formik.setFieldValue("brandItems", formik.values.brandItems.filter((_: any, i: number) => i !== idx));
     }
   };
 
@@ -356,7 +366,7 @@ export function NewExchangePage() {
     console.log("Submit attempt - current brandItems:", formik.values.brandItems);
     
     // Robust validation for brand IDs before processing
-    const invalidItems = formik.values.brandItems.filter(item => {
+    const invalidItems = formik.values.brandItems.filter((item: any) => {
       const bId = (item.brandId || item.brand_id || "").toString().trim();
       return !bId || bId === "" || bId === "undefined" || bId === "null";
     });
@@ -378,7 +388,9 @@ export function NewExchangePage() {
         createdAt: new Date().toISOString(),
         paymentMethod: activePayments[0]?.method || "EFECTIVO",
         bankAccountId: activePayments[0]?.bankAccountId,
+        clientName: clients.find(c => c.id === formik.values.clientId)?.firstName || "",
         transactionDate: new Date().toISOString(),
+
         initialPayment: {
           amount: totalAmount,
           method: activePayments[0]?.method || "EFECTIVO",
@@ -387,8 +399,8 @@ export function NewExchangePage() {
         deposit: totalAmount, 
         notes: formik.values.notes,
         orders: formik.values.brandItems
-          .filter(item => (item.brandId || item.brand_id))
-          .map((item, idx) => {
+          .filter((item: any) => (item.brandId || item.brand_id))
+          .map((item: any, idx: number) => {
           const finalBrandId = (item.brandId || item.brand_id || "").toString().trim();
           console.log(`Mapping item ${idx}: brandId=${finalBrandId}, brandName=${item.brandName}`);
           
@@ -412,8 +424,10 @@ export function NewExchangePage() {
             sourceQuantity: Math.max(1, Number(item.sourceQuantity) || 1),
             sourceDescription: item.sourceDescription || null,
             orderNumber: formik.values.orderNumber || item.orderNumber,
-            description: item.description || null
+            description: item.description || null,
+            clientName: clients.find(c => c.id === formik.values.clientId)?.firstName || ""
           };
+
         })
       };
 
@@ -649,7 +663,7 @@ export function NewExchangePage() {
                       </td>
                     </tr>
                   ) : (
-                    formik.values.brandItems.map((item, idx) => (
+                    formik.values.brandItems.map((item: any, idx: number) => (
                       <tr key={item.id || item.tempId || idx} className="hover:bg-monchito-purple/[0.02] transition-all duration-200 group h-14 whitespace-nowrap">
                         <td className="px-4 py-4 text-center text-[10px] font-black text-slate-300 bg-white lg:sticky left-0 z-20 shadow-[1px_0_0_0_rgba(107,33,168,0.05)]">{idx + 1}</td>
                         <td className={`px-4 py-4 text-[11px] font-black text-slate-900 bg-white transition-all ${pinnedColumns.has('empresaria') ? 'lg:sticky left-[50px] z-20 shadow-[1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`}>
@@ -674,7 +688,8 @@ export function NewExchangePage() {
                           {item.description || "---"}
                         </td>
                         <td className={`px-6 py-4 text-right bg-white transition-all ${pinnedColumns.has('total') ? 'lg:sticky right-[450px] z-20 shadow-[-1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`}>
-                          {(!isEditing || !item.status || Number(item.deposit || 0) === 0) ? (
+                          {!isEditing ? (
+
                             <div className="flex justify-end items-center gap-1">
                                 <span className="text-emerald-400 text-[10px] font-bold">$</span>
                                 <DecimalTextField
@@ -692,7 +707,8 @@ export function NewExchangePage() {
                           )}
                         </td>
                         <td className={`px-6 py-4 text-center bg-white transition-all ${pinnedColumns.has('deposit') ? 'lg:sticky right-[320px] z-20 shadow-[-1px_0_0_0_rgba(107,33,168,0.05)]' : ''}`}>
-                          {(!isEditing || !item.status || Number(item.deposit || 0) === 0) ? (
+                          {!isEditing ? (
+
                             <div className="flex justify-center items-center gap-1">
                                 <span className="text-emerald-600 text-[10px] font-bold">$</span>
                                 <DecimalTextField
