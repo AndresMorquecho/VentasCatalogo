@@ -15,6 +15,7 @@ export const clientApi = {
         excludeCalledToday?: boolean;
         callReason?: string;
         withPendingPayments?: boolean;
+        outdated?: boolean;
     }): Promise<PaginatedResponse<Client>> => {
         const queryParams = new URLSearchParams();
         if (params?.page) queryParams.append('page', params.page.toString());
@@ -28,6 +29,7 @@ export const clientApi = {
         if (params?.excludeCalledToday) queryParams.append('excludeCalledToday', 'true');
         if (params?.callReason) queryParams.append('callReason', params.callReason);
         if (params?.withPendingPayments) queryParams.append('withPendingPayments', 'true');
+        if (params?.outdated) queryParams.append('outdated', 'true');
 
         return httpClient.get<PaginatedResponse<Client>>(`/clients?${queryParams.toString()}`);
     },

@@ -76,26 +76,18 @@ export function ClientList({ triggerCreate, onTriggerHandled, onFiltersChange }:
         city: city || undefined,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
+        outdated: showOnlyOutdated || undefined,
+    });
+
+    // Dedicated query to get TOTAL outdated count for the alert banner
+    const { data: outdatedResponse } = useClientList({
+        outdated: true,
+        limit: 1
     });
 
     const clients = response?.data || [];
     const pagination = response?.pagination;
-
-    // Count clients that need data update (> 90 days)
-    const outdatedCount = clients.filter((c: Client) => {
-        const lastUpdate = c.lastDataUpdate ? new Date(c.lastDataUpdate) : null;
-        const days = lastUpdate ? differenceInDays(new Date(), lastUpdate) : DATA_UPDATE_THRESHOLD_DAYS + 1;
-        return days > DATA_UPDATE_THRESHOLD_DAYS;
-    }).length;
-
-    // Filtered clients if showing only outdated
-    const displayedClients = showOnlyOutdated
-        ? clients.filter((c: Client) => {
-            const lastUpdate = c.lastDataUpdate ? new Date(c.lastDataUpdate) : null;
-            const days = lastUpdate ? differenceInDays(new Date(), lastUpdate) : DATA_UPDATE_THRESHOLD_DAYS + 1;
-            return days > DATA_UPDATE_THRESHOLD_DAYS;
-          })
-        : clients;
+    const totalOutdatedCount = outdatedResponse?.pagination?.total || 0;
 
     // Remove the limit: 500 fetch which causes slow loading
     // We will let the backend handle referential integrity during delete
@@ -240,12 +232,12 @@ export function ClientList({ triggerCreate, onTriggerHandled, onFiltersChange }:
         <div className="space-y-3 sm:space-y-4">
 
             {/* Alert Banner: Outdated Clients */}
-            {outdatedCount > 0 && !showOnlyOutdated && (
+            {totalOutdatedCount > 0 && !showOnlyOutdated && (
                 <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200 shadow-sm">
                     <Bell className="h-5 w-5 text-amber-600 mt-0.5 shrink-0 animate-pulse" />
                     <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold text-amber-800">
-                            {outdatedCount} empresaria{outdatedCount > 1 ? 's necesitan' : ' necesita'} actualizar sus datos
+                            {totalOutdatedCount} empresaria{totalOutdatedCount > 1 ? 's necesitan' : ' necesita'} actualizar sus datos
                         </p>
                         <p className="text-xs text-amber-600 mt-0.5">
                             Han pasado más de 3 meses sin actualizar la información de contacto de estas empresarias.
@@ -268,7 +260,7 @@ export function ClientList({ triggerCreate, onTriggerHandled, onFiltersChange }:
                     <div className="flex items-center gap-2">
                         <Bell className="h-4 w-4 text-amber-600" />
                         <span className="text-xs font-bold text-amber-700">
-                            Mostrando solo empresarias con datos desactualizados ({outdatedCount})
+                            Mostrando solo empresarias con datos desactualizados ({totalOutdatedCount})
                         </span>
                     </div>
                     <Button
@@ -386,7 +378,7 @@ export function ClientList({ triggerCreate, onTriggerHandled, onFiltersChange }:
             )}
 
             <ClientTable
-                clients={displayedClients}
+                clients={clients}
                 isLoading={isLoading}
                 onEdit={handleEdit}
                 onView={handleView}

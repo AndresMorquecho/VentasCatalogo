@@ -29,6 +29,7 @@ export function useClientList(params?: {
     excludeCalledToday?: boolean;
     callReason?: string;
     withPendingPayments?: boolean;
+    outdated?: boolean;
 }) {
     return useQuery({
         queryKey: [...CLIENT_QUERY_KEYS.list(), params],
