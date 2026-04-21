@@ -22,7 +22,6 @@ import { useDebounce } from "@/shared/lib/hooks";
 import { Pagination } from "@/shared/ui/pagination";
 import { useLocking } from "@/features/lock-management/hooks/useLocking";
 import { ConcurrencyLockDialog } from "@/shared/ui/ConcurrencyLockDialog";
-import { differenceInDays } from "date-fns";
 import {
     Select,
     SelectContent,
@@ -37,8 +36,6 @@ import { DateRangePicker } from "@/shared/ui/filters";
 import { SearchableSelect } from "@/shared/ui/SearchableSelect";
 import { ECUADOR_DATA } from "@/shared/constants/ecuador-locations";
 import type { DateRange } from "react-day-picker";
-
-const DATA_UPDATE_THRESHOLD_DAYS = 90;
 
 export function ClientList({ triggerCreate, onTriggerHandled, onFiltersChange }: { 
     triggerCreate?: boolean;
