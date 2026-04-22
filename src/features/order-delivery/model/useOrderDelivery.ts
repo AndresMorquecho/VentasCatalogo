@@ -78,7 +78,7 @@ export const useOrderDeliveryFilterData = () => {
         queryFn: async () => {
             const response = await orderApi.getAll({
                 status: 'RECIBIDO_EN_BODEGA',
-                limit: 1000 // Get enough data for filters
+                limit: 5000 // Get enough data for filters
             });
             
             return response.data;

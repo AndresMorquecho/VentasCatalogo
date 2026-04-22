@@ -1,5 +1,5 @@
 import React, { useState } from "react"
-import { Search, RotateCcw, Edit, Trash2, AlertCircle, Filter, ChevronRight, FileDown, Loader2 } from "lucide-react"
+import { Search, RotateCcw, Edit, Trash2, AlertCircle, Filter, ChevronRight, FileDown, Loader2, Printer } from "lucide-react"
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
 import { exportReceptionBatchesToExcel } from "@/shared/lib/exportExcel"
@@ -27,6 +27,7 @@ import { ConfirmDialog } from "@/shared/ui/confirm-dialog"
 import { Pagination } from "@/shared/ui/pagination"
 import { DateRangePicker } from "@/shared/ui/filters"
 import type { DateRange } from "react-day-picker"
+import { BatchPrintModal } from "./BatchPrintModal"
 
 interface Props {
     batches: any[]
@@ -70,6 +71,10 @@ export function ReceptionHistory({
     const { showToast } = useToast()
     const queryClient = useQueryClient()
     const [isExporting, setIsExporting] = useState(false)
+    const [printModalState, setPrintModalState] = useState<{
+        isOpen: boolean;
+        batch: any | null;
+    }>({ isOpen: false, batch: null });
 
     // Real brands from database
     const { data: brandsData } = useBrandList({ limit: 100 });
@@ -352,6 +357,15 @@ export function ReceptionHistory({
                                                     <Button 
                                                         variant="ghost" 
                                                         size="icon" 
+                                                        className="h-8 w-8 rounded-lg text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 transition-all"
+                                                        onClick={() => setPrintModalState({ isOpen: true, batch })}
+                                                        title="Imprimir Etiquetas / Reporte"
+                                                    >
+                                                        <Printer className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="icon" 
                                                         className={`h-8 w-8 rounded-lg transition-all ${isExpanded ? 'text-monchito-purple bg-monchito-purple/10' : 'text-slate-600 hover:text-monchito-purple hover:bg-monchito-purple/10'}`}
                                                         onClick={() => setExpandedBatch(isExpanded ? null : batch.id)}
                                                     >
@@ -484,6 +498,20 @@ export function ReceptionHistory({
                 confirmText="Sí, Revertir"
                 variant="destructive"
             />
+
+            {/* Print Modal */}
+            {printModalState.batch && (
+                <BatchPrintModal
+                    isOpen={printModalState.isOpen}
+                    onClose={() => setPrintModalState({ isOpen: false, batch: null })}
+                    orders={printModalState.batch.orders || []}
+                    batchDetails={{
+                        id: printModalState.batch.id,
+                        packingNumber: printModalState.batch.packingNumber,
+                        packingTotal: printModalState.batch.packingTotal
+                    }}
+                />
+            )}
         </div>
     )
 }

@@ -72,7 +72,7 @@ export function CallFormModal({ open, onOpenChange, onSuccess, call, initialReas
     const { data: clientsResponse, isLoading: isLoadingClients } = useClientList({
         status: reason === 'REACTIVACION' ? 'INACTIVE' : undefined,
         search: debouncedClientSearch || undefined,
-        limit: 100
+        limit: 5000
     });
 
     const clients = clientsResponse?.data || [];

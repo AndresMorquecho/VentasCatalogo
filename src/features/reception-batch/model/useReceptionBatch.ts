@@ -18,10 +18,10 @@ export const useReceptionBatch = () => {
 
     // Pagination for Pending Orders
     const [pendingPage, setPendingPage] = useState(1);
-    const [pendingLimit] = useState(7);
+    const [pendingLimit] = useState(5000);
 
     const [historyPage, setHistoryPage] = useState(1);
-    const [historyLimit] = useState(15);
+    const [historyLimit] = useState(5000);
     const [historyFilters, setHistoryFilters] = useState({
         startDate: '',
         endDate: '',
@@ -65,7 +65,7 @@ export const useReceptionBatch = () => {
     const { data: clientsResponse } = useQuery({
         queryKey: ['clients-for-reception'],
         queryFn: async () => {
-            return await clientApi.getAll({ limit: 1000, active: true });
+            return await clientApi.getAll({ limit: 5000 });
         },
         staleTime: 60000 // Clients don't change that often
     });

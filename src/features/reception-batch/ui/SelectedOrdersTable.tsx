@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table"
 import { Input } from "@/shared/ui/input"
 import type { Order } from "@/entities/order/model/types"
@@ -6,8 +6,6 @@ import type { CreditDistribution } from "@/entities/financial-record/model/types
 import { X, CheckCircle, ArrowRight } from "lucide-react"
 import { getPaidAmount } from "@/entities/order/model/model"
 import { parseLocaleDecimalInput, formatDecimalForInvoiceInput } from "@/shared/lib/parseLocaleDecimalInput"
-
-import { Pagination } from "@/shared/ui/pagination"
 
 export interface SelectedOrderState {
     order: Order
@@ -35,25 +33,6 @@ export function SelectedOrdersTable({
 }: Props) {
     const [invoiceDraft, setInvoiceDraft] = useState<Record<string, string>>({})
     const [invoiceFocusId, setInvoiceFocusId] = useState<string | null>(null)
-    
-    // Local Pagination
-    const [page, setPage] = useState(1);
-    const limit = 7;
-    const totalPages = Math.ceil(orders.length / limit);
-    const paginatedOrders = orders.slice((page - 1) * limit, page * limit);
-
-    // Auto-navigate to last page when orders are added
-    const prevCount = useRef(orders.length);
-    useEffect(() => {
-        if (orders.length > prevCount.current) {
-            setPage(Math.ceil(orders.length / limit));
-        }
-        prevCount.current = orders.length;
-    }, [orders.length]);
-
-    useEffect(() => {
-        if (page > totalPages && totalPages > 0) setPage(totalPages);
-    }, [orders.length, totalPages]);
 
     const orderIdsKey = orders.map((o) => o.order.id).join("|")
     useEffect(() => {
@@ -139,7 +118,7 @@ export function SelectedOrdersTable({
     return (
         <div className="space-y-4 h-full flex flex-col">
             <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm flex-1 flex flex-col min-h-[401px]">
-                <div className="flex-1 overflow-auto">
+                <div className="flex-1 overflow-auto max-h-[600px] custom-scrollbar">
                     <Table className="min-w-[1200px] w-full">
                         <TableHeader>
                             <TableRow className="bg-monchito-purple/5 hover:bg-monchito-purple/5 border-b border-monchito-purple/10 h-12 sticky top-0 z-10">
@@ -160,7 +139,7 @@ export function SelectedOrdersTable({
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {paginatedOrders.map((orderState) => {
+                            {orders.map((orderState, index) => {
                                 const { order, finalTotal, finalInvoiceNumber, documentType, entryDate } = orderState;
                                 const initialPaid = getPaidAmount(order);
                                 const incomingDistributiveCredit = orders.reduce((sum, o) => {
@@ -211,8 +190,8 @@ export function SelectedOrdersTable({
                                             <select
                                                 value={documentType}
                                                 onChange={(e) => onUpdateDocumentType(order.id, e.target.value)}
-                                                onKeyDown={(e) => handleTableKeyDown(e, orders.indexOf(orderState), 'documentType')}
-                                                data-row-index={orders.indexOf(orderState)}
+                                                onKeyDown={(e) => handleTableKeyDown(e, index, 'documentType')}
+                                                data-row-index={index}
                                                 data-field-name="documentType"
                                                 className="h-7 text-[10px] w-24 bg-white border border-monchito-purple/20 rounded px-1 focus:outline-none focus:ring-1 focus:ring-monchito-purple/20"
                                             >
@@ -226,8 +205,8 @@ export function SelectedOrdersTable({
                                             <Input
                                                 value={finalInvoiceNumber}
                                                 onChange={(e) => onUpdateInvoiceNumber(order.id, e.target.value)}
-                                                onKeyDown={(e) => handleTableKeyDown(e, orders.indexOf(orderState), 'finalInvoiceNumber')}
-                                                data-row-index={orders.indexOf(orderState)}
+                                                onKeyDown={(e) => handleTableKeyDown(e, index, 'finalInvoiceNumber')}
+                                                data-row-index={index}
                                                 data-field-name="finalInvoiceNumber"
                                                 className="h-7 text-xs bg-white border-monchito-purple/20 px-2 w-16 focus:ring-monchito-purple/20"
                                                 placeholder="#"
@@ -268,8 +247,8 @@ export function SelectedOrdersTable({
                                                     setInvoiceDraft((d) => ({ ...d, [order.id]: v }))
                                                     onUpdateInvoiceTotal(order.id, parseLocaleDecimalInput(v))
                                                 }}
-                                                onKeyDown={(e) => handleTableKeyDown(e, orders.indexOf(orderState), 'finalTotal')}
-                                                data-row-index={orders.indexOf(orderState)}
+                                                onKeyDown={(e) => handleTableKeyDown(e, index, 'finalTotal')}
+                                                data-row-index={index}
                                                 data-field-name="finalTotal"
                                                 className={`h-7 text-xs px-2 text-right font-mono bg-white border-monchito-purple/20 focus:ring-monchito-purple/20 font-bold w-28 hide-spinner ${mismatch ? 'text-amber-700 bg-amber-50' : 'text-monchito-purple'}`}
                                             />
@@ -299,17 +278,7 @@ export function SelectedOrdersTable({
                     </Table>
                 </div>
                 <div className="bg-monchito-purple/5 border-t border-monchito-purple/10 p-3 flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-12 px-6 shrink-0">
-                    <div className="flex-1 flex items-center justify-center sm:justify-start w-full">
-                        {orders.length > limit && (
-                             <Pagination 
-                                currentPage={page}
-                                totalPages={totalPages}
-                                onPageChange={setPage}
-                                totalItems={orders.length}
-                                itemsPerPage={limit}
-                             />
-                        )}
-                    </div>
+                    <div className="flex-1" />
                     
                     <div className="flex items-center gap-8 shrink-0">
                         <div className="flex items-center gap-2">

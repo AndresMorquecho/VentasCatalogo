@@ -73,9 +73,15 @@ export function OrderDetailModal({ order, open, onOpenChange }: OrderDetailModal
                         <div className="bg-purple-50/50 border border-purple-100 p-4 rounded-2xl shadow-sm">
                             <p className="text-[10px] font-bold text-monchito-purple uppercase mb-1">Resumen del Recibo</p>
                             <div className="flex justify-between items-baseline mb-0.5">
-                                <span className="text-[10px] text-slate-500 uppercase font-bold">Total:</span>
-                                <span className="font-black text-slate-800">{formatCurrency(totalEffectiveTotal)}</span>
+                                <span className="text-[10px] text-slate-500 uppercase font-bold">Pedido:</span>
+                                <span className="font-black text-slate-800">{formatCurrency(allOrders.reduce((sum, o) => sum + Number(o.total || 0), 0))}</span>
                             </div>
+                            {allOrders.some(o => o.realInvoiceTotal) && (
+                                <div className="flex justify-between items-baseline mb-0.5">
+                                    <span className="text-[10px] text-slate-500 uppercase font-bold">Factura:</span>
+                                    <span className="font-black text-indigo-600">{formatCurrency(totalEffectiveTotal)}</span>
+                                </div>
+                            )}
                             <div className="flex justify-between items-baseline mb-0.5">
                                 <span className="text-[10px] text-slate-500 uppercase font-bold">Abonado:</span>
                                 <span className="font-black text-emerald-600">{formatCurrency(totalPaidAmount)}</span>
@@ -127,7 +133,8 @@ export function OrderDetailModal({ order, open, onOpenChange }: OrderDetailModal
                                             <th className="px-5 py-4 border-r border-slate-100">N° Pedido</th>
                                             <th className="px-5 py-4 border-r border-slate-100">Tipo</th>
                                             <th className="px-5 py-4 border-r border-slate-100">Catalogo</th>
-                                            <th className="px-5 py-4 text-right border-r border-slate-100">Total</th>
+                                            <th className="px-5 py-4 text-right border-r border-slate-100">V. Pedido</th>
+                                            <th className="px-5 py-4 text-right border-r border-slate-100">V. Factura</th>
                                             <th className="px-5 py-4 text-right border-r border-slate-100">Abono</th>
                                             <th className="px-5 py-4 text-right border-r border-slate-100">Saldo</th>
                                             <th className="px-5 py-4 text-center">Estado</th>
@@ -155,7 +162,8 @@ export function OrderDetailModal({ order, open, onOpenChange }: OrderDetailModal
                                                 </span>
                                             </td>
                                             <td className="px-5 py-4 border-r border-purple-100/50 font-bold uppercase text-slate-500">{order.brandName}</td>
-                                            <td className="px-5 py-4 text-right font-black text-slate-900 border-r border-purple-100/50">{formatCurrency(Number(order.total))}</td>
+                                            <td className="px-5 py-4 text-right font-black text-slate-500 border-r border-purple-100/50">{formatCurrency(Number(order.total))}</td>
+                                            <td className="px-5 py-4 text-right font-black text-slate-900 border-r border-purple-100/50">{order.realInvoiceTotal ? formatCurrency(Number(order.realInvoiceTotal)) : '-'}</td>
                                             <td className="px-5 py-4 text-right text-emerald-600 font-black border-r border-purple-100/50">{formatCurrency(getPaidAmount(order))}</td>
                                             <td className="px-5 py-4 text-right text-rose-600 font-black border-r border-purple-100/50">{formatCurrency(getPendingAmount(order))}</td>
                                             <td className="px-5 py-4 text-center">
@@ -184,7 +192,8 @@ export function OrderDetailModal({ order, open, onOpenChange }: OrderDetailModal
                                                     </span>
                                                 </td>
                                                 <td className="px-5 py-4 border-r border-slate-100 uppercase text-slate-500 font-medium">{child.brandName}</td>
-                                                <td className="px-5 py-4 text-right font-bold text-slate-700 border-r border-slate-100">{formatCurrency(Number(child.total))}</td>
+                                                <td className="px-5 py-4 text-right font-bold text-slate-500 border-r border-slate-100">{formatCurrency(Number(child.total))}</td>
+                                                <td className="px-5 py-4 text-right font-bold text-slate-700 border-r border-slate-100">{child.realInvoiceTotal ? formatCurrency(Number(child.realInvoiceTotal)) : '-'}</td>
                                                 <td className="px-5 py-4 text-right text-emerald-600 font-bold border-r border-slate-100">{formatCurrency(getPaidAmount(child))}</td>
                                                 <td className="px-5 py-4 text-right text-rose-600 font-bold border-r border-slate-100">{formatCurrency(getPendingAmount(child))}</td>
                                                 <td className="px-5 py-4 text-center">

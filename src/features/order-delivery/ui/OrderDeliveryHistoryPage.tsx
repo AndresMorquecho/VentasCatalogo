@@ -153,7 +153,7 @@ export function OrderDeliveryHistoryPage() {
                 clientId: clientId || undefined,
                 search: debouncedSearch || undefined,
                 page: 1,
-                limit: 1000
+                limit: 5000
             })
             
             if (response && response.data.length > 0) {

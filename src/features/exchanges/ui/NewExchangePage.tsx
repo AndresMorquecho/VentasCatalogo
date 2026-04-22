@@ -111,7 +111,7 @@ export function NewExchangePage() {
 
   const { data: receiptOrders, isLoading: isLoadingReceiptOrders } = useReceiptOrders(receiptNumber || "");
   const { isLoading: isLoadingOrder } = useOrder(id || "");
-  const { data: clientsResponse } = useClientList({ limit: 1000 });
+  const { data: clientsResponse } = useClientList({ limit: 5000 });
   const { data: brandsResponse } = useBrandList({ limit: 500 });
   const { data: bankAccountsResponse } = useBankAccountList();
 

@@ -181,7 +181,7 @@ export function OrderFormModal({ order, open, onOpenChange }: OrderFormModalProp
         { data: bankAccountsResponse },
         { data: brandsResponse }
     ] = [
-        useClientList({ limit: 500 }),
+        useClientList({ limit: 5000 }),
         useBankAccountList({ limit: 500 }),
         useBrandList({ limit: 500 })
     ];

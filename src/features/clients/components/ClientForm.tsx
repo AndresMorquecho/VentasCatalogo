@@ -95,7 +95,7 @@ const validationSchema = Yup.object({
 export function ClientForm({ client, open, onOpenChange }: ClientFormProps) {
     const createClient = useCreateClient();
     const updateClient = useUpdateClient();
-    const { data: clientsResponse } = useClientList({ limit: 1000 });
+    const { data: clientsResponse } = useClientList({ limit: 5000 });
     const allClients = clientsResponse?.data || [];
 
     const { user } = useAuth();

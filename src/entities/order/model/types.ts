@@ -143,6 +143,7 @@ export interface OrderPayload {
 export interface PaginatedResponse<T> {
     success: boolean;
     data: T[];
+    stats?: any;
     pagination: {
         page: number;
         limit: number;

@@ -42,9 +42,6 @@ export function ReceptionBatchPage() {
         historyFilters,
         setHistoryFilters,
         pagination,
-        pendingPage,
-        setPendingPage,
-        pendingPagination,
         pendingFilters,
         setPendingFilters,
         clientOptions,
@@ -186,11 +183,8 @@ export function ReceptionBatchPage() {
                             <PendingOrdersTable 
                                 orders={allOrders} 
                                 onMove={addOrders} 
-                                pagination={pendingPagination}
-                                currentPage={pendingPage}
-                                onPageChange={setPendingPage}
-                                filters={pendingFilters}
                                 onFiltersChange={setPendingFilters}
+                                filters={pendingFilters}
                                 clientOptions={clientOptions}
                             />
                         </div>

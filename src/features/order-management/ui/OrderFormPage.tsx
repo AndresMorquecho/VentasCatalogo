@@ -106,7 +106,7 @@ export function OrderFormPage() {
     // Caso 2: Edición por ID individual (carga un solo pedido)
     const { data: order, isLoading: isLoadingOrder } = useOrder(id || "")
     
-    const { data: clientsResponse } = useClientList({ limit: 1000 })
+    const { data: clientsResponse } = useClientList({ limit: 5000 })
     const { data: brandsResponse } = useBrandList({ limit: 1000 })
 
     const clients = clientsResponse?.data || []

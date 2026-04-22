@@ -98,7 +98,7 @@ export function OrderReceptionHistoryPage() {
                 startDate: startDate || undefined,
                 endDate: endDate || undefined,
                 page: 1,
-                limit: 1000
+                limit: 5000
             });
 
             if (response && response.data.length > 0) {

@@ -6,20 +6,12 @@ import type { Order } from "@/entities/order/model/types"
 import { ArrowRight, Tag } from "lucide-react"
 import { getPaidAmount } from "@/entities/order/model/model"
 
-import { Pagination } from "@/shared/ui/pagination"
 import { SearchableSelect } from "@/shared/ui/SearchableSelect"
 
 interface Props {
     orders: Order[]
     onMove: (ids: string[]) => void
-    pagination?: {
-        page: number;
-        limit: number;
-        total: number;
-        pages: number;
-    }
-    currentPage?: number;
-    onPageChange?: (page: number) => void;
+
     filters?: {
         receiptNumber: string;
         orderNumber: string;
@@ -36,10 +28,7 @@ interface Props {
 export function PendingOrdersTable({ 
     orders, 
     onMove, 
-    pagination, 
-    currentPage = 1, 
-    onPageChange, 
-    filters, 
+    filters,
     onFiltersChange, 
     clientOptions 
 }: Props) {
@@ -56,6 +45,11 @@ export function PendingOrdersTable({
         return Array.from(map.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
     }, [orders]);
 
+    // Alphabetical sort by clientName
+    const sortedOrders = useMemo(() => {
+        return [...orders].sort((a, b) => (a.clientName || '').localeCompare(b.clientName || ''));
+    }, [orders]);
+
     const toggle = (id: string) => {
         setSelected(prev => {
             const next = new Set(prev)
@@ -66,7 +60,7 @@ export function PendingOrdersTable({
     }
 
     const toggleAll = () => {
-        const allIds = orders.map(o => o.id);
+        const allIds = sortedOrders.map(o => o.id);
         const allSelected = allIds.length > 0 && allIds.every(id => selected.has(id));
 
         if (allSelected) {
@@ -130,11 +124,10 @@ export function PendingOrdersTable({
     const handleFilterUpdate = (newFields: Partial<NonNullable<typeof filters>>) => {
         if (onFiltersChange && filters) {
             onFiltersChange({ ...filters, ...newFields });
-            if (onPageChange) onPageChange(1);
         }
     }
 
-    const areAllSelected = orders.length > 0 && orders.every(o => selected.has(o.id));
+    const areAllSelected = sortedOrders.length > 0 && sortedOrders.every(o => selected.has(o.id));
     const currentFilters = filters || { 
         receiptNumber: '', 
         orderNumber: '', 
@@ -145,7 +138,7 @@ export function PendingOrdersTable({
         endDate: '' 
     };
 
-    if (orders.length === 0 && !currentFilters.receiptNumber && !currentFilters.orderNumber && !currentFilters.clientId) {
+    if (sortedOrders.length === 0 && !currentFilters.receiptNumber && !currentFilters.orderNumber && !currentFilters.clientId) {
         return (
             <div className="h-full flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-200 rounded-lg bg-slate-50 text-slate-400">
                 <p>No hay pedidos pendientes de recibir.</p>
@@ -228,7 +221,7 @@ export function PendingOrdersTable({
                 <div className="flex items-center justify-between border-t border-slate-100 mt-4 pt-3">
                     <div className="flex items-center gap-2">
                         <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-md">
-                            {pagination?.total || orders.length} Resultados
+                            {sortedOrders.length} Resultados
                         </span>
                         {(currentFilters.receiptNumber || currentFilters.orderNumber || currentFilters.brandId || currentFilters.clientId) && (
                             <button
@@ -263,7 +256,7 @@ export function PendingOrdersTable({
 
             {/* Table */}
             <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm flex-1 flex flex-col min-h-[400px]">
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-y-auto max-h-[600px] custom-scrollbar">
                     <Table className="min-w-[1000px] w-full">
                         <TableHeader>
                             <TableRow className="bg-monchito-purple/5 hover:bg-monchito-purple/5 border-b border-monchito-purple/10 h-12 sticky top-0 z-10">
@@ -294,7 +287,7 @@ export function PendingOrdersTable({
                                     </TableCell>
                                 </TableRow>
                             ) : (
-                                orders.map((order, index) => {
+                                sortedOrders.map((order, index) => {
                                     const isSelected = selected.has(order.id);
                                     const paid = getPaidAmount(order);
                                     
@@ -381,21 +374,12 @@ export function PendingOrdersTable({
                 {/* Summary Footer */}
                 <div className="bg-slate-50 border-t p-2 flex flex-col sm:flex-row items-center justify-between px-6 shrink-0 min-h-[50px] gap-4">
                     <div className="flex-1 w-full flex justify-center sm:justify-start">
-                        {pagination && pagination.pages > 1 && onPageChange && (
-                            <Pagination
-                                currentPage={currentPage}
-                                totalPages={pagination.pages}
-                                onPageChange={onPageChange}
-                                totalItems={pagination.total}
-                                itemsPerPage={pagination.limit}
-                            />
-                        )}
                     </div>
                     
                     <div className="flex items-center gap-6">
                         <div className="flex items-center gap-2">
                             <span className="text-[10px] uppercase font-bold text-slate-500">Total Pedidos:</span>
-                            <span className="font-mono font-bold text-slate-800">${orders.reduce((sum, o) => sum + o.total, 0).toFixed(2)}</span>
+                            <span className="font-mono font-bold text-slate-800">${sortedOrders.reduce((sum, o) => sum + o.total, 0).toFixed(2)}</span>
                         </div>
                     </div>
                 </div>

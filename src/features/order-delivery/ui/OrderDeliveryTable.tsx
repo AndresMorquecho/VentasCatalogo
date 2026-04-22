@@ -1,6 +1,5 @@
-import { useState, useMemo, useCallback, lazy, Suspense } from "react"
+import { useState, useMemo, useCallback, lazy, Suspense, useRef } from "react"
 import {
-    Table,
     TableBody,
     TableCell,
     TableHead,
@@ -65,10 +64,9 @@ const OrderRow = memo(function OrderRow({
             tabIndex={0}
             data-row-index={index}
             className={cn(
-                "group border-b border-monchito-purple/5 transition-all duration-200 cursor-pointer outline-none focus:bg-monchito-purple/[0.05]",
+                "group border-b border-monchito-purple/5 transition-all duration-200 outline-none focus:bg-monchito-purple/[0.05]",
                 isSelected ? "bg-monchito-purple/[0.03]" : "hover:bg-monchito-purple/[0.02]"
             )}
-            onClick={() => !isDisabled && onToggleSelect(order)}
             onKeyDown={(e) => {
                 if (e.key === ' ' || e.key === 'Enter') {
                     e.preventDefault()
@@ -93,7 +91,11 @@ const OrderRow = memo(function OrderRow({
                     className="h-4 w-4 rounded border-slate-300 text-monchito-purple"
                 />
             </TableCell>
-            <TableCell className="px-6 py-4 text-center text-xs font-bold text-slate-600 uppercase whitespace-nowrap">{order.salesChannel || '-'}</TableCell>
+            <TableCell className="px-6 py-4 text-center text-xs font-black text-monchito-purple uppercase tracking-tight whitespace-nowrap">{order.brandName}</TableCell>
+            <TableCell className="px-6 py-4 text-center text-xs font-mono text-slate-600 whitespace-nowrap">{order.orderNumber || '-'}</TableCell>
+            <TableCell className="px-6 py-4 text-center text-xs font-mono font-black text-slate-800 whitespace-nowrap">
+                {order.realInvoiceTotal ? formatCurrency(order.realInvoiceTotal) : '-'}
+            </TableCell>
             <TableCell className="px-6 py-4 text-center text-xs font-mono font-bold text-slate-700 whitespace-nowrap">{order.receiptNumber}</TableCell>
             <TableCell className="px-6 py-4 text-center">
                 <div className="flex flex-col items-center justify-center gap-0.5 text-center">
@@ -103,13 +105,11 @@ const OrderRow = memo(function OrderRow({
                     ) : null}
                 </div>
             </TableCell>
-            <TableCell className="px-6 py-4 text-center text-xs font-mono text-slate-600 whitespace-nowrap">{order.orderNumber || '-'}</TableCell>
             <TableCell className="px-6 py-4 text-center">
                 <Badge variant="outline" className="text-[9px] font-black tracking-widest uppercase">
                     {order.type || 'NORMAL'}
                 </Badge>
             </TableCell>
-            <TableCell className="px-6 py-4 text-center text-xs font-black text-monchito-purple uppercase tracking-tight whitespace-nowrap">{order.brandName}</TableCell>
             <TableCell className="px-6 py-4 text-center text-xs font-mono font-black text-slate-800 whitespace-nowrap">{formatCurrency(order.total)}</TableCell>
             <TableCell className="px-6 py-4 text-center text-xs font-mono font-black text-emerald-600 whitespace-nowrap">
                 <div className="flex flex-col items-center">
@@ -122,13 +122,12 @@ const OrderRow = memo(function OrderRow({
                 </div>
             </TableCell>
             <TableCell className="px-6 py-4 text-center text-xs font-bold text-slate-500 whitespace-nowrap">{formatDate(order.possibleDeliveryDate)}</TableCell>
+
             <TableCell className="px-6 py-4 text-center text-xs font-mono font-bold text-slate-600 whitespace-nowrap">{order.invoiceNumber || '-'}</TableCell>
-            <TableCell className="px-6 py-4 text-center text-xs font-mono font-black text-slate-800 whitespace-nowrap">
-                {order.realInvoiceTotal ? formatCurrency(order.realInvoiceTotal) : '-'}
-            </TableCell>
             <TableCell className="px-6 py-4 text-center text-xs font-bold text-slate-700 whitespace-nowrap">
                 {order.receptionDate ? formatDate(order.receptionDate) : '-'}
             </TableCell>
+            <TableCell className="px-6 py-4 text-center text-xs font-bold text-slate-600 uppercase whitespace-nowrap">{order.salesChannel || '-'}</TableCell>
             
             <TableCell className={cn(
                 "px-6 py-4 transition-all duration-300",
@@ -250,10 +249,45 @@ export function OrderDeliveryTable({
     const [dismantleModal, setDismantleModal] = useState<{
         isOpen: boolean
         order: Order | null
-    }>({
-        isOpen: false,
-        order: null
-    })
+    }>({ isOpen: false, order: null })
+
+    // Note: pinnedCols below handles column pinning (pinnedColumns removed as unused)
+
+    // Drag to scroll logic
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const [isDragging, setIsDragging] = useState(false);
+    const [startX, setStartX] = useState(0);
+    const [scrollLeft, setScrollLeft] = useState(0);
+
+    const handleMouseDown = (e: React.MouseEvent) => {
+        // Only trigger if clicking on the table area, not on buttons or inputs
+        const target = e.target as HTMLElement;
+        if (target.closest('button') || target.closest('input') || target.closest('label') || target.tagName === 'INPUT' || target.tagName === 'BUTTON') return;
+
+        if (!scrollContainerRef.current) return;
+        setIsDragging(true);
+        const rect = scrollContainerRef.current.getBoundingClientRect();
+        setStartX(e.clientX - rect.left);
+        setScrollLeft(scrollContainerRef.current.scrollLeft);
+    };
+
+    const handleMouseLeaveOrUp = () => {
+        setIsDragging(false);
+    };
+
+    const handleMouseMove = (e: React.MouseEvent) => {
+        if (!isDragging || !scrollContainerRef.current) return;
+        
+        // Only prevent default if we have actually moved a bit to avoid blocking clicks
+        const rect = scrollContainerRef.current.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const walk = (x - startX) * 2;
+        
+        if (Math.abs(x - startX) > 5) {
+            e.preventDefault();
+            scrollContainerRef.current.scrollLeft = scrollLeft - walk;
+        }
+    };
 
     const [pinnedCols, setPinnedCols] = useState<string[]>(() => {
         // En móviles (ancho < 768px), las columnas no están fijas por defecto
@@ -391,17 +425,22 @@ export function OrderDeliveryTable({
     }, [orders, creditDistributions]);
 
     const handleToggleSelect = useCallback((order: Order) => {
-        if (selectedOrderIds.includes(order.id)) {
-            onSelectionChange(selectedOrderIds.filter(id => id !== order.id))
+        const isCurrentlySelected = selectedOrderIds.includes(order.id);
+        
+        if (isCurrentlySelected) {
+            onSelectionChange(selectedOrderIds.filter(id => id !== order.id));
         } else {
-            const firstSelectedId = selectedOrderIds[0]
-            if (firstSelectedId) {
-                const firstOrder = orders.find(o => o.id === firstSelectedId)
-                if (firstOrder && firstOrder.clientId !== order.clientId) {
-                    return
+            // Check if there's already an order from another client selected
+            if (selectedOrderIds.length > 0) {
+                // Find ANY order that is already selected to verify the clientId
+                const anySelected = orders.find(o => selectedOrderIds.includes(o.id));
+                
+                if (anySelected && String(anySelected.clientId) !== String(order.clientId)) {
+                    // Different client, prevent selection
+                    return;
                 }
             }
-            onSelectionChange([...selectedOrderIds, order.id])
+            onSelectionChange([...selectedOrderIds, order.id]);
         }
     }, [selectedOrderIds, orders, onSelectionChange]);
 
@@ -440,8 +479,18 @@ export function OrderDeliveryTable({
 
     return (
         <div className="bg-white rounded-2xl border border-monchito-purple/10 shadow-[0_20px_50px_rgba(107,33,168,0.05)] overflow-hidden">
-            <div className="w-full overflow-x-auto custom-scrollbar rounded-t-2xl">
-                <Table className="text-left border-collapse min-w-[2000px] w-full">
+            <div 
+                ref={scrollContainerRef}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseLeaveOrUp}
+                onMouseLeave={handleMouseLeaveOrUp}
+                className={cn(
+                    "w-full overflow-x-auto custom-scrollbar rounded-t-2xl",
+                    isDragging ? "cursor-grabbing" : "cursor-grab"
+                )}
+            >
+                <table className="text-left border-collapse min-w-[2000px] w-full caption-bottom text-sm">
                     <TableHeader>
                         <TableRow className="bg-monchito-purple/5 border-b border-monchito-purple/10">
                             <TableHead className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest h-12 text-center">
@@ -456,18 +505,18 @@ export function OrderDeliveryTable({
                                     <span>Selec.</span>
                                 </div>
                             </TableHead>
-                            <TableHead className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Pedido por</TableHead>
+                            <TableHead className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center">Catalogo</TableHead>
+                            <TableHead className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">No de Pedido</TableHead>
+                            <TableHead className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">Valor Factura</TableHead>
                             <TableHead className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Recibo</TableHead>
                             <TableHead className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Empresaria</TableHead>
-                            <TableHead className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">No de Pedido</TableHead>
                             <TableHead className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Tipo</TableHead>
-                            <TableHead className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Catalogo</TableHead>
                             <TableHead className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">Valor Pedido</TableHead>
                             <TableHead className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">Abono</TableHead>
                             <TableHead className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">Fecha Posible Entrega</TableHead>
                             <TableHead className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">Factura / NC</TableHead>
-                            <TableHead className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">Valor Factura</TableHead>
                             <TableHead className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">Fecha Ingreso</TableHead>
+                            <TableHead className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Pedido por</TableHead>
                             
                             <TableHead className={cn(
                                 "px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center transition-all duration-300",
@@ -534,7 +583,7 @@ export function OrderDeliveryTable({
                             ))
                         )}
                     </TableBody>
-                </Table>
+                </table>
             </div>
 
             <Suspense fallback={null}>

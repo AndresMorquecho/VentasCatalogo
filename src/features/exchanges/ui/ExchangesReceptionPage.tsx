@@ -38,10 +38,6 @@ export function ExchangesReceptionPage() {
         historyFilters,
         setHistoryFilters,
         pagination,
-        // Pending Pagination
-        pendingPage,
-        setPendingPage,
-        pendingPagination,
         pendingFilters,
         setPendingFilters,
         clientOptions,
@@ -136,9 +132,6 @@ export function ExchangesReceptionPage() {
                                 <PendingOrdersTable 
                                     orders={allOrders} 
                                     onMove={addOrders}
-                                    pagination={pendingPagination}
-                                    currentPage={pendingPage}
-                                    onPageChange={setPendingPage}
                                     filters={pendingFilters}
                                     onFiltersChange={setPendingFilters}
                                     clientOptions={clientOptions}

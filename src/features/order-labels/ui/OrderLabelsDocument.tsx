@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
     },
     prendasLabel: {
-        fontSize: 5,
+        fontSize: 7, // Aumentado (era 5)
         fontWeight: 'bold',
         marginRight: 2,
     },
@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
         borderColor: '#000',
     },
     receiptNumberLine: {
-        fontSize: 7, // Aumentado
+        fontSize: 9.5, // Aumentado (era 7)
         fontWeight: 'bold',
         marginTop: 4,
         marginBottom: 6,
@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
         borderBottomColor: '#000',
     },
     tableHeaderCell: {
-        fontSize: 5.5, // Aumentado
+        fontSize: 6.5,
         fontWeight: 'bold',
         paddingVertical: 3,
         paddingHorizontal: 2,
@@ -119,14 +119,16 @@ const styles = StyleSheet.create({
         borderRightWidth: 0.5,
         borderRightColor: '#000',
         backgroundColor: '#e8e8e8',
+        overflow: 'hidden',
     },
     tableDataCell: {
-        fontSize: 5.5, // Aumentado
+        fontSize: 6.5,
         paddingVertical: 2,
         paddingHorizontal: 2,
         textAlign: 'center',
         borderRightWidth: 0.5,
         borderRightColor: '#000',
+        overflow: 'hidden',
     },
     footer: {
         flexDirection: 'row',
@@ -138,13 +140,13 @@ const styles = StyleSheet.create({
         borderTopColor: '#ccc',
     },
     footerLabel: {
-        fontSize: 4,
+        fontSize: 6, // Aumentado (era 4)
         fontStyle: 'italic',
         color: '#555',
         maxWidth: '32%',
     },
     footerValue: {
-        fontSize: 3.8,
+        fontSize: 6, // Aumentado (era 3.8)
         fontWeight: 'bold',
         color: '#000',
     },
@@ -185,8 +187,7 @@ function LabelCard({
                     <View style={styles.clientCol}>
                         <Text style={styles.clientName}>{order.clientName}</Text>
                         <Text style={styles.clientInfoSub}>
-                            CED: {client?.identificationNumber || '—'} · TLF: {client?.phone1 || '—'}
-                            {client?.phone2 ? ` / ${client.phone2}` : ''}
+                            CED: {order.clientIdentification || client?.identificationNumber || '—'} · TLF: {client?.phone1 || '—'}{client?.phone2 ? ` / ${client.phone2}` : ''}
                         </Text>
                     </View>
                     <View style={styles.brandCol}>

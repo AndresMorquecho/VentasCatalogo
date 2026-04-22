@@ -53,7 +53,7 @@ const validationSchema = Yup.object({
 
 export function RechargeWalletModal({ open, onOpenChange }: RechargeWalletModalProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const { data: clientsResponse } = useClientList({ limit: 1000 });
+    const { data: clientsResponse } = useClientList({ limit: 5000 });
     const { data: bankAccountsResponse } = useBankAccountList({ limit: 100 });
     const { notifySuccess, notifyError } = useNotifications();
     const queryClient = useQueryClient();

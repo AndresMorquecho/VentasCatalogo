@@ -58,7 +58,7 @@ export function OrderFilters({
     orderNumber, onOrderNumberChange,
     typeFilter, onTypeChange
 }: OrderFiltersProps) {
-    const { data: clientsResponse } = useClientList({ limit: 1000 })
+    const { data: clientsResponse } = useClientList({ limit: 5000 });
     const { data: catalogsResponse } = useBrandList({ limit: 100 })
 
     const clientOptions = (clientsResponse?.data || []).map(c => ({

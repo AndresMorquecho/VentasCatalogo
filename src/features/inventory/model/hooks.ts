@@ -72,23 +72,19 @@ export const useInventory = (params?: {
         });
     }, [movements]);
 
-    // 3️⃣ Compute Dashboard Counters (Current view only if paginated)
-    const pendingCount = inventoryData.filter(i => i.status === 'POR_RECIBIR' || i.status === 'PENDING').length;
-    const inWarehouseCount = inventoryData.filter(i => i.status === 'ENTRY').length;
-    const deliveredTodayCount = inventoryData.filter(i => i.status === 'DELIVERED' && new Date(i.createdAt).toDateString() === new Date().toDateString()).length;
-    const longStorageCount = inventoryData.filter(i => i.daysInWarehouse > 10 && (i.status === 'ENTRY')).length;
-
+    // 3️⃣ Dashboard Counters (Prefer API stats if available, otherwise fallback to local)
+    const stats = response && !Array.isArray(response) && response.stats ? response.stats : {
+        pending: inventoryData.filter(i => i.status === 'POR_RECIBIR' || i.status === 'PENDING').length,
+        inWarehouse: inventoryData.filter(i => i.status === 'ENTRY').length,
+        deliveredToday: inventoryData.filter(i => i.status === 'DELIVERED' && new Date(i.createdAt).toDateString() === new Date().toDateString()).length,
+        longStorage: inventoryData.filter(i => i.daysInWarehouse > 10 && (i.status === 'ENTRY')).length,
+    };
+ 
     return {
         movements: inventoryData,
         isLoading,
         refetch,
         pagination: response && !Array.isArray(response) ? response.pagination : undefined,
-        stats: {
-            pending: pendingCount,
-            inWarehouse: inWarehouseCount,
-            deliveredToday: deliveredTodayCount,
-            longStorage: longStorageCount,
-        }
+        stats
     };
 };
-

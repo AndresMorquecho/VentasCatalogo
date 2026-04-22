@@ -24,6 +24,7 @@ export function BatchPrintModal({ isOpen, onClose, orders, batchDetails }: Props
     const [isGenerating, setIsGenerating] = useState(false)
     const [isGeneratingReport, setIsGeneratingReport] = useState(false)
     const [clientsMap, setClientsMap] = useState<Record<string, Client>>({})
+    const [isLoadingClients, setIsLoadingClients] = useState(false)
     const { notifyError } = useNotifications()
 
     // Preview state
@@ -41,13 +42,15 @@ export function BatchPrintModal({ isOpen, onClose, orders, batchDetails }: Props
     useEffect(() => {
         if (isOpen && orders.length > 0) {
             setSelectedIds(new Set(orders.map(o => o.id)))
+            setClientsMap({}) // reset
             loadClientsData();
         }
     }, [isOpen, orders])
 
-    const loadClientsData = async () => {
+    const loadClientsData = async (): Promise<Record<string, Client>> => {
+        setIsLoadingClients(true);
         try {
-            const clientIds = Array.from(new Set(orders.map(o => o.clientId)));
+            const clientIds = Array.from(new Set(orders.map(o => o.clientId).filter(Boolean)));
             const map: Record<string, Client> = {};
             
             await Promise.all(clientIds.map(async (id) => {
@@ -60,8 +63,12 @@ export function BatchPrintModal({ isOpen, onClose, orders, batchDetails }: Props
             }));
             
             setClientsMap(map);
+            return map;
         } catch (error) {
             console.error("Error loading clients for print", error);
+            return {};
+        } finally {
+            setIsLoadingClients(false);
         }
     }
 
@@ -85,11 +92,14 @@ export function BatchPrintModal({ isOpen, onClose, orders, batchDetails }: Props
 
         setIsGenerating(true)
         try {
+            // Always fetch fresh client data before generating to guarantee phone/cedula is present
+            const freshClientsMap = Object.keys(clientsMap).length > 0 ? clientsMap : await loadClientsData();
+
             const selectedOrders = orders.filter(o => selectedIds.has(o.id));
             
             const doc = <OrderLabelsDocument 
                 orders={selectedOrders} 
-                clientsMap={clientsMap}
+                clientsMap={freshClientsMap}
                 user={{ name: localStorage.getItem('user_name') || 'Admin' }}
                 packingNumber={batchDetails?.packingNumber}
             />;
@@ -250,15 +260,15 @@ export function BatchPrintModal({ isOpen, onClose, orders, batchDetails }: Props
 
                         <Button 
                             onClick={handleGeneratePdf} 
-                            disabled={selectedIds.size === 0 || isGenerating || isGeneratingReport}
+                            disabled={selectedIds.size === 0 || isGenerating || isGeneratingReport || isLoadingClients}
                             className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold w-full sm:w-auto h-11 sm:h-10 text-[10px] sm:text-xs px-2"
                         >
-                            {isGenerating ? (
+                            {(isGenerating || isLoadingClients) ? (
                                 <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
                             ) : (
                                 <Printer className="mr-2 h-4 w-4" />
                             )}
-                            Imprimir Etiquetas ({selectedIds.size})
+                            {isLoadingClients ? 'Cargando...' : `Imprimir Etiquetas (${selectedIds.size})`}
                         </Button>
                     </div>
                 </DialogFooter>

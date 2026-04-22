@@ -369,7 +369,7 @@ export function OrderDeliveryPage() {
                 endDate: endDate || undefined,
                 search: searchTerm || undefined,
                 page: 1,
-                limit: 1000
+                limit: 5000
             })
             
             if (response && response.data.length > 0) {
