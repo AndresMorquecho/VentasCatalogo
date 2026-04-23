@@ -23,6 +23,7 @@ export interface PaymentEntry {
     bankAccountId?: string;
     transactionReference?: string;
     notes?: string;
+    receivedCash?: number;
 }
 
 export interface PaymentModalData {
@@ -101,7 +102,8 @@ export function PaymentModal({
                 amount: 0, 
                 bankAccountId: defaultMethod === 'EFECTIVO' ? (cashAccount?.id || '') : '',
                 transactionReference: '',
-                notes: ''
+                notes: '',
+                receivedCash: initialAmount || 0
             }
         ];
     });
@@ -122,7 +124,8 @@ export function PaymentModal({
                 amount: initialAmount || 0,
                 bankAccountId: defaultMethod === 'EFECTIVO' ? (cashAccount?.id || '') : '',
                 transactionReference: '',
-                notes: ''
+                notes: '',
+                receivedCash: initialAmount || 0
             }]);
             
             setValidationError(null);
@@ -426,7 +429,7 @@ export function PaymentModal({
                                                             !lockAmount && expectedAmount > 0
                                                                 ? Math.min(value, expectedAmount)
                                                                 : value;
-                                                        updatePayment(payment.id, { amount: limitedValue });
+                                                        updatePayment(payment.id, { amount: Math.round(limitedValue * 100) / 100 });
                                                     }}
                                                     className="h-9 pl-6 pr-12 text-xs text-monchito-purple border-monchito-purple/20 rounded-xl bg-white focus-visible:ring-2 focus-visible:ring-monchito-purple/20 hide-spinner shadow-none"
                                                     placeholder="0.00"
@@ -442,6 +445,33 @@ export function PaymentModal({
                                                 )}
                                             </div>
                                         </div>
+
+                                        {/* Efectivo Recibido (Sólo EFECTIVO) */}
+                                        {payment.method === 'EFECTIVO' && (
+                                            <>
+                                                <div className="w-[130px] space-y-1 shrink-0">
+                                                    <label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 px-1">Recibido</label>
+                                                    <div className="relative group">
+                                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-600/40 font-bold">$</span>
+                                                        <DecimalTextField
+                                                            value={payment.receivedCash ?? payment.amount}
+                                                            onValueChange={(value) => updatePayment(payment.id, { receivedCash: Math.round(value * 100) / 100 })}
+                                                            className="h-9 pl-6 pr-3 text-xs text-emerald-700 border-emerald-600/20 rounded-xl bg-emerald-50/30 focus-visible:ring-2 focus-visible:ring-emerald-600/20 hide-spinner shadow-none"
+                                                            placeholder="0.00"
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <div className="w-[100px] space-y-1 shrink-0">
+                                                    <label className="text-[10px] font-black uppercase tracking-widest text-monchito-purple px-1">Vuelto</label>
+                                                    <div className={`h-9 flex items-center justify-center rounded-xl border border-monchito-purple/20 bg-monchito-purple/5 px-2 text-xs font-bold transition-all ${
+                                                        ((payment.receivedCash ?? payment.amount) - payment.amount) < -0.001 ? 'text-red-600' : 'text-monchito-purple'
+                                                    }`}>
+                                                        {formatCurrency(Math.max(0, Math.round(((payment.receivedCash ?? payment.amount) - payment.amount) * 100) / 100))}
+                                                    </div>
+                                                </div>
+                                            </>
+                                        )}
 
                                         {/* Cuenta Bancaria */}
                                         {paymentMethodConfigService.getMethod(payment.method)?.requiresBankAccount && (

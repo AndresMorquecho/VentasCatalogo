@@ -8,6 +8,7 @@ export interface WalletRechargePayload {
     reference?: string;
     control_validation?: string;
     notes?: string;
+    transaction_date?: string;
 }
 
 export interface InstantRechargePayload {
@@ -18,6 +19,7 @@ export interface InstantRechargePayload {
     reference?: string;
     controlValidation?: string;
     notes?: string;
+    transactionDate?: string;
 }
 
 export const walletApi = {

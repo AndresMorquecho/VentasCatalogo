@@ -83,12 +83,13 @@ export function WalletHistory() {
                             <th className="px-4 py-3 text-left">Cliente</th>
                             <th className="px-4 py-3 text-left">Método / Ref</th>
                             <th className="px-4 py-3 text-right">Monto</th>
+                            <th className="px-4 py-3 text-left">Registrado por</th>
                             <th className="px-4 py-3 text-center">Estado</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                         {isLoading ? (
-                            [1,2,3].map(i => <tr key={i}><td colSpan={5} className="p-8 text-center animate-pulse">Cargando...</td></tr>)
+                            [1,2,3].map(i => <tr key={i}><td colSpan={6} className="p-8 text-center animate-pulse">Cargando...</td></tr>)
                         ) : recharges.length > 0 ? (
                             recharges.map((r: any) => (
                                 <tr key={r.id} className="hover:bg-slate-50/50 transition-colors">
@@ -117,6 +118,9 @@ export function WalletHistory() {
                                         <div className="font-black text-slate-800">${Number(r.amount).toFixed(2)}</div>
                                     </td>
                                     <td className="px-4 py-3">
+                                        <div className="text-xs font-bold text-slate-700">{r.createdByName || 'Sistema'}</div>
+                                    </td>
+                                    <td className="px-4 py-3">
                                         <div className="flex flex-col items-center gap-1">
                                             {getStatusBadge(r.status)}
                                             {r.status === 'RECHAZADO' && r.rejectionReason && (
@@ -130,7 +134,7 @@ export function WalletHistory() {
                             ))
                         ) : (
                             <tr>
-                                <td colSpan={5} className="py-12 text-center text-slate-400 italic">
+                                <td colSpan={6} className="py-12 text-center text-slate-400 italic">
                                     No se encontraron registros en el historial
                                 </td>
                             </tr>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
+import { format } from "date-fns";
 import {
     Dialog,
     DialogContent,
@@ -49,6 +50,7 @@ const validationSchema = Yup.object({
         then: (schema) => schema.required("Control/Validación requerido"),
         otherwise: (schema) => schema.notRequired(),
     }),
+    transactionDate: Yup.date().required("La fecha de transacción es requerida"),
 });
 
 export function RechargeWalletModal({ open, onOpenChange }: RechargeWalletModalProps) {
@@ -70,6 +72,7 @@ export function RechargeWalletModal({ open, onOpenChange }: RechargeWalletModalP
             reference: "",
             controlValidation: "",
             notes: "",
+            transactionDate: format(new Date(), 'yyyy-MM-dd'),
         },
         validationSchema,
         onSubmit: async (values) => {
@@ -83,6 +86,7 @@ export function RechargeWalletModal({ open, onOpenChange }: RechargeWalletModalP
                     reference: values.reference || undefined,
                     control_validation: values.controlValidation || undefined,
                     notes: values.notes,
+                    transaction_date: values.transactionDate,
                 };
 
                 await walletApi.recharge(payload);
@@ -193,6 +197,22 @@ export function RechargeWalletModal({ open, onOpenChange }: RechargeWalletModalP
                                         </Select>
                                     </div>
 
+                                    <div className="space-y-2">
+                                        <Label className="text-[10px] font-black uppercase text-slate-500 flex items-center gap-2 mb-1.5 opacity-70">
+                                            Fecha Transacción
+                                        </Label>
+                                        <Input
+                                            type="date"
+                                            className="h-10 sm:h-11 border-slate-200 font-bold text-xs sm:text-sm bg-white"
+                                            {...formik.getFieldProps("transactionDate")}
+                                        />
+                                        {formik.touched.transactionDate && formik.errors.transactionDate && (
+                                            <p className="text-[10px] font-bold text-red-500 uppercase">{formik.errors.transactionDate as string}</p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3 sm:gap-4">
                                     <div className="space-y-2">
                                         <Label className="text-[10px] font-black uppercase text-slate-500 flex items-center gap-2 mb-1.5 opacity-70">
                                             <Banknote className="h-3 w-3" /> Monto ($)
