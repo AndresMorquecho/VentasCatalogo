@@ -25,7 +25,7 @@ export function useClientCredit(clientId: string) {
         queryKey: ['client-credit', clientId],
         queryFn: async () => {
             const credits = await clientCreditApi.getAvailableByClient(clientId);
-            const totalCredit = credits.reduce((sum, c) => sum + Number(c.remainingAmount), 0);
+            const totalCredit = Math.round(credits.reduce((sum, c) => sum + Number(c.remainingAmount), 0) * 100) / 100;
             return {
                 credits,
                 totalCredit

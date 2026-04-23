@@ -23,8 +23,8 @@ export function validateOrderPayload(payload: OrderPayload): void {
  */
 export function getPaidAmount(order: Order): number {
     const payments = order.payments || [];
-    return payments
-        .reduce((acc, p) => acc + Number(p.amount || 0), 0);
+    const total = payments.reduce((acc, p) => acc + Number(p.amount || 0), 0);
+    return Math.round((total + Number.EPSILON) * 100) / 100;
 }
 
 /**

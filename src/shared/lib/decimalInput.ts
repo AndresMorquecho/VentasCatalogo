@@ -12,5 +12,5 @@ export function sanitizeDecimalInput(raw: string): string {
 export function decimalInputToNumber(sanitized: string): number {
     if (sanitized === '' || sanitized === '.') return 0;
     const n = parseFloat(sanitized);
-    return Number.isFinite(n) ? n : 0;
+    return Number.isFinite(n) ? Math.round((n + Number.EPSILON) * 100) / 100 : 0;
 }

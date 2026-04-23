@@ -36,7 +36,7 @@ export const DecimalTextField = ({
             ? draft
             : emptyWhenZero && value === 0
               ? ''
-              : String(value);
+              : value % 1 === 0 ? String(value) : value.toFixed(2);
 
     useEffect(() => {
         if (!focusedRef.current) {

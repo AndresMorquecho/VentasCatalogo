@@ -192,7 +192,7 @@ export function PaymentModal({
                 }
 
                 // Validar saldo de billetera virtual (solo si wallet está habilitada)
-                if (payment.method === 'BILLETERA_VIRTUAL' && walletEnabled && payment.amount > totalCredit) {
+                if (payment.method === 'BILLETERA_VIRTUAL' && walletEnabled && payment.amount > totalCredit + 0.01) {
                     setValidationError(`Saldo insuficiente en billetera virtual. Disponible: ${formatCurrency(totalCredit)}`);
                     return;
                 }
@@ -216,7 +216,7 @@ export function PaymentModal({
         }
 
         // PERMITIR ABONOS PARCIALES - Validar que el total no exceda el saldo pendiente
-        if (!lockAmount && expectedAmount > 0 && totalAmount > expectedAmount) {
+        if (!lockAmount && expectedAmount > 0 && totalAmount > expectedAmount + 0.01) {
             setValidationError(`El monto de ${formatCurrency(totalAmount)} excede el saldo pendiente de ${formatCurrency(expectedAmount)}.`);
             return;
         }
