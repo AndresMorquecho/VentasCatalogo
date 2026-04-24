@@ -42,8 +42,7 @@ import { DecimalTextField } from "@/shared/ui/DecimalTextField"
 import { OrderEditModal } from "./OrderEditModal"
 import { systemSettingsApi } from "@/features/system-settings/api/systemSettingsApi"
 
-const DRAFT_KEY = 'ventascatalogo_new_order_draft';
-const ITEM_DRAFT_KEY = 'ventascatalogo_current_item_draft';
+// Data persistence removed: form state is not saved between page reloads
 
 /* --- Validation Schema --- */
 const validationSchema = Yup.object({
@@ -97,6 +96,12 @@ export function OrderFormPage() {
     const navigate = useNavigate()
     const isEditing = !!(id || receiptNumber)
     const queryClient = useQueryClient()
+
+    // Clean up any old draft data left from previous versions that had persistence
+    useEffect(() => {
+        localStorage.removeItem('ventascatalogo_new_order_draft');
+        localStorage.removeItem('ventascatalogo_current_item_draft');
+    }, []);
 
 
 
@@ -187,37 +192,21 @@ export function OrderFormPage() {
         }
     })
 
-    const getInitialCurrentItem = () => {
-        if (!isEditing) {
-            const savedItem = localStorage.getItem(ITEM_DRAFT_KEY);
-            if (savedItem) {
-                try {
-                    return JSON.parse(savedItem);
-                } catch(e) {
-                    console.error("Error parsing current item draft", e);
-                }
-            }
-        }
-        return {
-            brandId: "",
-            brandName: "",
-            quantity: 1,
-            total: 0,
-            type: "NORMAL" as OrderType,
-            possibleDeliveryDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            salesChannel: "OFICINA" as SalesChannel,
-            orderNumber: "",
-        };
-    };
+    const getInitialCurrentItem = () => ({
+        brandId: "",
+        brandName: "",
+        quantity: 1,
+        total: 0,
+        type: "NORMAL" as OrderType,
+        possibleDeliveryDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        salesChannel: "OFICINA" as SalesChannel,
+        orderNumber: "",
+    });
 
     // State for the item being added
     const [currentItem, setCurrentItem] = useState(getInitialCurrentItem())
 
-    useEffect(() => {
-        if (!isEditing) {
-            localStorage.setItem(ITEM_DRAFT_KEY, JSON.stringify(currentItem));
-        }
-    }, [currentItem, isEditing]);
+    // localStorage persistence removed for currentItem
 
 
 
@@ -388,18 +377,10 @@ export function OrderFormPage() {
                 
                 notifySuccess(`Se han creado ${createdOrders.length} pedidos exitosamente.`);
                 
-                if (!isEditing) {
-                    localStorage.removeItem(DRAFT_KEY);
-                    localStorage.removeItem(ITEM_DRAFT_KEY);
-                }
             } catch (pdfError) {
                 console.error("Error preparing PDF", pdfError)
                 notifyError(pdfError, "Error al preparar el recibo PDF.")
                 notifySuccess(`Se han creado ${createdOrders.length} pedidos exitosamente.`);
-                if (!isEditing) {
-                    localStorage.removeItem(DRAFT_KEY);
-                    localStorage.removeItem(ITEM_DRAFT_KEY);
-                }
                 navigate('/orders');
             }
         } catch (error: any) {
@@ -440,35 +421,18 @@ export function OrderFormPage() {
         }
     };
 
-    const getInitialValues = () => {
-        if (!isEditing) {
-            const savedDraft = localStorage.getItem(DRAFT_KEY);
-            if (savedDraft) {
-                try {
-                    const parsed = JSON.parse(savedDraft);
-                    return {
-                        ...parsed,
-                        createdAt: new Date().toISOString().split('T')[0],
-                        transactionDate: new Date().toISOString().split('T')[0]
-                    };
-                } catch(e) {
-                    console.error("Error parsing order draft", e);
-                }
-            }
-        }
-        return {
-            clientId: "",
-            receiptNumber: "",
-            salesChannel: "OFICINA" as SalesChannel,
-            brandItems: [] as any[],
-            deposit: 0,
-            creditToUse: 0,
-            createdAt: new Date().toISOString().split('T')[0],
-            transactionDate: new Date().toISOString().split('T')[0],
-            paymentMethod: "EFECTIVO",
-            notes: "",
-        };
-    };
+    const getInitialValues = () => ({
+        clientId: "",
+        receiptNumber: "",
+        salesChannel: "OFICINA" as SalesChannel,
+        brandItems: [] as any[],
+        deposit: 0,
+        creditToUse: 0,
+        createdAt: new Date().toISOString().split('T')[0],
+        transactionDate: new Date().toISOString().split('T')[0],
+        paymentMethod: "EFECTIVO",
+        notes: "",
+    });
 
     const initialValues = useMemo(() => getInitialValues(), [isEditing]);
 
@@ -489,11 +453,7 @@ export function OrderFormPage() {
         }
     }, [formik.submitCount, formik.isValid])
 
-    useEffect(() => {
-        if (!isEditing) {
-            localStorage.setItem(DRAFT_KEY, JSON.stringify(formik.values));
-        }
-    }, [formik.values, isEditing]);
+    // localStorage persistence removed for form values
 
     const generateNextReceiptNumber = async (isPeriodic = false, force = false) => {
         try {
