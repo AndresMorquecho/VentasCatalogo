@@ -73,7 +73,7 @@ interface BrandItem {
     brandName: string;
     quantity: number;
     total: number;
-    type: string;
+    type: OrderType;
     possibleDeliveryDate: string;
     orderNumber?: string;
     deposit?: number;
@@ -669,7 +669,7 @@ export function OrderFormPage() {
             if (lastValidItem) {
                 // Si ya teníamos una marca pero no era la última válida, o si no teníamos marca, la actualizamos
                 if (currentItem.brandId !== lastValidItem.brandId || currentItem.orderNumber !== lastValidItem.orderNumber) {
-                    setCurrentItem((prev: BrandItem) => ({ 
+                    setCurrentItem((prev) => ({ 
                         ...prev, 
                         brandId: lastValidItem.brandId,
                         brandName: lastValidItem.brandName,
@@ -1180,7 +1180,7 @@ export function OrderFormPage() {
                 notifySuccess(`${itemsToCreate.length} pedido(s) agregado(s) correctamente.`)
 
                 // Reset item
-                setCurrentItem((prev: BrandItem) => ({
+                setCurrentItem((prev) => ({
                     ...prev,
                     brandId: "",
                     brandName: "",
@@ -1222,7 +1222,7 @@ export function OrderFormPage() {
             }
 
             // Reset item except channel and date for speed
-            setCurrentItem((prev: BrandItem) => ({
+            setCurrentItem((prev) => ({
                 ...prev,
                 brandId: "",
                 brandName: "",
