@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
-import { dashboardApi } from '../api/dashboardApi';
+import { dashboardApi, type DashboardFilters } from '../api/dashboardApi';
 
-export const useDashboard = () => {
+export const useDashboard = (filters: DashboardFilters = {}) => {
     const { data, isLoading, isError, refetch } = useQuery({
-        queryKey: ['dashboard', 'summary'],
-        queryFn: () => dashboardApi.getDashboardMetrics(),
-        staleTime: 5 * 60 * 1000,
+        queryKey: ['dashboard', 'summary', filters.brandId, filters.dateFrom?.toISOString(), filters.dateTo?.toISOString()],
+        queryFn: () => dashboardApi.getDashboardMetrics(filters),
+        staleTime: 2 * 60 * 1000,
         refetchOnWindowFocus: true
     });
 

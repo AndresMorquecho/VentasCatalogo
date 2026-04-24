@@ -1,3 +1,4 @@
+import { useRef, useState } from "react"
 import { Eye, Pencil, Trash2, Receipt, User, Edit2 } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import type { Order, OrderStatus } from "@/entities/order/model/types"
@@ -47,14 +48,47 @@ const formatReceipt = (receipt: string) => {
 export function OrderTable({ orders, onViewDetails, onEdit, onDelete, lastClosureDate }: OrderTableProps) {
     const { hasPermission } = useAuth()
     const isMobile = useIsMobile()
+    
+    // Horizontal scroll dragging logic
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const [isDragging, setIsDragging] = useState(false);
+    const [startX, setStartX] = useState(0);
+    const [scrollLeft, setScrollLeft] = useState(0);
+
+    const handleMouseDown = (e: React.MouseEvent) => {
+        if (!scrollContainerRef.current) return;
+        
+        // Only trigger if clicking on the container or table, not on buttons/interactive elements
+        const target = e.target as HTMLElement;
+        if (target.closest('button') || target.closest('a')) return;
+
+        setIsDragging(true);
+        setStartX(e.pageX - scrollContainerRef.current.offsetLeft);
+        setScrollLeft(scrollContainerRef.current.scrollLeft);
+    };
+
+    const handleMouseLeave = () => {
+        setIsDragging(false);
+    };
+
+    const handleMouseUp = () => {
+        setIsDragging(false);
+    };
+
+    const handleMouseMove = (e: React.MouseEvent) => {
+        if (!isDragging || !scrollContainerRef.current) return;
+        e.preventDefault();
+        const x = e.pageX - scrollContainerRef.current.offsetLeft;
+        const walk = (x - startX) * 2; // scroll-fast factor
+        scrollContainerRef.current.scrollLeft = scrollLeft - walk;
+    };
 
     if (isMobile) {
         return (
             <div className="space-y-4">
                 {orders.map((order) => {
-                    const total = (order.childOrders || []).reduce((sum, child) => sum + Number(child.total || 0), Number(order.total || 0));
-                    const pending = (order.childOrders || []).reduce((sum, child) => sum + getPendingAmount(child), getPendingAmount(order));
-                    
+
+
                     const paymentCount = order.payments?.length || 0;
                     const hasRealMovement = order.status !== 'POR_RECIBIR' || paymentCount > 2 || (paymentCount > 1 && !order.payments?.some(p => p.method === 'CREDITO_CLIENTE'));
                     const isClosed = lastClosureDate && order.transactionDate && new Date(order.transactionDate) <= lastClosureDate;
@@ -83,12 +117,16 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, lastClosur
 
                             <div className="grid grid-cols-2 gap-4 py-3 border-y border-slate-50">
                                 <div>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Marca</p>
+                                    <p className="text-sm font-bold text-monchito-purple truncate">{order.brandName || '-'}</p>
+                                </div>
+                                <div>
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total</p>
-                                    <p className="text-sm font-black text-slate-900">{formatCurrency(total)}</p>
+                                    <p className="text-sm font-black text-slate-900">{formatCurrency(Number(order.total || 0))}</p>
                                 </div>
                                 <div>
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Saldo</p>
-                                    <p className="text-sm font-black text-rose-600">{formatCurrency(pending)}</p>
+                                    <p className="text-sm font-black text-rose-600">{formatCurrency(getPendingAmount(order))}</p>
                                 </div>
                             </div>
 
@@ -142,14 +180,21 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, lastClosur
     return (
         <TooltipProvider>
             <div className="rounded-2xl border border-monchito-purple/10 bg-white shadow-[0_20px_50px_rgba(107,33,168,0.05)] overflow-hidden">
-                <div className="overflow-x-auto custom-scrollbar">
+                <div 
+                    ref={scrollContainerRef}
+                    className={`overflow-x-auto custom-scrollbar transition-all ${isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
+                    onMouseDown={handleMouseDown}
+                    onMouseLeave={handleMouseLeave}
+                    onMouseUp={handleMouseUp}
+                    onMouseMove={handleMouseMove}
+                >
                     <table className="text-sm border-collapse min-w-[1200px] w-full">
                         <thead className="sticky top-0 z-10 bg-monchito-purple/5 backdrop-blur-sm">
                             <tr className="border-b border-monchito-purple/10">
                                 <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest h-12 text-left w-[80px]">Origen</th>
+                                <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left w-[140px]">Catálogo / Marca</th>
                                 <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left w-[160px]">N° Recibo</th>
                                 <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left min-w-[160px]">Cliente</th>
-                                <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center w-[70px]">Cant.</th>
                                 <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right w-[75px]">Total</th>
                                 <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right w-[75px]">Abono</th>
                                 <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right w-[75px]">Saldo</th>
@@ -189,6 +234,16 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, lastClosur
                                                 {order.salesChannel}
                                             </span>
                                         </td>
+
+                                        {/* COLUMNA CATÁLOGO / MARCA */}
+                                        <td className="px-6 py-4">
+                                            <span className="inline-flex items-center gap-1 max-w-[130px]">
+                                                <span className="text-xs font-black text-monchito-purple truncate" title={order.brandName}>
+                                                    {order.brandName || <span className="text-slate-300 italic">-</span>}
+                                                </span>
+                                            </span>
+                                        </td>
+
                                         <td className="px-6 py-4">
                                             <span className={`text-sm tracking-tight font-bold ${order.type === 'CAMBIO' ? 'text-monchito-purple font-mono' : 'text-slate-700 font-medium'}`}>
                                                 {order.type === 'CAMBIO' && order.trackingGuide 
@@ -199,29 +254,14 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, lastClosur
 
                                         <td className="px-6 py-4 font-semibold text-slate-700 truncate max-w-[200px]">{order.clientName}</td>
 
-                                        <td className="px-6 py-4 text-center font-black text-monchito-purple bg-purple-50/30 border-x border-purple-100/50">
-                                            {order.childOrdersCount && order.childOrdersCount > 0
-                                                ? <span>{order.childOrdersCount + 1}</span>
-                                                : 1}
-                                        </td>
-
                                         <td className="px-6 py-4 text-right font-bold text-slate-900">
-                                            {(() => {
-                                                const total = (order.childOrders || []).reduce((sum, child) => sum + Number(child.total || 0), Number(order.total || 0));
-                                                return formatCurrency(total);
-                                            })()}
+                                            {formatCurrency(Number(order.total || 0))}
                                         </td>
                                         <td className="px-6 py-4 text-right text-emerald-600 font-semibold">
-                                            {(() => {
-                                                const paid = (order.childOrders || []).reduce((sum, child) => sum + getPaidAmount(child), getPaidAmount(order));
-                                                return formatCurrency(paid);
-                                            })()}
+                                            {formatCurrency(getPaidAmount(order))}
                                         </td>
                                         <td className="px-6 py-4 text-right font-black text-rose-600">
-                                            {(() => {
-                                                const pending = (order.childOrders || []).reduce((sum, child) => sum + getPendingAmount(child), getPendingAmount(order));
-                                                return formatCurrency(pending);
-                                            })()}
+                                            {formatCurrency(getPendingAmount(order))}
                                         </td>
 
                                         <td className="px-6 py-4 text-xs text-slate-500 font-medium">

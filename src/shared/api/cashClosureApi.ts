@@ -38,10 +38,11 @@ export const cashClosureApi = {
    * Get cash closure preview
    * @endpoint GET /api/cash-closures/preview
    */
-  getPreview: async (toDate?: string, userId?: string): Promise<any> => {
+  getPreview: async (toDate?: string, userId?: string, fromDate?: string): Promise<any> => {
     const params = new URLSearchParams();
     if (toDate) params.append('toDate', toDate);
     if (userId) params.append('userId', userId);
+    if (fromDate) params.append('fromDate', fromDate);
     const queryString = params.toString();
     return httpClient.get<any>(`/cash-closures/preview${queryString ? `?${queryString}` : ''}`);
   },

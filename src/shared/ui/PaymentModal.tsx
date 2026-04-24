@@ -18,7 +18,7 @@ export type PaymentMethod = PaymentMethodKey;
 
 export interface PaymentEntry {
     id: string;
-    method: PaymentMethod;
+    method: PaymentMethod | '';
     amount: number;
     bankAccountId?: string;
     transactionReference?: string;
@@ -91,22 +91,17 @@ export function PaymentModal({
     const [view, setView] = useState<'payment' | 'recharge'>('payment');
     const [validationError, setValidationError] = useState<string | null>(null);
 
-    const [payments, setPayments] = useState<PaymentEntry[]>(() => {
-        const cashAccount = bankAccountsResponse?.data?.find(a => a.type === 'CASH');
-        const firstMethod = paymentMethodConfigService.getEnabledMethods()[0];
-        const defaultMethod: PaymentMethod = (firstMethod?.key ?? 'EFECTIVO') as PaymentMethod;
-        return [
-            {
-                id: '1',
-                method: defaultMethod,
-                amount: 0, 
-                bankAccountId: defaultMethod === 'EFECTIVO' ? (cashAccount?.id || '') : '',
-                transactionReference: '',
-                notes: '',
-                receivedCash: initialAmount || 0
-            }
-        ];
-    });
+    const [payments, setPayments] = useState<PaymentEntry[]>(() => [
+        {
+            id: '1',
+            method: '',
+            amount: 0,
+            bankAccountId: '',
+            transactionReference: '',
+            notes: '',
+            receivedCash: 0
+        }
+    ]);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const { user } = useAuth();
@@ -114,15 +109,11 @@ export function PaymentModal({
     // Sincronizar el monto cuando abre el modal o initialAmount cambia
     useEffect(() => {
         if (open) {
-            const cashAccount = bankAccountsResponse?.data?.find(a => a.type === 'CASH');
-            const firstMethod = paymentMethodConfigService.getEnabledMethods()[0];
-            const defaultMethod: PaymentMethod = (firstMethod?.key ?? 'EFECTIVO') as PaymentMethod;
-
             setPayments([{
                 id: '1',
-                method: defaultMethod,
+                method: '',
                 amount: initialAmount || 0,
-                bankAccountId: defaultMethod === 'EFECTIVO' ? (cashAccount?.id || '') : '',
+                bankAccountId: '',
                 transactionReference: '',
                 notes: '',
                 receivedCash: initialAmount || 0
@@ -130,7 +121,7 @@ export function PaymentModal({
             
             setValidationError(null);
         }
-    }, [open, initialAmount, bankAccountsResponse, enabledMethods]);
+    }, [open, initialAmount]);
 
     // Calculate totals
     const totalAmount = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
@@ -159,6 +150,9 @@ export function PaymentModal({
                         const bankAccount = bankAccounts.find(a => a.type === 'BANK');
                         updatedPayment.bankAccountId = bankAccount?.id || '';
                     }
+                } else if (updates.method === '') {
+                    // Clear bank account when method is reset
+                    updatedPayment.bankAccountId = '';
                 }
                 
                 return updatedPayment;
@@ -170,6 +164,13 @@ export function PaymentModal({
     const handleSubmit = async () => {
         setValidationError(null);
 
+        // Validar que se haya seleccionado un método de pago
+        const hasEmptyMethod = payments.some(p => !p.method);
+        if (hasEmptyMethod) {
+            setValidationError("Debes seleccionar un método de pago.");
+            return;
+        }
+
         // Validaciones básicas - PERMITIR ABONOS DE 0
         const validPayments = payments.filter(p => p.amount >= 0);
         
@@ -180,13 +181,14 @@ export function PaymentModal({
 
         // Validar cuentas bancarias para pagos no virtuales (solo si el monto es mayor a 0)
         for (const payment of validPayments) {
-            if (payment.amount > 0) { // Solo validar si hay monto
-                if (paymentMethodConfigService.getMethod(payment.method)?.requiresBankAccount && !payment.bankAccountId) {
+            if (payment.amount > 0 && payment.method) { // Solo validar si hay monto y método
+                const methodKey = payment.method as PaymentMethod;
+                if (paymentMethodConfigService.getMethod(methodKey)?.requiresBankAccount && !payment.bankAccountId) {
                     setValidationError(`Debe seleccionar una cuenta bancaria para el pago.`);
                     return;
                 }
                 
-                if (paymentMethodConfigService.getMethod(payment.method)?.requiresReference && !payment.transactionReference?.trim()) {
+                if (paymentMethodConfigService.getMethod(methodKey)?.requiresReference && !payment.transactionReference?.trim()) {
                     setValidationError(`Debe ingresar una referencia para el pago.`);
                     return;
                 }
@@ -398,11 +400,14 @@ export function PaymentModal({
                                             <select
                                                 value={payment.method}
                                                 onChange={(e) => updatePayment(payment.id, { 
-                                                    method: e.target.value as PaymentMethod,
+                                                    method: e.target.value as PaymentMethod | '',
                                                     transactionReference: ''
                                                 })}
                                                 className="w-full h-9 px-3 rounded-xl border border-monchito-purple/20 bg-white text-xs focus:ring-2 focus:ring-monchito-purple/20 outline-none transition-all cursor-pointer"
                                             >
+                                                <option value="" disabled className="text-slate-400">
+                                                    — Seleccionar método —
+                                                </option>
                                                 {enabledMethods.map((methodConfig) => (
                                                     <option
                                                         key={methodConfig.key}
@@ -474,7 +479,7 @@ export function PaymentModal({
                                         )}
 
                                         {/* Cuenta Bancaria */}
-                                        {paymentMethodConfigService.getMethod(payment.method)?.requiresBankAccount && (
+                                        {payment.method && paymentMethodConfigService.getMethod(payment.method as PaymentMethod)?.requiresBankAccount && (
                                             <div className="flex-1 min-w-[180px] space-y-1">
                                                 <label className="text-[10px] font-black uppercase tracking-widest text-monchito-purple/60 px-1">Cuenta de Destino</label>
                                                 <select
@@ -484,7 +489,7 @@ export function PaymentModal({
                                                     required
                                                 >
                                                     <option value="" className="text-slate-400">Seleccionar cuenta...</option>
-                                                    {getAvailableBankAccounts(payment.method).map(account => (
+                                                    {getAvailableBankAccounts(payment.method as PaymentMethod).map(account => (
                                                         <option key={account.id} value={account.id}>
                                                             {account.name}
                                                         </option>
@@ -494,7 +499,7 @@ export function PaymentModal({
                                         )}
 
                                         {/* Referencia */}
-                                        {paymentMethodConfigService.getMethod(payment.method)?.requiresReference && (
+                                        {payment.method && paymentMethodConfigService.getMethod(payment.method as PaymentMethod)?.requiresReference && (
                                             <div className="w-[150px] space-y-1 shrink-0">
                                                 <label className="text-[10px] font-black uppercase tracking-widest text-monchito-purple/60 px-1">Referencia</label>
                                                 <Input
@@ -520,7 +525,7 @@ export function PaymentModal({
                                     </div>
 
                                     {/* Billetera Virtual Message */}
-                                    {paymentMethodConfigService.getMethod(payment.method)?.isWallet && (
+                                    {payment.method && paymentMethodConfigService.getMethod(payment.method as PaymentMethod)?.isWallet && (
                                         <div className="text-xs text-slate-600 italic rounded px-2 py-1">
                                             Se descontará del saldo a favor del cliente
                                         </div>
@@ -546,14 +551,16 @@ export function PaymentModal({
                     </Button>
                     <AsyncButton
                         onClick={handleSubmit}
-                        disabled={!!configError || totalAmount < 0 || (lockAmount && !splitIsBalanced)}
+                        disabled={!!configError || totalAmount < 0 || (lockAmount && !splitIsBalanced) || payments.some(p => !p.method)}
                         isLoading={isSubmitting}
                         loadingText="Procesando..."
                         className="bg-monchito-purple hover:bg-monchito-purple/90 h-8 px-4 text-xs"
                     >
-                        {lockAmount
-                            ? splitIsBalanced ? 'Registrar Pago' : `Falta ${formatCurrency(Math.abs(remaining))}`
-                            : totalAmount === 0 ? 'Guardar sin Pago' : 'Registrar Pago'
+                        {payments.some(p => !p.method)
+                            ? 'Selecciona un método'
+                            : lockAmount
+                                ? splitIsBalanced ? 'Registrar Pago' : `Falta ${formatCurrency(Math.abs(remaining))}`
+                                : totalAmount === 0 ? 'Guardar sin Pago' : 'Registrar Pago'
                         }
                     </AsyncButton>
                 </div>

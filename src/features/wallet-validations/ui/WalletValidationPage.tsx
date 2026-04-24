@@ -184,6 +184,7 @@ export function WalletValidationPage() {
                                 <th className="px-6 py-4 text-left">Fecha Solicitud</th>
                                 <th className="px-6 py-4 text-left">Método</th>
                                 <th className="px-6 py-4 text-left">Referencia</th>
+                                <th className="px-6 py-4 text-left">Registrado Por</th>
                                 <th className="px-6 py-4 text-right">Monto</th>
                                 <th className="px-6 py-4 text-center">Acciones</th>
                             </tr>
@@ -232,6 +233,9 @@ export function WalletValidationPage() {
                                             <div className="text-[9px] text-slate-400 font-bold uppercase truncate max-w-[150px]">
                                                 {r.bankAccount?.name || '—'}
                                             </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="text-xs font-bold text-slate-700 uppercase">{r.createdByName || '—'}</div>
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="text-base font-black text-slate-800">${Number(r.amount).toLocaleString('es-EC', { minimumFractionDigits: 2 })}</div>

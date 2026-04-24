@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useFormik } from "formik"
 import { useNavigate, useParams } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
@@ -470,10 +470,12 @@ export function OrderFormPage() {
         };
     };
 
+    const initialValues = useMemo(() => getInitialValues(), [isEditing]);
+
     const formik = useFormik({
-        initialValues: getInitialValues(),
+        initialValues,
         validationSchema,
-        enableReinitialize: true,
+        enableReinitialize: false,
         onSubmit: async () => {
             // Esta función ya no se usa directamente, el procesamiento se hace en handlePaymentSubmit
             // Se mantiene para compatibilidad con formik
@@ -585,7 +587,8 @@ export function OrderFormPage() {
         // 3. Verificar abonos adicionales
         // Se permiten hasta 2 abonos si uno de ellos es 'CREDITO_CLIENTE' (abono inicial combinado)
         const payments = order.payments || [];
-        const hasExtraPayments = payments.length > 2 || (payments.length > 1 && !payments.some((p: any) => p.method === 'CREDITO_CLIENTE'));
+        const VALID_INITIAL_METHODS = ['CREDITO_CLIENTE', 'BILLETERA_VIRTUAL', 'SALDO_A_FAVOR'];
+        const hasExtraPayments = payments.length > 2 || (payments.length > 1 && !payments.some((p: any) => VALID_INITIAL_METHODS.includes(p.method)));
         
         if (hasExtraPayments) {
             return {
@@ -638,8 +641,15 @@ export function OrderFormPage() {
         const validation = canEditOrder(order)
 
         if (!validation.canEdit) {
-            notifyError(null, validation.reason || 'No se puede editar este pedido individual')
-            return
+            // Si el único bloqueo es por abonos adicionales Y el usuario tiene permiso de corrección de precio,
+            // permitir abrir el modal de todas formas para que use la sección de corrección de precio.
+            const isOnlyBlockedByPayments = validation.reason?.includes('abonos adicionales')
+            const canStillOpenForPriceEdit = isOnlyBlockedByPayments && hasPermission('orders.edit_price' as any)
+
+            if (!canStillOpenForPriceEdit) {
+                notifyError(null, validation.reason || 'No se puede editar este pedido individual')
+                return
+            }
         }
 
         setOrderToEdit(order)
@@ -1102,8 +1112,13 @@ export function OrderFormPage() {
     const balance = totalOrderValue - totalRowDeposit - Number(formik.values.creditToUse);
 
 
-    const clientOptions = clients.map(c => ({ id: c.id, label: c.firstName, subLabel: c.identificationNumber }))
-    const brandOptions = getActiveBrands(brands).map(b => ({ id: b.id, label: b.name, subLabel: "" }))
+    const clientOptions = useMemo(() => 
+        clients.map(c => ({ id: c.id, label: c.firstName, subLabel: c.identificationNumber })),
+    [clients]);
+
+    const brandOptions = useMemo(() => 
+        getActiveBrands(brands).map(b => ({ id: b.id, label: b.name, subLabel: "" })),
+    [brands]);
 
     const handleAddItem = async () => {
         if (!currentItem.brandId) {

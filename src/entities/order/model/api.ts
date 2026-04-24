@@ -127,6 +127,14 @@ export const orderApi = {
     },
 
     /**
+     * Correct only the price (total) of an order (requires orders.edit_price permission)
+     * @endpoint PATCH /api/orders/:id/price
+     */
+    updatePrice: async (id: string, total: number): Promise<any> => {
+        return httpClient.patch<any>(`/orders/${id}/price`, { total });
+    },
+
+    /**
      * Batch update multiple orders within the same receipt group.
      * @endpoint PUT /api/orders/receipt/:receiptNumber/bulk-update
      */

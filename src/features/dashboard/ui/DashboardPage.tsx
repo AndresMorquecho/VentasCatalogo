@@ -9,9 +9,16 @@ import {
     BarChart3,
     Zap,
     TrendingUp,
-    Activity
+    Activity,
+    SlidersHorizontal,
+    X,
+    CalendarRange
 } from 'lucide-react';
+import { DayPicker } from 'react-day-picker';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { useDashboard } from '../model/hooks';
+import { useBrandsList } from '@/features/portfolio-recovery/hooks/useBrandsList';
 import { Card, CardContent } from "@/shared/ui/card";
 import { Badge } from "@/shared/ui/badge";
 import { Avatar, AvatarFallback } from "@/shared/ui/avatar";
@@ -25,9 +32,28 @@ const fmt = (n: number) =>
     new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n);
 
 export function DashboardPage() {
-    const { data, isLoading, isError } = useDashboard();
     const [timeRange, setTimeRange] = useState<'daily' | 'weekly' | 'monthly'>('daily');
     const isMobile = useIsMobile();
+
+    // ── Filters state ──────────────────────────────────────────
+    const [brandId, setBrandId] = useState<string>('');
+    const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
+    const [showCalendar, setShowCalendar] = useState(false);
+
+    const { data: brandsList } = useBrandsList();
+    const { data, isLoading, isError } = useDashboard({
+        brandId: brandId || undefined,
+        dateFrom: dateRange.from,
+        dateTo: dateRange.to,
+    });
+
+    const hasActiveFilters = !!brandId || !!dateRange.from;
+    const clearFilters = () => { setBrandId(''); setDateRange({}); setShowCalendar(false); };
+    const dateLabel = dateRange.from
+        ? dateRange.to
+            ? `${format(dateRange.from, 'dd/MM/yy')} – ${format(dateRange.to, 'dd/MM/yy')}`
+            : `Desde ${format(dateRange.from, 'dd/MM/yy')}`
+        : 'Rango de Fechas';
 
     if (isLoading) {
         return (
@@ -69,9 +95,9 @@ export function DashboardPage() {
     const getPercent = (val: number) => totalOrders > 0 ? Math.round((val / totalOrders) * 100) : 0;
 
     return (
-        <div className="min-h-screen bg-[#fcfaff] p-4 lg:p-12 space-y-12 font-sans selection:bg-monchito-purple selection:text-white">
-            <main className="max-w-[1700px] mx-auto space-y-12">
-                
+        <div className="min-h-screen bg-[#fcfaff] p-4 lg:p-12 space-y-8 font-sans selection:bg-monchito-purple selection:text-white">
+            <main className="max-w-[1700px] mx-auto space-y-8">
+
                 {/* --- Executive Header --- */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                     <div className="space-y-1">
@@ -83,9 +109,7 @@ export function DashboardPage() {
                         <p className="text-sm font-medium text-slate-400">Panel de control con analítica estratégica y métricas en tiempo real.</p>
                     </div>
                     <div className="flex flex-col items-end gap-3">
-                        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
-                            Periodo Visualizado
-                        </div>
+                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Período del Gráfico</div>
                         <div className="flex items-center gap-2 bg-white/50 backdrop-blur-md p-1.5 rounded-2xl border border-slate-200/60 shadow-sm">
                             {(['daily', 'weekly', 'monthly'] as const).map((range) => (
                                 <button
@@ -101,6 +125,136 @@ export function DashboardPage() {
                             ))}
                         </div>
                     </div>
+                </div>
+
+                {/* --- Filter Bar --- */}
+                <div className="flex flex-wrap items-center gap-3 bg-white/70 backdrop-blur-md px-4 py-3 rounded-2xl border border-slate-200/60 shadow-sm relative z-50">
+                    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 shrink-0">
+                        <SlidersHorizontal className="h-3.5 w-3.5" />
+                        Filtros
+                    </div>
+
+                    {/* Brand selector */}
+                    <select
+                        value={brandId}
+                        onChange={(e) => setBrandId(e.target.value)}
+                        className="h-9 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 px-3 outline-none focus:ring-2 focus:ring-monchito-purple/20 bg-white appearance-none min-w-[160px] max-w-[200px]"
+                    >
+                        <option value="">Todas las marcas</option>
+                        {brandsList?.map((b: { id: string; name: string }) => (
+                            <option key={b.id} value={b.id}>{b.name}</option>
+                        ))}
+                    </select>
+
+                    {/* Date range picker */}
+                    <div className="relative">
+                        <button
+                            onClick={() => setShowCalendar(prev => !prev)}
+                            className={cn(
+                                "h-9 px-4 rounded-xl border text-xs font-semibold flex items-center gap-2 transition-all",
+                                dateRange.from
+                                    ? "border-monchito-purple/40 bg-monchito-purple/5 text-monchito-purple"
+                                    : "border-slate-200 bg-white text-slate-500 hover:border-monchito-purple/30"
+                            )}
+                        >
+                            <CalendarRange className="h-3.5 w-3.5" />
+                            {dateLabel}
+                        </button>
+                        {showCalendar && (
+                            <div className="absolute top-11 left-0 z-50 bg-white rounded-2xl shadow-2xl border border-slate-200/60 overflow-hidden" style={{ minWidth: isMobile ? '320px' : '640px' }}>
+                                <style>{`
+                                    .rdp-dashboard {
+                                        --rdp-accent-color: #7c3aed;
+                                        --rdp-accent-background-color: #ede9fe;
+                                        --rdp-day-height: 36px;
+                                        --rdp-day-width: 36px;
+                                        --rdp-day_button-border-radius: 8px;
+                                        --rdp-day_button-height: 34px;
+                                        --rdp-day_button-width: 34px;
+                                        --rdp-range_middle-background-color: #ede9fe;
+                                        --rdp-range_start-color: white;
+                                        --rdp-range_end-color: white;
+                                        --rdp-range_start-date-background-color: #7c3aed;
+                                        --rdp-range_end-date-background-color: #7c3aed;
+                                        --rdp-today-color: #7c3aed;
+                                        font-family: inherit;
+                                        padding: 16px;
+                                        display: flex;
+                                        flex-direction: column;
+                                        gap: 16px;
+                                    }
+                                    .rdp-dashboard .rdp-months { display: flex; gap: 32px; flex-wrap: wrap; }
+                                    .rdp-dashboard .rdp-month { display: flex; flex-direction: column; gap: 12px; }
+                                    .rdp-dashboard .rdp-month_caption { display: flex; justify-content: center; align-items: center; height: 32px; margin-bottom: 8px; position: relative; }
+                                    .rdp-dashboard .rdp-caption_label { font-size: 14px; font-weight: 800; color: #1e1b4b; text-transform: capitalize; }
+                                    .rdp-dashboard .rdp-nav { position: absolute; right: 0; display: flex; gap: 4px; }
+                                    .rdp-dashboard .rdp-nav button { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: 1px solid #e2e8f0; background: white; cursor: pointer; color: #64748b; transition: all 0.15s; }
+                                    .rdp-dashboard .rdp-nav button:hover { background: #f5f3ff; border-color: #a78bfa; color: #7c3aed; }
+                                    .rdp-dashboard .rdp-table { border-collapse: collapse; width: 100%; }
+                                    .rdp-dashboard .rdp-head_row { display: flex; margin-bottom: 8px; }
+                                    .rdp-dashboard .rdp-head_cell { flex: 1; text-align: center; font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; }
+                                    .rdp-dashboard .rdp-tbody { display: flex; flex-direction: column; gap: 2px; }
+                                    .rdp-dashboard .rdp-row { display: flex; gap: 2px; }
+                                    .rdp-dashboard .rdp-cell { flex: 1; display: flex; justify-content: center; }
+                                    .rdp-dashboard .rdp-day_button { 
+                                        width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; 
+                                        border: none; background: transparent; cursor: pointer; border-radius: 8px;
+                                        font-size: 12px; font-weight: 600; color: #334155; transition: all 0.15s;
+                                    }
+                                    .rdp-dashboard .rdp-day_button:hover:not([disabled]):not(.rdp-day_selected) { background: #f5f3ff; color: #7c3aed; }
+                                    .rdp-dashboard .rdp-selected .rdp-day_button { background: #7c3aed; color: white; }
+                                    .rdp-dashboard .rdp-range_middle .rdp-day_button { background: #ede9fe; color: #6d28d9; border-radius: 0; width: 100%; }
+                                    .rdp-dashboard .rdp-range_start .rdp-day_button { border-radius: 8px 0 0 8px; }
+                                    .rdp-dashboard .rdp-range_end .rdp-day_button { border-radius: 0 8px 8px 0; }
+                                    .rdp-dashboard .rdp-today .rdp-day_button { color: #7c3aed; font-weight: 800; text-decoration: underline; }
+                                    .rdp-dashboard .rdp-outside .rdp-day_button { color: #cbd5e1; opacity: 0.5; }
+                                `}</style>
+                                <DayPicker
+                                    mode="range"
+                                    selected={{ from: dateRange.from, to: dateRange.to }}
+                                    onSelect={(range) => {
+                                        setDateRange({ from: range?.from, to: range?.to });
+                                        if (range?.from && range?.to) setShowCalendar(false);
+                                    }}
+                                    locale={es}
+                                    numberOfMonths={isMobile ? 1 : 2}
+                                    className="rdp-dashboard"
+                                />
+                                <div className="flex justify-end gap-2 px-4 py-3 border-t border-slate-100 bg-slate-50/50">
+                                    <button
+                                        onClick={() => { setDateRange({}); setShowCalendar(false); }}
+                                        className="text-xs font-bold text-slate-400 hover:text-slate-700 px-4 py-2 rounded-xl hover:bg-slate-100 transition-all"
+                                    >
+                                        Limpiar
+                                    </button>
+                                    <button
+                                        onClick={() => setShowCalendar(false)}
+                                        className="text-xs font-bold text-white px-4 py-2 rounded-xl bg-monchito-purple hover:bg-monchito-purple/90 transition-all shadow-sm"
+                                    >
+                                        Aplicar
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Active filters indicator + clear */}
+                    {hasActiveFilters && (
+                        <button
+                            onClick={clearFilters}
+                            className="flex items-center gap-1.5 h-9 px-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 text-xs font-bold hover:bg-rose-100 transition-all ml-auto"
+                        >
+                            <X className="h-3 w-3" />
+                            Limpiar filtros
+                        </button>
+                    )}
+
+                    {isLoading && (
+                        <div className="ml-auto flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-monchito-purple/60 animate-pulse">
+                            <div className="h-2 w-2 rounded-full bg-monchito-purple/40 animate-ping" />
+                            Actualizando...
+                        </div>
+                    )}
                 </div>
 
                 {/* --- Strategic KPI Grid --- */}

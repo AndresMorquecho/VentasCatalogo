@@ -97,7 +97,7 @@ export function OrderList({ triggerCreate, onTriggerHandled, externalFilters }: 
         receiptNumber: debouncedReceipt || undefined,
         orderNumber: debouncedOrderNo || undefined,
         type: typeFilter === 'ALL' ? undefined : (typeFilter || undefined),
-        onlyParents: true
+        onlyParents: false
     })
 
     const orders = response?.data || []
@@ -121,9 +121,9 @@ export function OrderList({ triggerCreate, onTriggerHandled, externalFilters }: 
         }
     }, [triggerCreate])
 
-    // Local filtering is now just a pass-through of parents unless search is very short
+    // Show all orders individually (ungrouped)
     const filteredOrders = useMemo(() => {
-        return (orders as Order[]).filter((o: Order) => !o.parentOrderId)
+        return orders as Order[]
     }, [orders])
 
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)

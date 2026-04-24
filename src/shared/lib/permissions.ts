@@ -28,7 +28,7 @@ export type ModuleKey = typeof MODULES[number];
 // ─── Action Keys per Module ───────────────────────────────────────────────────
 export const MODULE_ACTIONS: Record<ModuleKey, string[]> = {
     dashboard: ['view'],
-    orders: ['view', 'create', 'edit', 'delete', 'delete_item', 'save_with_zero_deposit'],
+    orders: ['view', 'create', 'edit', 'delete', 'delete_item', 'save_with_zero_deposit', 'edit_price'],
     reception: ['view', 'confirm', 'edit', 'delete'],
     delivery: ['view', 'confirm', 'dismantle', 'return'],
     clients: ['view', 'create', 'edit', 'delete', 'update'],
@@ -118,4 +118,5 @@ export const ACTION_LABELS: Record<string, string> = {
     edit_parameters: 'Editar Parámetros',
     change_password: 'Cambiar Contraseña',
     assign_roles: 'Asignar Roles',
+    edit_price: 'Corregir Precio de Pedido',
 };

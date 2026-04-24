@@ -46,6 +46,7 @@ function StatRow({ label, value, highlight }: { label: string; value: string; hi
 
 export function CashClosurePage() {
     const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
+    const [startDate, setStartDate] = useState<string>(''); // '' = auto (last closure +1)
     const [actualAmount, setActualAmount] = useState<number>(0);
     const [selectedUserId, setSelectedUserId] = useState<string>('all');
     const [page, setPage] = useState(1);
@@ -79,9 +80,15 @@ export function CashClosurePage() {
     const [year, month, day] = date.split('-').map(Number);
     const endOfDay = new Date(year, month - 1, day, 23, 59, 59, 999);
 
+    // Compute fromDateISO: only when user explicitly set a startDate
+    const fromDateISO = startDate
+        ? new Date(Number(startDate.split('-')[0]), Number(startDate.split('-')[1]) - 1, Number(startDate.split('-')[2]), 0, 0, 0, 0).toISOString()
+        : undefined;
+
     const { data: previewData, isLoading: isCalculating, refetch: refetchPreview } = useCashClosurePreview(
         endOfDay.toISOString(),
-        selectedUserId === 'all' ? undefined : selectedUserId
+        selectedUserId === 'all' ? undefined : selectedUserId,
+        fromDateISO
     );
 
     const handleOpenConfirmModal = () => {
@@ -224,11 +231,35 @@ export function CashClosurePage() {
                                         <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> Fin</span>
                                     </div>
                                     <div className="grid grid-cols-2 gap-2 items-center mt-1">
-                                        <div className="p-2 bg-slate-100 rounded-md text-xs font-bold text-slate-600 border border-slate-200 truncate flex items-center h-8">
-                                            {formatStartDate(previewData?.fromDate)}
+                                        <div className="relative">
+                                            <Input
+                                                type={startDate || (document.activeElement?.id === 'start-date-input') ? "date" : "text"}
+                                                id="start-date-input"
+                                                value={startDate}
+                                                max={date}
+                                                onFocus={(e) => e.target.type = 'date'}
+                                                onBlur={(e) => { if (!startDate) e.target.type = 'text'; }}
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    if (!val || val < date) setStartDate(val);
+                                                }}
+                                                className="h-8 font-bold text-xs px-2 border-slate-200 focus:border-primary text-slate-900"
+                                                placeholder={formatStartDate(previewData?.fromDate)}
+                                            />
                                         </div>
-                                        <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="h-8 border-primary/20 focus:border-primary font-bold text-slate-900 text-xs px-2" />
+                                        <Input type="date" value={date} min={startDate || undefined} onChange={(e) => {
+                                            const val = e.target.value;
+                                            if (!startDate || val > startDate) setDate(val);
+                                        }} className="h-8 border-primary/20 focus:border-primary font-bold text-slate-900 text-xs px-2" />
                                     </div>
+                                    {startDate && (
+                                        <button
+                                            onClick={() => setStartDate('')}
+                                            className="mt-1 text-[9px] text-slate-400 hover:text-primary underline"
+                                        >
+                                            Restablecer inicio automático
+                                        </button>
+                                    )}
                                 </div>
 
                                 {/* Filtro de Usuario */}
@@ -253,6 +284,21 @@ export function CashClosurePage() {
                                         <AlertCircle className="h-4 w-4" />
                                         <AlertTitle className="font-black">Periodo Cerrado</AlertTitle>
                                         <AlertDescription className="text-xs">Ya se realizó un cierre para este periodo.</AlertDescription>
+                                    </Alert>
+                                )}
+
+                                {!previewData?.isAlreadyClosed && previewData?.closuresInRange?.length > 0 && (
+                                    <Alert className="bg-rose-50 border-rose-200 text-rose-800">
+                                        <AlertCircle className="h-4 w-4" />
+                                        <AlertTitle className="font-black text-xs">Rango con cierres anteriores</AlertTitle>
+                                        <AlertDescription className="text-xs space-y-1">
+                                            <p>El rango seleccionado incluye {previewData.closuresInRange.length} periodo(s) ya cerrado(s). No se puede hacer cierre.</p>
+                                            {previewData.closuresInRange.map((c: any) => (
+                                                <div key={c.id} className="text-[10px] font-bold border-l-2 border-rose-300 pl-2">
+                                                    {new Date(c.fromDate).toLocaleDateString('es-EC')} → {new Date(c.toDate).toLocaleDateString('es-EC')}
+                                                </div>
+                                            ))}
+                                        </AlertDescription>
                                     </Alert>
                                 )}
 
@@ -300,11 +346,11 @@ export function CashClosurePage() {
 
                                     <Button 
                                         onClick={handleOpenConfirmModal} 
-                                        disabled={!previewData || previewData.isAlreadyClosed || createClosure.isPending || isCalculating || actualAmount === 0 || selectedUserId !== 'all'} 
+                                        disabled={!previewData || previewData.isAlreadyClosed || (previewData?.closuresInRange?.length > 0) || createClosure.isPending || isCalculating || actualAmount === 0 || selectedUserId !== 'all'} 
                                         className="w-full h-11 rounded-xl bg-monchito-purple hover:bg-monchito-purple/90 text-white font-semibold shadow-lg disabled:opacity-50"
                                     >
                                         {createClosure.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
-                                        {selectedUserId !== 'all' ? "Seleccione 'Todos' para Cerrar" : previewData?.isAlreadyClosed ? "Periodo ya Cerrado" : "Realizar Cierre Oficial"}
+                                        {selectedUserId !== 'all' ? "Seleccione 'Todos' para Cerrar" : previewData?.isAlreadyClosed ? "Periodo ya Cerrado" : previewData?.closuresInRange?.length > 0 ? "Rango con cierres previos" : "Realizar Cierre Oficial"}
                                     </Button>
                                 </div>
                             </CardContent>

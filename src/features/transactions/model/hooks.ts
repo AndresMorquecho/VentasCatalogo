@@ -45,7 +45,8 @@ export const useClientCredits = (clientId: string) => {
             console.log('useClientCredits: Received credits:', credits);
             return credits;
         },
-        enabled: !!clientId
+        enabled: !!clientId,
+        placeholderData: (prev) => prev
     });
 };
 

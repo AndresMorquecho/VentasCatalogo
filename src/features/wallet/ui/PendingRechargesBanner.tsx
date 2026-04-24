@@ -48,6 +48,7 @@ export function PendingRechargesBanner() {
                             <th className="px-4 py-2 text-left">Fecha</th>
                             <th className="px-4 py-2 text-left">Cliente</th>
                             <th className="px-4 py-2 text-left">Método / Ref</th>
+                            <th className="px-4 py-2 text-left">Registrado Por</th>
                             <th className="px-4 py-2 text-right">Monto</th>
                             <th className="px-4 py-2 text-center">Estado</th>
                         </tr>
@@ -82,6 +83,11 @@ export function PendingRechargesBanner() {
                                     </div>
                                     <div className="text-[10px] text-slate-400 mt-0.5">
                                         {r.bankAccount?.bankName || "—"}
+                                    </div>
+                                </td>
+                                <td className="px-4 py-2.5">
+                                    <div className="font-bold text-slate-700 text-[11px] uppercase truncate max-w-[100px]">
+                                        {r.createdByName || "—"}
                                     </div>
                                 </td>
                                 <td className="px-4 py-2.5 text-right">
