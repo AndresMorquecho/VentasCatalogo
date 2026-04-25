@@ -32,6 +32,7 @@ export function InventoryPage() {
     const [dateRange, setDateRange] = useState<DateRange | undefined>();
     const [receiptNumber, setReceiptNumber] = useState('');
     const [orderNumber, setOrderNumber] = useState('');
+    const [orderType, setOrderType] = useState('all');
 
     // Convert DateRange to strings for API
     const startDate = dateRange?.from ? dateRange.from.toISOString().split('T')[0] : '';
@@ -47,7 +48,7 @@ export function InventoryPage() {
     // 📊 Reset to page 1 when any filter changes
     useEffect(() => {
         setPage(1);
-    }, [debouncedSearch, brandFilter, deliveredFilter, receivedFilter, dateRange, receiptNumber, orderNumber]);
+    }, [debouncedSearch, brandFilter, deliveredFilter, receivedFilter, dateRange, receiptNumber, orderNumber, orderType]);
 
     const { movements, stats, isLoading, pagination } = useInventory({
         page,
@@ -58,7 +59,8 @@ export function InventoryPage() {
         startDate,
         endDate,
         receiptNumber,
-        orderNumber
+        orderNumber,
+        orderType
     });
 
     const clearFilters = () => {
@@ -69,6 +71,7 @@ export function InventoryPage() {
         setDateRange(undefined);
         setReceiptNumber('');
         setOrderNumber('');
+        setOrderType('all');
     };
 
     // Derived Data for Brands
@@ -112,7 +115,7 @@ export function InventoryPage() {
 
         if (receivedFilter !== 'ALL') {
             const isReceived = receivedFilter === 'SI';
-            result = result.filter(r => (r.status === 'ENTRY' || r.status === 'DELIVERED') === isReceived);
+            result = result.filter(r => (r.status === 'ENTRY') === isReceived);
         }
 
         return result.sort((a, b) => {
@@ -126,14 +129,15 @@ export function InventoryPage() {
         setIsExporting(true);
         try {
             const response = await inventoryApi.getAll({
-                limit: 10000,
+                // No limit / no page → backend returns ALL matching records
                 type: apiType,
                 brandId: brandFilter,
                 search: debouncedSearch,
                 startDate,
                 endDate,
                 receiptNumber,
-                orderNumber
+                orderNumber,
+                orderType
             });
 
             const rawMovements = Array.isArray(response) ? response : (response?.data || []);
@@ -194,7 +198,7 @@ export function InventoryPage() {
             }
             if (receivedFilter !== 'ALL') {
                 const isReceived = receivedFilter === 'SI';
-                filtered = filtered.filter(r => (r.status === 'ENTRY' || r.status === 'DELIVERED') === isReceived);
+                filtered = filtered.filter(r => (r.status === 'ENTRY') === isReceived);
             }
 
             const exportedData = filtered.sort((a, b) => {
@@ -300,6 +304,8 @@ export function InventoryPage() {
                 onDeliveredChange={setDeliveredFilter}
                 receivedFilter={receivedFilter}
                 onReceivedChange={setReceivedFilter}
+                orderType={orderType}
+                onOrderTypeChange={setOrderType}
                 onClear={clearFilters}
             />
 

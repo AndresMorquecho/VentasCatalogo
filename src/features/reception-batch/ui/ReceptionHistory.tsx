@@ -42,6 +42,7 @@ interface Props {
         endDate: string;
         brandId: string;
         packingNumber: string;
+        type: string;
     }
     onFilterChange: (filters: any) => void
 }
@@ -101,8 +102,7 @@ export function ReceptionHistory({
             // Fetch ALL batches that match currently active filters (page=1, limit=1000 to get everything)
             const allBatchesResponse = await orderApi.getReceptionBatches({
                 ...filters,
-                page: 1,
-                limit: 1000 // Large limit to ensure we get all records
+                limit: undefined // Return all for export
             });
 
             if (allBatchesResponse && allBatchesResponse.data.length > 0) {
@@ -148,12 +148,13 @@ export function ReceptionHistory({
             startDate: '',
             endDate: '',
             brandId: 'ALL',
-            packingNumber: ''
+            packingNumber: '',
+            type: 'all'
         });
         onPageChange(1);
     };
 
-    const hasActiveFilters = filters.startDate || filters.endDate || filters.brandId !== "ALL" || filters.packingNumber;
+    const hasActiveFilters = filters.startDate || filters.endDate || filters.brandId !== "ALL" || filters.packingNumber || filters.type !== "all";
 
     return (
         <div className="space-y-4 h-full flex flex-col pt-2">
@@ -249,6 +250,25 @@ export function ReceptionHistory({
                                 ))}
                             </SelectContent>
                         </Select>
+                    </div>
+
+                    {/* Tipo - 2 cols */}
+                    <div className="lg:col-span-2 space-y-2">
+                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1">Tipo</label>
+                        <select
+                            value={filters.type}
+                            onChange={(e) => {
+                                onFilterChange({ ...filters, type: e.target.value });
+                                onPageChange(1);
+                            }}
+                            className="flex h-10 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm"
+                        >
+                            <option value="all">Cualquier Tipo</option>
+                            <option value="NORMAL">Normal</option>
+                            <option value="CAMBIO">Cambio</option>
+                            <option value="REPROGRAMACION">Repro</option>
+                            <option value="PREVENTA">Preventa</option>
+                        </select>
                     </div>
                 </div>
             </div>

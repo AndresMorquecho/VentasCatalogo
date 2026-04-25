@@ -229,6 +229,7 @@ export function OrderDeliveryPage() {
     const [clientId, setClientId] = useState<string>("")
     const [dateRange, setDateRange] = useState<DateRange | undefined>()
     const [orderNumber, setOrderNumber] = useState<string>("")
+    const [orderType, setOrderType] = useState<string>("all")
     
     const [isExporting, setIsExporting] = useState(false)
     const [dateCategoryFilter, setDateCategoryFilter] = useState<'ALL' | 'RECENT' | 'WARN' | 'CRITICAL'>('ALL')
@@ -284,7 +285,7 @@ export function OrderDeliveryPage() {
 
     useEffect(() => {
         setPage(1);
-    }, [brandId, clientId, startDate, endDate, orderNumber, dateCategoryFilter]);
+    }, [brandId, clientId, startDate, endDate, orderNumber, orderType, dateCategoryFilter]);
 
     const filters = useMemo((): DeliveryFilters => ({
         startDate,
@@ -292,9 +293,10 @@ export function OrderDeliveryPage() {
         brandId,
         clientId,
         orderNumber,
+        orderType,
         page,
         limit
-    }), [startDate, endDate, brandId, clientId, orderNumber, page, limit])
+    }), [startDate, endDate, brandId, clientId, orderNumber, orderType, page, limit])
 
     // Query for filter data (Only ones that HAVE orders to deliver)
     const { data: filterOrdersData } = useOrderDeliveryFilterData()
@@ -382,6 +384,7 @@ export function OrderDeliveryPage() {
         setClientId("")
         setDateRange(undefined)
         setOrderNumber("")
+        setOrderType("all")
         setDateCategoryFilter("ALL")
         setSelectedOrderIds([])
         setSelectedOrdersMap({})
@@ -423,8 +426,8 @@ export function OrderDeliveryPage() {
                 startDate: startDate || undefined,
                 endDate: endDate || undefined,
                 orderNumber: orderNumber || undefined,
-                page: 1,
-                limit: 5000
+                type: orderType !== 'all' ? orderType : undefined,
+                limit: undefined // Return all for export
             })
             
             if (response && response.data.length > 0) {
@@ -434,7 +437,8 @@ export function OrderDeliveryPage() {
                     { 
                         brandId: brandId === 'ALL' ? undefined : brandId,
                         clientId: clientId || undefined,
-                        orderNumber: orderNumber || undefined
+                        orderNumber: orderNumber || undefined,
+                        type: orderType !== 'all' ? orderType : undefined
                     }
                 )
             } else {
@@ -611,6 +615,21 @@ export function OrderDeliveryPage() {
                             tabIndex={0}
                             className="bg-white border-slate-200 h-10 text-sm font-bold rounded-xl shadow-sm focus:ring-monchito-purple/10 transition-all text-monchito-purple"
                         />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Tipo de Pedido</label>
+                        <select
+                            value={orderType}
+                            onChange={(e) => setOrderType(e.target.value)}
+                            className="flex h-10 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-monchito-purple outline-none focus:ring-2 focus:ring-monchito-purple/20 focus:border-monchito-purple transition-all shadow-sm"
+                        >
+                            <option value="all">Cualquier Tipo</option>
+                            <option value="NORMAL">Normal</option>
+                            <option value="CAMBIO">Cambio</option>
+                            <option value="REPROGRAMACION">Repro</option>
+                            <option value="PREVENTA">Preventa</option>
+                        </select>
                     </div>
                 </div>
             </div>

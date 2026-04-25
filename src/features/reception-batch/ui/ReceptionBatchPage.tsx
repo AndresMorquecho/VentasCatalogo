@@ -103,10 +103,8 @@ export function ReceptionBatchPage() {
         exportOrdersToExcel(
             orders, 
             `Recepcion_Pendiente_${new Date().toISOString().split('T')[0]}.xlsx`,
-            { 
-                brandId: pendingFilters.brandId === 'ALL' ? undefined : (pendingFilters.brandId || undefined),
-                orderNumber: pendingFilters.orderNumber || undefined
-            }
+            undefined,
+            false
         );
     };
 

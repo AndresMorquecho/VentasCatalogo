@@ -27,6 +27,7 @@ export const inventoryApi = {
     endDate?: string;
     receiptNumber?: string;
     orderNumber?: string;
+    orderType?: string;
     search?: string;
   }): Promise<PaginatedResponse<InventoryMovement>> => {
     const queryParams = new URLSearchParams();

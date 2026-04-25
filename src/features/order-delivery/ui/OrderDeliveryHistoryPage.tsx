@@ -42,6 +42,7 @@ export function OrderDeliveryHistoryPage() {
     const debouncedSearch = useDebounce(searchText, 500)
     const [dateRange, setDateRange] = useState<DateRange | undefined>()
     const [clientId, setClientId] = useState<string>("")
+    const [orderType, setOrderType] = useState<string>("all")
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
 
     const toggleRow = (id: string) => {
@@ -61,16 +62,17 @@ export function OrderDeliveryHistoryPage() {
     // Reset pagination on filter change
     useEffect(() => {
         setPage(1)
-    }, [debouncedSearch, startDate, endDate, clientId])
+    }, [debouncedSearch, startDate, endDate, clientId, orderType])
 
     const filters: DeliveryFilters = useMemo(() => ({
         searchText: debouncedSearch,
         startDate,
         endDate,
         clientId: clientId || undefined,
+        orderType: orderType !== 'all' ? orderType : undefined,
         page,
         limit
-    }), [debouncedSearch, startDate, endDate, clientId, page, limit])
+    }), [debouncedSearch, startDate, endDate, clientId, orderType, page, limit])
 
     const { data: response, isLoading, refetch } = useDeliveryBatches(filters)
     const batches = response?.data || []
@@ -152,15 +154,18 @@ export function OrderDeliveryHistoryPage() {
                 endDate: endDate || undefined,
                 clientId: clientId || undefined,
                 search: debouncedSearch || undefined,
-                page: 1,
-                limit: 5000
+                type: orderType !== 'all' ? orderType : undefined,
+                limit: undefined // Return all for export
             })
             
             if (response && response.data.length > 0) {
                 exportDeliveryBatchesToExcel(
                     response.data, 
                     `Historial_Entregas_${new Date().toISOString().split('T')[0]}.xlsx`,
-                    { clientId: clientId || undefined }
+                    { 
+                        clientId: clientId || undefined,
+                        type: orderType !== 'all' ? orderType : undefined
+                    }
                 )
                 notifySuccess('Exportación completada')
             } else {
@@ -238,6 +243,21 @@ export function OrderDeliveryHistoryPage() {
                         placeholder="Todos los clientes"
                         label=""
                     />
+                </div>
+
+                <div className="space-y-2 md:col-span-1">
+                    <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1 mb-1.5 block">Tipo de Pedido</label>
+                    <select
+                        value={orderType}
+                        onChange={(e) => setOrderType(e.target.value)}
+                        className="flex h-11 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-monchito-purple/20 focus:border-monchito-purple transition-all"
+                    >
+                        <option value="all">Cualquier Tipo</option>
+                        <option value="NORMAL">Normal</option>
+                        <option value="CAMBIO">Cambio</option>
+                        <option value="REPROGRAMACION">Repro</option>
+                        <option value="PREVENTA">Preventa</option>
+                    </select>
                 </div>
             </div>
 

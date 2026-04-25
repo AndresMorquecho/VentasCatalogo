@@ -35,6 +35,7 @@ export function OrderReceptionHistoryPage() {
     const [searchText, setSearchText] = useState("")
     const debouncedSearch = useDebounce(searchText, 500)
     const [dateRange, setDateRange] = useState<DateRange | undefined>()
+    const [orderType, setOrderType] = useState("all")
 
     // Convert DateRange to strings for API
     const startDate = dateRange?.from ? dateRange.from.toISOString().split('T')[0] : ""
@@ -50,6 +51,7 @@ export function OrderReceptionHistoryPage() {
         searchText: debouncedSearch,
         startDate,
         endDate,
+        orderType,
         page,
         limit
     }
@@ -61,7 +63,7 @@ export function OrderReceptionHistoryPage() {
     // Reset page on filter change
     useEffect(() => {
         setPage(1)
-    }, [debouncedSearch, startDate, endDate])
+    }, [debouncedSearch, startDate, endDate, orderType])
 
     function formatDate(date: string) {
         if (!date) return '-'
@@ -93,16 +95,16 @@ export function OrderReceptionHistoryPage() {
             setIsExporting(true);
             // Fetch ALL history with matching filters
             const response = await orderApi.getAll({
-                status: 'RECIBIDO_EN_BODEGA',
+                status: 'RECIBIDO_EN_BODEGA,ENTREGADO',
                 search: debouncedSearch || undefined,
                 startDate: startDate || undefined,
                 endDate: endDate || undefined,
-                page: 1,
-                limit: 5000
+                type: orderType !== 'all' ? orderType : undefined,
+                // no limit -> returns everything
             });
 
             if (response && response.data.length > 0) {
-                exportOrdersToExcel(response.data, `Historial_Recepciones_Pedidos_${new Date().toISOString().split('T')[0]}.xlsx`);
+                exportOrdersToExcel(response.data, `Historial_Recepciones_Pedidos_${new Date().toISOString().split('T')[0]}.xlsx`, undefined, false);
                 showToast("Exportación completada", "success");
             } else {
                 showToast("No hay registros para exportar", "warning");
@@ -118,6 +120,7 @@ export function OrderReceptionHistoryPage() {
     const clearFilters = () => {
         setSearchText("");
         setDateRange(undefined);
+        setOrderType("all");
         setPage(1);
     }
 
@@ -151,7 +154,7 @@ export function OrderReceptionHistoryPage() {
 
             {/* Filtros alineados con labels estandarizados */}
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
-                <div className="md:col-span-8">
+                <div className="md:col-span-6">
                     <label className="text-[10px] font-black uppercase text-slate-400 ml-1 mb-2 block tracking-[0.1em]">Buscar Cliente / Recibo / Factura</label>
                     <div className="relative">
                         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -163,8 +166,23 @@ export function OrderReceptionHistoryPage() {
                         />
                     </div>
                 </div>
+
+                <div className="md:col-span-3">
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1 mb-2 block tracking-[0.1em]">Tipo</label>
+                    <select
+                        value={orderType}
+                        onChange={(e) => setOrderType(e.target.value)}
+                        className="flex h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-monchito-purple/20 focus:border-monchito-purple transition-all"
+                    >
+                        <option value="all">Cualquier Tipo</option>
+                        <option value="NORMAL">Normal</option>
+                        <option value="CAMBIO">Cambio</option>
+                        <option value="REPROGRAMACION">Repro</option>
+                        <option value="PREVENTA">Preventa</option>
+                    </select>
+                </div>
                 
-                <div className="md:col-span-4">
+                <div className="md:col-span-3">
                     <label className="text-[10px] font-black uppercase text-slate-400 ml-1 mb-2 block tracking-[0.1em]">Rango de Recepción</label>
                     <DateRangePicker
                         value={dateRange}

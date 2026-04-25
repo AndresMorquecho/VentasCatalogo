@@ -15,6 +15,7 @@ export const useInventory = (params?: {
     endDate?: string;
     receiptNumber?: string;
     orderNumber?: string;
+    orderType?: string;
     search?: string;
 }) => {
     // 1️⃣ Fetch raw movements with navigation properties

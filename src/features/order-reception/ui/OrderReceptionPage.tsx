@@ -7,8 +7,9 @@ import { ReceiveOrderModal } from "./ReceiveOrderModal"
 import type { Order } from "@/entities/order/model/types"
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
-import { Search, History, PackageCheck, RotateCcw } from "lucide-react"
+import { Search, History, PackageCheck, RotateCcw, FileDown, Loader2 } from "lucide-react"
 import { orderApi } from "@/entities/order/model/api"
+import { exportOrdersToExcel } from "@/shared/lib/exportExcel"
 import { useToast } from "@/shared/ui/use-toast"
 import { useQueryClient } from "@tanstack/react-query"
 import { PageHeader } from "@/shared/ui/PageHeader"
@@ -31,6 +32,8 @@ export function OrderReceptionPage() {
     const [searchText, setSearchText] = useState("")
     const debouncedSearch = useDebounce(searchText, 500)
     const [dateRange, setDateRange] = useState<DateRange | undefined>()
+    const [orderType, setOrderType] = useState("all")
+    const [isExporting, setIsExporting] = useState(false)
 
     // Convert DateRange to strings for API
     const startDate = dateRange?.from ? dateRange.from.toISOString().split('T')[0] : ""
@@ -47,6 +50,7 @@ export function OrderReceptionPage() {
         searchText: debouncedSearch,
         startDate,
         endDate,
+        orderType,
         page,
         limit
     }
@@ -58,7 +62,7 @@ export function OrderReceptionPage() {
     // Reset page on filter change
     useEffect(() => {
         setPage(1)
-    }, [debouncedSearch, startDate, endDate])
+    }, [debouncedSearch, startDate, endDate, orderType])
 
     const handleReceive = async (order: Order) => {
         // Opción 2: Validación Justo a Tiempo (UX Preventiva)
@@ -151,9 +155,35 @@ export function OrderReceptionPage() {
         }
     };
 
+    const handleExportExcel = async () => {
+        try {
+            setIsExporting(true);
+            // Fetch ALL matching records — no page, no limit → backend returns everything
+            const response = await orderApi.getAll({
+                status: 'POR_RECIBIR,EN_TRANSITO',
+                search: debouncedSearch || undefined,
+                startDate: startDate || undefined,
+                endDate: endDate || undefined,
+                type: orderType !== 'all' ? orderType : undefined,
+            });
+            if (response && response.data.length > 0) {
+                exportOrdersToExcel(response.data, `Pedidos_PorRecibir_${new Date().toISOString().split('T')[0]}.xlsx`, undefined, false);
+                showToast("Exportación completada", "success");
+            } else {
+                showToast("No hay registros para exportar", "warning");
+            }
+        } catch (error) {
+            console.error(error);
+            showToast("Error al exportar", "error");
+        } finally {
+            setIsExporting(false);
+        }
+    }
+
     const clearFilters = () => {
         setSearchText("");
         setDateRange(undefined);
+        setOrderType("all");
         setPage(1);
     }
 
@@ -165,6 +195,15 @@ export function OrderReceptionPage() {
                 icon={PackageCheck}
                 actions={
                     <div className="flex gap-3">
+                        <Button 
+                            variant="outline" 
+                            onClick={handleExportExcel}
+                            disabled={isExporting || orders.length === 0}
+                            className="gap-2 rounded-xl h-10 border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300 transition-all"
+                        >
+                            {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                            {isExporting ? 'Exportando...' : 'Exportar Excel'}
+                        </Button>
                         <Button variant="outline" onClick={() => navigate('/orders/reception/history')} className="gap-2 rounded-xl h-10">
                             <History className="h-4 w-4" />
                             Historial
@@ -193,6 +232,23 @@ export function OrderReceptionPage() {
                         />
                     </div>
                 </div>
+
+                {/* TIPO filter */}
+                <div className="w-full sm:w-auto min-w-[180px]">
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1 mb-2 block">Tipo</label>
+                    <select
+                        value={orderType}
+                        onChange={(e) => setOrderType(e.target.value)}
+                        className="flex h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-monchito-purple/20 focus:border-monchito-purple transition-all"
+                    >
+                        <option value="all">Cualquier Tipo</option>
+                        <option value="NORMAL">Normal</option>
+                        <option value="CAMBIO">Cambio</option>
+                        <option value="REPROGRAMACION">Repro</option>
+                        <option value="PREVENTA">Preventa</option>
+                    </select>
+                </div>
+
                 <div className="w-full sm:w-auto min-w-[280px]">
                     <DateRangePicker
                         value={dateRange}

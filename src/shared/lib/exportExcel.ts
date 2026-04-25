@@ -6,11 +6,11 @@ import { getPaidAmount, getPendingAmount, getEffectiveTotal } from '@/entities/o
  * Exports a list of orders to an Excel file.
  * Includes items within each order in a flat structure.
  */
-export function exportOrdersToExcel(orders: Order[], filename: string = 'Pedidos.xlsx', filters?: { brandId?: string, clientId?: string, orderNumber?: string }) {
+export function exportOrdersToExcel(orders: Order[], filename: string = 'Pedidos.xlsx', filters?: { brandId?: string, clientId?: string, orderNumber?: string, type?: string }, includeChildren: boolean = true) {
   const data: any[] = [];
 
   orders.forEach(order => {
-    // Collect all orders in the receipt (parent + children)
+    // ALWAYS collect all orders in the receipt (parent + children) for metrics calculation
     const allOrdersInReceipt = [order, ...(order.childOrders || [])];
     
     // Receipt metrics (always summarized across all orders in the receipt to keep totals accurate)
@@ -18,8 +18,12 @@ export function exportOrdersToExcel(orders: Order[], filename: string = 'Pedidos
     const receiptPaid = allOrdersInReceipt.reduce((sum, o) => sum + getPaidAmount(o), 0);
     const receiptPending = allOrdersInReceipt.reduce((sum, o) => sum + getPendingAmount(o), 0);
     
+    // Determine which orders to actually create rows for
+    // If includeChildren is false, we ONLY generate rows for the current 'order' in the loop
+    const ordersToProcess = includeChildren ? allOrdersInReceipt : [order];
+
     // Filter rows for the Excel based on active filters if requested
-    const filteredOrders = allOrdersInReceipt.filter(o => {
+    const filteredOrders = ordersToProcess.filter(o => {
         let matches = true;
         if (filters?.brandId) {
             matches = matches && o.brandId === filters.brandId;
@@ -29,6 +33,9 @@ export function exportOrdersToExcel(orders: Order[], filename: string = 'Pedidos
         }
         if (filters?.orderNumber) {
             matches = matches && (o.orderNumber?.toLowerCase().includes(filters.orderNumber.toLowerCase()) || false);
+        }
+        if (filters?.type) {
+            matches = matches && o.type === filters.type;
         }
         return matches;
     });
@@ -234,6 +241,10 @@ export function exportReceptionBatchesToExcel(batches: any[], filename: string =
             
             if (packingNumber) {
                 matches = matches && batch.packingNumber?.toLowerCase().includes(packingNumber);
+            }
+            
+            if (filters.type) {
+                matches = matches && order.type === filters.type;
             }
             
             return matches;
@@ -495,7 +506,7 @@ export function exportInventoryToExcel(movements: any[], filename: string = 'Inv
 /**
  * Exports delivery batches (delivery history) to Excel.
  */
-export function exportDeliveryBatchesToExcel(batches: any[], filename: string = 'Historial_Entregas.xlsx', filters?: { clientId?: string, orderQuantity?: string }) {
+export function exportDeliveryBatchesToExcel(batches: any[], filename: string = 'Historial_Entregas.xlsx', filters?: { clientId?: string, orderQuantity?: string, type?: string }) {
     const data: any[] = [];
 
     batches.forEach(batch => {
@@ -507,6 +518,10 @@ export function exportDeliveryBatchesToExcel(batches: any[], filename: string = 
         
         if (filters?.clientId) {
             ordersToExport = ordersToExport.filter((o: any) => o.clientId === filters.clientId);
+        }
+        
+        if (filters?.type) {
+            ordersToExport = ordersToExport.filter((o: any) => o.type === filters.type);
         }
 
         ordersToExport.forEach((order: any) => {

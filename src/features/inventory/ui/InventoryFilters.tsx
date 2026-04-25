@@ -22,6 +22,8 @@ interface Props {
     onDeliveredChange: (val: string) => void;
     receivedFilter: string;
     onReceivedChange: (val: string) => void;
+    orderType: string;
+    onOrderTypeChange: (val: string) => void;
     onClear: () => void;
 }
 
@@ -34,6 +36,7 @@ export function InventoryFilters({
     orderNumber, onOrderNumberChange,
     deliveredFilter, onDeliveredChange,
     receivedFilter, onReceivedChange,
+    orderType, onOrderTypeChange,
     onClear
 }: Props) {
     return (
@@ -142,7 +145,24 @@ export function InventoryFilters({
                     </select>
                 </div>
 
-                <div className="md:col-span-6 flex items-end">
+                <div className="md:col-span-3 space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 ml-1">
+                        <Tag className="h-3 w-3" /> Tipo de Pedido
+                    </label>
+                    <select
+                        value={orderType}
+                        onChange={(e) => onOrderTypeChange(e.target.value)}
+                        className="flex h-10 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-monchito-purple/20 focus:border-monchito-purple transition-all font-bold text-slate-700 outline-none"
+                    >
+                        <option value="all">CUALQUIER TIPO</option>
+                        <option value="NORMAL">NORMAL</option>
+                        <option value="CAMBIO">CAMBIO</option>
+                        <option value="REPROGRAMACION">REPRO</option>
+                        <option value="PREVENTA">PREVENTA</option>
+                    </select>
+                </div>
+
+                <div className="md:col-span-3 flex items-end">
                     <Button 
                         onClick={onClear}
                         variant="outline"

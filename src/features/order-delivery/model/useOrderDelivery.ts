@@ -8,6 +8,7 @@ export interface DeliveryFilters {
     clientId?: string;
     orderNumber?: string;
     searchText?: string;
+    orderType?: string;
     page?: number;
     limit?: number;
     status?: string;
@@ -29,6 +30,7 @@ export const useOrderDeliveryList = (filters?: DeliveryFilters) => {
                 endDate: filters?.endDate,
                 brandId: filters?.brandId === 'ALL' ? undefined : filters?.brandId,
                 clientId: filters?.clientId,
+                type: filters?.orderType !== 'all' ? filters?.orderType : undefined,
                 search: filters?.searchText || filters?.orderNumber,
                 page,
                 limit
@@ -56,6 +58,7 @@ export const useOrderDeliveryHistory = (filters?: DeliveryFilters) => {
                 endDate: filters?.endDate,
                 brandId: filters?.brandId === 'ALL' ? undefined : filters?.brandId,
                 clientId: filters?.clientId,
+                type: filters?.orderType !== 'all' ? filters?.orderType : undefined,
                 search: filters?.searchText || filters?.orderNumber,
                 page,
                 limit
@@ -97,6 +100,7 @@ export const useDeliveryBatches = (filters?: DeliveryFilters) => {
                 endDate: filters?.endDate,
                 clientId: filters?.clientId,
                 orderQuantity: filters?.orderQuantity,
+                type: filters?.orderType !== 'all' ? filters?.orderType : undefined,
                 search: filters?.searchText || filters?.orderNumber
             });
             

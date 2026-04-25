@@ -6,6 +6,7 @@ export interface ReceptionFilters {
     endDate?: string;
     brandId?: string;
     searchText?: string;
+    orderType?: string; // NORMAL | CAMBIO | REPROGRAMACION | PREVENTA
     page?: number;
     limit?: number;
 }
@@ -23,6 +24,7 @@ export const useOrderReceptionList = (filters?: ReceptionFilters) => {
                 endDate: filters?.endDate,
                 brandId: filters?.brandId === 'all' ? undefined : filters?.brandId,
                 search: filters?.searchText,
+                type: filters?.orderType && filters.orderType !== 'all' ? filters.orderType : undefined,
                 page,
                 limit
             });
@@ -53,6 +55,7 @@ export const useOrderReceptionHistory = (filters?: ReceptionFilters) => {
                 endDate: filters?.endDate,
                 brandId: filters?.brandId === 'all' ? undefined : filters?.brandId,
                 search: filters?.searchText,
+                type: filters?.orderType && filters.orderType !== 'all' ? filters.orderType : undefined,
                 page,
                 limit
             });

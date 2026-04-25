@@ -138,10 +138,18 @@ export function PendingOrdersTable({
         endDate: '' 
     };
 
-    if (sortedOrders.length === 0 && !currentFilters.receiptNumber && !currentFilters.orderNumber && !currentFilters.clientId) {
+    // Early return only if there are NO orders AND no filters are active at all (initial state)
+    if (sortedOrders.length === 0 && 
+        !currentFilters.receiptNumber && 
+        !currentFilters.orderNumber && 
+        !currentFilters.clientId && 
+        !currentFilters.type &&
+        !currentFilters.startDate &&
+        !currentFilters.endDate
+    ) {
         return (
             <div className="h-full flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-200 rounded-lg bg-slate-50 text-slate-400">
-                <p>No hay pedidos pendientes de recibir.</p>
+                <p className="font-bold">No hay pedidos pendientes de recibir.</p>
             </div>
         )
     }
@@ -151,8 +159,8 @@ export function PendingOrdersTable({
             {/* Filters Section */}
             <div className="bg-white p-3 sm:p-5 rounded-2xl border border-slate-200 shadow-sm shrink-0">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-x-3 gap-y-4 items-end">
-                    {/* Client Filter - 5 cols */}
-                    <div className="lg:col-span-5 space-y-1.5">
+                    {/* Client Filter - 3 cols */}
+                    <div className="lg:col-span-3 space-y-1.5">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Empresaria</label>
                         <SearchableSelect
                             options={clientOptions || []}
@@ -161,6 +169,24 @@ export function PendingOrdersTable({
                             placeholder="Buscar Empresaria..."
                             className="h-10 text-sm font-bold rounded-xl"
                         />
+                    </div>
+
+                    {/* Type Filter - 2 cols */}
+                    <div className="lg:col-span-2 space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Tipo</label>
+                        <select
+                            value={currentFilters.type}
+                            onChange={(e) => handleFilterUpdate({ type: e.target.value })}
+                            onKeyDown={(e) => handleFilterKeyDown(e, 0.5)} // Use fractional to insert between 0 and 1 if needed, or just adjust indices
+                            data-filter-index="0.5"
+                            className="w-full h-10 px-3 text-sm bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-monchito-purple/20 focus:outline-none appearance-none font-bold text-slate-700 shadow-sm"
+                        >
+                            <option value="">Cualquier Tipo</option>
+                            <option value="NORMAL">Normal</option>
+                            <option value="CAMBIO">Cambio</option>
+                            <option value="REPROGRAMACION">Repro</option>
+                            <option value="PREVENTA">Preventa</option>
+                        </select>
                     </div>
 
                     {/* Receipt Filter - 2 cols */}
@@ -223,7 +249,7 @@ export function PendingOrdersTable({
                         <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-md">
                             {sortedOrders.length} Resultados
                         </span>
-                        {(currentFilters.receiptNumber || currentFilters.orderNumber || currentFilters.brandId || currentFilters.clientId) && (
+                        {(currentFilters.receiptNumber || currentFilters.orderNumber || currentFilters.brandId || currentFilters.clientId || currentFilters.type) && (
                             <button
                                 onClick={() => { 
                                     handleFilterUpdate({ 

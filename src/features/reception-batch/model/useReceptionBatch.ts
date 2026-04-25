@@ -26,7 +26,8 @@ export const useReceptionBatch = () => {
         startDate: '',
         endDate: '',
         brandId: 'ALL',
-        packingNumber: ''
+        packingNumber: '',
+        type: 'all'
     });
 
     const [pendingFilters, setPendingFilters] = useState({
@@ -302,7 +303,7 @@ export const useReceptionBatch = () => {
             const response = await orderApi.getAll({
                 status: 'POR_RECIBIR,EN_TRANSITO',
                 ...pendingFilters,
-                limit: 3000 // High limit for export
+                limit: undefined // Fetch everything for export
             });
             return response.data || [];
         } catch (error) {

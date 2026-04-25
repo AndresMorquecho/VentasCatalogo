@@ -358,6 +358,7 @@ export const orderApi = {
         endDate?: string,
         brandId?: string,
         packingNumber?: string,
+        type?: string,
         search?: string
     }): Promise<PaginatedResponse<any>> => {
         const queryParams = new URLSearchParams();
@@ -382,6 +383,7 @@ export const orderApi = {
         endDate?: string,
         clientId?: string,
         orderQuantity?: string,
+        type?: string,
         search?: string
     }): Promise<PaginatedResponse<any>> => {
         const queryParams = new URLSearchParams();
