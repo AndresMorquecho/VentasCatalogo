@@ -163,7 +163,7 @@ export function CashClosurePage() {
     const p = previewData as any;
 
     return (
-        <div className="h-[calc(100vh-4rem)] flex flex-col overflow-hidden">
+        <div className="h-[calc(100vh-4rem)] flex flex-col overflow-y-auto lg:overflow-hidden">
             <PageHeader
                 className="shrink-0"
                 title="Control de Caja"
@@ -308,14 +308,14 @@ export function CashClosurePage() {
                                         <Wallet className="w-3 h-3" /> Cuentas Activas
                                     </p>
                                     {previewData?.allAccountsBalances.map((acc: any) => (
-                                        <div key={acc.id} className="flex justify-between items-center p-2 rounded-lg bg-slate-50 border border-slate-100 mb-1">
-                                            <div className="flex items-center gap-2">
-                                                <div className={`p-1 rounded-md ${acc.type === 'CASH' ? 'bg-primary text-white' : 'bg-slate-200 text-slate-600'}`}>
+                                        <div key={acc.id} className="flex justify-between items-center p-2 rounded-lg bg-slate-50 border border-slate-100 mb-1 gap-2">
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <div className={`p-1 rounded-md shrink-0 ${acc.type === 'CASH' ? 'bg-primary text-white' : 'bg-slate-200 text-slate-600'}`}>
                                                     <Wallet className="h-3 w-3" />
                                                 </div>
-                                                <span className="font-semibold text-xs text-slate-700">{acc.name}</span>
+                                                <span className="font-semibold text-xs text-slate-700 truncate">{acc.name}</span>
                                             </div>
-                                            <span className={`font-bold text-xs ${acc.expectedBalance < 0 ? 'text-red-500' : 'text-slate-900'}`}>
+                                            <span className={`font-bold text-xs shrink-0 ${acc.expectedBalance < 0 ? 'text-red-500' : 'text-slate-900'}`}>
                                                 {fmt(acc.expectedBalance)}
                                             </span>
                                         </div>
@@ -391,7 +391,7 @@ export function CashClosurePage() {
                                         {/* BLOQUE 1: RESUMEN DE FLUJO */}
                                         <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-sm">
                                             <SectionTitle icon={Calculator} label="1. Resumen de Flujo Físico" color="text-slate-700" />
-                                            <div className="grid grid-cols-2 gap-2">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                                 <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
                                                     <p className="text-[10px] font-bold uppercase text-green-600 mb-1">Total Ingresos (Sistema)</p>
                                                     <p className="text-xl font-black text-green-700">{fmt(previewData.totalIncome)}</p>
@@ -408,51 +408,51 @@ export function CashClosurePage() {
                                             <SectionTitle icon={TrendingUp} label="2. Desglose de Operaciones" color="text-slate-700" />
                                             <div className="space-y-2 mt-3">
                                                 {/* Sección 1: Abonos Iniciales */}
-                                                <div className="flex justify-between items-center p-2 bg-slate-50 rounded-lg border border-slate-100">
-                                                    <div className="flex items-center gap-2">
-                                                        <Badge className="bg-blue-500 text-[9px] h-4">INICIAL</Badge>
-                                                        <span className="text-xs font-bold text-slate-700 uppercase">Abonos Iniciales de Órdenes</span>
+                                                <div className="flex justify-between items-center p-2 bg-slate-50 rounded-lg border border-slate-100 gap-2">
+                                                    <div className="flex items-center gap-2 min-w-0">
+                                                        <Badge className="bg-blue-500 text-[9px] h-4 shrink-0">INICIAL</Badge>
+                                                        <span className="text-xs font-bold text-slate-700 uppercase truncate">Abonos Iniciales de Órdenes</span>
                                                     </div>
-                                                    <span className="text-sm font-black text-slate-900">{fmt(previewData.incomeBySource?.orderPayments || 0)}</span>
+                                                    <span className="text-sm font-black text-slate-900 shrink-0">{fmt(previewData.incomeBySource?.orderPayments || 0)}</span>
                                                 </div>
-
+                                                
                                                 {/* Sección 2: Cobros en Entrega */}
-                                                <div className="flex justify-between items-center p-2 bg-slate-50 rounded-lg border border-slate-100">
-                                                    <div className="flex items-center gap-2">
-                                                        <Badge className="bg-emerald-500 text-[9px] h-4">ENTREGA</Badge>
-                                                        <span className="text-xs font-bold text-slate-700 uppercase">Cobros al Entregar Producto</span>
+                                                <div className="flex justify-between items-center p-2 bg-slate-50 rounded-lg border border-slate-100 gap-2">
+                                                    <div className="flex items-center gap-2 min-w-0">
+                                                        <Badge className="bg-emerald-500 text-[9px] h-4 shrink-0">ENTREGA</Badge>
+                                                        <span className="text-xs font-bold text-slate-700 uppercase truncate">Cobros al Entregar Producto</span>
                                                     </div>
-                                                    <span className="text-sm font-black text-slate-900">{fmt(previewData.incomeBySource?.deliveryPayments || 0)}</span>
+                                                    <span className="text-sm font-black text-slate-900 shrink-0">{fmt(previewData.incomeBySource?.deliveryPayments || 0)}</span>
                                                 </div>
-
+                                                
                                                 {/* Sección 3: Abonos Normales */}
-                                                <div className="flex justify-between items-center p-2 bg-slate-50 rounded-lg border border-slate-100">
-                                                    <div className="flex items-center gap-2">
-                                                        <Badge className="bg-primary text-[9px] h-4">ABONOS</Badge>
-                                                        <span className="text-xs font-bold text-slate-700 uppercase">Abonos Posteriores (Mód. Abonos)</span>
+                                                <div className="flex justify-between items-center p-2 bg-slate-50 rounded-lg border border-slate-100 gap-2">
+                                                    <div className="flex items-center gap-2 min-w-0">
+                                                        <Badge className="bg-primary text-[9px] h-4 shrink-0">ABONOS</Badge>
+                                                        <span className="text-xs font-bold text-slate-700 uppercase truncate">Abonos Posteriores (Mód. Abonos)</span>
                                                     </div>
-                                                    <span className="text-sm font-black text-slate-900">{fmt(previewData.incomeBySource?.additionalPayments || 0)}</span>
+                                                    <span className="text-sm font-black text-slate-900 shrink-0">{fmt(previewData.incomeBySource?.additionalPayments || 0)}</span>
                                                 </div>
-
+                                                
                                                 {/* Sección 4: Ventas Catálogo */}
                                                 {previewData.incomeBySource?.catalogSales > 0 ? (
-                                                    <div className="flex justify-between items-center p-2 bg-slate-50 rounded-lg border border-slate-100">
-                                                        <div className="flex items-center gap-2">
-                                                            <Badge className="bg-orange-500 text-[9px] h-4">VENTAS</Badge>
-                                                            <span className="text-xs font-bold text-slate-700 uppercase">Ventas Directas de Catálogo</span>
+                                                    <div className="flex justify-between items-center p-2 bg-slate-50 rounded-lg border border-slate-100 gap-2">
+                                                        <div className="flex items-center gap-2 min-w-0">
+                                                            <Badge className="bg-orange-500 text-[9px] h-4 shrink-0">VENTAS</Badge>
+                                                            <span className="text-xs font-bold text-slate-700 uppercase truncate">Ventas Directas de Catálogo</span>
                                                         </div>
-                                                        <span className="text-sm font-black text-slate-900">{fmt(previewData.incomeBySource?.catalogSales || 0)}</span>
+                                                        <span className="text-sm font-black text-slate-900 shrink-0">{fmt(previewData.incomeBySource?.catalogSales || 0)}</span>
                                                     </div>
                                                 ) : null}
-
+                                                
                                                 {/* Sección 5: Ingresos Manuales */}
                                                 {previewData.incomeBySource?.manual > 0 ? (
-                                                    <div className="flex justify-between items-center p-2 bg-slate-50 rounded-lg border border-slate-100">
-                                                        <div className="flex items-center gap-2">
-                                                            <Badge className="bg-slate-400 text-[9px] h-4">MANUAL</Badge>
-                                                            <span className="text-xs font-bold text-slate-700 uppercase">Otros Ingresos Manuales</span>
+                                                    <div className="flex justify-between items-center p-2 bg-slate-50 rounded-lg border border-slate-100 gap-2">
+                                                        <div className="flex items-center gap-2 min-w-0">
+                                                            <Badge className="bg-slate-400 text-[9px] h-4 shrink-0">MANUAL</Badge>
+                                                            <span className="text-xs font-bold text-slate-700 uppercase truncate">Otros Ingresos Manuales</span>
                                                         </div>
-                                                        <span className="text-sm font-black text-slate-900">{fmt(previewData.incomeBySource?.manual || 0)}</span>
+                                                        <span className="text-sm font-black text-slate-900 shrink-0">{fmt(previewData.incomeBySource?.manual || 0)}</span>
                                                     </div>
                                                 ) : null}
                                                 
