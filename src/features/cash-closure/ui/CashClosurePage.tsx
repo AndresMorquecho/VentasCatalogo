@@ -241,7 +241,7 @@ export function CashClosurePage() {
                                                 onBlur={(e) => { if (!startDate) e.target.type = 'text'; }}
                                                 onChange={(e) => {
                                                     const val = e.target.value;
-                                                    if (!val || val < date) setStartDate(val);
+                                                    if (!val || val <= date) setStartDate(val);
                                                 }}
                                                 className="h-8 font-bold text-xs px-2 border-slate-200 focus:border-primary text-slate-900"
                                                 placeholder={formatStartDate(previewData?.fromDate)}
@@ -249,7 +249,7 @@ export function CashClosurePage() {
                                         </div>
                                         <Input type="date" value={date} min={startDate || undefined} onChange={(e) => {
                                             const val = e.target.value;
-                                            if (!startDate || val > startDate) setDate(val);
+                                            if (!startDate || val >= startDate) setDate(val);
                                         }} className="h-8 border-primary/20 focus:border-primary font-bold text-slate-900 text-xs px-2" />
                                     </div>
                                     {startDate && (
