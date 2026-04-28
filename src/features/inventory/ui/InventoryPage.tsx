@@ -95,12 +95,16 @@ export function InventoryPage() {
         sortedMovements.forEach(m => {
             if (!m.orderId) return;
             if (!orderMap.has(m.orderId)) {
-                orderMap.set(m.orderId, { ...m });
+                const newEntry = { ...m };
+                if (m.type === 'ENTRY') newEntry.entryDate = m.createdAt;
+                if (m.type === 'DELIVERED') newEntry.deliveryDate = m.createdAt;
+                if (m.type === 'RETURNED') newEntry.returnDate = m.createdAt;
+                orderMap.set(m.orderId, newEntry);
             } else {
                 const existing = orderMap.get(m.orderId);
                 existing.status = m.status;
                 if (m.type === 'ENTRY') existing.entryDate = m.createdAt;
-                if (m.type === 'DELIVERED') existing.deliveryDate = m.createdAt || m.deliveryDate;
+                if (m.type === 'DELIVERED') existing.deliveryDate = m.createdAt || existing.deliveryDate;
                 if (m.type === 'RETURNED') existing.returnDate = m.createdAt;
                 existing.daysInWarehouse = m.daysInWarehouse;
             }
@@ -181,12 +185,16 @@ export function InventoryPage() {
             [...mapped].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()).forEach(m => {
                 if (!m.orderId) return;
                 if (!orderMap.has(m.orderId)) {
-                    orderMap.set(m.orderId, { ...m });
+                    const newEntry = { ...m };
+                    if (m.type === 'ENTRY') newEntry.entryDate = m.createdAt;
+                    if (m.type === 'DELIVERED') newEntry.deliveryDate = m.createdAt;
+                    if (m.type === 'RETURNED') newEntry.returnDate = m.createdAt;
+                    orderMap.set(m.orderId, newEntry);
                 } else {
                     const existing = orderMap.get(m.orderId);
                     existing.status = m.status;
                     if (m.type === 'ENTRY') existing.entryDate = m.createdAt;
-                    if (m.type === 'DELIVERED') existing.deliveryDate = m.createdAt || m.deliveryDate;
+                    if (m.type === 'DELIVERED') existing.deliveryDate = m.createdAt || existing.deliveryDate;
                     if (m.type === 'RETURNED') existing.returnDate = m.createdAt;
                 }
             });
