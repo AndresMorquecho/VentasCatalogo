@@ -40,7 +40,7 @@ export const MODULE_ACTIONS: Record<ModuleKey, string[]> = {
     inventory: ['view'],
     brands: ['view', 'create', 'edit', 'delete', 'toggle_status'],
     catalogs: ['view', 'register', 'deliver'],
-    cash_closure: ['view', 'close', 'delete'],
+    cash_closure: ['view', 'view_all', 'close', 'delete'],
     cartera: ['view'],
     calls: ['view', 'create', 'delete'],
     loyalty: [
@@ -89,6 +89,7 @@ export const MODULE_LABELS: Record<ModuleKey, string> = {
 
 export const ACTION_LABELS: Record<string, string> = {
     view: 'Ver/Acceder',
+    view_all: 'Ver Todo (Admin)',
     create: 'Crear Nuevo',
     edit: 'Editar',
     delete: 'Eliminar',

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCreateCashClosure, useCashClosures, useCashClosurePreview } from '@/features/cash-closure/api/hooks';
 import { CashClosureHistory } from './CashClosureHistory';
 import { CashClosureConfirmModal } from './CashClosureConfirmModal';
@@ -76,6 +76,20 @@ export function CashClosurePage() {
     const createClosure = useCreateCashClosure();
     const { notifySuccess, notifyError } = useNotifications();
     const { hasPermission, user } = useAuth();
+    const canViewAll = hasPermission('cash_closure.view_all');
+
+    // Filter users based on permission
+    const filteredUsers = canViewAll 
+        ? systemUsers 
+        : (user ? [user] : []);
+
+    // If no permission, ensure selectedUserId is the current user (and not 'all')
+    useEffect(() => {
+        if (!canViewAll && user && selectedUserId === 'all') {
+            setSelectedUserId(user.id);
+        }
+    }, [canViewAll, user, selectedUserId]);
+
 
     const [year, month, day] = date.split('-').map(Number);
     const endOfDay = new Date(year, month - 1, day, 23, 59, 59, 999);
@@ -134,7 +148,7 @@ export function CashClosurePage() {
 
     const handleDownloadPreviewReport = async () => {
         if (!previewData) return;
-        const reportUser = selectedUserId === 'all' ? 'GLOBAL' : systemUsers.find(u => u.id === selectedUserId)?.username.toUpperCase();
+        const reportUser = selectedUserId === 'all' ? 'GLOBAL' : filteredUsers.find(u => u.id === selectedUserId)?.username.toUpperCase();
         
         setPreviewReportData({
             ...previewData,
@@ -272,8 +286,8 @@ export function CashClosurePage() {
                                         onChange={(e) => setSelectedUserId(e.target.value)}
                                         className="w-full h-8 rounded-md border border-slate-200 bg-white px-2 text-xs font-bold focus:ring-1 focus:ring-primary outline-none"
                                     >
-                                        <option value="all">TODOS LOS USUARIOS (CIERRE GLOBAL)</option>
-                                        {systemUsers.map(u => (
+                                        {canViewAll && <option value="all">TODOS LOS USUARIOS (CIERRE GLOBAL)</option>}
+                                        {filteredUsers.map(u => (
                                             <option key={u.id} value={u.id}>{u.username.toUpperCase()}</option>
                                         ))}
                                     </select>
@@ -365,7 +379,7 @@ export function CashClosurePage() {
                                 <div className="flex justify-between items-center">
                                     <CardTitle className="text-sm font-black text-slate-800 flex items-center gap-2">
                                         <FileText className="h-4 w-4 text-blue-500" /> 
-                                        {selectedUserId === 'all' ? 'Vista Previa del Cierre Global' : `Reporte de Usuario: ${systemUsers.find(u => u.id === selectedUserId)?.username.toUpperCase()}`}
+                                        {selectedUserId === 'all' ? 'Vista Previa del Cierre Global' : `Reporte de Usuario: ${filteredUsers.find(u => u.id === selectedUserId)?.username.toUpperCase()}`}
                                     </CardTitle>
                                     <div className="flex gap-2 items-center">
                                         <Button variant="outline" size="sm" onClick={handleDownloadPreviewReport} disabled={!previewData || isCalculating} className="h-7 text-[10px] font-bold gap-1.5 border-blue-200 hover:bg-blue-50 text-blue-600">
