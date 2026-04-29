@@ -27,9 +27,29 @@ import { cn } from "@/shared/lib/utils";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import type { OrdersTrendData } from '../model/types';
 
-// --- Helpers ---
 const fmt = (n: number) =>
     new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n);
+
+const AVATAR_COLORS = [
+    { bg: 'bg-emerald-50', text: 'text-emerald-600' },
+    { bg: 'bg-blue-50', text: 'text-blue-600' },
+    { bg: 'bg-indigo-50', text: 'text-indigo-600' },
+    { bg: 'bg-purple-50', text: 'text-purple-600' },
+    { bg: 'bg-rose-50', text: 'text-rose-600' },
+    { bg: 'bg-amber-50', text: 'text-amber-600' },
+    { bg: 'bg-cyan-50', text: 'text-cyan-600' },
+    { bg: 'bg-slate-50', text: 'text-slate-600' },
+];
+
+function getUserColor(name: string) {
+    if (!name) return AVATAR_COLORS[0];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % AVATAR_COLORS.length;
+    return AVATAR_COLORS[index];
+}
 
 export function DashboardPage() {
     const [timeRange, setTimeRange] = useState<'daily' | 'weekly' | 'monthly'>('daily');
@@ -479,9 +499,9 @@ export function DashboardPage() {
                                     {oldestOrders.map((order: any) => (
                                         <div key={order.id} className="p-4 space-y-4 bg-white/40">
                                             <div className="flex justify-between items-start">
-                                                <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-3">
                                                     <Avatar className="h-10 w-10 shadow-lg shadow-monchito-purple/10">
-                                                        <AvatarFallback className="bg-monchito-purple/5 text-monchito-purple text-xs font-black">
+                                                        <AvatarFallback className={cn("text-xs font-black", getUserColor(order.clientName).bg, getUserColor(order.clientName).text)}>
                                                             {order.clientName?.substring(0, 2).toUpperCase()}
                                                         </AvatarFallback>
                                                     </Avatar>
@@ -554,7 +574,7 @@ export function DashboardPage() {
                                                     <td className="px-8 py-5">
                                                         <div className="flex items-center gap-4">
                                                             <Avatar className="h-10 w-10 shadow-lg shadow-monchito-purple/10 border-2 border-white ring-1 ring-slate-100 group-hover:ring-monchito-purple/30 transition-all">
-                                                                <AvatarFallback className="bg-monchito-purple/5 text-monchito-purple text-[10px] font-black uppercase tracking-tighter">
+                                                                <AvatarFallback className={cn("text-[10px] font-black uppercase tracking-tighter", getUserColor(order.clientName).bg, getUserColor(order.clientName).text)}>
                                                                     {order.clientName?.substring(0, 2).toUpperCase()}
                                                                 </AvatarFallback>
                                                             </Avatar>

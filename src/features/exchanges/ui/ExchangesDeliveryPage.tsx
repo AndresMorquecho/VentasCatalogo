@@ -358,6 +358,10 @@ export function OrderDeliveryPage() {
     }
 
     const handleExport = async () => {
+        if (!hasPermission('exchanges.export_excel')) {
+            notifyError({ message: 'No tienes permiso para exportar a Excel' })
+            return
+        }
         try {
             setIsExporting(true)
             const response = await orderApi.getAll({
@@ -420,19 +424,21 @@ export function OrderDeliveryPage() {
                             <History className="h-4 w-4" />
                             Historial
                         </Button>
-                        <Button 
-                            variant="outline"
-                            onClick={handleExport}
-                            disabled={isExporting}
-                            className="bg-white hover:bg-emerald-50 hover:text-emerald-700 border-slate-200 gap-2 h-10 rounded-xl px-4 font-bold"
-                        >
-                            {isExporting ? (
-                                <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
-                            ) : (
-                                <FileDown className="h-4 w-4 text-emerald-500" />
-                            )}
-                            Exportar Excel
-                        </Button>
+                        {hasPermission('exchanges.export_excel') && (
+                            <Button 
+                                variant="outline"
+                                onClick={handleExport}
+                                disabled={isExporting}
+                                className="bg-white hover:bg-emerald-50 hover:text-emerald-700 border-slate-200 gap-2 h-10 rounded-xl px-4 font-bold"
+                            >
+                                {isExporting ? (
+                                    <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
+                                ) : (
+                                    <FileDown className="h-4 w-4 text-emerald-500" />
+                                )}
+                                Exportar Excel
+                            </Button>
+                        )}
                         <Button variant="outline" onClick={clearFilters} title="Limpiar todos los filtros" className="h-10 w-10 p-0 rounded-xl border-slate-200 text-slate-400 hover:text-orange-500">
                             <RotateCcw className="h-4 w-4" />
                         </Button>

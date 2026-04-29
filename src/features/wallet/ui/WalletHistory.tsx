@@ -111,7 +111,11 @@ export function WalletHistory() {
                                             <span className="font-mono">{r.reference || '—'}</span>
                                         </div>
                                         <div className="text-[10px] text-slate-400 truncate max-w-[120px]">
-                                            {r.bankAccount?.bankName || 'Ajuste Manual'}
+                                            {r.bankAccount ? (
+                                                <span title={`${r.bankAccount.name} (${r.bankAccount.accountNumber || 'N/A'})`}>
+                                                    {r.bankAccount.name} {r.bankAccount.accountNumber && r.bankAccount.accountNumber !== 'N/A' && `(${r.bankAccount.accountNumber})`}
+                                                </span>
+                                            ) : 'Ajuste Manual'}
                                         </div>
                                     </td>
                                     <td className="px-4 py-3 text-right">

@@ -11,6 +11,7 @@ import { useDebounce } from '@/shared/lib/hooks';
 import { Pagination } from '@/shared/ui/pagination';
 import { DateRangePicker } from '@/shared/ui/filters';
 import type { DateRange } from 'react-day-picker';
+import { useAuth } from '@/shared/auth';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -80,6 +81,7 @@ function exportCSV(rows: AuditEntry[]) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export function AuditLog() {
+    const { hasPermission } = useAuth();
     const [page, setPage] = useState(1);
     const [limit] = useState(100);
 
@@ -185,9 +187,11 @@ export function AuditLog() {
 
                     <div className="flex gap-2">
                         <Button variant="outline" size="sm" className="h-10 rounded-md" onClick={resetFilters}>Limpiar</Button>
-                        <Button size="sm" className="gap-2 h-10 rounded-md" onClick={() => exportCSV(entries)}>
-                            <Download className="h-4 w-4" /> Exportar CSV
-                        </Button>
+                        {hasPermission('users.export_excel') && (
+                            <Button size="sm" className="gap-2 h-10 rounded-md" onClick={() => exportCSV(entries)}>
+                                <Download className="h-4 w-4" /> Exportar CSV
+                            </Button>
+                        )}
                     </div>
                 </div>
                 <p className="text-xs text-slate-400">{pagination?.total ?? 0} registro{pagination?.total !== 1 ? 's' : ''} encontrado{pagination?.total !== 1 ? 's' : ''}.</p>

@@ -23,6 +23,26 @@ import { ConcurrencyLockDialog } from '@/shared/ui/ConcurrencyLockDialog';
 
 type ModalMode = 'create' | 'edit' | 'password' | 'toggle' | 'delete' | null;
 
+const AVATAR_COLORS = [
+    { bg: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-100' },
+    { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-100' },
+    { bg: 'bg-indigo-50', text: 'text-indigo-600', border: 'border-indigo-100' },
+    { bg: 'bg-purple-50', text: 'text-purple-600', border: 'border-purple-100' },
+    { bg: 'bg-rose-50', text: 'text-rose-600', border: 'border-rose-100' },
+    { bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-100' },
+    { bg: 'bg-cyan-50', text: 'text-cyan-600', border: 'border-cyan-100' },
+    { bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-100' },
+];
+
+function getUserColor(username: string) {
+    let hash = 0;
+    for (let i = 0; i < username.length; i++) {
+        hash = username.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % AVATAR_COLORS.length;
+    return AVATAR_COLORS[index];
+}
+
 export function UserList() {
     const [page, setPage] = useState(1);
     const [limit] = useState(20);
@@ -224,11 +244,12 @@ export function UserList() {
                             const role = roles.find(r => r.id === u.roleId || r.name === u.roleId);
                             const roleName = role?.name || u.roleId;
 
+                            const colors = getUserColor(u.username);
                             return (
                                 <TableRow key={u.id} className="hover:bg-slate-50 transition-colors">
                                     <TableCell>
                                         <div className="flex items-center gap-3">
-                                            <div className="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center text-sm font-bold text-slate-600 shrink-0 border border-slate-200">
+                                            <div className={`h-9 w-9 rounded-full ${colors.bg} flex items-center justify-center text-sm font-bold ${colors.text} shrink-0 border ${colors.border}`}>
                                                 {u.username[0].toUpperCase()}
                                             </div>
                                             <div>

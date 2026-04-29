@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
+import { useAuth } from "@/shared/auth"
 import { useOrderReceptionList } from "../model/useOrderReception"
 import type { ReceptionFilters } from "../model/useOrderReception"
 import { OrderReceptionTable } from "./OrderReceptionTable"
@@ -23,6 +24,7 @@ import type { DateRange } from "react-day-picker"
 
 export function OrderReceptionPage() {
     const navigate = useNavigate()
+    const { hasPermission } = useAuth()
     const { showToast } = useToast()
     const qc = useQueryClient()
 
@@ -195,15 +197,17 @@ export function OrderReceptionPage() {
                 icon={PackageCheck}
                 actions={
                     <div className="flex gap-3">
-                        <Button 
-                            variant="outline" 
-                            onClick={handleExportExcel}
-                            disabled={isExporting || orders.length === 0}
-                            className="gap-2 rounded-xl h-10 border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300 transition-all"
-                        >
-                            {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-                            {isExporting ? 'Exportando...' : 'Exportar Excel'}
-                        </Button>
+                        {hasPermission('reception.export_excel') && (
+                            <Button 
+                                variant="outline" 
+                                onClick={handleExportExcel}
+                                disabled={isExporting || orders.length === 0}
+                                className="gap-2 rounded-xl h-10 border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300 transition-all"
+                            >
+                                {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                                {isExporting ? 'Exportando...' : 'Exportar Excel'}
+                            </Button>
+                        )}
                         <Button variant="outline" onClick={() => navigate('/orders/reception/history')} className="gap-2 rounded-xl h-10">
                             <History className="h-4 w-4" />
                             Historial

@@ -15,6 +15,7 @@ import { Pagination } from "@/shared/ui/pagination"
 import { useDebounce } from "@/shared/lib/hooks"
 import { DateRangePicker } from "@/shared/ui/filters"
 import type { DateRange } from "react-day-picker"
+import { useAuth } from "@/shared/auth"
 import {
     Table,
     TableBody,
@@ -25,6 +26,7 @@ import {
 } from "@/shared/ui/table"
 
 export function OrderReceptionHistoryPage() {
+    const { hasPermission } = useAuth()
     const navigate = useNavigate()
     const { showToast } = useToast()
     const qc = useQueryClient()
@@ -136,15 +138,17 @@ export function OrderReceptionHistoryPage() {
                             <ArrowLeft className="h-4 w-4" />
                             Volver a Recepción
                         </Button>
-                        <Button 
-                            variant="outline" 
-                            onClick={handleExportExcel} 
-                            disabled={isExporting || orders.length === 0}
-                            className="gap-2 rounded-xl h-10 border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300 transition-all"
-                        >
-                            {isExporting ? <Loader2 className="h-4 w-4 animate-spin text-emerald-500" /> : <FileDown className="h-4 w-4 text-emerald-500" />}
-                            {isExporting ? 'Exportando...' : 'Exportar Excel'}
-                        </Button>
+                        {hasPermission('reception.export_excel') && (
+                            <Button 
+                                variant="outline" 
+                                onClick={handleExportExcel} 
+                                disabled={isExporting || orders.length === 0}
+                                className="gap-2 rounded-xl h-10 border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300 transition-all"
+                            >
+                                {isExporting ? <Loader2 className="h-4 w-4 animate-spin text-emerald-500" /> : <FileDown className="h-4 w-4 text-emerald-500" />}
+                                {isExporting ? 'Exportando...' : 'Exportar Excel'}
+                            </Button>
+                        )}
                         <Button variant="outline" onClick={clearFilters} title="Limpiar todos los filtros" className="h-10 w-10 p-0 rounded-xl">
                             <RotateCcw className="h-4 w-4" />
                         </Button>

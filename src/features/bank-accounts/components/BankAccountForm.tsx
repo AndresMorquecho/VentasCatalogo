@@ -44,25 +44,36 @@ export function BankAccountForm({ account, open, onOpenChange }: BankAccountForm
             type: account?.type || "BANK" as BankAccountType,
             currentBalance: account?.currentBalance || 0,
             isActive: account ? account.isActive : true,
+            bank_name: account?.bankName || "",
+            account_number: account?.accountNumber || "",
+            holder_name: account?.holderName || "VentasCatalogo",
+            description: account?.description || "",
         },
         validationSchema,
         enableReinitialize: true,
         onSubmit: async (values) => {
             try {
+                // Mapeo para el backend (snake_case)
+                const payload = {
+                    ...values,
+                    bank_name: values.type === 'BANK' ? values.bank_name : 'Efectivo',
+                    account_number: values.type === 'BANK' ? values.account_number : 'CASH-001',
+                };
+
                 if (isEditing && account) {
-                    await updateAccount.mutateAsync({ id: account.id, data: values })
+                    await updateAccount.mutateAsync({ id: account.id, data: payload })
                     notifySuccess(`Cuenta "${values.name}" actualizada correctamente`)
                     if (user) {
                         logAction({
                             userId: user.id,
                             userName: user.username,
-                            action: 'UPDATE_USER', // Or a more specific action if we had one for bank accounts
+                            action: 'UPDATE_USER',
                             module: 'bank_accounts' as any,
                             detail: `Editó cuenta bancaria: ${values.name}`
                         });
                     }
                 } else {
-                    await createAccount.mutateAsync(values)
+                    await createAccount.mutateAsync(payload)
                     notifySuccess(`Cuenta "${values.name}" creada correctamente`)
                     if (user) {
                         logAction({
@@ -132,6 +143,36 @@ export function BankAccountForm({ account, open, onOpenChange }: BankAccountForm
                             <p className="text-red-500 text-xs">{formik.errors.currentBalance}</p>
                         )}
                     </div>
+
+                    {formik.values.type === 'BANK' && (
+                        <>
+                            <div className="space-y-2">
+                                <Label htmlFor="bank_name">Nombre del Banco</Label>
+                                <Input
+                                    id="bank_name"
+                                    {...formik.getFieldProps('bank_name')}
+                                    placeholder="Ej. Banco Pichincha"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="account_number">Número de Cuenta</Label>
+                                <Input
+                                    id="account_number"
+                                    {...formik.getFieldProps('account_number')}
+                                    placeholder="Ej. 2100123456"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="holder_name">Titular de la Cuenta</Label>
+                                <Input
+                                    id="holder_name"
+                                    {...formik.getFieldProps('holder_name')}
+                                />
+                            </div>
+                        </>
+                    )}
 
                     <div className="flex items-center space-x-2 pt-2">
                         <Switch

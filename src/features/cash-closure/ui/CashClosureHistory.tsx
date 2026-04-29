@@ -152,20 +152,22 @@ export function CashClosureHistory({ closures, onDeleteSuccess }: CashClosureHis
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <div className="flex gap-2 justify-end">
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => handleDownloadPDF(c)}
-                                            disabled={!c.detailedReport || downloadingId === c.id}
-                                            className="h-8"
-                                            title="Descargar PDF"
-                                        >
-                                            {downloadingId === c.id ? (
-                                                <Loader2 className="h-3 w-3 animate-spin" />
-                                            ) : (
-                                                <FileDown className="h-3 w-3" />
-                                            )}
-                                        </Button>
+                                        {hasPermission('cash_closure.export_excel') && (
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => handleDownloadPDF(c)}
+                                                disabled={!c.detailedReport || downloadingId === c.id}
+                                                className="h-8"
+                                                title="Descargar PDF"
+                                            >
+                                                {downloadingId === c.id ? (
+                                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                                ) : (
+                                                    <FileDown className="h-3 w-3" />
+                                                )}
+                                            </Button>
+                                        )}
                                         {canDelete && (
                                             <Button
                                                 size="sm"

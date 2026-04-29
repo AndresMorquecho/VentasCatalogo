@@ -82,7 +82,14 @@ export function PendingRechargesBanner() {
                                         </span>
                                     </div>
                                     <div className="text-[10px] text-slate-400 mt-0.5">
-                                        {r.bankAccount?.bankName || "—"}
+                                        {r.bankAccount ? (
+                                            <>
+                                                <span className="font-bold text-slate-500">{r.bankAccount.name}</span>
+                                                {r.bankAccount.accountNumber && r.bankAccount.accountNumber !== 'N/A' && (
+                                                    <span className="ml-1 opacity-70">({r.bankAccount.accountNumber})</span>
+                                                )}
+                                            </>
+                                        ) : "—"}
                                     </div>
                                 </td>
                                 <td className="px-4 py-2.5">

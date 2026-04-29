@@ -495,21 +495,23 @@ export function OrderDeliveryPage() {
                             <History className="h-4 w-4" />
                             Historial
                         </Button>
-                        <Button 
-                            variant="outline"
-                            onClick={handleExport}
-                            data-nav="exportBtn"
-                            onKeyDown={e => handleHeaderKeyDown(e, 'exportBtn')}
-                            disabled={isExporting}
-                            className="w-full sm:w-auto bg-white hover:bg-emerald-50 hover:text-emerald-700 border-slate-200 gap-2 h-10 rounded-xl px-4"
-                        >
-                            {isExporting ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                                <FileDown className="h-4 w-4 text-emerald-600" />
-                            )}
-                            Exportar Excel
-                        </Button>
+                        {hasPermission('delivery.export_excel') && (
+                            <Button 
+                                variant="outline"
+                                onClick={handleExport}
+                                data-nav="exportBtn"
+                                onKeyDown={e => handleHeaderKeyDown(e, 'exportBtn')}
+                                disabled={isExporting}
+                                className="w-full sm:w-auto bg-white hover:bg-emerald-50 hover:text-emerald-700 border-slate-200 gap-2 h-10 rounded-xl px-4"
+                            >
+                                {isExporting ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <FileDown className="h-4 w-4 text-emerald-600" />
+                                )}
+                                Exportar Excel
+                            </Button>
+                        )}
                         <Button 
                             variant="outline" 
                             onClick={clearFilters} 

@@ -31,7 +31,7 @@ import {
 
 export function OrderDeliveryHistoryPage() {
     const navigate = useNavigate()
-    const { user } = useAuth()
+    const { user, hasPermission } = useAuth()
     const { notifySuccess, notifyError } = useNotifications()
     const [isExporting, setIsExporting] = useState(false)
 
@@ -191,19 +191,21 @@ export function OrderDeliveryHistoryPage() {
                             <ArrowLeft className="h-4 w-4" />
                             Volver a Entregas
                         </Button>
-                        <Button 
-                            variant="outline"
-                            onClick={handleExport}
-                            disabled={isExporting}
-                            className="bg-white hover:bg-emerald-50 hover:text-emerald-700 border-slate-200 gap-2 h-10 rounded-xl"
-                        >
-                            {isExporting ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                                <FileDown className="h-4 w-4 text-emerald-600" />
-                            )}
-                            Exportar Excel
-                        </Button>
+                        {hasPermission('delivery.export_excel') && (
+                            <Button 
+                                variant="outline"
+                                onClick={handleExport}
+                                disabled={isExporting}
+                                className="bg-white hover:bg-emerald-50 hover:text-emerald-700 border-slate-200 gap-2 h-10 rounded-xl"
+                            >
+                                {isExporting ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <FileDown className="h-4 w-4 text-emerald-600" />
+                                )}
+                                Exportar Excel
+                            </Button>
+                        )}
                     </div>
                 }
             />

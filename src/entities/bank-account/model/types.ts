@@ -9,10 +9,10 @@ export interface BankAccount {
     isActive: boolean;
     createdAt: string;
 
-    // Legacy fields (kept for compatibility with Orders)
-    description?: string; // e.g., "Banco Pichincha - Ahorros"
+    bankName?: string;
     accountNumber?: string;
     holderName?: string;
+    description?: string;
     periodIncome?: number;
     periodExpense?: number;
     periodNet?: number;
@@ -23,5 +23,8 @@ export interface BankAccountPayload {
     type: BankAccountType;
     currentBalance: number;
     isActive: boolean;
-    // Optional legacy needed if creating from old flow? No, creating new flow uses new fields.
+    bank_name?: string;
+    account_number?: string;
+    holder_name?: string;
+    description?: string;
 }

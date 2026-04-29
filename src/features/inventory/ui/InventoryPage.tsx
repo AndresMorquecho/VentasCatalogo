@@ -16,8 +16,10 @@ import { Button } from '@/shared/ui/button';
 import { exportInventoryToExcel } from '@/shared/lib/exportExcel';
 import { inventoryApi } from '@/shared/api/inventoryApi';
 import { calculateDaysInWarehouse } from '../lib/calculateDaysInWarehouse';
+import { useAuth } from '@/shared/auth';
 
 export function InventoryPage() {
+    const { hasPermission } = useAuth();
     const [page, setPage] = useState(1);
     const [limit] = useState(15);
     const [isExporting, setIsExporting] = useState(false);
@@ -241,15 +243,17 @@ export function InventoryPage() {
                 description="Control físico, financiero y trazabilidad de paquetes"
                 icon={Boxes}
                 actions={
-                    <Button 
-                        onClick={handleExport}
-                        disabled={isExporting || groupedRows.length === 0}
-                        variant="outline"
-                        className="rounded-xl border-slate-200 h-10 font-bold text-xs uppercase tracking-widest gap-2 bg-white shadow-sm hover:bg-slate-50 transition-all text-slate-600"
-                    >
-                        {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4 text-emerald-600" />}
-                        Exportar Excel
-                    </Button>
+                    hasPermission('inventory.export_excel') && (
+                        <Button 
+                            onClick={handleExport}
+                            disabled={isExporting || groupedRows.length === 0}
+                            variant="outline"
+                            className="rounded-xl border-slate-200 h-10 font-bold text-xs uppercase tracking-widest gap-2 bg-white shadow-sm hover:bg-slate-50 transition-all text-slate-600"
+                        >
+                            {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4 text-emerald-600" />}
+                            Exportar Excel
+                        </Button>
+                    )
                 }
             />
 

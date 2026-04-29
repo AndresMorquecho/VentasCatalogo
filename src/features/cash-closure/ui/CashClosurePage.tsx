@@ -99,7 +99,7 @@ export function CashClosurePage() {
         ? new Date(Number(startDate.split('-')[0]), Number(startDate.split('-')[1]) - 1, Number(startDate.split('-')[2]), 0, 0, 0, 0).toISOString()
         : undefined;
 
-    const { data: previewData, isLoading: isCalculating, refetch: refetchPreview } = useCashClosurePreview(
+    const { data: previewData, isLoading: isCalculating, refetch: refetchPreview, error: previewError } = useCashClosurePreview(
         endOfDay.toISOString(),
         selectedUserId === 'all' ? undefined : selectedUserId,
         fromDateISO
@@ -382,9 +382,11 @@ export function CashClosurePage() {
                                         {selectedUserId === 'all' ? 'Vista Previa del Cierre Global' : `Reporte de Usuario: ${filteredUsers.find(u => u.id === selectedUserId)?.username.toUpperCase()}`}
                                     </CardTitle>
                                     <div className="flex gap-2 items-center">
-                                        <Button variant="outline" size="sm" onClick={handleDownloadPreviewReport} disabled={!previewData || isCalculating} className="h-7 text-[10px] font-bold gap-1.5 border-blue-200 hover:bg-blue-50 text-blue-600">
-                                            <FileText className="h-3.5 w-3.5" /> Descargar Reporte
-                                        </Button>
+                                        {hasPermission('cash_closure.export_excel') && (
+                                            <Button variant="outline" size="sm" onClick={handleDownloadPreviewReport} disabled={!previewData || isCalculating} className="h-7 text-[10px] font-bold gap-1.5 border-blue-200 hover:bg-blue-50 text-blue-600">
+                                                <FileText className="h-3.5 w-3.5" /> Descargar Reporte
+                                            </Button>
+                                        )}
                                         <Badge variant="outline" className="font-bold text-[10px] bg-slate-50">{previewData?.movementCount || 0} Registros</Badge>
                                     </div>
                                 </div>
@@ -394,6 +396,12 @@ export function CashClosurePage() {
                                     <div className="flex flex-col items-center justify-center p-20 space-y-4">
                                         <Loader2 className="h-10 w-10 text-primary animate-spin" />
                                         <p className="font-bold text-slate-400">Analizando base de datos...</p>
+                                    </div>
+                                ) : previewError ? (
+                                    <div className="flex flex-col items-center justify-center p-20 text-center space-y-3">
+                                        <AlertCircle className="h-8 w-8 text-red-500" />
+                                        <p className="font-black text-red-600">Error al cargar datos</p>
+                                        <p className="text-xs text-slate-500">{(previewError as any)?.response?.data?.error?.message || "No tienes permisos suficientes o hubo un error de red"}</p>
                                     </div>
                                 ) : !previewData ? (
                                     <div className="flex flex-col items-center justify-center p-20 text-center space-y-3">

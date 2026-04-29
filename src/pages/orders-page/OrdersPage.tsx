@@ -8,9 +8,11 @@ import { useDebounce } from "@/shared/lib/hooks"
 import { startOfDay, endOfDay } from "date-fns"
 import type { DateRange } from "react-day-picker"
 import { exportOrdersToExcel } from "@/shared/lib/exportExcel"
+import { useAuth } from "@/shared/auth"
 import type { OrderFilterType } from "@/features/order-management/model/useOrderFilters"
 
 export default function OrdersPage() {
+    const { hasPermission } = useAuth()
     const [triggerCreate, setTriggerCreate] = useState(false)
     const [isExporting, setIsExporting] = useState(false)
 
@@ -79,19 +81,21 @@ export default function OrdersPage() {
                 icon={Inbox}
                 actions={
                     <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
-                        <Button 
-                            variant="outline"
-                            onClick={handleExport}
-                            disabled={isExporting}
-                            className="w-full sm:w-auto bg-white hover:bg-emerald-50 hover:text-emerald-700 border-slate-200"
-                        >
-                            {isExporting ? (
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            ) : (
-                                <FileDown className="mr-2 h-4 w-4 text-emerald-600" />
-                            )}
-                            Exportar a Excel
-                        </Button>
+                        {hasPermission('orders.export_excel') && (
+                            <Button 
+                                variant="outline"
+                                onClick={handleExport}
+                                disabled={isExporting}
+                                className="w-full sm:w-auto bg-white hover:bg-emerald-50 hover:text-emerald-700 border-slate-200"
+                            >
+                                {isExporting ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                    <FileDown className="mr-2 h-4 w-4 text-emerald-600" />
+                                )}
+                                Exportar a Excel
+                            </Button>
+                        )}
                         <Button 
                             onClick={() => setTriggerCreate(true)}
                             className="w-full sm:w-auto"

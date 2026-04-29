@@ -93,6 +93,10 @@ export function ReceptionBatchPage() {
     };
 
     const onExport = async () => {
+        if (!hasPermission('reception.export_excel')) {
+            notifyError({ message: 'No tienes permiso para exportar a Excel' });
+            return;
+        }
         const orders = await handleExport();
         
         if (!orders || orders.length === 0) {
@@ -126,7 +130,7 @@ export function ReceptionBatchPage() {
                                 Cancelar Edición
                             </Button>
                         )}
-                        {activeTab === "reception" && (
+                        {activeTab === "reception" && hasPermission('reception.export_excel') && (
                             <Button
                                 variant="outline"
                                 onClick={onExport}

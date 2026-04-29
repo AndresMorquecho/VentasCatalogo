@@ -28,6 +28,7 @@ import { Pagination } from "@/shared/ui/pagination"
 import { DateRangePicker } from "@/shared/ui/filters"
 import type { DateRange } from "react-day-picker"
 import { BatchPrintModal } from "./BatchPrintModal"
+import { useAuth } from "@/shared/auth"
 
 interface Props {
     batches: any[]
@@ -58,6 +59,7 @@ export function ReceptionHistory({
     filters,
     onFilterChange
 }: Props) {
+    const { hasPermission } = useAuth()
     const [isProcessing, setIsProcessing] = useState<string | null>(null)
     const [expandedBatch, setExpandedBatch] = useState<string | null>(null)
 
@@ -185,16 +187,18 @@ export function ReceptionHistory({
                         </Button>
 
                         <div className="h-10 w-px bg-slate-100 mx-1 hidden md:block" />
-                        <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={handleExportExcel}
-                            disabled={isExporting || batches.length === 0}
-                            className="h-9 px-5 font-bold rounded-lg border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300 transition-all gap-2"
-                        >
-                            {isExporting ? <Loader2 className="h-4 w-4 animate-spin text-emerald-500" /> : <FileDown className="h-4 w-4 text-emerald-500" />}
-                            {isExporting ? 'Exportando...' : 'Exportar Excel'}
-                        </Button>
+                        {hasPermission('reception.export_excel') && (
+                            <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={handleExportExcel}
+                                disabled={isExporting || batches.length === 0}
+                                className="h-9 px-5 font-bold rounded-lg border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300 transition-all gap-2"
+                            >
+                                {isExporting ? <Loader2 className="h-4 w-4 animate-spin text-emerald-500" /> : <FileDown className="h-4 w-4 text-emerald-500" />}
+                                {isExporting ? 'Exportando...' : 'Exportar Excel'}
+                            </Button>
+                        )}
                         <div className="h-10 w-px bg-slate-100 mx-1 hidden md:block" />
                         <div className="text-right px-2">
                             <p className="text-[10px] text-slate-400 uppercase font-black tracking-tighter leading-none mb-1">Impacto Total (Pág)</p>

@@ -13,6 +13,7 @@ import { UserSearchSelect } from "@/shared/ui/filters/UserSearchSelect"
 import type { DateRange } from "react-day-picker"
 import { useBankAccounts } from "@/entities/bank-account"
 import { exportTransactionsToExcel } from "@/shared/lib/exportExcel"
+import { useAuth } from "@/shared/auth"
 
 const ACCOUNT_TYPE_OPTIONS = [
     { value: "", label: "Todas las Cuentas" },
@@ -22,6 +23,7 @@ const ACCOUNT_TYPE_OPTIONS = [
 ]
 
 export function TransactionsPage() {
+    const { hasPermission } = useAuth()
     const [page, setPage] = useState(1)
     const [limit] = useState(50)
     const [searchTerm, setSearchTerm] = useState("")
@@ -93,15 +95,17 @@ export function TransactionsPage() {
                     icon={DollarSign}
                     actions={
                         <div className="grid grid-cols-2 sm:flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
-                            <Button 
-                                variant="outline" 
-                                onClick={handleExport} 
-                                disabled={!response?.data || response.data.length === 0}
-                                className="h-10 px-2 sm:px-4 gap-1.5 sm:gap-2 rounded-xl border-emerald-200 text-emerald-600 hover:bg-emerald-50 transition-all duration-300 w-full sm:w-auto"
-                            >
-                                <FileDown className="h-4 w-4" />
-                                <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest">Excel</span>
-                            </Button>
+                            {hasPermission('transactions.export_excel') && (
+                                <Button 
+                                    variant="outline" 
+                                    onClick={handleExport} 
+                                    disabled={!response?.data || response.data.length === 0}
+                                    className="h-10 px-2 sm:px-4 gap-1.5 sm:gap-2 rounded-xl border-emerald-200 text-emerald-600 hover:bg-emerald-50 transition-all duration-300 w-full sm:w-auto"
+                                >
+                                    <FileDown className="h-4 w-4" />
+                                    <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest">Excel</span>
+                                </Button>
+                            )}
                             <Button 
                                 variant="outline" 
                                 onClick={handleClear} 

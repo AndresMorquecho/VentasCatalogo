@@ -28,20 +28,20 @@ export type ModuleKey = typeof MODULES[number];
 // ─── Action Keys per Module ───────────────────────────────────────────────────
 export const MODULE_ACTIONS: Record<ModuleKey, string[]> = {
     dashboard: ['view'],
-    orders: ['view', 'create', 'edit', 'delete', 'delete_item', 'save_with_zero_deposit', 'edit_price'],
-    reception: ['view', 'confirm', 'edit', 'delete'],
-    delivery: ['view', 'confirm', 'dismantle', 'return'],
-    clients: ['view', 'create', 'edit', 'delete', 'update'],
-    transactions: ['view'],
-    payments: ['view', 'create', 'delete'],
+    orders: ['view', 'create', 'edit', 'delete', 'delete_item', 'save_with_zero_deposit', 'edit_price', 'export_excel'],
+    reception: ['view', 'confirm', 'edit', 'delete', 'export_excel'],
+    delivery: ['view', 'confirm', 'dismantle', 'return', 'export_excel'],
+    clients: ['view', 'create', 'edit', 'delete', 'update', 'export_excel'],
+    transactions: ['view', 'export_excel'],
+    payments: ['view', 'create', 'delete', 'export_excel'],
     wallet: ['view', 'recharge'],
     wallet_validations: ['view', 'validate', 'reject'],
     bank_accounts: ['view', 'create', 'edit', 'delete', 'toggle_status'],
-    inventory: ['view'],
+    inventory: ['view', 'export_excel'],
     brands: ['view', 'create', 'edit', 'delete', 'toggle_status'],
     catalogs: ['view', 'register', 'deliver'],
-    cash_closure: ['view', 'view_all', 'close', 'delete'],
-    cartera: ['view'],
+    cash_closure: ['view', 'view_all', 'close', 'delete', 'export_excel'],
+    cartera: ['view', 'export_excel'],
     calls: ['view', 'create', 'delete'],
     loyalty: [
         'view', 
@@ -49,8 +49,8 @@ export const MODULE_ACTIONS: Record<ModuleKey, string[]> = {
         'create_prize', 'edit_prize', 'delete_prize', 
         'redeem'
     ],
-    users: ['view', 'create', 'edit', 'delete', 'change_password', 'assign_roles'],
-    exchanges: ['view', 'create', 'edit', 'delete', 'save_with_zero_deposit'],
+    users: ['view', 'create', 'edit', 'delete', 'change_password', 'assign_roles', 'export_excel'],
+    exchanges: ['view', 'create', 'edit', 'delete', 'save_with_zero_deposit', 'export_excel'],
     system_config: [
         'view',
         'create_notimonchito', 
@@ -120,4 +120,5 @@ export const ACTION_LABELS: Record<string, string> = {
     change_password: 'Cambiar Contraseña',
     assign_roles: 'Asignar Roles',
     edit_price: 'Corregir Precio de Pedido',
+    export_excel: 'Exportar a Excel',
 };

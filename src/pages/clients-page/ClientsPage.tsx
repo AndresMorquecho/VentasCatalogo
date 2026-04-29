@@ -18,8 +18,8 @@ export default function ClientsPage() {
     const DATA_UPDATE_THRESHOLD_DAYS = 90;
 
     const handleExportAll = async () => {
-        if (!hasPermission('clients.view')) {
-            notifyError({ message: 'No tienes permiso para exportar datos' });
+        if (!hasPermission('clients.export_excel')) {
+            notifyError({ message: 'No tienes permiso para exportar datos a Excel' });
             return;
         }
         try {
@@ -75,15 +75,17 @@ export default function ClientsPage() {
                 icon={Users}
                 actions={
                     <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                        <Button 
-                            variant="outline" 
-                            onClick={handleExportAll} 
-                            disabled={isExporting}
-                            className="w-full sm:w-auto border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                        >
-                            {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-                            Exportar Excel
-                        </Button>
+                        {hasPermission('clients.export_excel') && (
+                            <Button 
+                                variant="outline" 
+                                onClick={handleExportAll} 
+                                disabled={isExporting}
+                                className="w-full sm:w-auto border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                            >
+                                {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                                Exportar Excel
+                            </Button>
+                        )}
                         <Button 
                             onClick={handleOpenCreate}
                             className="w-full sm:w-auto"
