@@ -80,6 +80,8 @@ export interface CashClosureDetailedReport {
     expectedAmount?: number;
     actualAmount?: number;
     difference?: number;
+    generatedBy?: string; // Who is downloading/printing
+    boxUserName?: string;  // Whose box this is
 
     // Summary (real money only, excludes INTERNAL)
     totalIncome: number;

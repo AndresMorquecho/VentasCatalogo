@@ -173,10 +173,15 @@ const fmtTimeOnly = (d: string | Date | undefined) => {
     return dateObj.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
 };
 
+const fmtFullDateTime = (d: string | Date | undefined) => {
+    if (!d) return "---";
+    return `${fmtDateOnly(d)} ${fmtTimeOnly(d)}`;
+};
+
 interface Props { report: CashClosureDetailedReport; }
 
 export function CashClosureDetailedPDF({ report }: Props) {
-    const { toDate, closedByName, summaryTables, actualAmount = 0 } = report;
+    const { fromDate, toDate, closedByName, boxUserName, generatedBy, summaryTables, actualAmount = 0 } = report;
 
     const wallet = summaryTables?.wallet || [];
     const bancos = summaryTables?.bancos || [];
@@ -276,11 +281,16 @@ export function CashClosureDetailedPDF({ report }: Props) {
                 {/* Sub-header info */}
                 <View style={s.subHeaderInfo}>
                     <Text style={s.infoBold}>
-                        fecha y hora de cierre: {fmtDateOnly(toDate)}   {fmtTimeOnly(toDate)}
+                        RANGO DE REPORTE: {fmtFullDateTime(fromDate)}  AL  {fmtFullDateTime(toDate)}
                     </Text>
                     <Text style={s.infoBold}>
-                        Responsable: {(closedByName || 'ADMINISTRADOR').toUpperCase()}
+                        CAJA DE: {(boxUserName || closedByName || 'ADMINISTRADOR').toUpperCase()}
                     </Text>
+                    {generatedBy && (
+                        <Text style={[s.infoBold, { color: '#666', fontSize: 8 }]}>
+                            Generado o descargado por: {generatedBy.toUpperCase()}
+                        </Text>
+                    )}
                 </View>
 
                 {/* Tables rendering in portrait */}

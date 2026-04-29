@@ -148,18 +148,20 @@ export function CashClosurePage() {
 
     const handleDownloadPreviewReport = async () => {
         if (!previewData) return;
-        const reportUser = selectedUserId === 'all' ? 'GLOBAL' : filteredUsers.find(u => u.id === selectedUserId)?.username.toUpperCase();
+        const boxUserName = selectedUserId === 'all' ? 'GLOBAL' : filteredUsers.find(u => u.id === selectedUserId)?.username.toUpperCase();
         
         setPreviewReportData({
             ...previewData,
-            closedByName: user?.username || 'Usuario',
+            boxUserName: boxUserName,
+            generatedBy: user?.username || 'Usuario',
+            closedByName: boxUserName,
             closedAt: new Date().toISOString(),
             actualAmount,
             expectedAmount: expected,
             difference,
             notes: "VISTA PREVIA DE AUDITORÍA (BORRADOR NO OFICIAL)"
         });
-        setPreviewFileName(`Vista_Previa_Cierre_${reportUser}_${date}.pdf`);
+        setPreviewFileName(`Vista_Previa_Cierre_${boxUserName}_${date}.pdf`);
         setPreviewModalOpen(true);
     };
 

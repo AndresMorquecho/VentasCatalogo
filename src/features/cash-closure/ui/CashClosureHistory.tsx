@@ -34,7 +34,7 @@ export function CashClosureHistory({ closures, onDeleteSuccess }: CashClosureHis
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const { showToast } = useToast();
     const deleteClosure = useDeleteCashClosure();
-    const { hasPermission } = useAuth();
+    const { hasPermission, user } = useAuth();
 
     const canDelete = hasPermission('cash_closure.delete');
 
@@ -54,6 +54,8 @@ export function CashClosureHistory({ closures, onDeleteSuccess }: CashClosureHis
         try {
             await generateCashClosurePDF({
                 ...closure.detailedReport,
+                boxUserName: closure.detailedReport.boxUserName || closure.detailedReport.closedByName || 'Usuario',
+                generatedBy: user?.username || 'Usuario',
                 expectedAmount: closure.expectedAmount,
                 actualAmount: closure.actualAmount,
                 difference: closure.difference,
