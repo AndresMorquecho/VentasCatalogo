@@ -183,7 +183,10 @@ export function WalletRechargeQuick({ clientId, onBack, onRechargeSuccess }: Pro
                     <label className="text-xs font-black uppercase text-monchito-purple/60 tracking-wider mb-1 block">N° TRANSACCIÓN / DOC</label>
                     <Input
                         value={reference}
-                        onChange={(e) => setReference(e.target.value)}
+                        onChange={(e) => {
+                            const value = e.target.value.replace(/^0+/, '');
+                            setReference(value);
+                        }}
                         placeholder="N° Comprobante..."
                         className="h-8 text-xs rounded-xl"
                     />
@@ -192,7 +195,10 @@ export function WalletRechargeQuick({ clientId, onBack, onRechargeSuccess }: Pro
                     <label className="text-xs font-black uppercase text-amber-600 tracking-wider mb-1 block">CONTROL / VALIDACIÓN</label>
                     <Input
                         value={controlValidation}
-                        onChange={(e) => setControlValidation(e.target.value)}
+                        onChange={(e) => {
+                            const value = e.target.value.replace(/^0+/, '');
+                            setControlValidation(value);
+                        }}
                         placeholder="Cod. Control..."
                         className="h-8 text-xs rounded-xl border-amber-200 focus:ring-amber-100"
                     />

@@ -269,6 +269,10 @@ export function RechargeWalletModal({ open, onOpenChange }: RechargeWalletModalP
                                                 placeholder="N° de transacción o documento"
                                                 className="h-10 sm:h-11 border-slate-200 font-bold text-xs sm:text-sm bg-slate-50/30"
                                                 {...formik.getFieldProps("reference")}
+                                                onChange={(e) => {
+                                                    const value = e.target.value.replace(/^0+/, '');
+                                                    formik.setFieldValue("reference", value);
+                                                }}
                                             />
                                             {formik.touched.reference && formik.errors.reference && (
                                                 <p className="text-[10px] font-bold text-red-500 uppercase">{formik.errors.reference as string}</p>
@@ -284,6 +288,10 @@ export function RechargeWalletModal({ open, onOpenChange }: RechargeWalletModalP
                                                     placeholder="Código de validación o control"
                                                     className="h-10 sm:h-11 border-slate-200 font-bold text-xs sm:text-sm bg-slate-50/30"
                                                     {...formik.getFieldProps("controlValidation")}
+                                                    onChange={(e) => {
+                                                        const value = e.target.value.replace(/^0+/, '');
+                                                        formik.setFieldValue("controlValidation", value);
+                                                    }}
                                                 />
                                                 {formik.touched.controlValidation && formik.errors.controlValidation && (
                                                     <p className="text-[10px] font-bold text-red-500 uppercase">{formik.errors.controlValidation as string}</p>
