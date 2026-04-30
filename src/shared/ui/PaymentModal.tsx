@@ -200,7 +200,7 @@ export function PaymentModal({
                 }
 
                 // Validar que el monto individual no sea mayor al saldo pendiente (solo si expectedAmount > 0)
-                if (expectedAmount > 0 && payment.amount > expectedAmount) {
+                if (expectedAmount > 0 && payment.amount > expectedAmount + 0.01) {
                     setValidationError(`El monto de ${formatCurrency(payment.amount)} excede el saldo pendiente de ${formatCurrency(expectedAmount)}.`);
                     return;
                 }
