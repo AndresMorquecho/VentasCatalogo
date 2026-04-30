@@ -75,7 +75,7 @@ const s = StyleSheet.create({
     },
     colHeader: {
         fontFamily: 'Helvetica-Bold',
-        fontSize: 5.5,
+        fontSize: 6,
         textAlign: 'center',
         textTransform: 'uppercase'
     },
@@ -87,15 +87,12 @@ const s = StyleSheet.create({
         borderRightWidth: 0.5,
         borderBottomWidth: 0.5,
         borderColor: COLORS.black,
-        paddingVertical: 5,
+        paddingVertical: 3,
         paddingHorizontal: 2,
-        justifyContent: 'flex-start', // Alineación superior para evitar desbordes
-        alignItems: 'center',
     },
     cellText: {
-        fontSize: 5.5,
-        lineHeight: 1.25,
-        textAlign: 'center',
+        fontSize: 6,
+        lineHeight: 1.1,
     },
     tableFooter: {
         flexDirection: 'row',
@@ -154,7 +151,7 @@ const s = StyleSheet.create({
         left: 0,
         right: 0,
         textAlign: 'center',
-        fontSize: 6,
+        fontSize: 7,
         color: '#666'
     }
 });
@@ -192,13 +189,13 @@ export function CashClosureDetailedPDF({ report }: Props) {
     // Optimized column widths matching the new requested layout
     const W = {
         n: '3%',
-        tipo: '16%',
+        tipo: '12%',
         trans: '8%',
         ctrl: '8%',
-        obs: '12%',
-        fecha: '13%',
-        recibo: '15%',
-        emp: '17%',
+        obs: '14%',
+        fecha: '11%',
+        recibo: '14%',
+        emp: '22%',
         val: '8%'
     };
 
@@ -207,7 +204,7 @@ export function CashClosureDetailedPDF({ report }: Props) {
         const totalBalance = data.length > 0 ? data[data.length - 1].balance : 0;
 
         return (
-            <View wrap={false}>
+            <View style={{ marginBottom: 15 }}>
                 {/* Title */}
                 <Text style={s.sectionTitle}>{title}</Text>
 
@@ -231,19 +228,19 @@ export function CashClosureDetailedPDF({ report }: Props) {
                         <View style={[s.row, s.cellView, { width: '100%', borderRightWidth: 0 }]}><Text style={s.cellText}>Sin movimientos</Text></View>
                     ) : (
                         data.map((row, i) => (
-                            <View key={i} style={s.row} wrap={false}>
-                                <View style={[s.cellView, { width: W.n, borderLeftWidth: 0.5 }]}><Text style={s.cellText}>{i + 1}</Text></View>
+                            <View key={i} style={s.row}>
+                                <View style={[s.cellView, { width: W.n, borderLeftWidth: 0.5, alignItems: 'center' }]}><Text style={[s.cellText, { textAlign: 'center' }]}>{i + 1}</Text></View>
                                 <View style={[s.cellView, { width: W.tipo }]}><Text style={s.cellText}>{row.label || '-'}</Text></View>
-                                <View style={[s.cellView, { width: W.trans }]}><Text style={s.cellText}>{row.reference || '-'}</Text></View>
-                                <View style={[s.cellView, { width: W.ctrl }]}><Text style={s.cellText}>{row.identification || '-'}</Text></View>
+                                <View style={[s.cellView, { width: W.trans, alignItems: 'center' }]}><Text style={[s.cellText, { textAlign: 'center' }]}>{row.reference || '-'}</Text></View>
+                                <View style={[s.cellView, { width: W.ctrl, alignItems: 'center' }]}><Text style={[s.cellText, { textAlign: 'center' }]}>{row.identification || '-'}</Text></View>
                                 <View style={[s.cellView, { width: W.obs }]}><Text style={s.cellText}>{row.description || '-'}</Text></View>
-                                <View style={[s.cellView, { width: W.fecha }]}>
-                                    <Text style={s.cellText}>{fmtDateOnly(row.date)} {fmtTimeOnly(row.date)}</Text>
+                                <View style={[s.cellView, { width: W.fecha, alignItems: 'center' }]}>
+                                    <Text style={[s.cellText, { textAlign: 'center' }]}>{fmtDateOnly(row.date)} {fmtTimeOnly(row.date)}</Text>
                                 </View>
                                 <View style={[s.cellView, { width: W.recibo }]}><Text style={s.cellText}>{row.code || '-'}</Text></View>
                                 <View style={[s.cellView, { width: W.emp }]}><Text style={s.cellText}>{(row.client || '-').toUpperCase()}</Text></View>
-                                <View style={[s.cellView, { width: W.val }]}>
-                                    <Text style={s.cellText}>{formatPdfCurrency(row.amount)}</Text>
+                                <View style={[s.cellView, { width: W.val, alignItems: 'flex-end' }]}>
+                                    <Text style={[s.cellText, { textAlign: 'right' }]}>{formatPdfCurrency(row.amount)}</Text>
                                 </View>
                             </View>
                         ))
