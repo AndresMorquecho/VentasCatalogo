@@ -1,8 +1,8 @@
 import { Dialog, DialogContent, DialogTitle } from "@/shared/ui/dialog";
 import { Button } from "@/shared/ui/button";
 import { Download, Printer, Loader2 } from "lucide-react";
-import { PDFViewer } from '@react-pdf/renderer';
-import { useState, useEffect } from "react";
+import { pdf } from '@react-pdf/renderer';
+import { useState, useEffect, useRef } from "react";
 import { printReactPdfDocument } from "@/shared/lib/printReactPdf";
 
 interface PDFPreviewModalProps {
@@ -26,16 +26,58 @@ export function PDFPreviewModal({
     onPrint
 }: PDFPreviewModalProps) {
     const [isLoading, setIsLoading] = useState(true);
+    const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const blobUrlRef = useRef<string | null>(null);
 
-    // Reset loading state when modal opens
+    // Generate PDF blob when modal opens (much faster than PDFViewer for large docs)
     useEffect(() => {
-        if (open) {
-            setIsLoading(true);
-            // Simulate loading time for PDF rendering
-            const timer = setTimeout(() => setIsLoading(false), 1500);
-            return () => clearTimeout(timer);
+        if (!open) {
+            // Cleanup blob URL when modal closes
+            if (blobUrlRef.current) {
+                URL.revokeObjectURL(blobUrlRef.current);
+                blobUrlRef.current = null;
+            }
+            setPdfUrl(null);
+            setError(null);
+            return;
         }
+
+        setIsLoading(true);
+        setError(null);
+        let cancelled = false;
+
+        (async () => {
+            try {
+                const blob = await pdf(pdfDocument as any).toBlob();
+                if (cancelled) return;
+                
+                // Cleanup previous URL
+                if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
+                
+                const url = URL.createObjectURL(blob);
+                blobUrlRef.current = url;
+                setPdfUrl(url);
+            } catch (err) {
+                if (cancelled) return;
+                console.error('Error generating PDF preview:', err);
+                setError('Error al generar la vista previa del PDF');
+            } finally {
+                if (!cancelled) setIsLoading(false);
+            }
+        })();
+
+        return () => { cancelled = true; };
     }, [open, pdfDocument]);
+
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            if (blobUrlRef.current) {
+                URL.revokeObjectURL(blobUrlRef.current);
+            }
+        };
+    }, []);
 
     const handleDownload = () => {
         if (onDownload) {
@@ -102,26 +144,30 @@ export function PDFPreviewModal({
                     </div>
                 </div>
 
-                {/* PDF Viewer */}
+                {/* PDF Viewer - uses iframe with blob URL instead of heavy PDFViewer */}
                 <div className="flex-1 relative bg-slate-100 overflow-hidden">
                     {isLoading && (
                         <div className="absolute inset-0 flex items-center justify-center bg-white z-10">
                             <div className="flex flex-col items-center gap-3">
                                 <Loader2 className="h-8 w-8 text-monchito-purple animate-spin" />
-                                <p className="text-sm font-medium text-slate-600">Cargando vista previa...</p>
+                                <p className="text-sm font-medium text-slate-600">Generando vista previa...</p>
                             </div>
                         </div>
                     )}
-                    <PDFViewer
-                        style={{
-                            width: '100%',
-                            height: '100%',
-                            border: 'none'
-                        }}
-                        showToolbar={false}
-                    >
-                        {pdfDocument as any}
-                    </PDFViewer>
+                    {error ? (
+                        <div className="absolute inset-0 flex items-center justify-center bg-white">
+                            <div className="flex flex-col items-center gap-3 text-center px-8">
+                                <p className="text-sm font-bold text-red-600">{error}</p>
+                                <p className="text-xs text-slate-500">Puedes intentar descargar el PDF directamente</p>
+                            </div>
+                        </div>
+                    ) : pdfUrl ? (
+                        <iframe
+                            src={pdfUrl}
+                            style={{ width: '100%', height: '100%', border: 'none' }}
+                            title="PDF Preview"
+                        />
+                    ) : null}
                 </div>
 
                 {/* Footer Info */}
@@ -134,3 +180,4 @@ export function PDFPreviewModal({
         </Dialog>
     );
 }
+

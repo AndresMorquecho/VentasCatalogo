@@ -50,3 +50,40 @@ export function useCashClosurePreview(toDate?: string, userId?: string, fromDate
         queryFn: () => cashClosureApi.getPreview(toDate, userId, fromDate),
     });
 }
+
+export function useUserCashClosures(userId?: string, fromDate?: string, toDate?: string) {
+    return useQuery({
+        queryKey: [...CASH_CLOSURE_QUERY_KEYS.all, 'user-list', userId, fromDate, toDate],
+        queryFn: () => cashClosureApi.getUserClosures(userId, fromDate, toDate),
+    });
+}
+
+export function useCreateUserCashClosure() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (payload: any) => cashClosureApi.createUserClosure(payload),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: [...CASH_CLOSURE_QUERY_KEYS.all, 'user-list'] });
+        },
+    });
+}
+
+export function useDeleteUserCashClosure() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (id: string) => cashClosureApi.deleteUserClosure(id),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: [...CASH_CLOSURE_QUERY_KEYS.all, 'user-list'] });
+        },
+    });
+}
+
+export function useUpdateUserCashClosure() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, payload }: { id: string, payload: any }) => cashClosureApi.updateUserClosure(id, payload),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: [...CASH_CLOSURE_QUERY_KEYS.all, 'user-list'] });
+        },
+    });
+}

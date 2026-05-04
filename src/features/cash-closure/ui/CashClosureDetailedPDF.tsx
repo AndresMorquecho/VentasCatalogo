@@ -175,9 +175,13 @@ const fmtFullDateTime = (d: string | Date | undefined) => {
     return `${fmtDateOnly(d)} ${fmtTimeOnly(d)}`;
 };
 
-interface Props { report: CashClosureDetailedReport; }
+interface Props {
+    report: CashClosureDetailedReport;
+    /** Max rows per table section. Defaults to no limit (all rows). */
+    maxRowsPerTable?: number;
+}
 
-export function CashClosureDetailedPDF({ report }: Props) {
+export function CashClosureDetailedPDF({ report, maxRowsPerTable }: Props) {
     const { fromDate, toDate, closedByName, boxUserName, generatedBy, summaryTables, actualAmount = 0 } = report;
 
     const wallet = summaryTables?.wallet || [];
@@ -185,6 +189,11 @@ export function CashClosureDetailedPDF({ report }: Props) {
     const abonos = summaryTables?.abonos || [];
     const entregas = summaryTables?.entregas || [];
     const catalog = summaryTables?.catalog || [];
+
+    // ── Performance: Limit rows per table to prevent PDF renderer from freezing ──
+    // When maxRowsPerTable is not set, we render ALL rows (full report).
+    // When set (e.g. 150), we truncate each table but keep accurate totals from ALL data.
+    const MAX_PDF_ROWS = maxRowsPerTable ?? Infinity;
 
     // Optimized column widths matching the new requested layout
     const W = {
@@ -200,13 +209,27 @@ export function CashClosureDetailedPDF({ report }: Props) {
     };
 
     const renderFinancialTable = (data: SummaryTableRecord[], title: string) => {
-        // Find total balance for the footer
+        // Calculate totals from ALL data (before truncating)
         const totalBalance = data.length > 0 ? data[data.length - 1].balance : 0;
+        const totalRows = data.length;
+        const isTruncated = totalRows > MAX_PDF_ROWS;
+        // Show the most recent rows (end of the array = most recent chronologically)
+        const displayData = isTruncated ? data.slice(totalRows - MAX_PDF_ROWS) : data;
+        const omittedCount = totalRows - displayData.length;
 
         return (
             <View style={{ marginBottom: 15 }}>
                 {/* Title */}
                 <Text style={s.sectionTitle}>{title}</Text>
+
+                {/* Truncation notice */}
+                {isTruncated && (
+                    <View style={{ backgroundColor: '#FEF3C7', borderWidth: 0.5, borderColor: '#F59E0B', padding: 4, marginBottom: 4, borderRadius: 2 }}>
+                        <Text style={{ fontSize: 6, color: '#92400E', fontFamily: 'Helvetica-Bold' }}>
+                            Mostrando los últimos {MAX_PDF_ROWS} de {totalRows} movimientos. {omittedCount} registros anteriores omitidos en impresión. Totales calculados sobre TODOS los {totalRows} registros.
+                        </Text>
+                    </View>
+                )}
 
                 {/* Table */}
                 <View style={s.tableContainer}>
@@ -227,9 +250,12 @@ export function CashClosureDetailedPDF({ report }: Props) {
                     {data.length === 0 ? (
                         <View style={[s.row, s.cellView, { width: '100%', borderRightWidth: 0 }]}><Text style={s.cellText}>Sin movimientos</Text></View>
                     ) : (
-                        data.map((row, i) => (
+                        displayData.map((row, i) => {
+                            // Use original index for numbering when truncated
+                            const rowNumber = isTruncated ? omittedCount + i + 1 : i + 1;
+                            return (
                             <View key={i} style={s.row}>
-                                <View style={[s.cellView, { width: W.n, borderLeftWidth: 0.5, alignItems: 'center' }]}><Text style={[s.cellText, { textAlign: 'center' }]}>{i + 1}</Text></View>
+                                <View style={[s.cellView, { width: W.n, borderLeftWidth: 0.5, alignItems: 'center' }]}><Text style={[s.cellText, { textAlign: 'center' }]}>{rowNumber}</Text></View>
                                 <View style={[s.cellView, { width: W.tipo }]}><Text style={s.cellText}>{row.label || '-'}</Text></View>
                                 <View style={[s.cellView, { width: W.trans, alignItems: 'center' }]}><Text style={[s.cellText, { textAlign: 'center' }]}>{row.reference || '-'}</Text></View>
                                 <View style={[s.cellView, { width: W.ctrl, alignItems: 'center' }]}><Text style={[s.cellText, { textAlign: 'center' }]}>{row.identification || '-'}</Text></View>
@@ -243,13 +269,14 @@ export function CashClosureDetailedPDF({ report }: Props) {
                                     <Text style={[s.cellText, { textAlign: 'right' }]}>{formatPdfCurrency(row.amount)}</Text>
                                 </View>
                             </View>
-                        ))
+                            );
+                        })
                     )}
                 </View>
 
-                {/* Table Footer */}
+                {/* Table Footer - ALWAYS uses full data totals */}
                 <View style={s.tableFooter}>
-                    <Text style={s.tableFooterText}>N° de Movimientos: {data.length}</Text>
+                    <Text style={s.tableFooterText}>N° de Movimientos: {totalRows}</Text>
                     <Text style={s.tableFooterText}>Total Acum: {formatPdfCurrency(totalBalance)}</Text>
                 </View>
 

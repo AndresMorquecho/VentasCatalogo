@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useCreateCashClosure, useCashClosures, useCashClosurePreview } from '@/features/cash-closure/api/hooks';
+import { useCreateCashClosure, useCashClosures, useCashClosurePreview, useUserCashClosures, useCreateUserCashClosure, useDeleteUserCashClosure } from '@/features/cash-closure/api/hooks';
 import { CashClosureHistory } from './CashClosureHistory';
 import { CashClosureConfirmModal } from './CashClosureConfirmModal';
 import { Button } from "@/shared/ui/button";
@@ -11,7 +11,6 @@ import { logAction } from "@/shared/lib/auditService";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Badge } from "@/shared/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/ui/dialog";
-import { generateCashClosurePDF } from '../lib/generateCashClosurePDF';
 import { useAuth } from '@/shared/auth';
 import { usersApi } from '@/shared/auth/authApi';
 import { useQuery } from '@tanstack/react-query';
@@ -21,9 +20,15 @@ import { PageHeader } from '@/shared/ui/PageHeader';
 import { useScrollIndicator } from '../hooks/useScrollIndicator';
 import { PDFPreviewModal } from "@/shared/ui/PDFPreviewModal";
 import { CashClosureDetailedPDF } from './CashClosureDetailedPDF';
+import { CashClosureSummaryPDF } from './CashClosureSummaryPDF';
 import { printReactPdfDocument } from '@/shared/lib/printReactPdf';
+import { pdf } from '@react-pdf/renderer';
 
-const fmt = (n: number) => `$${n.toFixed(2)}`;
+const fmt = (n: any) => {
+    const num = Number(n);
+    if (isNaN(num)) return '$0.00';
+    return `$${num.toFixed(2)}`;
+};
 
 function SectionTitle({ icon: Icon, label, color = 'text-slate-700' }: { icon: any; label: string; color?: string }) {
     return (
@@ -58,6 +63,13 @@ export function CashClosurePage() {
     const [previewModalOpen, setPreviewModalOpen] = useState(false);
     const [previewReportData, setPreviewReportData] = useState<any>(null);
     const [previewFileName, setPreviewFileName] = useState("");
+    const [showReportSelectModal, setShowReportSelectModal] = useState(false);
+    const [selectedReportType, setSelectedReportType] = useState<'detailed' | 'summary'>('detailed');
+
+    // User Cash Closure States
+    const [showUserClosureDialog, setShowUserClosureDialog] = useState(false);
+    const [userActualAmount, setUserActualAmount] = useState<number>(0);
+    const [userNotes, setUserNotes] = useState<string>('');
 
     const { data: response, refetch: refetchClosures } = useCashClosures({ page, limit });
     const closures = response?.data || [];
@@ -105,6 +117,15 @@ export function CashClosurePage() {
         fromDateISO
     );
 
+    const { data: userClosures, refetch: refetchUserClosures } = useUserCashClosures(
+        selectedUserId === 'all' ? undefined : selectedUserId,
+        fromDateISO,
+        endOfDay.toISOString()
+    );
+
+    const createUserClosure = useCreateUserCashClosure();
+    const deleteUserClosure = useDeleteUserCashClosure();
+
     const handleOpenConfirmModal = () => {
         if (!hasPermission('cash_closure.close')) { notifyError({ message: "No tienes permiso para realizar cierres de caja" }); return; }
         if (!previewData || previewData.isAlreadyClosed) return;
@@ -148,6 +169,11 @@ export function CashClosurePage() {
 
     const handleDownloadPreviewReport = async () => {
         if (!previewData) return;
+        setShowReportSelectModal(true);
+    };
+
+    const handleConfirmReportSelection = (type: 'detailed' | 'summary') => {
+        if (!previewData) return;
         const boxUserName = selectedUserId === 'all' ? 'GLOBAL' : filteredUsers.find(u => u.id === selectedUserId)?.username.toUpperCase();
         
         setPreviewReportData({
@@ -161,8 +187,54 @@ export function CashClosurePage() {
             difference,
             notes: "VISTA PREVIA DE AUDITORÍA (BORRADOR NO OFICIAL)"
         });
-        setPreviewFileName(`Vista_Previa_Cierre_${boxUserName}_${date}.pdf`);
+
+        setSelectedReportType(type);
+        setPreviewFileName(`${type === 'detailed' ? 'Vista_Previa_Detallada' : 'Vista_Previa_Resumen'}_${boxUserName}_${date}.pdf`);
+        setShowReportSelectModal(false);
         setPreviewModalOpen(true);
+    };
+
+    const handleCreateUserClosure = () => {
+        if (!selectedUserId || selectedUserId === 'all') return;
+        const targetUser = filteredUsers.find(u => u.id === selectedUserId);
+        if (!targetUser) return;
+
+        const expectedAmt = previewData?.expectedAmount || 0;
+        const diff = userActualAmount - expectedAmt;
+
+        createUserClosure.mutate({
+            userId: targetUser.id,
+            username: targetUser.username,
+            fromDate: fromDateISO || new Date().toISOString(),
+            toDate: endOfDay.toISOString(),
+            expectedAmount: expectedAmt,
+            actualAmount: userActualAmount,
+            difference: diff,
+            notes: userNotes || "Recepción de caja de usuario"
+        }, {
+            onSuccess: () => {
+                notifySuccess(`Cierre de Usuario Registrado: Se registró la recepción de caja de ${targetUser.username.toUpperCase()}`);
+                setShowUserClosureDialog(false);
+                setUserActualAmount(0);
+                setUserNotes('');
+                refetchUserClosures();
+            },
+            onError: (err: any) => {
+                notifyError(err, "Error al registrar el cierre del usuario");
+            }
+        });
+    };
+
+    const handleDeleteUserClosure = (closureId: string) => {
+        deleteUserClosure.mutate(closureId, {
+            onSuccess: () => {
+                notifySuccess("Cierre de Usuario Eliminado correctamente");
+                refetchUserClosures();
+            },
+            onError: (err: any) => {
+                notifyError(err, "Error al eliminar el cierre del usuario");
+            }
+        });
     };
 
     const expected = previewData?.expectedAmount || 0;
@@ -294,6 +366,64 @@ export function CashClosurePage() {
                                         ))}
                                     </select>
                                 </div>
+
+                                {selectedUserId !== 'all' && (
+                                    <div className="pt-2 border-t border-slate-100 mt-2">
+                                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1 block">
+                                            Control de Caja del Usuario
+                                        </label>
+                                        {userClosures && userClosures.length > 0 ? (
+                                            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl space-y-2">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-[10px] font-bold text-emerald-800 flex items-center gap-1 uppercase tracking-wider">
+                                                        <CheckCircle2 className="h-3.5 w-3.5" /> Dinero Recibido
+                                                    </span>
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="sm" 
+                                                        onClick={() => handleDeleteUserClosure(userClosures[0].id)}
+                                                        className="h-6 w-6 p-0 text-rose-600 hover:bg-rose-50 rounded-lg"
+                                                        title="Eliminar este cierre de usuario"
+                                                    >
+                                                        ✕
+                                                    </Button>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                                    <div>
+                                                        <p className="text-slate-500 text-[10px]">Esperado:</p>
+                                                        <p className="font-bold text-slate-800">{fmt(userClosures[0].expectedAmount)}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-slate-500 text-[10px]">Entregado:</p>
+                                                        <p className="font-bold text-emerald-700">{fmt(userClosures[0].actualAmount)}</p>
+                                                    </div>
+                                                </div>
+                                                {userClosures[0].difference !== 0 && (
+                                                    <div className={`p-1.5 rounded-lg text-center text-xs font-bold ${userClosures[0].difference > 0 ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
+                                                        Diferencia: {fmt(userClosures[0].difference)}
+                                                    </div>
+                                                )}
+                                                {userClosures[0].notes && (
+                                                    <p className="text-[10px] text-slate-500 italic bg-white/40 p-1 rounded">
+                                                        "{userClosures[0].notes}"
+                                                    </p>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <Button 
+                                                variant="outline"
+                                                onClick={() => {
+                                                    setUserActualAmount(previewData?.expectedAmount || 0);
+                                                    setShowUserClosureDialog(true);
+                                                }}
+                                                disabled={!previewData || isCalculating}
+                                                className="w-full text-xs font-bold gap-1.5 h-8 bg-emerald-50 border-emerald-200 hover:bg-emerald-100 text-emerald-700 hover:border-emerald-300"
+                                            >
+                                                <CheckCircle2 className="h-4 w-4" /> Marcar Dinero como Recibido
+                                            </Button>
+                                        )}
+                                    </div>
+                                )}
 
                                 {previewData?.isAlreadyClosed && (
                                     <Alert className="bg-amber-50 border-amber-200 text-amber-800">
@@ -609,15 +739,44 @@ export function CashClosurePage() {
                 <PDFPreviewModal
                     open={previewModalOpen}
                     onOpenChange={setPreviewModalOpen}
-                    title="Reporte de Cierre de Caja"
+                    title={selectedReportType === 'summary' ? "Resumen Ejecutivo de Caja" : "Reporte de Cierre de Caja"}
                     fileName={previewFileName}
-                    pdfDocument={<CashClosureDetailedPDF report={previewReportData} />}
-                    onDownload={() => {
-                        generateCashClosurePDF(previewReportData, previewFileName);
+                    pdfDocument={selectedReportType === 'summary' ? (
+                        <CashClosureSummaryPDF report={previewReportData} />
+                    ) : (
+                        <CashClosureDetailedPDF report={previewReportData} maxRowsPerTable={150} />
+                    )}
+                    onDownload={async () => {
+                        if (selectedReportType === 'summary') {
+                            const blob = await pdf(<CashClosureSummaryPDF report={previewReportData} />).toBlob();
+                            const url = URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.download = previewFileName;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            URL.revokeObjectURL(url);
+                        } else {
+                            // Download full report without limits
+                            const blob = await pdf(<CashClosureDetailedPDF report={previewReportData} />).toBlob();
+                            const url = URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.download = previewFileName;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            URL.revokeObjectURL(url);
+                        }
                     }}
                     onPrint={() => {
                         void printReactPdfDocument(
-                            <CashClosureDetailedPDF report={previewReportData} />
+                            selectedReportType === 'summary' ? (
+                                <CashClosureSummaryPDF report={previewReportData} />
+                            ) : (
+                                <CashClosureDetailedPDF report={previewReportData} maxRowsPerTable={150} />
+                            )
                         ).catch((err) => {
                             console.error(err);
                             notifyError({ message: 'Error al imprimir el PDF del cierre de caja' });
@@ -625,6 +784,121 @@ export function CashClosurePage() {
                     }}
                 />
             )}
+
+            <Dialog open={showReportSelectModal} onOpenChange={setShowReportSelectModal}>
+                <DialogContent className="max-w-md bg-white rounded-2xl shadow-xl border border-slate-200">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-black text-slate-800 flex items-center gap-2">
+                            <FileText className="h-5 w-5 text-monchito-purple" />
+                            Seleccionar Tipo de Reporte
+                        </DialogTitle>
+                        <DialogDescription className="text-sm text-slate-500 pt-1">
+                            Elige el formato del reporte que deseas generar para el periodo seleccionado.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid grid-cols-1 gap-3 py-4">
+                        <button
+                            type="button"
+                            onClick={() => handleConfirmReportSelection('detailed')}
+                            className="flex items-start gap-4 p-4 rounded-xl border-2 border-slate-100 hover:border-monchito-purple bg-slate-50/50 hover:bg-monchito-purple/5 transition-all text-left"
+                        >
+                            <div className="bg-monchito-purple/10 p-2.5 rounded-xl shrink-0">
+                                <FileText className="h-6 w-6 text-monchito-purple" />
+                            </div>
+                            <div className="flex-1">
+                                <h4 className="font-bold text-sm text-slate-800">Reporte Completo Detallado</h4>
+                                <p className="text-xs text-slate-500 mt-1">Incluye el resumen totalitario, cuadre de caja, saldos de cuentas y todas las tablas con el detalle de los movimientos financieros.</p>
+                            </div>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => handleConfirmReportSelection('summary')}
+                            className="flex items-start gap-4 p-4 rounded-xl border-2 border-slate-100 hover:border-monchito-purple bg-slate-50/50 hover:bg-monchito-purple/5 transition-all text-left"
+                        >
+                            <div className="bg-emerald-100 p-2.5 rounded-xl shrink-0">
+                                <TrendingUp className="h-6 w-6 text-emerald-600" />
+                            </div>
+                            <div className="flex-1">
+                                <h4 className="font-bold text-sm text-slate-800">Resumen Ejecutivo</h4>
+                                <p className="text-xs text-slate-500 mt-1">Un documento conciso de 1 página que incluye solo los totales generales por sección, saldos de cuentas y la conciliación.</p>
+                            </div>
+                        </button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* User Cash Closure Dialog */}
+            <Dialog open={showUserClosureDialog} onOpenChange={setShowUserClosureDialog}>
+                <DialogContent className="max-w-md bg-white rounded-2xl shadow-xl border border-slate-200">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-black text-slate-800 flex items-center gap-2">
+                            <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                            Registrar Cierre de Usuario
+                        </DialogTitle>
+                        <DialogDescription className="text-sm text-slate-500 pt-1">
+                            Ingresa los valores de la entrega de caja realizada por {filteredUsers.find(u => u.id === selectedUserId)?.username.toUpperCase()}.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4 py-3">
+                        <div>
+                            <label className="text-xs font-bold text-slate-700 uppercase flex items-center gap-1 mb-1">
+                                <Banknote className="h-3 w-3" /> Monto Físico Entregado
+                            </label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg font-bold text-slate-400">$</span>
+                                <DecimalTextField 
+                                    value={userActualAmount} 
+                                    onValueChange={setUserActualAmount} 
+                                    className="text-lg font-bold h-10 pl-8 border-2 focus-visible:ring-emerald-500 border-slate-100 bg-white shadow-inner text-slate-900" 
+                                    placeholder="0.00" 
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="text-xs font-bold text-slate-700 uppercase mb-1 block">
+                                Observaciones / Notas
+                            </label>
+                            <Input 
+                                type="text"
+                                value={userNotes} 
+                                onChange={(e) => setUserNotes(e.target.value)} 
+                                className="text-xs h-9 border-2 focus-visible:ring-emerald-500 border-slate-100 bg-white shadow-inner text-slate-900" 
+                                placeholder="Ej. Entrega completa de turno tarde" 
+                            />
+                        </div>
+
+                        <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-100 space-y-1">
+                            <div className="flex justify-between text-xs text-slate-600">
+                                <span>Esperado en Sistema:</span>
+                                <span className="font-bold text-slate-800">{fmt(previewData?.expectedAmount || 0)}</span>
+                            </div>
+                            <div className="flex justify-between text-xs text-slate-600">
+                                <span>Entregado físicamente:</span>
+                                <span className="font-bold text-emerald-700">{fmt(userActualAmount)}</span>
+                            </div>
+                            <div className="border-t border-slate-200 mt-1 pt-1 flex justify-between text-sm font-bold">
+                                <span>Diferencia:</span>
+                                <span className={userActualAmount - (previewData?.expectedAmount || 0) < 0 ? 'text-rose-600' : 'text-emerald-700'}>
+                                    {fmt(userActualAmount - (previewData?.expectedAmount || 0))}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-2 pt-2 justify-end">
+                            <Button variant="ghost" onClick={() => setShowUserClosureDialog(false)} className="text-xs font-bold">
+                                Cancelar
+                            </Button>
+                            <Button onClick={handleCreateUserClosure} disabled={createUserClosure.isPending} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1">
+                                {createUserClosure.isPending && <Loader2 className="h-3 w-3 animate-spin" />}
+                                Confirmar Recepción
+                            </Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };

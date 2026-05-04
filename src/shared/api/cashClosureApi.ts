@@ -69,5 +69,26 @@ export const cashClosureApi = {
    */
   delete: async (id: string): Promise<void> => {
     return httpClient.delete<void>(`/cash-closures/${id}`);
+  },
+
+  getUserClosures: async (userId?: string, fromDate?: string, toDate?: string): Promise<any[]> => {
+    const params = new URLSearchParams();
+    if (userId) params.append('userId', userId);
+    if (fromDate) params.append('fromDate', fromDate);
+    if (toDate) params.append('toDate', toDate);
+    const queryString = params.toString();
+    return httpClient.get<any[]>(`/cash-closures/user${queryString ? `?${queryString}` : ''}`);
+  },
+
+  createUserClosure: async (payload: any): Promise<any> => {
+    return httpClient.post<any>('/cash-closures/user', payload);
+  },
+
+  deleteUserClosure: async (id: string): Promise<void> => {
+    return httpClient.delete<void>(`/cash-closures/user/${id}`);
+  },
+
+  updateUserClosure: async (id: string, payload: any): Promise<any> => {
+    return httpClient.put<any>(`/cash-closures/user/${id}`, payload);
   }
 };
