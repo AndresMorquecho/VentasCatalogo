@@ -78,6 +78,10 @@ export const walletApi = {
     getClientWalletHistory: async (clientId: string): Promise<WalletHistoryResponse> => {
         // Match backend route: /client/:clientId/history
         return httpClient.get(`/wallet/client/${clientId}/history`);
+    },
+
+    withdrawBalance: async (payload: { clientId: string; amount: number; bankAccountId: string; reason?: string }) => {
+        return httpClient.post('/wallet/withdraw', payload);
     }
 };
 

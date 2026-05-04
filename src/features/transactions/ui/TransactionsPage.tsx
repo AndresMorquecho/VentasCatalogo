@@ -14,6 +14,7 @@ import type { DateRange } from "react-day-picker"
 import { useBankAccounts } from "@/entities/bank-account"
 import { exportTransactionsToExcel } from "@/shared/lib/exportExcel"
 import { useAuth } from "@/shared/auth"
+import { financialRecordApi } from "@/entities/financial-record/model/api"
 
 const ACCOUNT_TYPE_OPTIONS = [
     { value: "", label: "Todas las Cuentas" },
@@ -72,6 +73,8 @@ export function TransactionsPage() {
     const cards = response?.data || []
     const pagination = response?.pagination
 
+    const [isExporting, setIsExporting] = useState(false);
+
     const handleClear = () => {
         setSearchTerm("")
         setDateRange(undefined)
@@ -81,9 +84,19 @@ export function TransactionsPage() {
         setCreatedBy(undefined)
     }
 
-    const handleExport = () => {
-        if (!cards || cards.length === 0) return;
-        exportTransactionsToExcel(cards, `Transacciones_${new Date().toISOString().split('T')[0]}.xlsx`);
+    const handleExport = async () => {
+        setIsExporting(true);
+        try {
+            const exportFilters = { ...filters, limit: 100000, page: 1 };
+            const response = await financialRecordApi.getCards(exportFilters);
+            const allCards = response.data || [];
+            if (allCards.length === 0) return;
+            exportTransactionsToExcel(allCards, `Transacciones_${new Date().toISOString().split('T')[0]}.xlsx`);
+        } catch (error) {
+            console.error("Export failed", error);
+        } finally {
+            setIsExporting(false);
+        }
     }
 
     return (
@@ -99,11 +112,11 @@ export function TransactionsPage() {
                                 <Button 
                                     variant="outline" 
                                     onClick={handleExport} 
-                                    disabled={!response?.data || response.data.length === 0}
+                                    disabled={isExporting || !response?.data || response.data.length === 0}
                                     className="h-10 px-2 sm:px-4 gap-1.5 sm:gap-2 rounded-xl border-emerald-200 text-emerald-600 hover:bg-emerald-50 transition-all duration-300 w-full sm:w-auto"
                                 >
-                                    <FileDown className="h-4 w-4" />
-                                    <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest">Excel</span>
+                                    {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                                    <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest">{isExporting ? "Exportando..." : "Excel"}</span>
                                 </Button>
                             )}
                             <Button 

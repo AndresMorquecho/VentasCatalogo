@@ -4,6 +4,8 @@ import type { ClientCreditSummary } from "../model/types";
 import { Button } from "@/shared/ui/button";
 import { useState } from "react";
 import { WalletHistoryModal } from "./WalletHistoryModal";
+import { WithdrawWalletModal } from "./WithdrawWalletModal";
+import { Minus } from "lucide-react";
 
 interface Props {
     credits: ClientCreditSummary[];
@@ -11,6 +13,7 @@ interface Props {
 
 export function ClientCreditsTable({ credits }: Props) {
     const [selectedClient, setSelectedClient] = useState<{ id: string; name: string } | null>(null);
+    const [withdrawClient, setWithdrawClient] = useState<{ id: string; name: string, maxAmount: number } | null>(null);
 
     if (credits.length === 0) {
         return (
@@ -61,15 +64,25 @@ export function ClientCreditsTable({ credits }: Props) {
                                     {new Date(credit.lastUpdated).toLocaleDateString('es-EC')}
                                 </TableCell>
                                 <TableCell className="text-center">
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => setSelectedClient({ id: credit.clientId, name: credit.clientName })}
-                                        className="text-monchito-purple hover:text-monchito-purple hover:bg-monchito-purple/10"
-                                    >
-                                        <Eye className="h-4 w-4 mr-1" />
-                                        Ver Detalles
-                                    </Button>
+                                    <div className="flex justify-center gap-1">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => setWithdrawClient({ id: credit.clientId, name: credit.clientName, maxAmount: credit.totalCredit })}
+                                            className="text-rose-500 hover:text-rose-600 hover:bg-rose-50"
+                                            disabled={credit.totalCredit <= 0}
+                                        >
+                                            <Minus className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => setSelectedClient({ id: credit.clientId, name: credit.clientName })}
+                                            className="text-monchito-purple hover:text-monchito-purple hover:bg-monchito-purple/10"
+                                        >
+                                            <Eye className="h-4 w-4" />
+                                        </Button>
+                                    </div>
                                 </TableCell>
                             </TableRow>
                         ))}
@@ -83,6 +96,16 @@ export function ClientCreditsTable({ credits }: Props) {
                     onClose={() => setSelectedClient(null)}
                     clientId={selectedClient.id}
                     clientName={selectedClient.name}
+                />
+            )}
+
+            {withdrawClient && (
+                <WithdrawWalletModal
+                    open={!!withdrawClient}
+                    onOpenChange={(open) => !open && setWithdrawClient(null)}
+                    clientId={withdrawClient.id}
+                    clientName={withdrawClient.name}
+                    maxAmount={withdrawClient.maxAmount}
                 />
             )}
         </>

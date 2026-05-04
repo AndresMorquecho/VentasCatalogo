@@ -62,7 +62,7 @@ export function WalletHistoryModal({ isOpen, onClose, clientId, clientName }: Pr
               </TableHeader>
               <TableBody>
                 {history.map((item) => {
-                  const isIncome = item.type === 'CREDIT_GENERATION';
+                  const isIncome = item.movementType === 'INCOME';
                   
                   return (
                     <TableRow key={item.id} className="hover:bg-slate-50/80">
