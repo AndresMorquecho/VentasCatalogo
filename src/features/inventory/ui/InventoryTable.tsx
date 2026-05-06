@@ -36,6 +36,10 @@ export interface GroupedInventoryMovement {
     processedBy: string;
     deliveryReceipt: string;
     totalQuantity: number;
+    order?: {
+        deliveredByName?: string;
+        [key: string]: any;
+    };
 }
 
 interface Props {
@@ -89,6 +93,7 @@ export function InventoryTable({ movements, startIndex = 0 }: Props) {
                             <TableHead className="text-[10px] font-black uppercase tracking-tighter text-slate-400 py-4 border-l border-slate-100 pl-4">Fecha de Ingreso</TableHead>
                             <TableHead className="text-[10px] font-black uppercase tracking-tighter text-slate-400 py-4">Recibido</TableHead>
                             <TableHead className="text-[10px] font-black uppercase tracking-tighter text-slate-400 py-4">Fecha de Entrega</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-tighter text-slate-400 py-4">Entregado Por</TableHead>
                             <TableHead className="text-[10px] font-black uppercase tracking-tighter text-slate-400 py-4">Entregado</TableHead>
                             <TableHead className="text-[10px] font-black uppercase tracking-tighter text-slate-400 py-4 pr-4">Recibo de Entrega</TableHead>
                         </TableRow>
@@ -132,6 +137,7 @@ export function InventoryTable({ movements, startIndex = 0 }: Props) {
                                 <TableCell className="text-[11px] whitespace-nowrap border-l border-slate-50 pl-4">{formatDate(move.entryDate)}</TableCell>
                                 <TableCell className="text-[10px] font-black text-slate-400">{(move.status === 'ENTRY' || move.status === 'DELIVERED') ? 'SI' : 'NO'}</TableCell>
                                 <TableCell className="text-[11px] whitespace-nowrap">{formatDate(move.deliveryDate)}</TableCell>
+                                <TableCell className="text-[11px] text-slate-500 font-medium whitespace-nowrap italic">{move.order?.deliveredByName || '-'}</TableCell>
                                 <TableCell className="text-center font-black text-[10px] text-slate-400">{move.status === 'DELIVERED' ? 'SI' : 'NO'}</TableCell>
                                 <TableCell className="text-[11px] font-bold text-slate-400 pr-4">{move.deliveryReceipt}</TableCell>
                             </TableRow>
