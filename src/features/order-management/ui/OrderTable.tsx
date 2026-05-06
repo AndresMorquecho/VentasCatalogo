@@ -27,16 +27,19 @@ const ROW_STATUS_CLASSES: Record<OrderStatus, string> = {
     CAMBIADO: "bg-purple-50/20 hover:bg-purple-50/40",
 }
 
-function formatDate(dateString: string): string {
-    return new Date(dateString).toLocaleDateString('es-EC', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-    })
-}
 
 function formatCurrency(amount: number): string {
     return `$${amount.toFixed(2)}`
+}
+
+function formatDateTime(dateString: string): string {
+    return new Date(dateString).toLocaleString('es-EC', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    })
 }
 
 const formatReceipt = (receipt: string) => {
@@ -130,13 +133,23 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, lastClosur
                                 </div>
                             </div>
 
+                            {order.deliveryDate && (
+                                <div className="grid grid-cols-2 gap-4 py-2 border-b border-slate-50">
+                                    <div>
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">F. Entrega Real</p>
+                                        <p className="text-xs font-bold text-slate-600">{formatDateTime(order.deliveryDate)}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Entregado Por</p>
+                                        <p className="text-xs font-bold text-slate-600 truncate">{order.deliveredByName || '---'}</p>
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="flex items-center justify-between pt-2">
                                 <div className="flex items-center gap-4">
                                     <div className="flex flex-col">
-                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Entrega</span>
-                                        <span className="text-xs font-bold text-slate-600">
-                                            {order.possibleDeliveryDate ? formatDate(order.possibleDeliveryDate) : '---'}
-                                        </span>
+                                        {/* Removed Entrega block */}
                                     </div>
                                 </div>
                                 <div className="flex gap-2">
@@ -198,7 +211,8 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, lastClosur
                                 <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right w-[75px]">Total</th>
                                 <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right w-[75px]">Abono</th>
                                 <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-right w-[75px]">Saldo</th>
-                                <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left w-[80px]">Entrega</th>
+                                <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left w-[120px]">F. Entrega Real</th>
+                                <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left w-[120px]">Entregado Por</th>
                                 <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-left w-[100px]">Estado</th>
                                 <th className="px-6 py-5 text-[10px] font-black text-monchito-purple uppercase tracking-widest text-center w-[80px]">Acciones</th>
                             </tr>
@@ -265,7 +279,11 @@ export function OrderTable({ orders, onViewDetails, onEdit, onDelete, lastClosur
                                         </td>
 
                                         <td className="px-6 py-4 text-xs text-slate-500 font-medium">
-                                            {order.possibleDeliveryDate ? formatDate(order.possibleDeliveryDate) : '---'}
+                                            {order.deliveryDate ? formatDateTime(order.deliveryDate) : '---'}
+                                        </td>
+                                        
+                                        <td className="px-6 py-4 text-xs text-slate-500 font-medium truncate max-w-[120px]" title={order.deliveredByName}>
+                                            {order.deliveredByName || '---'}
                                         </td>
 
                                         <td className="px-6 py-4">

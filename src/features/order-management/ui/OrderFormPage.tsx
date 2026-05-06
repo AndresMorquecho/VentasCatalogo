@@ -1238,16 +1238,16 @@ export function OrderFormPage() {
         
         // If it's an existing order with ID, we should handle it via handleDeleteOrder
         if (isEditing && itemToRemove.id) {
+            // Verificar permiso solo para items guardados
+            if (!hasPermission('orders.delete_item')) {
+                notifyError(null, "No tienes permiso para eliminar items individuales de este pedido (orders.delete_item).");
+                return;
+            }
             handleDeleteOrder(itemToRemove);
             return;
         }
 
-        // Para remover items locales en modo edición o creación, verificar permiso de eliminar item
-        if (!hasPermission('orders.delete_item')) {
-            notifyError(null, "No tienes permiso para eliminar items individuales de este pedido (orders.delete_item).");
-            return;
-        }
-
+        // Si es un item local (recién agregado), se puede eliminar libremente
         const items = formik.values.brandItems.filter((_: BrandItem, i: number) => i !== index);
         formik.setFieldValue("brandItems", items);
     }
