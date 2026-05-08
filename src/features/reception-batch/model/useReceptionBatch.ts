@@ -160,7 +160,8 @@ export const useReceptionBatch = () => {
             setLastSavedBatch({
                 packingNumber,
                 packingTotal,
-                id: data.batchId || data.id // Use batchId from response if available
+                id: data.batchId || data.id, // Use batchId from response if available
+                receivedByName: localStorage.getItem('user_name') || 'Admin'
             });
 
             setSelectedOrders([]);

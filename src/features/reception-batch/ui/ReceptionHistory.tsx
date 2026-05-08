@@ -532,7 +532,8 @@ export function ReceptionHistory({
                     batchDetails={{
                         id: printModalState.batch.id,
                         packingNumber: printModalState.batch.packingNumber,
-                        packingTotal: printModalState.batch.packingTotal
+                        packingTotal: printModalState.batch.packingTotal,
+                        receivedByName: printModalState.batch.receivedByName
                     }}
                 />
             )}

@@ -16,7 +16,12 @@ interface Props {
     isOpen: boolean
     onClose: () => void
     orders: Order[]
-    batchDetails?: { packingNumber: string, packingTotal: number, id?: string }
+    batchDetails?: { 
+        packingNumber: string, 
+        packingTotal: number, 
+        id?: string,
+        receivedByName?: string
+    }
 }
 
 export function BatchPrintModal({ isOpen, onClose, orders, batchDetails }: Props) {
@@ -100,7 +105,7 @@ export function BatchPrintModal({ isOpen, onClose, orders, batchDetails }: Props
             const doc = <OrderLabelsDocument 
                 orders={selectedOrders} 
                 clientsMap={freshClientsMap}
-                user={{ name: localStorage.getItem('user_name') || 'Admin' }}
+                user={{ name: batchDetails?.receivedByName || localStorage.getItem('user_name') || 'Admin' }}
                 packingNumber={batchDetails?.packingNumber}
             />;
 
@@ -125,7 +130,7 @@ export function BatchPrintModal({ isOpen, onClose, orders, batchDetails }: Props
                 orders={orders} 
                 packingNumber={batchDetails?.packingNumber || ''}
                 packingTotal={batchDetails?.packingTotal || 0}
-                userName={localStorage.getItem('user_name') || 'Admin'}
+                userName={batchDetails?.receivedByName || localStorage.getItem('user_name') || 'Admin'}
                 batchId={batchDetails?.id}
             />;
 
