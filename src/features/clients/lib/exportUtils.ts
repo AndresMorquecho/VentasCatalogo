@@ -15,6 +15,8 @@ export function exportClientsToExcel(clients: Client[]) {
             "Teléfono Principal": client.phone1,
             "Operador": client.operator1,
             "WhatsApp": client.isWhatsApp ? "SÍ" : "NO",
+            "Teléfono Secundario": client.phone2 || "",
+            "Operador Secundario": client.operator2 || "",
             "Ciudad": client.city,
             "Provincia": client.province,
             "País": client.country,
@@ -41,17 +43,18 @@ export function exportClientsToExcel(clients: Client[]) {
     worksheet['!autofilter'] = { ref: XLSX.utils.encode_range(range) };
 
     // Apply specific number formats for money and quantities
+    // Indices have shifted +2 due to new columns
     for (let R = range.s.r + 1; R <= range.e.r; ++R) {
-        // Column Index 19: Total Pedidos (Number with 2 decimals)
-        const cell_qty = worksheet[XLSX.utils.encode_cell({ r: R, c: 19 })];
+        // Column Index 21: Total Pedidos (was 19)
+        const cell_qty = worksheet[XLSX.utils.encode_cell({ r: R, c: 21 })];
         if (cell_qty) cell_qty.z = '0.00';
 
-        // Column Index 20: Total Gastado (Currency with 2 decimals)
-        const cell_spent = worksheet[XLSX.utils.encode_cell({ r: R, c: 20 })];
+        // Column Index 22: Total Gastado (was 20)
+        const cell_spent = worksheet[XLSX.utils.encode_cell({ r: R, c: 22 })];
         if (cell_spent) cell_spent.z = '"$"#,##0.00';
 
-        // Column Index 22: Saldo a Favor (Currency with 2 decimals)
-        const cell_credit = worksheet[XLSX.utils.encode_cell({ r: R, c: 22 })];
+        // Column Index 24: Saldo a Favor (was 22)
+        const cell_credit = worksheet[XLSX.utils.encode_cell({ r: R, c: 24 })];
         if (cell_credit) cell_credit.z = '"$"#,##0.00';
     }
 
@@ -64,6 +67,8 @@ export function exportClientsToExcel(clients: Client[]) {
         { wch: 15 }, // Tel
         { wch: 12 }, // Operador
         { wch: 10 }, // WA
+        { wch: 15 }, // Tel Sec
+        { wch: 12 }, // Op Sec
         { wch: 15 }, // Ciudad
         { wch: 15 }, // Prov
         { wch: 10 }, // Pais
