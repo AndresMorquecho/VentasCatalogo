@@ -270,6 +270,7 @@ export function OrderFormPage() {
                             type: item.type,
                             possible_delivery_date: item.possibleDeliveryDate,
                             order_number: item.orderNumber || "",
+                            notes: item.notes,
                             items: [{
                                 product_name: item.brandName,
                                 quantity: item.quantity,
@@ -353,7 +354,8 @@ export function OrderFormPage() {
                 const originalItem = currentBrandItems[index];
                 return {
                     ...createdOrder,
-                    orderNumber: originalItem.orderNumber
+                    orderNumber: originalItem.orderNumber,
+                    notes: createdOrder.notes || formik.values.notes
                 };
             });
 

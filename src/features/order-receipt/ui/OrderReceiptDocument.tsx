@@ -379,7 +379,7 @@ export const OrderReceiptDocument: React.FC<OrderReceiptProps> = ({
 
                     <View style={styles.observations}>
                         <Text style={{ fontWeight: 'bold' }}>Observaciones:</Text>
-                        <Text style={{ marginTop: 2, fontSize: 9 }}>{order.notes || ""}</Text>
+                        <Text style={{ marginTop: 2, fontSize: 9 }}>{order.notes || order.receipt?.notes || ""}</Text>
                     </View>
                 </View>
 
