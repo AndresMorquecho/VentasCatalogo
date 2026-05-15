@@ -235,7 +235,8 @@ export function filterStateToRecoveryFilters(state: FilterState): RecoveryFilter
     dateFrom: state.dateFrom ? new Date(state.dateFrom) : undefined,
     dateTo: state.dateTo ? new Date(state.dateTo) : undefined,
     brandIds: state.brandIds,
-    brandName: state.brandName,
+    // Only send brandName as search filter when NOT using brandIds multi-select
+    brandName: (state.brandIds && state.brandIds.length > 0) ? undefined : state.brandName,
     clientIds: state.clientIds,
     recoveryStatus: state.recoveryStatus,
     minDaysInWarehouse: state.minDaysInWarehouse ? parseInt(state.minDaysInWarehouse) : undefined,

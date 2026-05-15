@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { usePaymentSearch, usePaymentOperations } from "../model/hooks";
 import { getPaidAmount, getEffectiveTotal } from "@/entities/order/model/model";
 import { Input } from "@/shared/ui/input";
-import { Search, DollarSign, Wallet, FileText, Printer, Filter } from "lucide-react";
+import { Search, DollarSign, Wallet, FileText, Printer, Filter, ShieldAlert } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import { PaymentsHistoryTable } from "./PaymentsHistoryTable";
 import { PaymentModal, type PaymentModalData } from "@/shared/ui/PaymentModal";
@@ -207,6 +207,7 @@ export function PaymentsPage() {
                                     const paid = getPaidAmount(order);
                                     const pending = Math.max(0, (order.realInvoiceTotal || order.total) - paid);
                                     const isPaid = pending <= 0.01;
+                                    const isDismantled = order.status === 'DESMANTELADO';
 
                                     return (
                                         <div
@@ -214,15 +215,17 @@ export function PaymentsPage() {
                                             onClick={() => handleSelectOrder(order.id)}
                                             className={`
                                             cursor-pointer p-4 rounded-xl border transition-all duration-300 relative overflow-hidden group
-                                            ${selectedOrderId === order.id 
-                                                ? 'bg-monchito-purple/5 border-monchito-purple ring-1 ring-monchito-purple/20' 
-                                                : 'bg-white border-slate-100 hover:border-slate-300 shadow-sm hover:shadow-md'}
+                                            ${isDismantled
+                                                ? 'bg-orange-50/50 border-orange-200 opacity-75'
+                                                : selectedOrderId === order.id 
+                                                    ? 'bg-monchito-purple/5 border-monchito-purple ring-1 ring-monchito-purple/20' 
+                                                    : 'bg-white border-slate-100 hover:border-slate-300 shadow-sm hover:shadow-md'}
                                         `}
                                         >
                                             <div className="flex justify-between items-start mb-2">
                                                 <div>
                                                     <div className="flex items-center gap-2">
-                                                        <span className={`font-black tracking-tight block text-lg ${selectedOrderId === order.id ? 'text-monchito-purple' : 'text-slate-700'}`}>
+                                                        <span className={`font-black tracking-tight block text-lg ${isDismantled ? 'text-orange-600' : selectedOrderId === order.id ? 'text-monchito-purple' : 'text-slate-700'}`}>
                                                             #{order.receiptNumber}
                                                         </span>
                                                         {order.orderNumber && (
@@ -240,11 +243,17 @@ export function PaymentsPage() {
                                                         {order.clientName}
                                                     </span>
                                                 </div>
-                                                <Badge variant={isPaid ? "default" : "destructive"} className={`text-[10px] font-black tracking-widest px-2 py-0.5 rounded-lg ${
-                                                    isPaid ? "bg-emerald-100 text-emerald-700 border-none" : "bg-red-50 text-red-600 border-none"
-                                                }`}>
-                                                    {isPaid ? "AL DÍA" : "DEUDA"}
-                                                </Badge>
+                                                {isDismantled ? (
+                                                    <Badge className="text-[10px] font-black tracking-widest px-2 py-0.5 rounded-lg bg-orange-100 text-orange-700 border-none">
+                                                        DESMANTELADO
+                                                    </Badge>
+                                                ) : (
+                                                    <Badge variant={isPaid ? "default" : "destructive"} className={`text-[10px] font-black tracking-widest px-2 py-0.5 rounded-lg ${
+                                                        isPaid ? "bg-emerald-100 text-emerald-700 border-none" : "bg-red-50 text-red-600 border-none"
+                                                    }`}>
+                                                        {isPaid ? "AL DÍA" : "DEUDA"}
+                                                    </Badge>
+                                                )}
                                             </div>
 
                                             <div className="flex justify-between items-end mt-4 pt-3 border-t border-slate-100/50">
@@ -253,7 +262,7 @@ export function PaymentsPage() {
                                                 </div>
                                                 <div className="text-right">
                                                     <span className="block text-[10px] text-slate-400 uppercase font-black leading-none mb-0.5">Pendiente</span>
-                                                    <span className={`text-xl font-mono font-black tracking-tighter leading-none ${pending > 0.01 ? "text-red-500" : "text-emerald-500"}`}>
+                                                    <span className={`text-xl font-mono font-black tracking-tighter leading-none ${isDismantled ? "text-orange-500 line-through" : pending > 0.01 ? "text-red-500" : "text-emerald-500"}`}>
                                                         ${pending.toFixed(2)}
                                                     </span>
                                                 </div>
@@ -284,10 +293,21 @@ export function PaymentsPage() {
                     {selectedOrder ? (
                         <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden sticky top-6 animate-in fade-in zoom-in-95 duration-300">
                             {/* Header Panel */}
+                            {/* Dismantled Order Banner */}
+                            {selectedOrder.status === 'DESMANTELADO' && (
+                                <div className="bg-orange-50 border-b-2 border-orange-200 px-6 py-3 flex items-center gap-3">
+                                    <ShieldAlert className="h-5 w-5 text-orange-600 flex-shrink-0" />
+                                    <div>
+                                        <span className="text-sm font-black text-orange-700">PEDIDO DESMANTELADO</span>
+                                        <p className="text-xs text-orange-600">Este pedido fue desmantelado. La deuda es incobrable y no se pueden registrar abonos.</p>
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="bg-slate-50/50 border-b p-6 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6">
                                 <div className="flex items-center gap-4">
-                                    <div className="w-16 h-16 rounded-2xl bg-monchito-purple/10 flex items-center justify-center text-monchito-purple">
-                                        <Wallet className="w-8 h-8" />
+                                    <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${selectedOrder.status === 'DESMANTELADO' ? 'bg-orange-100 text-orange-600' : 'bg-monchito-purple/10 text-monchito-purple'}`}>
+                                        {selectedOrder.status === 'DESMANTELADO' ? <ShieldAlert className="w-8 h-8" /> : <Wallet className="w-8 h-8" />}
                                     </div>
                                     <div>
                                         <h2 className="text-2xl font-black text-slate-800 tracking-tight">
@@ -314,7 +334,12 @@ export function PaymentsPage() {
                                         <span>Estado Cuenta</span>
                                     </Button>
                                     <Button
-                                        className="gap-2 flex-1 xl:flex-initial rounded-xl bg-monchito-purple hover:bg-monchito-purple/90 font-bold shadow-lg shadow-monchito-purple/20"
+                                        className={`gap-2 flex-1 xl:flex-initial rounded-xl font-bold shadow-lg ${
+                                            selectedOrder.status === 'DESMANTELADO'
+                                                ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none'
+                                                : 'bg-monchito-purple hover:bg-monchito-purple/90 shadow-monchito-purple/20'
+                                        }`}
+                                        disabled={selectedOrder.status === 'DESMANTELADO'}
                                         onClick={() => {
                                             if (!hasPermission('payments.create')) {
                                                 showToast("No tienes permiso para registrar abonos", "error");
@@ -324,7 +349,7 @@ export function PaymentsPage() {
                                         }}
                                     >
                                         <DollarSign className="h-4 w-4" />
-                                        Registrar Abono
+                                        {selectedOrder.status === 'DESMANTELADO' ? 'No Cobrable' : 'Registrar Abono'}
                                     </Button>
                                 </div>
                             </div>

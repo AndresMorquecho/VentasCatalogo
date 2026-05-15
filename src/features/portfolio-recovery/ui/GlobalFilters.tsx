@@ -1,17 +1,19 @@
 /**
  * Filtros Globales con DateRangePicker
- * Marca, estado de recuperación y rango de fechas.
+ * Marca (multi-select), estado de recuperación y rango de fechas.
  */
 
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { DayPicker } from 'react-day-picker';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CalendarRange, X } from 'lucide-react';
+import { CalendarRange, X, ChevronDown, Check, Search } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
 import { useBrandsList } from '../hooks/useBrandsList';
-import { BrandFilter, FilterContainer } from '@/shared/ui/filters';
+import { FilterContainer } from '@/shared/ui/filters';
 import { Label } from '@/shared/ui/label';
+import { Input } from '@/shared/ui/input';
+import { cn } from '@/shared/lib/utils';
 import type { FilterState } from '@/features/portfolio-recovery/types';
 
 interface GlobalFiltersProps {
@@ -38,6 +40,66 @@ export function GlobalFilters({
   const { data: brands } = useBrandsList();
   const [showCalendar, setShowCalendar] = useState(false);
   const calendarRef = useRef<HTMLDivElement>(null);
+  const [showBrandDropdown, setShowBrandDropdown] = useState(false);
+  const brandDropdownRef = useRef<HTMLDivElement>(null);
+  const [brandSearch, setBrandSearch] = useState('');
+
+  // Current selected brand IDs from filterState
+  const selectedBrandIds: string[] = useMemo(() => {
+    return filterState.brandIds || [];
+  }, [filterState.brandIds]);
+
+  // Brand names for display
+  const selectedBrandNames = useMemo(() => {
+    if (!brands) return [];
+    return brands.filter(b => selectedBrandIds.includes(b.id)).map(b => b.name);
+  }, [brands, selectedBrandIds]);
+
+  // Filtered brands for search
+  const filteredBrands = useMemo(() => {
+    if (!brands) return [];
+    if (!brandSearch) return brands;
+    const search = brandSearch.toLowerCase();
+    return brands.filter(b => b.name.toLowerCase().includes(search));
+  }, [brands, brandSearch]);
+
+  // Label for button
+  const brandLabel = selectedBrandIds.length === 0
+    ? 'Todas las marcas'
+    : selectedBrandIds.length === 1
+      ? selectedBrandNames[0] || 'Marca'
+      : `${selectedBrandIds.length} marcas`;
+
+  const toggleBrand = (id: string) => {
+    let newIds: string[];
+    if (selectedBrandIds.includes(id)) {
+      newIds = selectedBrandIds.filter(b => b !== id);
+    } else {
+      newIds = [...selectedBrandIds, id];
+    }
+    onFiltersChangeImmediate({
+      brandIds: newIds.length > 0 ? newIds : undefined,
+      brandName: newIds.length === 1
+        ? brands?.find(b => b.id === newIds[0])?.name
+        : undefined,
+    });
+  };
+
+  const selectAllBrands = () => {
+    if (!brands) return;
+    const allIds = brands.map(b => b.id);
+    onFiltersChangeImmediate({
+      brandIds: allIds,
+      brandName: undefined,
+    });
+  };
+
+  const clearBrands = () => {
+    onFiltersChangeImmediate({
+      brandIds: undefined,
+      brandName: undefined,
+    });
+  };
 
   // Derive the date range from filterState strings
   const dateRange = useMemo(() => ({
@@ -67,43 +129,125 @@ export function GlobalFilters({
     return () => document.removeEventListener('mousedown', handleClick);
   }, [showCalendar]);
 
+  // Close brand dropdown on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (brandDropdownRef.current && !brandDropdownRef.current.contains(e.target as Node)) {
+        setShowBrandDropdown(false);
+        setBrandSearch('');
+      }
+    }
+    if (showBrandDropdown) document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showBrandDropdown]);
+
   // Determine active filters
   const hasDateFilter = !!(filterState.dateFrom || filterState.dateTo);
   const hasActiveFilters =
     (filterState.recoveryStatus && filterState.recoveryStatus !== 'ALL') ||
-    filterState.brandName !== undefined ||
+    selectedBrandIds.length > 0 ||
     hasDateFilter;
-
-  const selectedBrandId = useMemo(() => {
-    if (!filterState.brandName || !brands) return undefined;
-    return brands.find(b => b.name === filterState.brandName)?.id;
-  }, [filterState.brandName, brands]);
 
   return (
     <FilterContainer onClearFilters={onClearFilters} hasActiveFilters={hasActiveFilters}>
-      {/* Selector de Marca */}
-      <div className="flex-1 min-w-[240px]">
+      {/* Selector de Marca — Multi-select con checkboxes */}
+      <div className="flex-1 min-w-[240px]" ref={brandDropdownRef}>
         <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1 mb-1.5 block">Marca</Label>
-        <BrandFilter
-          brands={brands || []}
-          value={selectedBrandId}
-          showLabel={false}
-          onChange={(brandId) => {
-            if (!brandId) {
-              onFiltersChangeImmediate({ brandIds: undefined, brandName: undefined });
-            } else {
-              const brand = brands?.find(b => b.id === brandId);
-              if (brand) {
-                onFiltersChangeImmediate({
-                  brandIds: [brandId],
-                  brandName: brand.name,
-                  recoveryStatus: undefined,
-                });
-              }
-            }
-          }}
-          className="w-full"
-        />
+        <div className="relative">
+          <button
+            onClick={() => { setShowBrandDropdown(prev => !prev); setBrandSearch(''); }}
+            className={cn(
+              "h-9 w-full px-3 rounded-lg border text-sm font-semibold flex items-center gap-2 transition-all",
+              selectedBrandIds.length > 0
+                ? "border-monchito-purple/40 bg-monchito-purple/5 text-monchito-purple"
+                : "border-slate-200 bg-white text-slate-700 hover:border-monchito-purple/30"
+            )}
+          >
+            <span className="truncate flex-1 text-left">{brandLabel}</span>
+            <ChevronDown className={cn("h-3.5 w-3.5 transition-transform flex-shrink-0", showBrandDropdown && "rotate-180")} />
+          </button>
+
+          {/* Selected brand chips */}
+          {selectedBrandIds.length > 1 && (
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {selectedBrandNames.slice(0, 4).map((name, i) => (
+                <span key={i} className="inline-flex items-center gap-1 bg-monchito-purple/10 text-monchito-purple text-[9px] font-bold px-2 py-0.5 rounded-md">
+                  {name.length > 14 ? name.substring(0, 14) + '…' : name}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); toggleBrand(selectedBrandIds[i]); }}
+                    className="hover:text-red-500 ml-0.5"
+                  >
+                    <X className="h-2.5 w-2.5" />
+                  </button>
+                </span>
+              ))}
+              {selectedBrandNames.length > 4 && (
+                <span className="text-[9px] font-bold text-monchito-purple/60 self-center">+{selectedBrandNames.length - 4} más</span>
+              )}
+            </div>
+          )}
+
+          {showBrandDropdown && (
+            <div className="absolute top-11 left-0 z-50 bg-white rounded-xl shadow-2xl border border-slate-200/60 w-full min-w-[240px] max-h-[360px] overflow-hidden flex flex-col">
+              {/* Search */}
+              <div className="sticky top-0 bg-white p-2 border-b border-slate-100 z-10">
+                <div className="relative">
+                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Input
+                    placeholder="Buscar marca..."
+                    value={brandSearch}
+                    onChange={(e) => setBrandSearch(e.target.value)}
+                    className="h-8 pl-8 text-sm"
+                    autoFocus
+                  />
+                </div>
+              </div>
+              {/* Header actions */}
+              <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 bg-slate-50/50">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  {selectedBrandIds.length}/{brands?.length || 0} seleccionadas
+                </span>
+                <div className="flex gap-2">
+                  <button onClick={selectAllBrands} className="text-[10px] font-bold text-monchito-purple hover:underline">
+                    Todas
+                  </button>
+                  <span className="text-slate-200">|</span>
+                  <button onClick={clearBrands} className="text-[10px] font-bold text-slate-400 hover:text-red-500 hover:underline">
+                    Ninguna
+                  </button>
+                </div>
+              </div>
+              {/* Brand list */}
+              <div className="overflow-y-auto flex-1 py-1 custom-scrollbar">
+                {filteredBrands.length > 0 ? filteredBrands.map((b) => {
+                  const isSelected = selectedBrandIds.includes(b.id);
+                  return (
+                    <button
+                      key={b.id}
+                      onClick={() => toggleBrand(b.id)}
+                      className={cn(
+                        "w-full flex items-center gap-3 px-3 py-2.5 text-left text-xs font-semibold transition-all hover:bg-slate-50",
+                        isSelected ? "text-monchito-purple bg-monchito-purple/5" : "text-slate-600"
+                      )}
+                    >
+                      <div className={cn(
+                        "h-4 w-4 rounded flex items-center justify-center flex-shrink-0 border transition-all",
+                        isSelected
+                          ? "bg-monchito-purple border-monchito-purple"
+                          : "border-slate-300 bg-white"
+                      )}>
+                        {isSelected && <Check className="h-3 w-3 text-white" />}
+                      </div>
+                      <span className="truncate">{b.name}</span>
+                    </button>
+                  );
+                }) : (
+                  <div className="p-4 text-sm text-slate-400 text-center">No se encontraron marcas</div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Estado de Recuperación */}

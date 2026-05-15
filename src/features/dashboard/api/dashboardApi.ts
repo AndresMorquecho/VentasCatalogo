@@ -2,7 +2,7 @@ import type { DashboardData } from '../model/types';
 import { httpClient } from '@/shared/lib/httpClient';
 
 export interface DashboardFilters {
-    brandId?: string;
+    brandIds?: string[];
     dateFrom?: Date;
     dateTo?: Date;
 }
@@ -10,7 +10,9 @@ export interface DashboardFilters {
 export const dashboardApi = {
     getDashboardMetrics: async (filters: DashboardFilters = {}): Promise<DashboardData> => {
         const params = new URLSearchParams();
-        if (filters.brandId) params.set('brandId', filters.brandId);
+        if (filters.brandIds && filters.brandIds.length > 0) {
+            params.set('brandIds', filters.brandIds.join(','));
+        }
         if (filters.dateFrom) params.set('dateFrom', filters.dateFrom.toISOString().split('T')[0]);
         if (filters.dateTo) params.set('dateTo', filters.dateTo.toISOString().split('T')[0]);
 

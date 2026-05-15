@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
     Package,
     Clock,
@@ -12,7 +12,9 @@ import {
     Activity,
     SlidersHorizontal,
     X,
-    CalendarRange
+    CalendarRange,
+    ChevronDown,
+    Check
 } from 'lucide-react';
 import { DayPicker } from 'react-day-picker';
 import { format } from 'date-fns';
@@ -56,19 +58,45 @@ export function DashboardPage() {
     const isMobile = useIsMobile();
 
     // ── Filters state ──────────────────────────────────────────
-    const [brandId, setBrandId] = useState<string>('');
+    const [selectedBrandIds, setSelectedBrandIds] = useState<string[]>([]);
     const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
     const [showCalendar, setShowCalendar] = useState(false);
+    const [showBrandDropdown, setShowBrandDropdown] = useState(false);
+    const brandDropdownRef = useRef<HTMLDivElement>(null);
 
     const { data: brandsList } = useBrandsList();
     const { data, isLoading, isError } = useDashboard({
-        brandId: brandId || undefined,
+        brandIds: selectedBrandIds.length > 0 ? selectedBrandIds : undefined,
         dateFrom: dateRange.from,
         dateTo: dateRange.to,
     });
 
-    const hasActiveFilters = !!brandId || !!dateRange.from;
-    const clearFilters = () => { setBrandId(''); setDateRange({}); setShowCalendar(false); };
+    const hasActiveFilters = selectedBrandIds.length > 0 || !!dateRange.from;
+    const clearFilters = () => { setSelectedBrandIds([]); setDateRange({}); setShowCalendar(false); };
+
+    // Close brand dropdown on outside click
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (brandDropdownRef.current && !brandDropdownRef.current.contains(event.target as Node)) {
+                setShowBrandDropdown(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const toggleBrand = (id: string) => {
+        setSelectedBrandIds(prev =>
+            prev.includes(id) ? prev.filter(b => b !== id) : [...prev, id]
+        );
+    };
+
+    const selectedBrandNames = (brandsList || []).filter((b: any) => selectedBrandIds.includes(b.id)).map((b: any) => b.name);
+    const brandLabel = selectedBrandIds.length === 0
+        ? 'Todas las marcas'
+        : selectedBrandIds.length === 1
+            ? selectedBrandNames[0]
+            : `${selectedBrandIds.length} marcas`;
     const dateLabel = dateRange.from
         ? dateRange.to
             ? `${format(dateRange.from, 'dd/MM/yy')} – ${format(dateRange.to, 'dd/MM/yy')}`
@@ -154,17 +182,91 @@ export function DashboardPage() {
                         Filtros
                     </div>
 
-                    {/* Brand selector */}
-                    <select
-                        value={brandId}
-                        onChange={(e) => setBrandId(e.target.value)}
-                        className="h-9 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 px-3 outline-none focus:ring-2 focus:ring-monchito-purple/20 bg-white appearance-none min-w-[160px] max-w-[200px]"
-                    >
-                        <option value="">Todas las marcas</option>
-                        {brandsList?.map((b: { id: string; name: string }) => (
-                            <option key={b.id} value={b.id}>{b.name}</option>
-                        ))}
-                    </select>
+                    {/* Brand multi-select dropdown */}
+                    <div className="relative" ref={brandDropdownRef}>
+                        <button
+                            onClick={() => setShowBrandDropdown(prev => !prev)}
+                            className={cn(
+                                "h-9 px-3 rounded-xl border text-xs font-semibold flex items-center gap-2 transition-all min-w-[160px] max-w-[280px]",
+                                selectedBrandIds.length > 0
+                                    ? "border-monchito-purple/40 bg-monchito-purple/5 text-monchito-purple"
+                                    : "border-slate-200 bg-white text-slate-700 hover:border-monchito-purple/30"
+                            )}
+                        >
+                            <span className="truncate flex-1 text-left">{brandLabel}</span>
+                            <ChevronDown className={cn("h-3.5 w-3.5 transition-transform flex-shrink-0", showBrandDropdown && "rotate-180")} />
+                        </button>
+
+                        {/* Selected brand chips */}
+                        {selectedBrandIds.length > 1 && (
+                            <div className="flex flex-wrap gap-1 mt-1.5 max-w-[280px]">
+                                {selectedBrandNames.slice(0, 3).map((name: string, i: number) => (
+                                    <span key={i} className="inline-flex items-center gap-1 bg-monchito-purple/10 text-monchito-purple text-[9px] font-bold px-2 py-0.5 rounded-lg">
+                                        {name.length > 12 ? name.substring(0, 12) + '…' : name}
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); toggleBrand(selectedBrandIds[selectedBrandNames.indexOf(name)]); }}
+                                            className="hover:text-red-500 ml-0.5"
+                                        >
+                                            <X className="h-2.5 w-2.5" />
+                                        </button>
+                                    </span>
+                                ))}
+                                {selectedBrandNames.length > 3 && (
+                                    <span className="text-[9px] font-bold text-monchito-purple/60">+{selectedBrandNames.length - 3} más</span>
+                                )}
+                            </div>
+                        )}
+
+                        {showBrandDropdown && (
+                            <div className="absolute top-11 left-0 z-50 bg-white rounded-xl shadow-2xl border border-slate-200/60 min-w-[240px] max-h-[320px] overflow-hidden flex flex-col">
+                                {/* Header actions */}
+                                <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 bg-slate-50/50">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Marcas</span>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => setSelectedBrandIds((brandsList || []).map((b: any) => b.id))}
+                                            className="text-[10px] font-bold text-monchito-purple hover:underline"
+                                        >
+                                            Todas
+                                        </button>
+                                        <span className="text-slate-200">|</span>
+                                        <button
+                                            onClick={() => setSelectedBrandIds([])}
+                                            className="text-[10px] font-bold text-slate-400 hover:text-red-500 hover:underline"
+                                        >
+                                            Ninguna
+                                        </button>
+                                    </div>
+                                </div>
+                                {/* Brand list */}
+                                <div className="overflow-y-auto flex-1 py-1 custom-scrollbar">
+                                    {(brandsList || []).map((b: { id: string; name: string }) => {
+                                        const isSelected = selectedBrandIds.includes(b.id);
+                                        return (
+                                            <button
+                                                key={b.id}
+                                                onClick={() => toggleBrand(b.id)}
+                                                className={cn(
+                                                    "w-full flex items-center gap-3 px-3 py-2.5 text-left text-xs font-semibold transition-all hover:bg-slate-50",
+                                                    isSelected ? "text-monchito-purple bg-monchito-purple/5" : "text-slate-600"
+                                                )}
+                                            >
+                                                <div className={cn(
+                                                    "h-4 w-4 rounded flex items-center justify-center flex-shrink-0 border transition-all",
+                                                    isSelected
+                                                        ? "bg-monchito-purple border-monchito-purple"
+                                                        : "border-slate-300 bg-white"
+                                                )}>
+                                                    {isSelected && <Check className="h-3 w-3 text-white" />}
+                                                </div>
+                                                <span className="truncate">{b.name}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                    </div>
 
                     {/* Date range picker */}
                     <div className="relative">
