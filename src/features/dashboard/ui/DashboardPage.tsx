@@ -54,7 +54,7 @@ function getUserColor(name: string) {
 }
 
 export function DashboardPage() {
-    const [timeRange, setTimeRange] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+    const [timeRange, setTimeRange] = useState<'daily' | 'weekly' | 'monthly' | null>('daily');
     const isMobile = useIsMobile();
 
     // ── Filters state ──────────────────────────────────────────
@@ -69,10 +69,11 @@ export function DashboardPage() {
         brandIds: selectedBrandIds.length > 0 ? selectedBrandIds : undefined,
         dateFrom: dateRange.from,
         dateTo: dateRange.to,
+        period: timeRange || undefined,
     });
 
     const hasActiveFilters = selectedBrandIds.length > 0 || !!dateRange.from;
-    const clearFilters = () => { setSelectedBrandIds([]); setDateRange({}); setShowCalendar(false); };
+    const clearFilters = () => { setSelectedBrandIds([]); setDateRange({}); setShowCalendar(false); setTimeRange('daily'); };
 
     // Close brand dropdown on outside click
     useEffect(() => {
@@ -162,7 +163,10 @@ export function DashboardPage() {
                             {(['daily', 'weekly', 'monthly'] as const).map((range) => (
                                 <button
                                     key={range}
-                                    onClick={() => setTimeRange(range)}
+                                    onClick={() => {
+                                        setTimeRange(range);
+                                        setDateRange({});
+                                    }}
                                     className={cn(
                                         "px-5 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-500",
                                         timeRange === range ? "bg-monchito-purple text-white shadow-xl shadow-monchito-purple/20 ring-4 ring-monchito-purple/5" : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"
@@ -336,7 +340,10 @@ export function DashboardPage() {
                                     selected={{ from: dateRange.from, to: dateRange.to }}
                                     onSelect={(range) => {
                                         setDateRange({ from: range?.from, to: range?.to });
-                                        if (range?.from && range?.to) setShowCalendar(false);
+                                        if (range?.from && range?.to) {
+                                            setShowCalendar(false);
+                                            setTimeRange(null);
+                                        }
                                     }}
                                     locale={es}
                                     numberOfMonths={isMobile ? 1 : 2}
@@ -344,7 +351,7 @@ export function DashboardPage() {
                                 />
                                 <div className="flex justify-end gap-2 px-4 py-3 border-t border-slate-100 bg-slate-50/50">
                                     <button
-                                        onClick={() => { setDateRange({}); setShowCalendar(false); }}
+                                        onClick={() => { setDateRange({}); setShowCalendar(false); setTimeRange('daily'); }}
                                         className="text-xs font-bold text-slate-400 hover:text-slate-700 px-4 py-2 rounded-xl hover:bg-slate-100 transition-all"
                                     >
                                         Limpiar
@@ -387,13 +394,13 @@ export function DashboardPage() {
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
                         <KpiCard
-                            title="Billetera Total"
+                            title="Total Recaudo"
                             value={fmt(data?.financial.currentCash ?? 0)}
                             trend={12.5}
                             icon={<DollarSign className="h-5 w-5" />}
                             color="success"
                             sparklineData={[40, 48, 45, 55, 60, 58, 65]}
-                            description="Liquidez Inmediata"
+                            description="Recaudo en el Periodo"
                         />
                         <KpiCard
                             title="Pedidos Finalizados"
@@ -511,7 +518,8 @@ export function DashboardPage() {
                             </div>
                             <div className="flex-1 min-h-[350px] relative group flex">
                                 {(() => {
-                                    const rawData = data?.charts?.ordersTrend?.[timeRange] as OrdersTrendData[] | undefined;
+                                    const activeRange = timeRange || 'daily';
+                                    const rawData = data?.charts?.ordersTrend?.[activeRange] as OrdersTrendData[] | undefined;
                                     const trendData = rawData ?? [];
                                     if (!trendData || trendData.length === 0) {
                                         return <div className="flex items-center justify-center w-full h-full text-slate-400 font-bold text-sm italic">Sin datos disponibles para el periodo</div>;

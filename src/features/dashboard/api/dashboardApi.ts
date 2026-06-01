@@ -5,6 +5,7 @@ export interface DashboardFilters {
     brandIds?: string[];
     dateFrom?: Date;
     dateTo?: Date;
+    period?: 'daily' | 'weekly' | 'monthly';
 }
 
 export const dashboardApi = {
@@ -15,6 +16,7 @@ export const dashboardApi = {
         }
         if (filters.dateFrom) params.set('dateFrom', filters.dateFrom.toISOString().split('T')[0]);
         if (filters.dateTo) params.set('dateTo', filters.dateTo.toISOString().split('T')[0]);
+        if (filters.period) params.set('period', filters.period);
 
         const query = params.toString() ? `?${params.toString()}` : '';
         try {
