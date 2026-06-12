@@ -3,7 +3,6 @@ import { formatPdfCurrency } from '@/shared/lib/formatPdfCurrency';
 import type { Order } from '@/entities/order/model/types';
 import type { Client } from '@/entities/client/model/types';
 import {
-    getPendingAmount,
     getPaidAmount
 } from '@/entities/order/model/model';
 
@@ -242,8 +241,38 @@ export const DeliveryReceiptDocument = ({ order, orders, client, paymentInfo, de
 
                     {displayOrders.map((o, index) => {
                         const paidAmount = getPaidAmount(o);
-                        const pendingTotal = getPendingAmount(o);
                         const realInvTotal = Number(o.realInvoiceTotal || 0);
+
+                        // Calculate payments made specifically in this delivery batch
+                        let currentDeliveryAbono = 0;
+                        if (o.payments && o.payments.length > 0) {
+                            if (o.deliveryBatchId) {
+                                const batchPayments = o.payments.filter(
+                                    (p: any) => p.deliveryBatchId === o.deliveryBatchId
+                                );
+                                if (batchPayments.length > 0) {
+                                    currentDeliveryAbono = batchPayments.reduce(
+                                        (sum: number, p: any) => sum + Number(p.amount || 0),
+                                        0
+                                    );
+                                }
+                            }
+                            
+                            // Fallback: match by description keywords
+                            if (currentDeliveryAbono === 0) {
+                                const searchTerms = ["pago lote en entrega", "traspaso desde esta", "saldo recibido"];
+                                const matchedPayments = o.payments.filter((p: any) => {
+                                    const desc = (p.description || '').toLowerCase();
+                                    return searchTerms.some(term => desc.includes(term));
+                                });
+                                if (matchedPayments.length > 0) {
+                                    currentDeliveryAbono = matchedPayments.reduce(
+                                        (sum: number, p: any) => sum + Number(p.amount || 0),
+                                        0
+                                    );
+                                }
+                            }
+                        }
 
                         return (
                             <View key={o.id || index} style={[styles.tableRow, index === displayOrders.length - 1 ? { borderBottomWidth: 0 } : {}]}>
@@ -256,7 +285,7 @@ export const DeliveryReceiptDocument = ({ order, orders, client, paymentInfo, de
                                 <View style={[styles.col, { width: '9%' }]}><Text style={styles.cellText}>{formatPdfCurrency(o.total || 0)}</Text></View>
                                 <View style={[styles.col, { width: '9%' }]}><Text style={styles.cellText}>{formatPdfCurrency(realInvTotal)}</Text></View>
                                 <View style={[styles.col, { width: '9%' }]}><Text style={styles.cellText}>{formatPdfCurrency(paidAmount)}</Text></View>
-                                <View style={[styles.col, { width: '9%', borderRightWidth: 0 }]}><Text style={styles.cellText}>{formatPdfCurrency(pendingTotal)}</Text></View>
+                                <View style={[styles.col, { width: '9%', borderRightWidth: 0 }]}><Text style={styles.cellText}>{formatPdfCurrency(currentDeliveryAbono)}</Text></View>
                             </View>
                         );
                     })}

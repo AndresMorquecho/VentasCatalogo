@@ -25,6 +25,7 @@ export type OrderPayment = {
     createdAt: string;
     description?: string;
     financialRecords?: any[];
+    deliveryBatchId?: string;
 }
 
 export interface Order {
@@ -92,6 +93,7 @@ export interface Order {
     
     // Batch Relations
     receptionBatchId?: string;
+    deliveryBatchId?: string | null;
     exchangeBatchItems?: any[];
 
     /** Encabezado de recibo (p. ej. N° registro envío en cambios) */

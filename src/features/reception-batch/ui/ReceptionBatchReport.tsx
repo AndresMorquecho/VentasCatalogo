@@ -2,7 +2,7 @@ import React from 'react';
 import { Page, Text, View, Document, StyleSheet, Image } from '@react-pdf/renderer';
 import { formatPdfCurrency } from '@/shared/lib/formatPdfCurrency';
 import type { Order } from '@/entities/order/model/types';
-import { getPaidAmount, getPendingAmount, getEffectiveTotal } from '@/entities/order/model/model';
+import { getPaidAmount, getPendingAmount, getEffectiveTotal, hasClientCredit, getClientCreditAmount } from '@/entities/order/model/model';
 
 const styles = StyleSheet.create({
     page: {
@@ -179,8 +179,15 @@ export const ReceptionBatchReport: React.FC<Props> = ({ orders, packingNumber, p
                             <Text style={[styles.tableCell, styles.colTotal]}>
                                 {formatPdfCurrency(getEffectiveTotal(o))}
                             </Text>
-                            <Text style={[styles.tableCell, styles.colSaldo, styles.tableCellLast]}>
-                                {formatPdfCurrency(getPendingAmount(o))}
+                            <Text style={[
+                                styles.tableCell, 
+                                styles.colSaldo, 
+                                styles.tableCellLast, 
+                                hasClientCredit(o) ? { color: '#059669', fontWeight: 'bold' } : {}
+                            ]}>
+                                {hasClientCredit(o) 
+                                    ? `Favor: ${formatPdfCurrency(getClientCreditAmount(o))}` 
+                                    : formatPdfCurrency(getPendingAmount(o))}
                             </Text>
                         </View>
                     ))}

@@ -1,7 +1,7 @@
 import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
 import { formatPdfCurrency } from '@/shared/lib/formatPdfCurrency';
 import type { Order } from '@/entities/order/model/types';
-import { getPaidAmount, getPendingAmount } from '@/entities/order/model/model';
+import { getPaidAmount, getPendingAmount, hasClientCredit, getClientCreditAmount } from '@/entities/order/model/model';
 import type { Client } from '@/entities/client/model/types';
 
 /** Máximo de etiquetas por hoja (evitar desbordes; ajustar si hace falta) */
@@ -224,8 +224,14 @@ function LabelCard({
                             {formatPdfCurrency(effectiveTotal)}
                         </Text>
                         <Text style={[styles.tableDataCell, { width: '17%' }]}>{formatPdfCurrency(paid)}</Text>
-                        <Text style={[styles.tableDataCell, { width: '17%', borderRightWidth: 0 }]}>
-                            {formatPdfCurrency(pendingAmount)}
+                        <Text style={[
+                            styles.tableDataCell, 
+                            { width: '17%', borderRightWidth: 0 },
+                            hasClientCredit(order) ? { color: '#059669', fontWeight: 'bold', fontSize: 5.5 } : {}
+                        ]}>
+                            {hasClientCredit(order)
+                                ? `Favor: ${formatPdfCurrency(getClientCreditAmount(order))}`
+                                : formatPdfCurrency(pendingAmount)}
                         </Text>
                     </View>
                 </View>
