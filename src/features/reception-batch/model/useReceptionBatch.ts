@@ -4,9 +4,11 @@ import { orderApi } from '@/entities/order/model/api';
 import { clientApi } from '@/shared/api/clientApi';
 import type { Order } from '@/entities/order/model/types';
 import { useToast } from '@/shared/ui/use-toast';
+import { useAuth } from '@/shared/auth';
 
 export const useReceptionBatch = () => {
     const { showToast } = useToast();
+    const { user } = useAuth();
     const queryClient = useQueryClient();
     const [selectedOrders, setSelectedOrders] = useState<Order[]>([]);
     const [packingNumber, setPackingNumber] = useState('');
@@ -161,7 +163,7 @@ export const useReceptionBatch = () => {
                 packingNumber,
                 packingTotal,
                 id: data.batchId || data.id, // Use batchId from response if available
-                receivedByName: localStorage.getItem('user_name') || 'Admin'
+                receivedByName: user?.username || 'Admin'
             });
 
             setSelectedOrders([]);

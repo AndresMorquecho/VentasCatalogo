@@ -11,6 +11,7 @@ import type { Client } from "@/entities/client/model/types"
 import { PDFPreviewModal } from "@/shared/ui/PDFPreviewModal"
 import { useNotifications } from "@/shared/lib/notifications"
 import { getPaidAmount } from "@/entities/order/model/model"
+import { useAuth } from "@/shared/auth"
 
 interface Props {
     isOpen: boolean
@@ -25,6 +26,7 @@ interface Props {
 }
 
 export function BatchPrintModal({ isOpen, onClose, orders, batchDetails }: Props) {
+    const { user } = useAuth()
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
     const [isGenerating, setIsGenerating] = useState(false)
     const [isGeneratingReport, setIsGeneratingReport] = useState(false)
@@ -105,7 +107,7 @@ export function BatchPrintModal({ isOpen, onClose, orders, batchDetails }: Props
             const doc = <OrderLabelsDocument 
                 orders={selectedOrders} 
                 clientsMap={freshClientsMap}
-                user={{ name: batchDetails?.receivedByName || localStorage.getItem('user_name') || 'Admin' }}
+                user={{ name: batchDetails?.receivedByName || user?.username || 'Admin' }}
                 packingNumber={batchDetails?.packingNumber}
             />;
 
@@ -130,7 +132,7 @@ export function BatchPrintModal({ isOpen, onClose, orders, batchDetails }: Props
                 orders={orders} 
                 packingNumber={batchDetails?.packingNumber || ''}
                 packingTotal={batchDetails?.packingTotal || 0}
-                userName={batchDetails?.receivedByName || localStorage.getItem('user_name') || 'Admin'}
+                userName={batchDetails?.receivedByName || user?.username || 'Admin'}
                 batchId={batchDetails?.id}
             />;
 
