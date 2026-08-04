@@ -56,7 +56,7 @@ export function RejectedRechargesBanner() {
 
             {/* List */}
             <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm min-w-[750px] whitespace-nowrap">
                     <thead>
                         <tr className="text-[10px] font-black text-red-700 uppercase tracking-wider border-b border-red-200">
                             <th className="px-4 py-2 text-left">Fecha</th>

@@ -74,10 +74,15 @@ export const useInventory = (params?: {
     }, [movements]);
 
     // 3️⃣ Dashboard Counters (Prefer API stats if available, otherwise fallback to local)
+    const todayEcuador = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Guayaquil' });
     const stats = response && !Array.isArray(response) && response.stats ? response.stats : {
         pending: inventoryData.filter(i => i.status === 'POR_RECIBIR' || i.status === 'PENDING').length,
         inWarehouse: inventoryData.filter(i => i.status === 'ENTRY').length,
-        deliveredToday: inventoryData.filter(i => i.status === 'DELIVERED' && new Date(i.createdAt).toDateString() === new Date().toDateString()).length,
+        deliveredToday: inventoryData.filter(i => i.status === 'DELIVERED' && (
+            i.deliveryDate 
+                ? new Date(i.deliveryDate).toLocaleDateString('en-CA', { timeZone: 'America/Guayaquil' }) === todayEcuador
+                : new Date(i.createdAt).toLocaleDateString('en-CA', { timeZone: 'America/Guayaquil' }) === todayEcuador
+        )).length,
         longStorage: inventoryData.filter(i => i.daysInWarehouse > 10 && (i.status === 'ENTRY')).length,
     };
  

@@ -47,7 +47,7 @@ export function WalletHistoryModal({ isOpen, onClose, clientId, clientName }: Pr
               <p className="text-lg font-medium">No hay movimientos registrados</p>
             </div>
           ) : (
-            <Table>
+            <Table className="min-w-[750px] whitespace-nowrap">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[80px]">Tipo</TableHead>

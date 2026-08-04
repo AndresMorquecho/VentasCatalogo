@@ -144,6 +144,10 @@ export const useReceptionBatch = () => {
             queryClient.invalidateQueries({ queryKey: ['orders-pending-reception'] });
             queryClient.invalidateQueries({ queryKey: ['reception-batches'] });
             
+            // Extract exact assigned packing number and ID from backend response
+            const realPackingNumber = data?.packingNumber || data?.batch?.packingNumber || packingNumber;
+            const realBatchId = data?.batchId || data?.id || data?.batch?.id;
+
             if (!editingBatchId) {
                 orderApi.generatePackingNumber().then(res => {
                     setPackingNumber(res.packingNumber);
@@ -160,9 +164,9 @@ export const useReceptionBatch = () => {
             const orders = data.orders || data;
             setLastSavedOrders(Array.isArray(orders) ? orders : null);
             setLastSavedBatch({
-                packingNumber,
+                packingNumber: realPackingNumber,
                 packingTotal,
-                id: data.batchId || data.id, // Use batchId from response if available
+                id: realBatchId,
                 receivedByName: user?.username || 'Admin'
             });
 

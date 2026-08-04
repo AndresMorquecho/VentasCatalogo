@@ -75,8 +75,8 @@ export function WalletHistory() {
                 </div>
             </div>
 
-            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-                <table className="w-full text-sm">
+            <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto shadow-sm">
+                <table className="w-full text-sm min-w-[700px] whitespace-nowrap">
                     <thead>
                         <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-black text-slate-400 uppercase tracking-wider">
                             <th className="px-4 py-3 text-left">Fecha</th>

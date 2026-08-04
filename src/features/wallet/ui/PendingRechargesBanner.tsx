@@ -42,7 +42,7 @@ export function PendingRechargesBanner() {
 
             {/* Table */}
             <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm min-w-[700px] whitespace-nowrap">
                     <thead>
                         <tr className="text-[10px] font-black text-amber-700 uppercase tracking-wider border-b border-amber-200">
                             <th className="px-4 py-2 text-left">Fecha</th>

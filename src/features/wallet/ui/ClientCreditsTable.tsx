@@ -28,7 +28,7 @@ export function ClientCreditsTable({ credits }: Props) {
     return (
         <>
             <div className="overflow-x-auto">
-                <Table>
+                <Table className="min-w-[800px] whitespace-nowrap">
                     <TableHeader>
                         <TableRow>
                             <TableHead className="w-[50px]">#</TableHead>

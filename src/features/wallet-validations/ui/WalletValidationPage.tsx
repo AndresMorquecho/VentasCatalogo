@@ -168,7 +168,7 @@ export function WalletValidationPage() {
 
             <div className="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
                 <div className="overflow-x-auto">
-                    <table className="w-full border-collapse">
+                    <table className="w-full border-collapse min-w-[850px] whitespace-nowrap">
                         <thead className="bg-slate-50/50 border-b border-slate-100">
                             <tr className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">
                                 <th className="px-6 py-4 text-left w-12">
